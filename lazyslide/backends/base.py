@@ -1,4 +1,8 @@
 from dataclasses import dataclass, field
+from typing import Dict
+
+import numpy as np
+from skimage.transform import resize
 
 
 class BackendBase:
@@ -14,8 +18,21 @@ class BackendBase:
     def get_metadata(self):
         raise NotImplemented
 
+    @staticmethod
+    def resize_img(img: np.ndarray,
+                   output_shape,
+                   ):
+        return resize(
+            img,
+            output_shape,
+        )
+
 
 @dataclass
 class WSIMetaData:
     file_id: str
     mpp: field(None)
+    image_shape: Dict
+
+    def get_image_shape(self):
+        pass
