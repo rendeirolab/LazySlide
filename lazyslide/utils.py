@@ -1,8 +1,8 @@
-from lazyslide.backends.base import BackendBase
-from lazyslide.backends.vips import VipsBackend
+from lazyslide.readers.base import ReaderBase
+from lazyslide.readers.vips import VipsReader
 
 
-def get_backend() -> BackendBase:
+def get_backend() -> ReaderBase:
     """Return an available backend"""
     pyvips_avail = False
     cucim_avail = False
@@ -15,5 +15,5 @@ def get_backend() -> BackendBase:
         pass
 
     if pyvips_avail:
-        return VipsBackend
+        return VipsReader
 
