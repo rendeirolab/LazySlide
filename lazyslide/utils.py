@@ -2,7 +2,7 @@ from lazyslide.readers.base import ReaderBase
 from lazyslide.readers.vips import VipsReader
 
 
-def get_backend() -> ReaderBase:
+def get_reader() -> ReaderBase:
     """Return an available backend"""
     pyvips_avail = False
     cucim_avail = False
@@ -17,3 +17,5 @@ def get_backend() -> ReaderBase:
     if pyvips_avail:
         return VipsReader
 
+    else:
+        raise RuntimeError("Cannot find a suitable image reader")

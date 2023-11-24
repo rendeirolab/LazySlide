@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import List
+from pathlib import Path
+from typing import List, Union
 
 import cv2
 import numpy as np
@@ -22,10 +23,12 @@ class WSIMetaData:
 class ReaderBase:
     metadata: WSIMetaData
 
+    def __init__(self, file: Union[Path, str]):
+        self.file = Path(file)
+
     def get_patch(self, x, y, width, height, level=0, **kwargs):
         """Get a patch from image with top-left corner"""
-
-        raise NotImplemented
+        raise NotImplementedError
 
     def get_center(self, x, y, width, height, level=0, **kwargs):
         """Get a patch from image with center"""
@@ -33,8 +36,12 @@ class ReaderBase:
         y -= height / 2
         return self.get_patch(x, y, width, height, level=level, **kwargs)
 
+    def get_level(self, level):
+        """Get the image level in numpy array"""
+        raise NotImplementedError
+
     def get_metadata(self):
-        raise NotImplemented
+        raise NotImplementedError
 
     @staticmethod
     def resize_img(img: np.ndarray,
@@ -100,4 +107,3 @@ class ReaderBase:
             return
         use_downsample = avail_downsample[np.argmin(np.abs(avail_downsample - factor))]
         return np.where(level_downsample == use_downsample)[0][0]
-

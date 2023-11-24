@@ -1,14 +1,65 @@
-from typing import Iterable
+from __future__ import annotations
+
 from numbers import Integral
+from pathlib import Path
+from typing import Iterable
+
+import numpy as np
+
+from lazyslide.cv_mods import TissueDetectionHE
+from lazyslide.readers.base import ReaderBase
+from lazyslide.utils import get_reader
 
 
 class WSI:
 
-    def __int__(self, img):
-        self.img = img
+    def __int__(self,
+                image: Path | str,
+                h5_file: Path | str = None
+                ):
+        self.image = Path(image)
+
+        if h5_file is None:
+            h5_file = self.image.with_suffix(".coords.h5")
+
+        self.h5_file = h5_file
+        reader = get_reader()
+        self.reader: ReaderBase = reader(self.image)
+        self.n_level
+
+    def __repr__(self):
+        return (f"WSI(image={self.image}, "
+                f"h5_file={self.h5_file})")
+
+    def apply(self, transform, level=-1) -> np.ndarray:
+        pass
+
+    def segment_tissue(self, level=-1, **kwargs) -> np.ndarray:
+        if level == -1:
+            level = self.reader.metadata.n_level
+
+        self.reader.get_level(level)
+        TissueDetectionHE(**kwargs)
+
+    def extract_tiles(self, tile_px, tile_um, tolerance_um=.05):
+        """
+
+        Parameters
+        ----------
+        tile_px
+        tile_um
+        tolerance_um : If the MPP is not very different from the
+            actually one, we can tolerate this so resize operation
+            for every tile is not needed.
+
+        Returns
+        -------
+
+        """
+        pass
 
     @staticmethod
-    def img_tile_coordinates(image_shape, tile_px=3000, stride=None, pad=False):
+    def img_tile_coordinates(image_shape, tile_px=256, stride=None, pad=False):
         """
         Calculate tile coordinates.
 

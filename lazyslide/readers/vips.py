@@ -1,6 +1,7 @@
-from typing import Union
 from pathlib import Path
+from typing import Union
 
+import cv2
 import numpy as np
 
 from .base import ReaderBase, WSIMetaData
@@ -40,7 +41,7 @@ class VipsReader(ReaderBase):
                  file: Union[Path, str],
                  ):
 
-        self.file = Path(file)
+        super().__init__(file)
         self.file_name = file.name
         self.__level_vips_handler = {}
         self._vips_img = self._get_vips_level(0)
@@ -58,8 +59,14 @@ class VipsReader(ReaderBase):
         patch = self._get_vips_patch(img, x, y, width, height, fill=fill)
         if downsample is not None:
             if downsample != 1:
-                patch = patch.resize(1/downsample)
-        return vips2numpy(patch)
+                patch = patch.resize(1 / downsample)
+        img_arr = vips2numpy(patch)
+        return cv2.cvtColor(img_arr, cv2.COLOR_RGBA2RGB).astype(np.uint8)
+
+    def get_level(self, level):
+        img = self._get_vips_level(level)
+        img_arr = vips2numpy(img)
+        return cv2.cvtColor(img_arr, cv2.COLOR_RGBA2RGB).astype(np.uint8)
 
     def _get_vips_level(self, level=0):
         """Lazy load and load only one for all image level"""
@@ -67,12 +74,15 @@ class VipsReader(ReaderBase):
         if handler is not None:
             return handler
         else:
-            self.__level_vips_handler[level] = vips.Image.new_from_file(str(self.file), fail=True, level=level)
+            self.__level_vips_handler[level] = vips.Image.new_from_file(
+                str(self.file), fail=True, level=level)
 
     @staticmethod
     def _get_vips_patch(image, x, y, width, height, fill="black"):
         bg = [255] if fill == "black" else [0]
-        crop_x, crop_y, crop_w, crop_h, pos = get_crop_xy_wh(image.width, image.height, x, y, width, height)
+        crop_x, crop_y, crop_w, crop_h, pos = \
+            get_crop_xy_wh(image.width, image.height,
+                           x, y, width, height)
         cropped = image.crop(crop_x, crop_y, crop_w, crop_h)
         if pos is None:
             return cropped

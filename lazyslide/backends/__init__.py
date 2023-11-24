@@ -1,1 +1,0 @@
-from .vips import VipsBackend
