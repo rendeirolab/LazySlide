@@ -7,11 +7,12 @@ from .base import Transform
 
 class ConvertColorspace(Transform):
 
-    def __init__(self, old, new, code=None):
-        self.old = old.upper()
-        self.new = new.upper()
+    def __init__(self, code=None, old=None, new=None, ):
         if code is None:
-            code = getattr(cv2, f"{self.old}2{self.new}")
+            self.old = old.upper()
+            self.new = new.upper()
+            if code is None:
+                code = getattr(cv2, f"{self.old}2{self.new}")
         self.code = code
 
     def apply(self, image):

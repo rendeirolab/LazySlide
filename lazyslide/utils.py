@@ -1,5 +1,7 @@
-from lazyslide.readers.base import ReaderBase
-from lazyslide.readers.vips import VipsReader
+from dataclasses import dataclass, field
+
+from .readers.base import ReaderBase
+from .readers.vips import VipsReader
 
 
 def get_reader() -> ReaderBase:
@@ -19,3 +21,15 @@ def get_reader() -> ReaderBase:
 
     else:
         raise RuntimeError("Cannot find a suitable image reader")
+
+
+@dataclass
+class TileOps:
+    level: int
+    downsample: float
+    mpp: float = field(default=None)
+    height: int = field(default=None)
+    width: int = field(default=None)
+    ops_height: int = field(default=None)
+    ops_width: int = field(default=None)
+    mask_name: str = field(default=None)

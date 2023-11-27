@@ -1,128 +1,250 @@
 from __future__ import annotations
 
+import warnings
 from numbers import Integral
 from pathlib import Path
 from typing import Iterable
+from dataclasses import dataclass, field, asdict
 
 import numpy as np
+from numba import njit
 
-from lazyslide.cv_mods import TissueDetectionHE
-from lazyslide.readers.base import ReaderBase
-from lazyslide.utils import get_reader
+from .h5 import H5File
+from .cv_mods import TissueDetectionHE
+from .readers.base import ReaderBase
+from .utils import get_reader, TileOps
+
+
+@njit
+def create_tiles_coords(image_shape, tile_h, tile_w,
+                        stride_h, stride_w, pad=True):
+    """Create the tiles, return only coordination
+
+    Padding works as follows:
+    If ``pad is False``, then the first tile will start flush with the edge of the image, and the tile locations
+    will increment according to specified stride, stopping with the last tile that is fully contained in the image.
+    If ``pad is True``, then the first tile will start flush with the edge of the image, and the tile locations
+    will increment according to specified stride, stopping with the last tile which starts in the image. Regions
+    outside the image will be padded with 0.
+    For example, for a 5x5 image with a tile size of 3 and a stride of 2, tile generation with ``pad=False`` will
+    create 4 tiles total, compared to 6 tiles if ``pad=True``.
+
+    Parameters
+    ----------
+    image_shape : (int, int), The shape of the image
+    tile_h : int, The height of tile
+    tile_w : int, The width of tile
+    stride_h : int, The height of stride when move to next tile
+    stride_w : int, The width of stride when move to next tile
+    pad : bool, If ``True``, these edge tiles will be zero-padded
+                and yielded with the other chunks.
+                If ``False``, incomplete edge chunks will be ignored.
+                Defaults to ``False``.
+
+    Returns
+    -------
+
+    """
+    height, width = image_shape
+    if stride_h is None:
+        stride_h = tile_h
+    if stride_w is None:
+        stride_w = tile_w
+
+    # calculate number of expected tiles
+    if pad and height % stride_h != 0:
+        n_tiles_height = height // stride_h + 1
+    else:
+        n_tiles_height = (height - tile_h) // stride_h + 1
+    if pad and width % stride_w != 0:
+        n_tiles_width = width // stride_w + 1
+    else:
+        n_tiles_width = (width - tile_w) // stride_w + 1
+    coordinates = list()
+    for ix_height in range(n_tiles_height):
+        for ix_width in range(n_tiles_width):
+            coords = (int(ix_height * stride_h), int(ix_width * stride_w))
+            coordinates.append(coords)
+
+    return np.array(coordinates)
+
+
+@njit
+def filter_tiles(mask, tiles_coords,
+                 tile_h, tile_w, filter_bg=.8):
+    """
+
+    Parameters
+    ----------
+    mask
+    tiles_coords
+    tile_h
+    tile_w
+    filter_bg
+
+    Returns
+    -------
+
+    """
+    filter_coords = []
+    tile_size = tile_h * tile_w
+    for x, y in tiles_coords:
+        bg_ratio = np.sum(mask[x:x + tile_w, y:y + tile_h] == 0) / tile_size
+        if bg_ratio < filter_bg:
+            filter_coords.append((x, y))
+    return np.array(filter_coords)
 
 
 class WSI:
 
-    def __int__(self,
-                image: Path | str,
-                h5_file: Path | str = None
-                ):
+    def __init__(self,
+                 image: Path | str,
+                 h5_file: Path | str = None,
+                 save_mask=True,
+                 ):
         self.image = Path(image)
 
         if h5_file is None:
             h5_file = self.image.with_suffix(".coords.h5")
 
-        self.h5_file = h5_file
+        self.h5_file = H5File(h5_file)
         reader = get_reader()
         self.reader: ReaderBase = reader(self.image)
-        self.n_level
+        self.metadata = self.reader.metadata
+        self.mask = {}
+        self._total_tiles = 0
+        self.tiles_coords = None
+        self.tile_ops = None
 
     def __repr__(self):
         return (f"WSI(image={self.image}, "
                 f"h5_file={self.h5_file})")
 
-    def apply(self, transform, level=-1) -> np.ndarray:
-        pass
+    def create_mask(self, transform, name="user", level=0):
+        image = self.reader.get_level(level)
+        self.mask[name] = transform.apply(image)
 
-    def segment_tissue(self, level=-1, **kwargs) -> np.ndarray:
-        if level == -1:
-            level = self.reader.metadata.n_level
+    def create_tissue_mask(self, name="tissue", level=0, **kwargs):
+        image = self.reader.get_level(level)
+        self.mask[name] = TissueDetectionHE(**kwargs).apply(image)
 
-        self.reader.get_level(level)
-        TissueDetectionHE(**kwargs)
-
-    def extract_tiles(self, tile_px, tile_um, tolerance_um=.05):
+    def create_tiles(self, tile_px,
+                     stride_px=None,
+                     pad=True,
+                     mpp=None,
+                     mask_name="tissue",
+                     background_fraction=.8,
+                     errors="ignore"):
         """
 
         Parameters
         ----------
-        tile_px
-        tile_um
-        tolerance_um : If the MPP is not very different from the
-            actually one, we can tolerate this so resize operation
-            for every tile is not needed.
+        tile_px : int or (int, int), Size of tile, either an integer or a tuple in (Height, Width)
+        stride_px : int or (int, int), Size of stride between each tile,
+                        either an integer or a tuple in (Height, Width).
+                        If not specific, this will be the same as tile_px,
+                        no overlapping between tiles.
+        pad : bool,
+        mpp : float, micron-per-pixel, most cases, 40X is 0.25 MPP, 20X is 0.5 MPP
+                    by default will extract from the level 0.
+        mask_name : str, which mask to use to filter tiles.
+        background_fraction : float, If a tile contain this much background, it will be
+                                    filter out.
+        errors : {'ignore', 'raise'}, if mpp is not exist, raise error or ignore it.
 
         Returns
         -------
 
         """
-        pass
-
-    @staticmethod
-    def img_tile_coordinates(image_shape, tile_px=256, stride=None, pad=False):
-        """
-        Calculate tile coordinates.
-
-        Padding works as follows:
-        If ``pad is False``, then the first tile will start flush with the edge of the image, and the tile locations
-        will increment according to specified stride, stopping with the last tile that is fully contained in the image.
-        If ``pad is True``, then the first tile will start flush with the edge of the image, and the tile locations
-        will increment according to specified stride, stopping with the last tile which starts in the image. Regions
-        outside the image will be padded with 0.
-        For example, for a 5x5 image with a tile size of 3 and a stride of 2, tile generation with ``pad=False`` will
-        create 4 tiles total, compared to 6 tiles if ``pad=True``.
-
-        Args:
-            image_shape (tuple(int, int)) : The shape of the image in (height, width), like numpy array
-            tile_px (int or tuple(int)): Size of each tile. Maybe a tuple of (height, width) or a single integer,
-                in which case square tiles of that size are generated.
-            stride (int): stride between chunks. If ``None``, uses ``stride = size`` for non-overlapping chunks.
-                Defaults to ``None``.
-            pad (bool): How to handle tiles on the edges. If ``True``, these edge tiles will be zero-padded
-                and yielded with the other chunks. If ``False``, incomplete edge chunks will be ignored.
-                Defaults to ``False``.
-
-        Return:
-            Tile coordinates in a list
-
-        """
-
         if isinstance(tile_px, Integral):
-            tile_px = (tile_px, tile_px)
+            tile_h, tile_w = (tile_px, tile_px)
         elif isinstance(tile_px, Iterable):
-            tile_px = (tile_px[0], tile_px[1])
+            tile_h, tile_w = (tile_px[0], tile_px[1])
         else:
             raise TypeError(f"input tile_px {tile_px} invalid. "
                             f"Either (H, W), or a single integer for square tiles.")
 
-        if stride is None:
-            stride = tile_px
-        elif isinstance(stride, Integral):
-            stride = (stride, stride)
-        elif isinstance(stride, Iterable):
-            stride = (stride[0], stride[1])
+        if stride_px is None:
+            stride_h, stride_w = tile_h, tile_w
+        elif isinstance(stride_px, Integral):
+            stride_h, stride_w = (stride_px, stride_px)
+        elif isinstance(stride_px, Iterable):
+            stride_h, stride_w = (stride_px[0], stride_px[1])
         else:
-            raise TypeError(f"input stride {tile_px} invalid. "
+            raise TypeError(f"input stride {stride_px} invalid. "
                             f"Either (H, W), or a single integer.")
 
-        height, width = image_shape
+        mask = self.mask.get(mask_name)
+        if mask is None:
+            raise NameError(f"Mask with name '{mask_name}' does not exist, "
+                            f"use .create_tissue_mask() or .create_mask() to create mask.")
 
-        stride_height, stride_width = stride
+        ops_level = 0
+        downsample = 1
+        run_downsample = False
+        if mpp is not None:
+            if self.metadata.mpp is not None:
+                downsample = mpp / self.metadata.mpp
+                if downsample < 1:
+                    raise ValueError(f"Cannot perform resize operation "
+                                     f"with reqeust mpp={mpp} on image"
+                                     f"mpp={self.metadata.mpp}, this will"
+                                     f"require up-scaling of image.")
+                if downsample in self.metadata.level_downsample:
+                    ops_level = self.metadata.level_downsample.index(downsample)
+                else:
+                    run_downsample = True
+            else:
+                msg = f"{self.image} does not contain MPP."
+                if errors:
+                    raise ValueError(msg)
+                else:
+                    warnings.warn(msg)
 
-        # calculate number of expected tiles
-        if pad and height % stride_height != 0:
-            n_tiles_height = height // stride_height + 1
+        if run_downsample:
+            ops_tile_h = int(tile_h * downsample)
+            ops_tile_w = int(tile_w * downsample)
+            ops_stride_h = int(stride_h * downsample)
+            ops_stride_w = int(stride_w * downsample)
         else:
-            n_tiles_height = (height - tile_px[0]) // stride_height + 1
-        if pad and width % stride_width != 0:
-            n_tiles_width = width // stride_width + 1
+            ops_tile_h, ops_tile_w = tile_h, tile_w
+            ops_stride_h, ops_stride_w = stride_h, stride_w
+
+        # Get image in numpy array
+        image_arr = self.reader.get_level(ops_level)
+        # Generate coords
+        image_shape = image_arr.shape[0:2]
+
+        tiles_coords = create_tiles_coords(
+            image_shape, ops_tile_h, ops_tile_w,
+            ops_stride_h, ops_stride_w, pad=pad)
+        self._total_tiles = len(tiles_coords)
+        # Filter coords based on mask
+        self.tiles_coords = filter_tiles(
+            mask, tiles_coords, ops_tile_h, ops_tile_w,
+            filter_bg=background_fraction)
+        self.tile_ops = TileOps(level=ops_level,
+                                mpp=mpp,
+                                downsample=downsample,
+                                height=tile_w, width=tile_h,
+                                ops_height=ops_tile_h,
+                                ops_width=ops_tile_w,
+                                mask_name=mask_name
+                                )
+        self.h5_file.set_coords(self.tiles_coords)
+        self.h5_file.set_tile_ops(self.tile_ops)
+
+    def report(self):
+        if self.tile_ops is not None:
+            return (f"Generate tile with mpp={self.tile_ops.mpp} "
+                    f"on mask={self.tile_ops.mask_name}.\n"
+                    f"Tile in px (H, W): {self.tile_ops.height}, {self.tile_ops.width}.\n"
+                    f"Resize: {self.tile_ops.downsample != 1}")
         else:
-            n_tiles_width = (width - tile_px[1]) // stride_width + 1
+            return None
 
-        coordinates = list()
-        for ix_height in range(n_tiles_height):
-            for ix_width in range(n_tiles_width):
-                coords = (int(ix_height * stride_height), int(ix_width * stride_width))
-                coordinates.append(coords)
+    def plot_tiles(self, background="tissue"):
+        pass
 
-        return coordinates
+    def to_dataloader(self):
+        pass

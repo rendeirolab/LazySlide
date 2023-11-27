@@ -42,8 +42,9 @@ class VipsReader(ReaderBase):
                  ):
 
         super().__init__(file)
-        self.file_name = file.name
-        self.__level_vips_handler = {}
+        self.file_name = self.file.name
+        self.__level_vips_handler = {}  # cache level handler
+        self._image_array_level = {}  # cache level image in numpy array
         self._vips_img = self._get_vips_level(0)
         self._vips_fields = set(self._vips_img.get_fields())
         self.metadata = self.get_metadata()
@@ -64,18 +65,22 @@ class VipsReader(ReaderBase):
         return cv2.cvtColor(img_arr, cv2.COLOR_RGBA2RGB).astype(np.uint8)
 
     def get_level(self, level):
-        img = self._get_vips_level(level)
-        img_arr = vips2numpy(img)
-        return cv2.cvtColor(img_arr, cv2.COLOR_RGBA2RGB).astype(np.uint8)
+        img_arr = self._image_array_level.get(level)
+        if img_arr is None:
+            img = self._get_vips_level(level)
+            img_arr = vips2numpy(img)
+            img_arr = cv2.cvtColor(img_arr, cv2.COLOR_RGBA2RGB).astype(np.uint8)
+            self._image_array_level[level] = img_arr
+        return img_arr
 
     def _get_vips_level(self, level=0):
         """Lazy load and load only one for all image level"""
         handler = self.__level_vips_handler.get(level)
-        if handler is not None:
-            return handler
-        else:
-            self.__level_vips_handler[level] = vips.Image.new_from_file(
+        if handler is None:
+            handler = vips.Image.new_from_file(
                 str(self.file), fail=True, level=level)
+            self.__level_vips_handler[level] = handler
+        return handler
 
     @staticmethod
     def _get_vips_patch(image, x, y, width, height, fill="black"):
@@ -108,7 +113,7 @@ class VipsReader(ReaderBase):
                 mpp_keys.append(k)
         mpp = None
         for k in mpp_keys:
-            mpp_tmp = self._get_vips_field(k)
+            mpp_tmp = float(self._get_vips_field(k))
             if mpp_tmp is not None:
                 # TODO: Better way to handle this?
                 # Current work for 80X
@@ -118,14 +123,14 @@ class VipsReader(ReaderBase):
         # search magnification
         mag = self._get_vips_field("openslide.objective-power")
         # TODO: Do we need to handle when level-count is 0?
-        n_level = self._get_vips_field("openslide.level-count")
+        n_level = int(self._get_vips_field("openslide.level-count"))
 
         level_shape = []
         level_downsample = []
         for level in range(n_level):
             height_key = f"openslide.level[{level}].height"
             width_key = f"openslide.level[{level}].width"
-            downsample_key = f"openslide.level{level}.downsample"
+            downsample_key = f"openslide.level[{level}].downsample"
 
             height = self._get_vips_field(height_key)
             width = self._get_vips_field(width_key)

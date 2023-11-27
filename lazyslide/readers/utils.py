@@ -1,6 +1,8 @@
 import numpy as np
+from numba import njit
 
 
+@njit
 def get_crop_xy_wh(img_width, img_height, x, y, width, height):
     x1_in = 0 <= x <= img_width
     y1_in = 0 <= y <= img_height
@@ -12,7 +14,7 @@ def get_crop_xy_wh(img_width, img_height, x, y, width, height):
     if (x1_out and x2_out) or (y1_out and y2_out):
         raise RuntimeError("Extracting region that are completely outside image.")
 
-    if np.sum([x1_in, y1_in, x2_in, y2_in]) == 4:
+    if np.all(np.array([x1_in, y1_in, x2_in, y2_in])):
         return x, y, width, height, None
     elif x1_out and x2_in and y1_out and y2_in:
         crop_x, crop_y = 0, 0
