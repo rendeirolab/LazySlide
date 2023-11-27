@@ -1,8 +1,8 @@
-import numpy as np
 import openslide
+from .base import ReaderBase
 
 
-class OpenSlideBackend(SlideBackend):
+class OpenSlideBackend(ReaderBase):
     """
     Use OpenSlide to interface with image files.
 
