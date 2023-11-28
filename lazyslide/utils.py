@@ -14,7 +14,7 @@ def get_reader(reader="auto") -> Type[ReaderBase]:
     try:
         import pyvips as vips
         pyvips_avail = True
-    except (ModuleNotFoundError, OSError) as e:
+    except (ModuleNotFoundError, OSError) as _:
         pass
 
     if pyvips_avail:

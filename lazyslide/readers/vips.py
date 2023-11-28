@@ -9,7 +9,7 @@ from .utils import get_crop_left_top_width_height
 
 try:
     import pyvips as vips
-except Exception as e:
+except Exception as _:
     pass
 
 VIPS_FORMAT_TO_DTYPE = {
