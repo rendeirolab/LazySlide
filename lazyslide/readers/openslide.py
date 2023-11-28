@@ -1,4 +1,8 @@
+from pathlib import Path
+
 import openslide
+import numpy as np
+
 from .base import ReaderBase
 
 
@@ -13,160 +17,85 @@ class OpenSlideBackend(ReaderBase):
     """
 
     def __init__(self, filename):
-        self.filename = filename
-        self.slide = openslide.open_slide(filename=filename)
-        self.level_count = self.slide.level_count
+        self.filename = self.filename
+        # self.slide = openslide.open_slide(filename=filename)
+        # self.level_count = self.slide.level_count
+        self.__level_openslide_handler = {}  # cache level handler
+        self._image_array_level = {}  # cache level image in numpy array
+        self._openslide_img = 
+        self._openslide_fields =
+        self.metadata = self.get_metadata()
 
     def __repr__(self):
         return f"OpenSlideBackend('{self.filename}')"
 
-    def extract_region(self, location, size, level=None):
-        """
-        Extract a region of the image
-
-        Args:
-            location (Tuple[int, int]): Location of top-left corner of tile (i, j)
-            size (Union[int, Tuple[int, int]]): Size of each tile. May be a tuple of (height, width) or a
-                single integer, in which case square tiles of that size are generated.
-            level (int): level from which to extract chunks. Level 0 is highest resolution.
-
-        Returns:
-            np.ndarray: image at the specified region
-        """
-        # verify args
-        if isinstance(size, int):
-            size = (size, size)
-        else:
-            assert (
-                isinstance(size, tuple)
-                and all([isinstance(a, int) for a in size])
-                and len(size) == 2
-            ), f"Input size {size} not valid. Must be an integer or a tuple of two integers."
-        if level is None:
-            level = 0
-        else:
-            assert isinstance(level, int), f"level {level} must be an integer"
-            assert (
-                level < self.slide.level_count
-            ), f"input level {level} invalid for a slide with {self.slide.level_count} levels"
-
-        # openslide read_region expects (x, y) coords, so need to switch order for compatibility with pathml (i, j)
-        i, j = location
-
-        # openslide read_region() uses coords in the level 0 reference frame
-        # if we are reading tiles from a higher level, need to convert to level 0 frame by multiplying by scale factor
-        # see: https://github.com/Dana-Farber-AIOS/pathml/issues/240
-        coord_scale_factor = int(self.slide.level_downsamples[level])
-        i *= coord_scale_factor
-        j *= coord_scale_factor
-
-        h, w = size
-        region = self.slide.read_region(location=(j, i), level=level, size=(w, h))
+    def get_patch(
+        self, 
+        left, 
+        top, 
+        width, 
+        height, 
+        level: int = None,
+        downsample: float = None,
+        fill="black",
+    ):
+        region = self.slide.read_region(location=(top, left), level=level, size=(width, height))
         region_rgb = pil_to_rgb(region)
         return region_rgb
 
-    def get_image_shape(self, level=0):
-        """
-        Get the shape of the image at specified level.
+    def get_level(self, level):
+        # return np array as np.uint8
 
-        Args:
-            level (int): Which level to get shape from. Level 0 is highest resolution. Defaults to 0.
+    def _get_openslide_field(self, name):
+        """Get vips fields safely"""
+        if name in self.properties:
+            return self.properties.get(name)
 
-        Returns:
-            Tuple[int, int]: Shape of image at target level, in (i, j) coordinates.
-        """
-        assert isinstance(level, int), f"level {level} invalid. Must be an int."
-        assert (
-            level < self.slide.level_count
-        ), f"input level {level} invalid for slide with {self.slide.level_count} levels total"
-        j, i = self.slide.level_dimensions[level]
-        return i, j
+    def get_metadata(self):
+        # search available mpp keys
+        mpp_keys = []
+        for k in self.properties:
+            # Any keys end with .mpp
+            if k.lower().endswith(".mpp"):
+                mpp_keys.append(k)
+        # openslide specific mpp keys
+        for k in ("openslide.mpp-x", "openslide.mpp-y"):
+            if k in self.properties:
+                mpp_keys.append(k)
+        mpp = None
+        for k in mpp_keys:
+            mpp_tmp = float(self._get_openslide_field(k))
+            if mpp_tmp is not None:
+                # TODO: Better way to handle this?
+                # Current work for 80X
+                mpp = np.round(mpp_tmp, decimals=2)
+                break
+        
+        # search magnification
+        mag = self._get_openslide_field("openslide.objective-power")
+        # TODO: Do we need to handle when level-count is 0?
+        n_level = int(self._get_openslide_field("openslide.level-count"))
 
-    def get_thumbnail(self, size):
-        """
-        Get a thumbnail of the slide.
+        # check if this is fine
+        level_shape = self.level_downsample[level]
+        level_downsample = self.level_downsample 
+        shape = self.dimensions
 
-        Args:
-            size (Tuple[int, int]): the maximum size of the thumbnail
+        filename = os.path.basename(filename)
+        metadata = WSIMetaData(
+        # file_name=filename, openslide does not provide file_name
+        mpp=mpp,
+        magnification=mag,
+        n_level=n_level,
+        shape=shape,
+        level_shape=level_shape,
+        level_downsample=level_downsample,
+        )
 
-        Returns:
-            np.ndarray: RGB thumbnail image
-        """
-        thumbnail = self.slide.get_thumbnail(size)
-        thumbnail = pil_to_rgb(thumbnail)
-        return thumbnail
+        for f in self._get_openslide_field:
+            setattr(metadata, f, self._get_openslide_field.get(f))
 
-    def generate_tiles(self, shape=3000, stride=None, pad=False, level=0):
-        """
-        Generator over tiles.
-
-        Padding works as follows:
-        If ``pad is False``, then the first tile will start flush with the edge of the image, and the tile locations
-        will increment according to specified stride, stopping with the last tile that is fully contained in the image.
-        If ``pad is True``, then the first tile will start flush with the edge of the image, and the tile locations
-        will increment according to specified stride, stopping with the last tile which starts in the image. Regions
-        outside the image will be padded with 0.
-        For example, for a 5x5 image with a tile size of 3 and a stride of 2, tile generation with ``pad=False`` will
-        create 4 tiles total, compared to 6 tiles if ``pad=True``.
-
-        Args:
-            shape (int or tuple(int)): Size of each tile. May be a tuple of (height, width) or a single integer,
-                in which case square tiles of that size are generated.
-            stride (int): stride between chunks. If ``None``, uses ``stride = size`` for non-overlapping chunks.
-                Defaults to ``None``.
-            pad (bool): How to handle tiles on the edges. If ``True``, these edge tiles will be zero-padded
-                and yielded with the other chunks. If ``False``, incomplete edge chunks will be ignored.
-                Defaults to ``False``.
-            level (int, optional): For slides with multiple levels, which level to extract tiles from.
-                Defaults to 0 (highest resolution).
-
-        Yields:
-            pathml.core.tile.Tile: Extracted Tile object
-        """
-        assert isinstance(shape, int) or (
-            isinstance(shape, tuple) and len(shape) == 2
-        ), f"input shape {shape} invalid. Must be a tuple of (H, W), or a single integer for square tiles"
-        if isinstance(shape, int):
-            shape = (shape, shape)
-        assert (
-            stride is None
-            or isinstance(stride, int)
-            or (isinstance(stride, tuple) and len(stride) == 2)
-        ), f"input stride {stride} invalid. Must be a tuple of (stride_H, stride_W), or a single int"
-        if level is None:
-            level = 0
-        assert isinstance(level, int), f"level {level} invalid. Must be an int."
-        assert (
-            level < self.slide.level_count
-        ), f"input level {level} invalid for slide with {self.slide.level_count} levels total"
-
-        if stride is None:
-            stride = shape
-        elif isinstance(stride, int):
-            stride = (stride, stride)
-
-        i, j = self.get_image_shape(level=level)
-
-        stride_i, stride_j = stride
-
-        # calculate number of expected tiles
-        # check for tile shape evenly dividing slide shape to fix https://github.com/Dana-Farber-AIOS/pathml/issues/305
-        if pad and i % stride_i != 0:
-            n_tiles_i = i // stride_i + 1
-        else:
-            n_tiles_i = (i - shape[0]) // stride_i + 1
-        if pad and j % stride_j != 0:
-            n_tiles_j = j // stride_j + 1
-        else:
-            n_tiles_j = (j - shape[1]) // stride_j + 1
-
-        for ix_i in range(n_tiles_i):
-            for ix_j in range(n_tiles_j):
-                coords = (int(ix_i * stride_i), int(ix_j * stride_j))
-                # get image for tile
-                tile_im = self.extract_region(location=coords, size=shape, level=level)
-                yield pathml.core.tile.Tile(image=tile_im, coords=coords)
-
+        return metadata
 
 def pil_to_rgb(image_array_pil):
     """
