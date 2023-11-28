@@ -26,15 +26,15 @@ class ReaderBase:
     def __init__(self, file: Union[Path, str]):
         self.file = Path(file)
 
-    def get_patch(self, x, y, width, height, level=0, **kwargs):
+    def get_patch(self, left, top, width, height, level=0, **kwargs):
         """Get a patch from image with top-left corner"""
         raise NotImplementedError
 
-    def get_center(self, x, y, width, height, level=0, **kwargs):
+    def get_center(self, left, top, width, height, level=0, **kwargs):
         """Get a patch from image with center"""
-        x -= width / 2
-        y -= height / 2
-        return self.get_patch(x, y, width, height, level=level, **kwargs)
+        left -= width / 2
+        top -= height / 2
+        return self.get_patch(left, top, width, height, level=level, **kwargs)
 
     def get_level(self, level):
         """Get the image level in numpy array"""
