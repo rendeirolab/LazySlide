@@ -13,34 +13,35 @@ except Exception as e:
     pass
 
 VIPS_FORMAT_TO_DTYPE = {
-    'uchar': np.uint8,
-    'char': np.int8,
-    'ushort': np.uint16,
-    'short': np.int16,
-    'uint': np.uint32,
-    'int': np.int32,
-    'float': np.float32,
-    'double': np.float64,
-    'complex': np.complex64,
-    'dpcomplex': np.complex128,
+    "uchar": np.uint8,
+    "char": np.int8,
+    "ushort": np.uint16,
+    "short": np.int16,
+    "uint": np.uint32,
+    "int": np.int32,
+    "float": np.float32,
+    "double": np.float64,
+    "complex": np.complex64,
+    "dpcomplex": np.complex128,
 }
 
 
 def vips2numpy(
-        vi: "vips.Image",
+    vi: "vips.Image",
 ) -> np.ndarray:
     """Converts a VIPS image into a numpy array"""
-    return np.ndarray(buffer=vi.write_to_memory(),
-                      dtype=VIPS_FORMAT_TO_DTYPE[vi.format],
-                      shape=[vi.height, vi.width, vi.bands])
+    return np.ndarray(
+        buffer=vi.write_to_memory(),
+        dtype=VIPS_FORMAT_TO_DTYPE[vi.format],
+        shape=[vi.height, vi.width, vi.bands],
+    )
 
 
 class VipsReader(ReaderBase):
-
-    def __init__(self,
-                 file: Union[Path, str],
-                 ):
-
+    def __init__(
+        self,
+        file: Union[Path, str],
+    ):
         super().__init__(file)
         self.file_name = self.file.name
         self.__level_vips_handler = {}  # cache level handler
@@ -49,12 +50,16 @@ class VipsReader(ReaderBase):
         self._vips_fields = set(self._vips_img.get_fields())
         self.metadata = self.get_metadata()
 
-    def get_patch(self,
-                  x, y, width, height,
-                  level: int = None,
-                  downsample: float = None,
-                  fill="black",
-                  ):
+    def get_patch(
+        self,
+        x,
+        y,
+        width,
+        height,
+        level: int = None,
+        downsample: float = None,
+        fill="black",
+    ):
         """Get a patch by x, y from top-left corner"""
         img = self._get_vips_level(level)
         patch = self._get_vips_patch(img, x, y, width, height, fill=fill)
@@ -77,17 +82,16 @@ class VipsReader(ReaderBase):
         """Lazy load and load only one for all image level"""
         handler = self.__level_vips_handler.get(level)
         if handler is None:
-            handler = vips.Image.new_from_file(
-                str(self.file), fail=True, level=level)
+            handler = vips.Image.new_from_file(str(self.file), fail=True, level=level)
             self.__level_vips_handler[level] = handler
         return handler
 
     @staticmethod
     def _get_vips_patch(image, x, y, width, height, fill="black"):
         bg = [255] if fill == "black" else [0]
-        crop_x, crop_y, crop_w, crop_h, pos = \
-            get_crop_xy_wh(image.width, image.height,
-                           x, y, width, height)
+        crop_x, crop_y, crop_w, crop_h, pos = get_crop_xy_wh(
+            image.width, image.height, x, y, width, height
+        )
         cropped = image.crop(crop_x, crop_y, crop_w, crop_h)
         if pos is None:
             return cropped
@@ -100,7 +104,6 @@ class VipsReader(ReaderBase):
             return self._vips_img.get(name)
 
     def get_metadata(self):
-
         # search available mpp keys
         mpp_keys = []
         for k in self._vips_fields:
@@ -108,7 +111,7 @@ class VipsReader(ReaderBase):
             if k.lower().endswith(".mpp"):
                 mpp_keys.append(k)
         # openslide specific mpp keys
-        for k in ('openslide.mpp-x', 'openslide.mpp-y'):
+        for k in ("openslide.mpp-x", "openslide.mpp-y"):
             if k in self._vips_fields:
                 mpp_keys.append(k)
         mpp = None
