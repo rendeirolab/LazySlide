@@ -2,51 +2,56 @@ import numpy as np
 from numba import njit
 
 
-@njit
-def get_crop_xy_wh(img_width, img_height, x, y, width, height):
-    x1_in = 0 <= x <= img_width
-    y1_in = 0 <= y <= img_height
-    x2_in = 0 <= (x + width) <= img_width
-    y2_in = 0 <= (y + height) <= img_height
-    x1_out, x2_out, y1_out, y2_out = not x1_in, not x2_in, not y1_in, not y2_in
-
+@njit(cache=True)
+def get_crop_left_top_width_height(img_width, img_height,
+                                   left, top,
+                                   width, height):
+    top_in = 0 <= top <= img_height
+    left_in = 0 <= left <= img_width
+    bottom_in = 0 <= (top + height) <= img_height
+    right_in = 0 <= (left + width) <= img_width
+    top_out, bottom_out = not top_in, not bottom_in
+    left_out, right_out = not left_in, not right_in
     # If extract from region outside image
-    if (x1_out and x2_out) or (y1_out and y2_out):
-        raise RuntimeError("Extracting region that are completely outside image.")
+    if (top_out and bottom_out) or (left_out and right_out):
+        raise RuntimeError(f"Extracting region that are completely outside image. \n"
+                           f"Image shape: H, W ({img_height}, {img_width}) \n"
+                           f"Tile: ({left}, {top}, {width}, {height})")
 
-    if np.all(np.array([x1_in, y1_in, x2_in, y2_in])):
-        return x, y, width, height, None
-    elif x1_out and x2_in and y1_out and y2_in:
-        crop_x, crop_y = 0, 0
-        crop_w, crop_h = width + x, height + y
+    if top_out and bottom_in and left_out and right_in:
+        crop_left, crop_top = 0, 0
+        crop_w, crop_h = width + left, height + top
         pos = "south-east"
-    elif x1_out and x2_in and y1_in and y2_in:
-        crop_x, crop_y = 0, y
-        crop_w, crop_h = width + x, height
-        pos = "east"
-    elif x1_out and x2_in and y1_in and y2_out:
-        crop_x, crop_y = 0, y
-        crop_w, crop_h = width + x, img_height - y
-        pos = "north-east"
-    elif x1_in and x2_in and y1_out and y2_in:
-        crop_x, crop_y = x, 0
-        crop_w, crop_h = width, height + y
+    elif top_out and bottom_in and left_in and right_in:
+        crop_left, crop_top = left, 0
+        crop_w, crop_h = width, height + top
         pos = "south"
-    elif x1_in and x2_in and y1_in and y2_out:
-        crop_x, crop_y = x, y
-        crop_w, crop_h = width, img_height - y
-        pos = "north"
-    elif x1_in and x2_out and y1_out and y2_in:
-        crop_x, crop_y = x, 0
-        crop_w, crop_h = img_width - x, height + y
+    elif top_out and bottom_in and left_in and right_out:
+        crop_left, crop_top = left, 0
+        crop_w, crop_h = img_width - left, height + top
         pos = "south-west"
-    elif x1_in and x2_out and y1_in and y2_in:
-        crop_x, crop_y = x, y
-        crop_w, crop_h = img_width - x, height
+    elif top_in and bottom_in and left_out and right_in:
+        crop_left, crop_top = 0, top
+        crop_w, crop_h = width + left, height
+        pos = "east"
+    elif top_in and bottom_in and left_in and right_out:
+        crop_left, crop_top = left, top
+        crop_w, crop_h = img_width - left, height
         pos = "west"
-    else:
-        crop_x, crop_y = x, y
-        crop_w, crop_h = img_width - x, img_height - y
+    elif top_in and bottom_out and left_out and right_in:
+        crop_left, crop_top = 0, top
+        crop_w, crop_h = width + left, img_height - top
+        pos = "north-east"
+    elif top_in and bottom_out and left_in and right_in:
+        crop_left, crop_top = left, top
+        crop_w, crop_h = width, img_height - top
+        pos = "north"
+    elif top_in and bottom_out and left_in and right_out:
+        crop_left, crop_top = left, top
+        crop_w, crop_h = img_width - left, img_height - top
         pos = "north-west"
+    else:
+        # np.all(np.array([top_in, left_in, bottom_in, right_in])):
+        return left, top, width, height, None
 
-    return crop_x, crop_y, crop_w, crop_h, pos
+    return crop_left, crop_top, crop_w, crop_h, pos

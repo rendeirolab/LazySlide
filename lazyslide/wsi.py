@@ -4,20 +4,24 @@ import warnings
 from numbers import Integral
 from pathlib import Path
 from typing import Iterable
-from dataclasses import dataclass, field, asdict
 
+import cv2
 import numpy as np
+from matplotlib import pyplot as plt
+from matplotlib.collections import PatchCollection
+from matplotlib.patches import Rectangle
 from numba import njit
 
 from .h5 import H5File
 from .cv_mods import TissueDetectionHE
 from .readers.base import ReaderBase
+from .torch_dataset import WSIDataset
 from .utils import get_reader, TileOps
 
 
 @njit
 def create_tiles_coords(image_shape, tile_h, tile_w,
-                        stride_h, stride_w, pad=True):
+                        stride_h=None, stride_w=None, pad=True):
     """Create the tiles, return only coordination
 
     Padding works as follows:
@@ -66,7 +70,7 @@ def create_tiles_coords(image_shape, tile_h, tile_w,
             coords = (int(ix_height * stride_h), int(ix_width * stride_w))
             coordinates.append(coords)
 
-    return np.array(coordinates)
+    return np.array(coordinates, dtype=np.uint16)
 
 
 @njit
@@ -92,7 +96,7 @@ def filter_tiles(mask, tiles_coords,
         bg_ratio = np.sum(mask[x:x + tile_w, y:y + tile_h] == 0) / tile_size
         if bg_ratio < filter_bg:
             filter_coords.append((x, y))
-    return np.array(filter_coords)
+    return np.array(filter_coords, dtype=np.uint16)
 
 
 class WSI:
@@ -100,7 +104,7 @@ class WSI:
     def __init__(self,
                  image: Path | str,
                  h5_file: Path | str = None,
-                 save_mask=True,
+                 save_mask=False,
                  ):
         self.image = Path(image)
 
@@ -111,10 +115,11 @@ class WSI:
         reader = get_reader()
         self.reader: ReaderBase = reader(self.image)
         self.metadata = self.reader.metadata
-        self.mask = {}
+        self.mask = self.h5_file.load_masks()
+        self.save_mask = save_mask
         self._total_tiles = 0
-        self.tiles_coords = None
-        self.tile_ops = None
+        self.tiles_coords = self.h5_file.get_coords()
+        self.tile_ops = self.h5_file.get_tile_ops()
 
     def __repr__(self):
         return (f"WSI(image={self.image}, "
@@ -123,15 +128,25 @@ class WSI:
     def create_mask(self, transform, name="user", level=0):
         image = self.reader.get_level(level)
         self.mask[name] = transform.apply(image)
+        if self.save_mask:
+            self.h5_file.masks = self.mask
+            self.h5_file.save()
 
     def create_tissue_mask(self, name="tissue", level=0, **kwargs):
         image = self.reader.get_level(level)
         self.mask[name] = TissueDetectionHE(**kwargs).apply(image)
+        if self.save_mask:
+            self.h5_file.masks = self.mask
+            self.h5_file.save()
+
+    def get_mask(self, name):
+        return self.mask.get(name)
 
     def create_tiles(self, tile_px,
                      stride_px=None,
-                     pad=True,
+                     pad=False,
                      mpp=None,
+                     tolerance=.05,
                      mask_name="tissue",
                      background_fraction=.8,
                      errors="ignore"):
@@ -147,6 +162,8 @@ class WSI:
         pad : bool,
         mpp : float, micron-per-pixel, most cases, 40X is 0.25 MPP, 20X is 0.5 MPP
                     by default will extract from the level 0.
+        tolerance : float, If the downsample value is within a tolerance range,
+                            use the nearest available level without performing downsampling.
         mask_name : str, which mask to use to filter tiles.
         background_fraction : float, If a tile contain this much background, it will be
                                     filter out.
@@ -185,15 +202,26 @@ class WSI:
         if mpp is not None:
             if self.metadata.mpp is not None:
                 downsample = mpp / self.metadata.mpp
+
+                lower_ds = downsample - tolerance
+                upper_ds = downsample + tolerance
+                if lower_ds < 1 < upper_ds:
+                    downsample = 1
+
                 if downsample < 1:
                     raise ValueError(f"Cannot perform resize operation "
                                      f"with reqeust mpp={mpp} on image"
                                      f"mpp={self.metadata.mpp}, this will"
                                      f"require up-scaling of image.")
-                if downsample in self.metadata.level_downsample:
-                    ops_level = self.metadata.level_downsample.index(downsample)
+                elif downsample == 1:
+                    ops_level = 0
                 else:
-                    run_downsample = True
+                    for ix, level_downsample in enumerate(self.metadata.level_downsample):
+                        if lower_ds < level_downsample < upper_ds:
+                            downsample = level_downsample
+                            ops_level = ix
+                    else:
+                        run_downsample = True
             else:
                 msg = f"{self.image} does not contain MPP."
                 if errors:
@@ -226,25 +254,86 @@ class WSI:
         self.tile_ops = TileOps(level=ops_level,
                                 mpp=mpp,
                                 downsample=downsample,
-                                height=tile_w, width=tile_h,
+                                height=tile_h, width=tile_w,
                                 ops_height=ops_tile_h,
                                 ops_width=ops_tile_w,
                                 mask_name=mask_name
                                 )
         self.h5_file.set_coords(self.tiles_coords)
         self.h5_file.set_tile_ops(self.tile_ops)
+        self.h5_file.save()
+
+    def new_tiles(self, tiles_coords, height, width, level=0):
+        """Supply a customized tiles"""
+        self.tiles_coords = tiles_coords
+        self.tile_ops = TileOps(level=level,
+                                mpp=self.metadata.mpp,
+                                downsample=1,
+                                height=height,
+                                width=width,
+                                )
+        self.h5_file.set_coords(self.tiles_coords)
+        self.h5_file.set_tile_ops(self.tile_ops)
+        self.h5_file.save()
 
     def report(self):
         if self.tile_ops is not None:
             return (f"Generate tile with mpp={self.tile_ops.mpp} "
-                    f"on mask={self.tile_ops.mask_name}.\n"
+                    f"Mask: '{self.tile_ops.mask_name}'.\n"
                     f"Tile in px (H, W): {self.tile_ops.height}, {self.tile_ops.width}.\n"
                     f"Resize: {self.tile_ops.downsample != 1}")
         else:
             return None
 
-    def plot_tiles(self, background="tissue"):
-        pass
+    def plot_tiles(self,
+                   size=1000,
+                   edgecolor=".5",
+                   linewidth=1,
+                   ):
+        if self.tiles_coords is None:
+            print("No tile is created")
+            return
 
-    def to_dataloader(self):
-        pass
+        image_arr = self.reader.get_level(0)
+        x_size, y_size = image_arr.shape[0:2]
+        x_ratio = size / x_size
+        y_shape = int(y_size * x_ratio)
+
+        thumbnail = cv2.resize(image_arr, dsize=(y_shape, size))
+
+        # In matplotlib, H -> Y, W -> X, so we flip the axis
+        coords = self.tiles_coords[:, ::-1] * x_ratio
+
+        tile_h = self.tile_ops.height * x_ratio
+        tile_w = self.tile_ops.width * x_ratio
+
+        tiles = [Rectangle(t, tile_w, tile_h) for t in coords]
+        collections = PatchCollection(tiles, facecolor="none",
+                                      edgecolor=edgecolor, lw=linewidth)
+
+        _, ax = plt.subplots()
+        ax.imshow(thumbnail)
+        ax.add_collection(collections)
+        return ax
+
+    def plot_mask(self,
+                  name="tissue",
+                  size=1000,
+                  ):
+        image_arr = self.mask.get(name)
+        if image_arr is None:
+            raise NameError(f"Cannot draw non-exist mask with name '{name}'")
+
+        x_size, y_size = image_arr.shape[0:2]
+        x_ratio = size / x_size
+        y_shape = int(y_size * x_ratio)
+        thumbnail = cv2.resize(image_arr, dsize=(y_shape, size))
+        _, ax = plt.subplots()
+        ax.imshow(thumbnail)
+        return ax
+
+    def to_dataset(self, transform=None, run_pretrained=False):
+        return WSIDataset(self, transform=transform, run_pretrained=run_pretrained)
+
+    def get_patch(self, left, top, width, height, level=0, **kwargs):
+        return self.reader.get_patch(left, top, width, height, level=level, **kwargs)
