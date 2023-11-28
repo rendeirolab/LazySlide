@@ -1,11 +1,14 @@
 from pathlib import Path
+from typing import Union
 
-import openslide
 import numpy as np
+import cv2
+from openslide import OpenSlide
 
-from .base import ReaderBase
+from .base import ReaderBase, WSIMetaData
 
-class OpenSlideBackend(ReaderBase):
+
+class OpenSlideReader(ReaderBase):
     """
     Use OpenSlide to interface with image files.
 
@@ -15,36 +18,45 @@ class OpenSlideBackend(ReaderBase):
         filename (str): path to image file on disk
     """
 
-    def __init__(self, filename):
-        self.filename = self.filename
-        self.slide = openslide.open_slide(filename=filename)
+    def __init__(
+        self,
+        file: Union[Path, str],
+    ):
+        super().__init__(file)
+        self.filename = self.file.name
+        self.slide = OpenSlide(filename=self.file)
+        self.properties = self.slide.properties
         # self.level_count = self.slide.level_count
         self.metadata = self.get_metadata()
 
     def __repr__(self):
-        return f"OpenSlideBackend('{self.filename}')"
+        return f"OpenSlideReader('{self.filename}')"
 
     def get_patch(
-        self, 
-        left, 
-        top, 
-        width, 
-        height, 
+        self,
+        left,
+        top,
+        width,
+        height,
         level: int = None,
         downsample: float = None,
         fill="black",
     ):
-        region = self.slide.read_region(location=(top, left), level=level, size=(width, height))
+        region = self.slide.read_region(
+            location=(top, left), level=level, size=(width, height)
+        )
         region_rgb = pil_to_rgb(region)
         return region_rgb
 
     def get_level(self, level):
         # return np array as np.uint8
-        if level + 1 > self.metadata.n_level
-            raise ValueError (f"Requested level {level} is not available")
+        if level + 1 > self.metadata.n_level:
+            raise ValueError(f"Requested level {level} is not available")
 
-        width, height = self.slide.level_dimension[level]
-        region = self.slide.read_region(location=(0, 0), level=level, size=(width, height))
+        width, height = self.slide.level_dimensions[level]
+        region = self.slide.read_region(
+            location=(0, 0), level=level, size=(width, height)
+        )
         region_rgb = pil_to_rgb(region)
         return region_rgb
 
@@ -72,31 +84,32 @@ class OpenSlideBackend(ReaderBase):
                 # Current work for 80X
                 mpp = np.round(mpp_tmp, decimals=2)
                 break
-        
+
         # search magnification
         mag = self._get_openslide_field("openslide.objective-power")
         # TODO: Do we need to handle when level-count is 0?
         n_level = int(self._get_openslide_field("openslide.level-count"))
 
-        # check if this is fine
-        level_shape = self.level_downsample[level]
-        level_downsample = self.level_downsample 
-        shape = self.dimensions
+        # check if this works
+        level_shape = self.slide.level_dimensions
+        level_downsample = self.slide.level_downsamples
+        shape = self.slide.dimensions
 
         metadata = WSIMetaData(
-        file_name=filename,
-        mpp=mpp,
-        magnification=mag,
-        n_level=n_level,
-        shape=shape,
-        level_shape=level_shape,
-        level_downsample=level_downsample,
+            file_name=self.filename,
+            mpp=mpp,
+            magnification=mag,
+            n_level=n_level,
+            shape=shape,
+            level_shape=level_shape,
+            level_downsample=level_downsample,
         )
 
-        for f in self._get_openslide_field:
-            setattr(metadata, f, self._get_openslide_field.get(f))
+        for f in self.properties:
+            setattr(metadata, f, self.properties.get(f))
 
         return metadata
+
 
 def pil_to_rgb(image_array_pil):
     """
