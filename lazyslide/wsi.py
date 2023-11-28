@@ -300,12 +300,18 @@ class WSI:
                     tiles=False,
                     edgecolor=".5",
                     linewidth=1,
+                    ax=None,
+                    savefig=None,
+                    savefig_kws=None,
                     ):
 
         image_arr = self.reader.get_level(0)
         scale_ratio, thumbnail = self._get_thumbnail(image_arr, size)
 
-        _, ax = plt.subplots()
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.get_figure()
         ax.imshow(thumbnail)
 
         if tiles:
@@ -323,19 +329,33 @@ class WSI:
                                               edgecolor=edgecolor, lw=linewidth)
 
                 ax.add_collection(collections)
+
+        if savefig:
+            save_kws = {'dpi': 150, **savefig_kws}
+            fig.savefig(fig, save_kws)
+
         return ax
 
     def plot_mask(self,
                   name="tissue",
                   size=1000,
+                  ax=None,
+                  savefig=None,
+                  savefig_kws=None,
                   ):
         image_arr = self.mask.get(name)
         if image_arr is None:
             raise NameError(f"Cannot draw non-exist mask with name '{name}'")
 
         _, thumbnail = self._get_thumbnail(image_arr, size)
-        _, ax = plt.subplots()
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.get_figure()
         ax.imshow(thumbnail)
+        if savefig:
+            save_kws = {'dpi': 150, **savefig_kws}
+            fig.savefig(fig, save_kws)
         return ax
 
     def to_dataset(self, transform=None, run_pretrained=False):
