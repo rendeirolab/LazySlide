@@ -3,6 +3,7 @@ from typing import Type
 
 from .readers.base import ReaderBase
 from .readers.vips import VipsReader
+from .readers.openslide import OpenSlideReader
 
 
 def get_reader(reader="auto") -> Type[ReaderBase]:
@@ -13,9 +14,20 @@ def get_reader(reader="auto") -> Type[ReaderBase]:
 
     try:
         import pyvips as vips
+
         pyvips_avail = True
     except (ModuleNotFoundError, OSError) as _:
         pass
+
+    try:
+        import openslide
+
+        openslide_avail = True
+    except (ModuleNotFoundError, OSError) as _:
+        pass
+
+    if openslide_avail:
+        return OpenSlideReader
 
     if pyvips_avail:
         return VipsReader
