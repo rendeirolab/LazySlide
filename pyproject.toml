@@ -19,6 +19,10 @@ dependencies = [
     "opencv-python",
     "openslide-python",
     "h5py",
+    "matplotlib",
+    "torch",
+    "torchvision",
+    "pyvips",
 ]
 
 [project.optional-dependencies]
@@ -29,4 +33,9 @@ dev = [
     "flit",
     "pytest >=2.7.3",
     "pytest-cov",
+    "pre-commit",
+    "ruff",
 ]
+
+[tool.ruff]
+ignore = ["F401"]
