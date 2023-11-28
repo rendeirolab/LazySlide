@@ -1,10 +1,11 @@
 from dataclasses import dataclass, field
+from typing import Type
 
 from .readers.base import ReaderBase
 from .readers.vips import VipsReader
 
 
-def get_reader() -> ReaderBase:
+def get_reader(reader="auto") -> Type[ReaderBase]:
     """Return an available backend"""
     pyvips_avail = False
     cucim_avail = False
@@ -25,8 +26,8 @@ def get_reader() -> ReaderBase:
 
 @dataclass
 class TileOps:
-    level: int
-    downsample: float
+    level: int = 0
+    downsample: float = 1
     mpp: float = field(default=None)
     height: int = field(default=None)
     width: int = field(default=None)
