@@ -13,7 +13,6 @@ class OpenSlideBackend(ReaderBase):
     """
 
     def __init__(self, filename):
-        logger.info(f"OpenSlideBackend loading file at: {filename}")
         self.filename = filename
         self.slide = openslide.open_slide(filename=filename)
         self.level_count = self.slide.level_count
@@ -167,3 +166,12 @@ class OpenSlideBackend(ReaderBase):
                 # get image for tile
                 tile_im = self.extract_region(location=coords, size=shape, level=level)
                 yield pathml.core.tile.Tile(image=tile_im, coords=coords)
+
+
+def pil_to_rgb(image_array_pil):
+    """
+    Convert PIL RGBA Image to numpy RGB array
+    """
+    image_array_rgba = np.asarray(image_array_pil)
+    image_array = cv2.cvtColor(image_array_rgba, cv2.COLOR_RGBA2RGB).astype(np.uint8)
+    return image_array
