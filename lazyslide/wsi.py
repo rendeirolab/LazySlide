@@ -285,35 +285,44 @@ class WSI:
         else:
             return None
 
-    def plot_tiles(self,
-                   size=1000,
-                   edgecolor=".5",
-                   linewidth=1,
-                   ):
-        if self.tiles_coords is None:
-            print("No tile is created")
-            return
-
-        image_arr = self.reader.get_level(0)
+    @staticmethod
+    def _get_thumbnail(image_arr, size=1000):
         x_size, y_size = image_arr.shape[0:2]
         x_ratio = size / x_size
         y_shape = int(y_size * x_ratio)
 
         thumbnail = cv2.resize(image_arr, dsize=(y_shape, size))
 
-        # In matplotlib, H -> Y, W -> X, so we flip the axis
-        coords = self.tiles_coords[:, ::-1] * x_ratio
+        return x_ratio, thumbnail
 
-        tile_h = self.tile_ops.height * x_ratio
-        tile_w = self.tile_ops.width * x_ratio
+    def plot_tissue(self,
+                    size=1000,
+                    tiles=False,
+                    edgecolor=".5",
+                    linewidth=1,
+                    ):
 
-        tiles = [Rectangle(t, tile_w, tile_h) for t in coords]
-        collections = PatchCollection(tiles, facecolor="none",
-                                      edgecolor=edgecolor, lw=linewidth)
+        image_arr = self.reader.get_level(0)
+        scale_ratio, thumbnail = self._get_thumbnail(image_arr, size)
 
         _, ax = plt.subplots()
         ax.imshow(thumbnail)
-        ax.add_collection(collections)
+
+        if tiles:
+            if self.tiles_coords is None:
+                print("No tile is created")
+            else:
+                # In matplotlib, H -> Y, W -> X, so we flip the axis
+                coords = self.tiles_coords[:, ::-1] * scale_ratio
+
+                tile_h = self.tile_ops.height * scale_ratio
+                tile_w = self.tile_ops.width * scale_ratio
+
+                tiles = [Rectangle(t, tile_w, tile_h) for t in coords]
+                collections = PatchCollection(tiles, facecolor="none",
+                                              edgecolor=edgecolor, lw=linewidth)
+
+                ax.add_collection(collections)
         return ax
 
     def plot_mask(self,
@@ -324,10 +333,7 @@ class WSI:
         if image_arr is None:
             raise NameError(f"Cannot draw non-exist mask with name '{name}'")
 
-        x_size, y_size = image_arr.shape[0:2]
-        x_ratio = size / x_size
-        y_shape = int(y_size * x_ratio)
-        thumbnail = cv2.resize(image_arr, dsize=(y_shape, size))
+        _, thumbnail = self._get_thumbnail(image_arr, size)
         _, ax = plt.subplots()
         ax.imshow(thumbnail)
         return ax
