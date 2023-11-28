@@ -5,7 +5,6 @@ import numpy as np
 
 from .base import ReaderBase
 
-
 class OpenSlideBackend(ReaderBase):
     """
     Use OpenSlide to interface with image files.
@@ -18,12 +17,8 @@ class OpenSlideBackend(ReaderBase):
 
     def __init__(self, filename):
         self.filename = self.filename
-        # self.slide = openslide.open_slide(filename=filename)
+        self.slide = openslide.open_slide(filename=filename)
         # self.level_count = self.slide.level_count
-        self.__level_openslide_handler = {}  # cache level handler
-        self._image_array_level = {}  # cache level image in numpy array
-        self._openslide_img = 
-        self._openslide_fields =
         self.metadata = self.get_metadata()
 
     def __repr__(self):
@@ -45,6 +40,13 @@ class OpenSlideBackend(ReaderBase):
 
     def get_level(self, level):
         # return np array as np.uint8
+        if level + 1 > self.metadata.n_level
+            raise ValueError (f"Requested level {level} is not available")
+
+        width, height = self.slide.level_dimension[level]
+        region = self.slide.read_region(location=(0, 0), level=level, size=(width, height))
+        region_rgb = pil_to_rgb(region)
+        return region_rgb
 
     def _get_openslide_field(self, name):
         """Get vips fields safely"""
@@ -81,9 +83,8 @@ class OpenSlideBackend(ReaderBase):
         level_downsample = self.level_downsample 
         shape = self.dimensions
 
-        filename = os.path.basename(filename)
         metadata = WSIMetaData(
-        # file_name=filename, openslide does not provide file_name
+        file_name=filename,
         mpp=mpp,
         magnification=mag,
         n_level=n_level,
