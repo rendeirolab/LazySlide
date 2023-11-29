@@ -2,13 +2,17 @@ import torch
 from torch.utils.data import Dataset
 from torchvision.transforms.v2 import ToDtype, Normalize, Compose, Resize
 
+from .normalizer import Normalizer
+
 
 class WSIDataset(Dataset):
 
     def __init__(self,
                  wsi,
                  transform=None,
-                 run_pretrained=False):
+                 run_pretrained=False,
+                 color_normalize=None,
+                 ):
         self.wsi = wsi
         self.tiles_coords = self.wsi.h5_file.get_coords()
         self.tile_ops = self.wsi.h5_file.get_tile_ops()
@@ -27,6 +31,8 @@ class WSIDataset(Dataset):
             self.transform_ops = [Resize(size=(self.tile_ops.height,
                                                self.tile_ops.width))]\
                                  + self.transform_ops
+        if color_normalize is not None:
+            self.transform_ops = [Normalizer(method=color_normalize)] + self.transform_ops
         self.transform = Compose(self.transform_ops)
 
     def __len__(self):
