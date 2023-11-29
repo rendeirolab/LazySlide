@@ -74,7 +74,7 @@ def create_tiles_coords(image_shape, tile_h, tile_w,
 
 
 @njit
-def filter_tiles(mask, tiles_coords, filter_bg=.8):
+def filter_tiles(mask, tiles_coords, tile_h, tile_w, filter_bg=.8):
     """
 
     Parameters
@@ -82,7 +82,8 @@ def filter_tiles(mask, tiles_coords, filter_bg=.8):
     mask
     tiles_coords
     filter_bg
-
+    tile_h,
+    tile_w,
     Returns
     -------
 
@@ -90,7 +91,7 @@ def filter_tiles(mask, tiles_coords, filter_bg=.8):
     filter_coords = []
     # tile_size = tile_h * tile_w
     for x, y in tiles_coords:
-        mask_region = mask[x:x + tile_w, y:y + tile_h]
+        mask_region = mask[x:x + tile_h, y:y + tile_w]
         bg_ratio = np.sum(mask_region == 0) / mask_region.size
         if bg_ratio < filter_bg:
             filter_coords.append((x, y))
@@ -103,6 +104,7 @@ class WSI:
                  image: Path | str,
                  h5_file: Path | str = None,
                  save_mask=False,
+                 reader="auto",  # openslide, vips, cucim
                  ):
         self.image = Path(image)
 
@@ -247,7 +249,8 @@ class WSI:
         self._total_tiles = len(tiles_coords)
         # Filter coords based on mask
         self.tiles_coords = filter_tiles(
-            mask, tiles_coords, filter_bg=background_fraction)
+            mask, tiles_coords, ops_tile_h, ops_tile_w,
+            filter_bg=background_fraction)
         self.tile_ops = TileOps(level=ops_level,
                                 mpp=mpp,
                                 downsample=downsample,
@@ -302,7 +305,9 @@ class WSI:
                     savefig_kws=None,
                     ):
 
-        image_arr = self.reader.get_level(0)
+
+        level = self.tile_ops.level if tiles else 0
+        image_arr = self.reader.get_level(level)
         scale_ratio, thumbnail = self._get_thumbnail(image_arr, size)
 
         if ax is None:
