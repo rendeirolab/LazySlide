@@ -8,32 +8,41 @@ from .readers.openslide import OpenSlideReader
 
 def get_reader(reader="auto") -> Type[ReaderBase]:
     """Return an available backend"""
-    pyvips_avail = False
-    cucim_avail = False
-    openslide_avail = False
 
-    try:
-        import pyvips as vips
-
-        pyvips_avail = True
-    except (ModuleNotFoundError, OSError) as _:
-        pass
+    readers = {
+        "openslide": None,
+        "vips": None,
+        "cucim": None
+    }
 
     try:
         import openslide
-
-        openslide_avail = True
+        readers["openslide"] = OpenSlideReader
     except (ModuleNotFoundError, OSError) as _:
         pass
 
-    if openslide_avail:
-        return OpenSlideReader
+    try:
+        import pyvips as vips
+        readers["vips"] = VipsReader
+    except (ModuleNotFoundError, OSError) as _:
+        pass
 
-    if pyvips_avail:
-        return VipsReader
-
+    # try:
+    #     import cucim
+    #     readers["cucim"] = CuCIMReader
+    # except (ModuleNotFoundError, OSError) as _:
+    #     pass
+    reader_candidates = ["cucim", "vips", "openslide"]
+    if reader == "auto":
+        for i in reader_candidates:
+            reader = readers.get(i)
+            if reader is not None:
+                return reader
+    elif reader not in reader_candidates:
+        raise ValueError(f"Reqeusted reader not available, "
+                         f"must be one of {reader_candidates}")
     else:
-        raise RuntimeError("Cannot find a suitable image reader")
+        return readers[reader]
 
 
 @dataclass
