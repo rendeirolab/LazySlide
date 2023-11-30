@@ -106,6 +106,34 @@ def filter_tiles(mask, tiles_coords, tile_h, tile_w, filter_bg=.8):
     return np.array(filter_coords, dtype=np.uint16)
 
 
+def get_split_image_indices(image_height, image_width, min_side=20000):
+    h, w = image_height, image_width
+    size = h * w
+    n = min_side
+    if (size > n ** 2) or (h > n) or (w > n):
+        split_h = h > 1.5 * n
+        split_w = w > 1.5 * n
+
+        if not split_h and not split_w:
+            return
+
+        n_chunk_h = int(np.ceil(h / n))
+        n_chunk_w = int(np.ceil(w / n))
+
+        # If split, return the split chunks
+        # Else, it would take the whole
+        ix_h = np.linspace(start=0, stop=h, num=n_chunk_h + 1, dtype=int) if split_h else [0, h]
+        ix_w = np.linspace(start=0, stop=w, num=n_chunk_w + 1, dtype=int) if split_w else [0, w]
+
+        slices = []
+        for h1, h2 in pairwise(ix_h):
+            row = []
+            for w1, w2 in pairwise(ix_w):
+                row.append((h1, h2, w1, w2))
+            slices.append(row)
+        return slices
+
+
 class WSI:
 
     def __init__(self,
@@ -141,32 +169,44 @@ class WSI:
             self.h5_file.save()
 
     def create_tissue_mask(self, name="tissue", level=0,
-                           split=False,
+                           chunk=True, chunk_at=20000,
                            **kwargs):
+        """Create tissue mask using
+        preconfigure segmentation pipeline
+
+        Parameters
+        ----------
+        name : str, The name of the mask to be created
+        level : int, The slide level to work with
+        chunk : bool, Whether to split image into chunks when it's too large
+        chunk_at : int, Only chunk the image when a side of image is above this threshold
+        kwargs
+
+        Returns
+        -------
+
+        """
         if level == -1:
             level = self.metadata.n_level - 1
 
-        image = self.reader.get_level(level)
-        H, W, C = image.shape
-
+        img_height, img_width = self.metadata.level_shape[level]
         seg = TissueDetectionHE(**kwargs)
 
         # If the image is too large, we will run segmentation by chunk
-        # TODO: Don't split if the image is not big
-        if split & (image.size > 2000 * 2000):
-            # TODO: A Robust way to decide on the chunk size
-            chunk_size = 5000
-
+        split_indices = get_split_image_indices(img_height, img_width, min_side=chunk_at)
+        if chunk & (split_indices is not None):
             masks = []
-            chunks_ix = list(np.arange(start=0, stop=W, step=chunk_size)) + [W]
-            print(chunks_ix)
-            for start, end in pairwise(chunks_ix):
-                chunk = image[:, start:end]
-                print(start, end, chunk.size)
-                masks.append(seg.apply(chunk))
-
-            mask = np.hstack(masks)
+            for row in split_indices:
+                row_mask = []
+                for ixs in row:
+                    h1, h2, w1, w2 = ixs
+                    img_chunk = self.reader.get_patch(w1, h1, w2-w1, h2-h1, level=level)
+                    mask = seg.apply(img_chunk)
+                    row_mask.append(mask)
+                masks.append(row_mask)
+            mask = np.block(masks)
         else:
+            image = self.reader.get_level(level)
             mask = seg.apply(image)
 
         if level != 0:
@@ -191,7 +231,6 @@ class WSI:
                      background_fraction=.8,
                      errors="ignore"):
         """
-
         Parameters
         ----------
         tile_px : int or (int, int), Size of tile, either an integer or a tuple in (Height, Width)
@@ -288,6 +327,8 @@ class WSI:
             ops_stride_h, ops_stride_w, pad=pad)
         self._total_tiles = len(tiles_coords)
         # Filter coords based on mask
+        # TODO: Consider create tiles based on the
+        #       bbox of different components
         self.tiles_coords = filter_tiles(
             mask, tiles_coords, ops_tile_h, ops_tile_w,
             filter_bg=background_fraction)
