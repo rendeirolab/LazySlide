@@ -102,7 +102,7 @@ class VipsReader(ReaderBase):
             return self._vips_img.get(name)
 
     def get_metadata(self):
-
+        # TODO: This logic can be unified through backend
         # search available mpp keys
         mpp_keys = []
         for k in self._vips_fields:
@@ -117,10 +117,7 @@ class VipsReader(ReaderBase):
         for k in mpp_keys:
             mpp_tmp = float(self._get_vips_field(k))
             if mpp_tmp is not None:
-                # TODO: Better way to handle this?
-                # Current work for 80X
-                mpp = np.round(mpp_tmp, decimals=2)
-                break
+                mpp = mpp_tmp
 
         # search magnification
         mag = self._get_vips_field("openslide.objective-power")
@@ -136,7 +133,7 @@ class VipsReader(ReaderBase):
 
             height = self._get_vips_field(height_key)
             width = self._get_vips_field(width_key)
-            level_shape.append((height, width))
+            level_shape.append((int(height), int(width)))
 
             downsample = self._get_vips_field(downsample_key)
             if downsample is not None:

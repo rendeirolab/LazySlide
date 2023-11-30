@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from itertools import tee
 from numbers import Integral
 from pathlib import Path
 from typing import Iterable
@@ -17,6 +18,13 @@ from .cv_mods import TissueDetectionHE
 from .readers.base import ReaderBase
 from .torch_dataset import WSIDataset
 from .utils import get_reader, TileOps
+
+
+def pairwise(iterable):
+    # pairwise('ABCDEFG') --> AB BC CD DE EF FG
+    a, b = tee(iterable)
+    next(b, None)
+    return zip(a, b)
 
 
 @njit
@@ -112,10 +120,10 @@ class WSI:
             h5_file = self.image.with_suffix(".coords.h5")
 
         self.h5_file = H5File(h5_file)
-        reader = get_reader()
+        reader = get_reader(reader)
         self.reader: ReaderBase = reader(self.image)
         self.metadata = self.reader.metadata
-        self.mask = self.h5_file.load_masks()
+        self.mask = self.h5_file.get_masks()
         self.save_mask = save_mask
         self._total_tiles = 0
         self.tiles_coords = self.h5_file.get_coords()
@@ -132,9 +140,41 @@ class WSI:
             self.h5_file.masks = self.mask
             self.h5_file.save()
 
-    def create_tissue_mask(self, name="tissue", level=0, **kwargs):
+    def create_tissue_mask(self, name="tissue", level=0,
+                           split=False,
+                           **kwargs):
+        if level == -1:
+            level = self.metadata.n_level - 1
+
         image = self.reader.get_level(level)
-        self.mask[name] = TissueDetectionHE(**kwargs).apply(image)
+        H, W, C = image.shape
+
+        seg = TissueDetectionHE(**kwargs)
+
+        # If the image is too large, we will run segmentation by chunk
+        # TODO: Don't split if the image is not big
+        if split & (image.size > 2000 * 2000):
+            # TODO: A Robust way to decide on the chunk size
+            chunk_size = 5000
+
+            masks = []
+            chunks_ix = list(np.arange(start=0, stop=W, step=chunk_size)) + [W]
+            print(chunks_ix)
+            for start, end in pairwise(chunks_ix):
+                chunk = image[:, start:end]
+                print(start, end, chunk.size)
+                masks.append(seg.apply(chunk))
+
+            mask = np.hstack(masks)
+        else:
+            mask = seg.apply(image)
+
+        if level != 0:
+            level0_shape = self.metadata.level_shape[0]
+            h, w = level0_shape
+            mask = cv2.resize(mask, dsize=(w, h), interpolation=cv2.INTER_NEAREST)
+
+        self.mask[name] = mask
         if self.save_mask:
             self.h5_file.masks = self.mask
             self.h5_file.save()
@@ -271,6 +311,8 @@ class WSI:
                                 downsample=1,
                                 height=height,
                                 width=width,
+                                ops_height=height,
+                                ops_width=width,
                                 )
         self.h5_file.set_coords(self.tiles_coords)
         self.h5_file.set_tile_ops(self.tile_ops)
@@ -278,17 +320,19 @@ class WSI:
 
     def report(self):
         if self.tile_ops is not None:
-            return (f"Generate tile with mpp={self.tile_ops.mpp} "
-                    f"Mask: '{self.tile_ops.mask_name}'.\n"
-                    f"Tile in px (H, W): {self.tile_ops.height}, {self.tile_ops.width}.\n"
-                    f"Resize: {self.tile_ops.downsample != 1}")
-        else:
-            return None
+            print(f"Generate tiles with mpp={self.tile_ops.mpp}, WSI mpp={self.metadata.mpp}\n"
+                  f"Use mask: '{self.tile_ops.mask_name}'\n"
+                  f"Generated Tiles in px (H, W): ({self.tile_ops.height}, {self.tile_ops.width})\n"
+                  f"WSI Tiles in px (H, W): ({self.tile_ops.ops_height}, {self.tile_ops.ops_width}) \n"
+                  f"Down sample ratio: {self.tile_ops.downsample}")
 
     @staticmethod
     def _get_thumbnail(image_arr, size=1000):
         x_size, y_size = image_arr.shape[0:2]
         x_ratio = size / x_size
+        # If the original image is smaller than requested size
+        if x_ratio >= 1:
+            return 1, image_arr
         y_shape = int(y_size * x_ratio)
 
         thumbnail = cv2.resize(image_arr, dsize=(y_shape, size))
@@ -305,7 +349,6 @@ class WSI:
                     savefig_kws=None,
                     ):
 
-
         level = self.tile_ops.level if tiles else 0
         image_arr = self.reader.get_level(level)
         scale_ratio, thumbnail = self._get_thumbnail(image_arr, size)
@@ -315,6 +358,7 @@ class WSI:
         else:
             fig = ax.get_figure()
         ax.imshow(thumbnail)
+        ax.set_axis_off()
 
         if tiles:
             if self.tiles_coords is None:
@@ -355,13 +399,15 @@ class WSI:
         else:
             fig = ax.get_figure()
         ax.imshow(thumbnail)
+        ax.set_axis_off()
         if savefig:
             save_kws = {'dpi': 150, **savefig_kws}
             fig.savefig(fig, save_kws)
         return ax
 
-    def to_dataset(self, transform=None, run_pretrained=False):
-        return WSIDataset(self, transform=transform, run_pretrained=run_pretrained)
+    def to_dataset(self, transform=None, run_pretrained=False, **kwargs):
+        # TODO: Allow resize transform on-the-fly to fit into different models
+        return WSIDataset(self, transform=transform, run_pretrained=run_pretrained, **kwargs)
 
     def get_patch(self, left, top, width, height, level=0, **kwargs):
         return self.reader.get_patch(left, top, width, height, level=level, **kwargs)

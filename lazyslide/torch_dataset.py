@@ -1,8 +1,8 @@
 import torch
 from torch.utils.data import Dataset
-from torchvision.transforms.v2 import ToDtype, Normalize, Compose, Resize
+from torchvision.transforms.v2 import ToImage, ToDtype, Normalize, Compose, Resize
 
-from .normalizer import Normalizer
+from .normalizer import ColorNormalizer
 
 
 class WSIDataset(Dataset):
@@ -24,7 +24,8 @@ class WSIDataset(Dataset):
             mean = (0.5, 0.5, 0.5)
             std = (0.5, 0.5, 0.5)
 
-        self.transform_ops = [ToDtype(torch.float32, scale=True), Normalize(mean=mean, std=std)]
+        self.transform_ops = [ToImage(), ToDtype(dtype=torch.float32),
+                              Normalize(mean=mean, std=std)]
         if transform is not None:
             self.transform_ops = [transform]
         if self.tile_ops.downsample != 1:
@@ -32,7 +33,7 @@ class WSIDataset(Dataset):
                                                self.tile_ops.width))]\
                                  + self.transform_ops
         if color_normalize is not None:
-            self.transform_ops = [Normalizer(method=color_normalize)] + self.transform_ops
+            self.transform_ops = [ColorNormalizer(method=color_normalize)] + self.transform_ops
         self.transform = Compose(self.transform_ops)
 
     def __len__(self):

@@ -42,6 +42,7 @@ class OpenSlideReader(ReaderBase):
         downsample: float = None,
         fill="black",
     ):
+        # TODO: Handle situation that crop outside images
         region = self.slide.read_region(
             location=(top, left), level=level, size=(width, height)
         )
