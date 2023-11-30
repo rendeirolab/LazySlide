@@ -1,11 +1,11 @@
 from pathlib import Path
 from typing import Union
 
-import numpy as np
 import cv2
+import numpy as np
 from openslide import OpenSlide
 
-from .base import ReaderBase, WSIMetaData
+from .base import ReaderBase, parse_metadata
 
 
 class OpenSlideReader(ReaderBase):
@@ -23,14 +23,8 @@ class OpenSlideReader(ReaderBase):
         file: Union[Path, str],
     ):
         super().__init__(file)
-        self.filename = self.file.name
-        self.slide = OpenSlide(filename=self.file)
-        self.properties = self.slide.properties
-        # self.level_count = self.slide.level_count
+        self.slide = OpenSlide(self.file)
         self.metadata = self.get_metadata()
-
-    def __repr__(self):
-        return f"OpenSlideReader('{self.filename}')"
 
     def get_patch(
         self,
@@ -61,55 +55,8 @@ class OpenSlideReader(ReaderBase):
         region_rgb = pil_to_rgb(region)
         return region_rgb
 
-    def _get_openslide_field(self, name):
-        """Get vips fields safely"""
-        if name in self.properties:
-            return self.properties.get(name)
-
     def get_metadata(self):
-        # search available mpp keys
-        mpp_keys = []
-        for k in self.properties:
-            # Any keys end with .mpp
-            if k.lower().endswith(".mpp"):
-                mpp_keys.append(k)
-        # openslide specific mpp keys
-        for k in ("openslide.mpp-x", "openslide.mpp-y"):
-            if k in self.properties:
-                mpp_keys.append(k)
-        mpp = None
-        for k in mpp_keys:
-            mpp_tmp = float(self._get_openslide_field(k))
-            if mpp_tmp is not None:
-                # TODO: Better way to handle this?
-                # Current work for 80X
-                mpp = np.round(mpp_tmp, decimals=2)
-                break
-
-        # search magnification
-        mag = self._get_openslide_field("openslide.objective-power")
-        # TODO: Do we need to handle when level-count is 0?
-        n_level = int(self._get_openslide_field("openslide.level-count"))
-
-        # check if this works
-        level_shape = self.slide.level_dimensions
-        level_downsample = self.slide.level_downsamples
-        shape = self.slide.dimensions
-
-        metadata = WSIMetaData(
-            file_name=self.filename,
-            mpp=mpp,
-            magnification=mag,
-            n_level=n_level,
-            shape=shape,
-            level_shape=level_shape,
-            level_downsample=level_downsample,
-        )
-
-        for f in self.properties:
-            setattr(metadata, f, self.properties.get(f))
-
-        return metadata
+        return parse_metadata(self.filename, dict(self.slide.properties))
 
 
 def pil_to_rgb(image_array_pil):

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Dict
 
 import cv2
 import numpy as np
@@ -8,7 +8,7 @@ import numpy as np
 
 @dataclass
 class WSIMetaData:
-    file_name: str
+    filename: str
     mpp: field(default=None)
     magnification: field(default=None)
     shape: tuple
@@ -25,6 +25,10 @@ class ReaderBase:
 
     def __init__(self, file: Union[Path, str]):
         self.file = Path(file)
+        self.filename = self.file.name
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}('{self.filename}')"
 
     def get_patch(self, left, top, width, height, level=0, **kwargs):
         """Get a patch from image with top-left corner"""
@@ -107,3 +111,88 @@ class ReaderBase:
             return
         use_downsample = avail_downsample[np.argmin(np.abs(avail_downsample - factor))]
         return np.where(level_downsample == use_downsample)[0][0]
+
+
+MAG_KEY = "openslide.objective-power"
+MPP_KEYS = ("openslide.mpp-x", "openslide.mpp-y")
+N_LEVEL_KEY = "openslide.level-count"
+
+LEVEL_HEIGHT_KEY = lambda level: f"openslide.level[{level}].height"
+LEVEL_WIDTH_KEY = lambda level: f"openslide.level[{level}].width"
+LEVEL_DOWNSAMPLE_KEY = lambda level: f"openslide.level[{level}].downsample"
+
+
+def parse_metadata(filename, metadata: Dict):
+    fields = set(metadata.values())
+
+    mpp_keys = []
+    # openslide specific mpp keys
+    for k in MPP_KEYS:
+        if k in fields:
+            mpp_keys.append(k)
+    # search other available mpp keys
+    for k in fields:
+        # Any keys end with .mpp
+        if k.lower().endswith(".mpp"):
+            mpp_keys.append(k)
+
+    mpp = None
+    for k in mpp_keys:
+        mpp_tmp = metadata.get(k)
+        if mpp_tmp is not None:
+            mpp = float(mpp_tmp)
+
+    # search magnification
+    mag_keys = []
+    if MAG_KEY in fields:
+        mag_keys.append(MAG_KEY)
+
+    # search other available mpp keys
+    for k in fields:
+        # Any keys end with .mpp
+        if k.lower().endswith(".appmag"):
+            mag_keys.append(k)
+
+    mag = None
+    for k in mag_keys:
+        mag_tmp = metadata.get(k)
+        if mag_tmp is not None:
+            mag = float(mag_tmp)
+
+    # TODO: Do we need to handle when level-count is 0?
+    n_level = 1
+    level_shape = []
+    level_downsample = []
+    shape = (None, None)
+
+    if N_LEVEL_KEY in fields:
+        n_level_tmp = metadata.get(N_LEVEL_KEY)
+        if n_level_tmp is not None:
+            n_level = n_level_tmp
+
+        for level in range(n_level):
+            height = metadata.get(LEVEL_HEIGHT_KEY(level))
+            width = metadata.get(LEVEL_WIDTH_KEY(level))
+            downsample = metadata.get(LEVEL_DOWNSAMPLE_KEY(level))
+
+            level_shape.append((int(height), int(width)))
+
+            if downsample is not None:
+                downsample = float(downsample)
+            level_downsample.append(downsample)
+
+        shape = level_shape[0]
+
+    wsi_meta = WSIMetaData(
+        filename=filename,
+        mpp=mpp,
+        magnification=mag,
+        shape=shape,
+        n_level=n_level,
+        level_shape=level_shape,
+        level_downsample=level_downsample,
+    )
+    for k, v in metadata.items():
+        setattr(wsi_meta, k, v)
+
+    return wsi_meta

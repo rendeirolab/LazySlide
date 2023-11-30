@@ -4,7 +4,7 @@ from typing import Union
 import cv2
 import numpy as np
 
-from .base import ReaderBase, WSIMetaData
+from .base import ReaderBase, parse_metadata
 from .utils import get_crop_left_top_width_height
 
 try:
@@ -43,7 +43,6 @@ class VipsReader(ReaderBase):
         file: Union[Path, str],
     ):
         super().__init__(file)
-        self.file_name = self.file.name
         self.__level_vips_handler = {}  # cache level handler
         self._image_array_level = {}  # cache level image in numpy array
         self._vips_img = self._get_vips_level(0)
@@ -96,61 +95,9 @@ class VipsReader(ReaderBase):
         else:
             return cropped.gravity(pos, width, height, background=bg)
 
-    def _get_vips_field(self, name):
-        """Get vips fields safely"""
-        if name in self._vips_fields:
-            return self._vips_img.get(name)
-
     def get_metadata(self):
-        # TODO: This logic can be unified through backend
-        # search available mpp keys
-        mpp_keys = []
-        for k in self._vips_fields:
-            # Any keys end with .mpp
-            if k.lower().endswith(".mpp"):
-                mpp_keys.append(k)
-        # openslide specific mpp keys
-        for k in ("openslide.mpp-x", "openslide.mpp-y"):
-            if k in self._vips_fields:
-                mpp_keys.append(k)
-        mpp = None
-        for k in mpp_keys:
-            mpp_tmp = float(self._get_vips_field(k))
-            if mpp_tmp is not None:
-                mpp = mpp_tmp
+        metadata = {}
+        for name in self._vips_fields:
+            metadata[name] = self._vips_img.get(name)
 
-        # search magnification
-        mag = self._get_vips_field("openslide.objective-power")
-        # TODO: Do we need to handle when level-count is 0?
-        n_level = int(self._get_vips_field("openslide.level-count"))
-
-        level_shape = []
-        level_downsample = []
-        for level in range(n_level):
-            height_key = f"openslide.level[{level}].height"
-            width_key = f"openslide.level[{level}].width"
-            downsample_key = f"openslide.level[{level}].downsample"
-
-            height = self._get_vips_field(height_key)
-            width = self._get_vips_field(width_key)
-            level_shape.append((int(height), int(width)))
-
-            downsample = self._get_vips_field(downsample_key)
-            if downsample is not None:
-                downsample = int(float(downsample))
-            level_downsample.append(downsample)
-
-        metadata = WSIMetaData(
-            file_name=self.file_name,
-            mpp=mpp,
-            magnification=mag,
-            n_level=n_level,
-            shape=level_shape[0],
-            level_shape=level_shape,
-            level_downsample=level_downsample,
-        )
-
-        for f in self._vips_fields:
-            setattr(metadata, f, self._vips_img.get(f))
-
-        return metadata
+        return parse_metadata(self.filename, metadata)
