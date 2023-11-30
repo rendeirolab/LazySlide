@@ -23,6 +23,7 @@ dependencies = [
     "torch",
     "torchvision",
     "pyvips",
+    "torchstain"
 ]
 
 [project.optional-dependencies]
