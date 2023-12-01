@@ -123,7 +123,7 @@ LEVEL_DOWNSAMPLE_KEY = lambda level: f"openslide.level[{level}].downsample"
 
 
 def parse_metadata(filename, metadata: Dict):
-    fields = set(metadata.values())
+    fields = set(metadata.keys())
 
     mpp_keys = []
     # openslide specific mpp keys
@@ -168,7 +168,7 @@ def parse_metadata(filename, metadata: Dict):
     if N_LEVEL_KEY in fields:
         n_level_tmp = metadata.get(N_LEVEL_KEY)
         if n_level_tmp is not None:
-            n_level = n_level_tmp
+            n_level = int(n_level_tmp)
 
         for level in range(n_level):
             height = metadata.get(LEVEL_HEIGHT_KEY(level))
