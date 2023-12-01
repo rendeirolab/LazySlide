@@ -195,18 +195,14 @@ class WSI:
         # If the image is too large, we will run segmentation by chunk
         split_indices = get_split_image_indices(img_height, img_width, min_side=chunk_at)
         if chunk & (split_indices is not None):
-            masks = []
+            mask = np.zeros((img_height, img_width), dtype=np.uint8)
             for row in split_indices:
-                row_mask = []
                 for ixs in row:
                     h1, h2, w1, w2 = ixs
                     img_chunk = self.reader.get_patch(w1, h1, w2 - w1, h2 - h1, level=level)
-                    mask = seg.apply(img_chunk)
-                    row_mask.append(mask)
+                    chunk_mask = seg.apply(img_chunk)
+                    mask[h1:h2, w1:w2] = chunk_mask
                     del img_chunk  # Explicitly release memory
-                masks.append(row_mask)
-            mask = np.block(masks)
-            del masks  # Explicitly release memory
         else:
             image = self.reader.get_level(level)
             mask = seg.apply(image)
