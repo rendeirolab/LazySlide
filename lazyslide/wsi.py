@@ -418,6 +418,7 @@ class WSI:
                 ax.add_collection(collections)
 
         if savefig:
+            savefig_kws = {} if savefig_kws is None else savefig_kws
             save_kws = {'dpi': 150, **savefig_kws}
             fig.savefig(fig, save_kws)
 
@@ -442,6 +443,7 @@ class WSI:
         ax.imshow(thumbnail)
         ax.set_axis_off()
         if savefig:
+            savefig_kws = {} if savefig_kws is None else savefig_kws
             save_kws = {'dpi': 150, **savefig_kws}
             fig.savefig(fig, save_kws)
         return ax
