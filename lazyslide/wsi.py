@@ -200,11 +200,13 @@ class WSI:
                 row_mask = []
                 for ixs in row:
                     h1, h2, w1, w2 = ixs
-                    img_chunk = self.reader.get_patch(w1, h1, w2-w1, h2-h1, level=level)
+                    img_chunk = self.reader.get_patch(w1, h1, w2 - w1, h2 - h1, level=level)
                     mask = seg.apply(img_chunk)
                     row_mask.append(mask)
+                    del img_chunk  # Explicitly release memory
                 masks.append(row_mask)
             mask = np.block(masks)
+            del masks  # Explicitly release memory
         else:
             image = self.reader.get_level(level)
             mask = seg.apply(image)
@@ -390,7 +392,7 @@ class WSI:
                     savefig_kws=None,
                     ):
 
-        level = self.tile_ops.level if tiles else 0
+        level = self.tile_ops.level if tiles else self.metadata.n_level - 1
         image_arr = self.reader.get_level(level)
         scale_ratio, thumbnail = self._get_thumbnail(image_arr, size)
 
@@ -420,7 +422,7 @@ class WSI:
         if savefig:
             savefig_kws = {} if savefig_kws is None else savefig_kws
             save_kws = {'dpi': 150, **savefig_kws}
-            fig.savefig(fig, save_kws)
+            fig.savefig(savefig, **save_kws)
 
         return ax
 
@@ -445,7 +447,7 @@ class WSI:
         if savefig:
             savefig_kws = {} if savefig_kws is None else savefig_kws
             save_kws = {'dpi': 150, **savefig_kws}
-            fig.savefig(fig, save_kws)
+            fig.savefig(savefig, **save_kws)
         return ax
 
     def to_dataset(self, transform=None, run_pretrained=False, **kwargs):
