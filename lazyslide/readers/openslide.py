@@ -3,7 +3,11 @@ from typing import Union
 
 import cv2
 import numpy as np
-from openslide import OpenSlide
+
+try:
+    from openslide import OpenSlide
+except Exception as _:
+    pass
 
 from .base import ReaderBase, parse_metadata
 
