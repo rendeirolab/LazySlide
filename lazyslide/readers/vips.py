@@ -44,7 +44,7 @@ class VipsReader(ReaderBase):
     ):
         super().__init__(file)
         self.__level_vips_handler = {}  # cache level handler
-        self._image_array_level = {}  # cache level image in numpy array
+        # self._image_array_level = {}  # cache level image in numpy array
         self._vips_img = self._get_vips_level(0)
         self._vips_fields = set(self._vips_img.get_fields())
         self.metadata = self.get_metadata()
@@ -61,16 +61,16 @@ class VipsReader(ReaderBase):
         if downsample is not None:
             if downsample != 1:
                 patch = patch.resize(1 / downsample)
-        img_arr = vips2numpy(patch)
+        img_arr = np.asarray(patch).astype(np.uint8)
         return cv2.cvtColor(img_arr, cv2.COLOR_RGBA2RGB).astype(np.uint8)
 
     def get_level(self, level):
-        img_arr = self._image_array_level.get(level)
-        if img_arr is None:
-            img = self._get_vips_level(level)
-            img_arr = vips2numpy(img)
-            img_arr = cv2.cvtColor(img_arr, cv2.COLOR_RGBA2RGB).astype(np.uint8)
-            self._image_array_level[level] = img_arr
+        # img_arr = self._image_array_level.get(level)
+        # if img_arr is None:
+        img = self._get_vips_level(level)
+        img_arr = np.asarray(img).astype(np.uint8)
+        img_arr = cv2.cvtColor(img_arr, cv2.COLOR_RGBA2RGB)
+            # self._image_array_level[level] = img_arr
         return img_arr
 
     def _get_vips_level(self, level=0):
