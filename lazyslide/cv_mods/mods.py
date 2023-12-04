@@ -12,7 +12,7 @@ class ConvertColorspace(Transform):
             self.old = old.upper()
             self.new = new.upper()
             if code is None:
-                code = getattr(cv2, f"{self.old}2{self.new}")
+                code = getattr(cv2, f"COLOR_{self.old}2{self.new}".upper())
         self.code = code
 
     def apply(self, image):
@@ -312,6 +312,80 @@ class ForegroundDetection(Transform):
         return mask_out.astype(np.uint8)
 
 
+class ForegroundContourDetection(Transform):
+    """
+    Foreground detection for binary masks. Identifies regions that have a total area greater than
+    specified threshold. Supports including holes within foreground regions, or excluding holes
+    above a specified area threshold.
+
+    Args:
+        min_region_size (int): Minimum area of detected foreground regions, in pixels. Defaults to 5000.
+        max_hole_size (int): Maximum size of allowed holes in foreground regions, in pixels.
+            Ignored if ``outer_contours_only is True``. Defaults to 1500.
+        outer_contours_only (bool): If true, ignore holes in detected foreground regions. Defaults to False.
+        mask_name (str): Name of mask on which to apply transform
+
+    References:
+        Lu, M.Y., Williamson, D.F., Chen, T.Y., Chen, R.J., Barbieri, M. and Mahmood, F., 2020. Data Efficient and
+        Weakly Supervised Computational Pathology on Whole Slide Images. arXiv preprint arXiv:2004.09666.
+    """
+
+    def __init__(
+            self,
+            mask_name=None,
+            min_region_size=5000,
+            max_hole_size=1500,
+            outer_contours_only=False,
+    ):
+        self.min_region_size = min_region_size
+        self.max_hole_size = max_hole_size
+        self.outer_contours_only = outer_contours_only
+        self.mask_name = mask_name
+
+    def __repr__(self):
+        return (
+            f"ForegroundDetection(min_region_size={self.min_region_size}, max_hole_size={self.max_hole_size},"
+            f"outer_contours_only={self.outer_contours_only}, mask_name={self.mask_name})"
+        )
+
+    def apply(self, mask):
+        assert mask.dtype == np.uint8, f"mask type {mask.dtype} must be np.uint8"
+        mode = cv2.RETR_EXTERNAL if self.outer_contours_only else cv2.RETR_CCOMP
+        contours, hierarchy = cv2.findContours(
+            mask.copy(), mode=mode, method=cv2.CHAIN_APPROX_NONE
+        )
+
+        if hierarchy is None:
+            # no contours found --> return empty mask
+            return [], []
+        elif self.outer_contours_only:
+            return contours, []
+        else:
+            # separate outside and inside contours (region boundaries vs. holes in regions)
+            # find the outside contours by looking for those with no parents (4th column is -1 if no parent)
+            contours_ix = np.arange(len(contours), dtype=object)
+            hierarchy = np.squeeze(hierarchy, axis=0)
+            outmost_slice = hierarchy[:, 3] == -1
+            hole_slice = ~outmost_slice
+
+            outmost = contours_ix[outmost_slice]
+            holes = contours_ix[hole_slice]
+            contours_areas = np.array([cv2.contourArea(c) for c in contours])
+
+            # outside contours must be above min_tissue_region_size threshold
+            tissue_contours = outmost[
+                contours_areas[outmost_slice] > self.min_region_size]
+
+            tissue_holes = holes[
+                # hole contours must be above area threshold
+                contours_areas[hole_slice] < self.max_hole_size & \
+                # holes must have parents above area threshold
+                (contours_areas[hierarchy[hole_slice, 3]] > self.min_region_size)]
+
+            return ([np.squeeze(contours[ix], axis=1) for ix in tissue_contours],
+                    [np.squeeze(contours[ix], axis=1) for ix in tissue_holes])
+
+
 class TissueDetectionHE(Transform):
     """
     Detect tissue regions from H&E stained slide.
@@ -329,19 +403,19 @@ class TissueDetectionHE(Transform):
         max_hole_size (int): Maximum size of allowed holes in foreground regions, in pixels.
             Ignored if outer_contours_only=True. Defaults to 1500.
         outer_contours_only (bool): If true, ignore holes in detected foreground regions. Defaults to False.
-        mask_name (str): name for new mask
     """
 
     def __init__(
             self,
             use_saturation=True,
             blur_ksize=17,
-            threshold=None,
+            threshold=7,
             morph_n_iter=3,
             morph_k_size=7,
-            min_region_size=5000,
-            max_hole_size=1500,
+            min_region_size=2500,
+            max_hole_size=100,
             outer_contours_only=False,
+            return_contours=False,
     ):
         self.use_sat = use_saturation
         self.blur_ksize = blur_ksize
@@ -357,6 +431,19 @@ class TissueDetectionHE(Transform):
         else:
             thresholder = BinaryThreshold(use_otsu=False, threshold=self.threshold)
 
+        if not return_contours:
+            foreground = ForegroundDetection(
+                min_region_size=self.min_region_size,
+                max_hole_size=self.max_hole_size,
+                outer_contours_only=self.outer_contours_only,
+            )
+        else:
+            foreground = ForegroundContourDetection(
+                min_region_size=self.min_region_size,
+                max_hole_size=self.max_hole_size,
+                outer_contours_only=self.outer_contours_only,
+            )
+
         self.pipeline = [
             MedianBlur(kernel_size=self.blur_ksize),
             thresholder,
@@ -366,11 +453,7 @@ class TissueDetectionHE(Transform):
             MorphClose(
                 kernel_size=self.morph_k_size,
                 n_iterations=self.morph_n_iter),
-            ForegroundDetection(
-                min_region_size=self.min_region_size,
-                max_hole_size=self.max_hole_size,
-                outer_contours_only=self.outer_contours_only,
-            )
+            foreground,
         ]
 
     def __repr__(self):
