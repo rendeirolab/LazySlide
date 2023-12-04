@@ -26,9 +26,9 @@ class OpenSlideReader(ReaderBase):
         self,
         file: Union[Path, str],
     ):
-        super().__init__(file)
         self.slide = OpenSlide(self.file)
-        self.metadata = self.get_metadata()
+        super().__init__(file, dict(self.slide.properties))
+        self._levels = np.arange(self.metadata.n_level)
 
     def get_patch(
         self,
@@ -36,37 +36,25 @@ class OpenSlideReader(ReaderBase):
         top,
         width,
         height,
-        level: int = None,
+        level: int = 0,
         downsample: float = None,
-        fill="black",
+        fill=255,
     ):
+        level = self.translate_level(level)
         # TODO: Handle situation that crop outside images
         region = self.slide.read_region(
             location=(top, left), level=level, size=(width, height)
         )
-        region_rgb = pil_to_rgb(region)
+        region_rgb = self._rgba_to_rgb(region)
         return region_rgb
 
     def get_level(self, level):
-        # return np array as np.uint8
-        if level + 1 > self.metadata.n_level:
-            raise ValueError(f"Requested level {level} is not available")
+
+        level = self.translate_level(level)
 
         width, height = self.slide.level_dimensions[level]
         region = self.slide.read_region(
             location=(0, 0), level=level, size=(width, height)
         )
-        region_rgb = pil_to_rgb(region)
+        region_rgb = self._rgba_to_rgb(region)
         return region_rgb
-
-    def get_metadata(self):
-        return parse_metadata(self.filename, dict(self.slide.properties))
-
-
-def pil_to_rgb(image_array_pil):
-    """
-    Convert PIL RGBA Image to numpy RGB array
-    """
-    image_array_rgba = np.asarray(image_array_pil)
-    image_array = cv2.cvtColor(image_array_rgba, cv2.COLOR_RGBA2RGB).astype(np.uint8)
-    return image_array

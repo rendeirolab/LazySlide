@@ -23,12 +23,17 @@ class WSIMetaData:
 class ReaderBase:
     metadata: WSIMetaData
 
-    def __init__(self, file: Union[Path, str]):
+    def __init__(self, file: Union[Path, str], metadata: Dict):
         self.file = Path(file)
         self.filename = self.file.name
+        self.metadata = parse_metadata(self.filename, metadata)
+        self._levels = np.arange(self.metadata.n_level)
 
     def __repr__(self):
         return f"{self.__class__.__name__}('{self.filename}')"
+
+    def translate_level(self, level):
+        return self._levels[level]
 
     def get_patch(self, left, top, width, height, level=0, **kwargs):
         """Get a patch from image with top-left corner"""
@@ -45,7 +50,7 @@ class ReaderBase:
         raise NotImplementedError
 
     def get_metadata(self):
-        raise NotImplementedError
+        return self.metadata
 
     @staticmethod
     def resize_img(img: np.ndarray,
@@ -54,6 +59,12 @@ class ReaderBase:
         dim = np.asarray(img.shape)
         dim = np.array(dim * scale, dtype=int)
         return cv2.resize(img, dim)
+
+    @staticmethod
+    def _rgba_to_rgb(img):
+        image_array_rgba = np.asarray(img)
+        image_array = cv2.cvtColor(image_array_rgba, cv2.COLOR_RGBA2RGB).astype(np.uint8)
+        return image_array
 
     def _get_ops_params(self,
                         level: int = None,
