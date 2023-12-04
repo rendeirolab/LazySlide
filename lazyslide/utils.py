@@ -1,9 +1,17 @@
 from dataclasses import dataclass, field
+from itertools import tee
 from typing import Type
 
 from .readers.base import ReaderBase
 from .readers.vips import VipsReader
 from .readers.openslide import OpenSlideReader
+
+
+def pairwise(iterable):
+    # pairwise('ABCDEFG') --> AB BC CD DE EF FG
+    a, b = tee(iterable)
+    next(b, None)
+    return zip(a, b)
 
 
 def get_reader(reader="auto") -> Type[ReaderBase]:

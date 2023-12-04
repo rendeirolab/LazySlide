@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import warnings
-from itertools import tee
 from numbers import Integral
 from pathlib import Path
 from typing import Iterable
@@ -11,20 +10,12 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle
-from numba import njit, prange
+from numba import njit
 
 from .cv_mods import TissueDetectionHE
 from .h5 import H5File
 from .readers.base import ReaderBase
-from .torch_dataset import WSIDataset
-from .utils import get_reader, TileOps
-
-
-def pairwise(iterable):
-    # pairwise('ABCDEFG') --> AB BC CD DE EF FG
-    a, b = tee(iterable)
-    next(b, None)
-    return zip(a, b)
+from .utils import pairwise, get_reader, TileOps
 
 
 @njit
@@ -576,9 +567,8 @@ class WSI:
             fig.savefig(savefig, **save_kws)
         return ax
 
-    def to_dataset(self, transform=None, run_pretrained=False, **kwargs):
-        # TODO: Allow resize transform on-the-fly to fit into different models
-        return WSIDataset(self, transform=transform, run_pretrained=run_pretrained, **kwargs)
+    # def to_dataset(self, transform=None, run_pretrained=False, **kwargs):
+    #     return WSIDataset(self, transform=transform, run_pretrained=run_pretrained, **kwargs)
 
     def get_patch(self, left, top, width, height, level=0, **kwargs):
         return self.reader.get_patch(left, top, width, height, level=level, **kwargs)

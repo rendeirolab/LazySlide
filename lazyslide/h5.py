@@ -2,14 +2,12 @@ from dataclasses import asdict
 from pathlib import Path
 
 import h5py
-import numpy as np
 
 from .utils import TileOps
 
 
 class H5File:
     """A class that handle storage and reading of h5 file"""
-    # TODO: Add options to save contours and holes
 
     COORDS_KEY = "coords"
     MASKS_KEY = "masks"

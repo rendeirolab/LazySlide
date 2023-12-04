@@ -30,6 +30,9 @@ dependencies = [
 vips = [
     "pyvips",
 ]
+all = [
+    "ncls"
+]
 dev = [
     "flit",
     "pytest >=2.7.3",
