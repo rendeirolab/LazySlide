@@ -173,12 +173,14 @@ class SlidesBalancedLoader(DataLoader):
                  resize=None,
                  color_normalize=None,
                  transform=None,
+                 max_taken=None,
                  **kwargs,
                  ):
         dataset = SlidesDataset(wsi_list,
                                 resize=resize,
                                 color_normalize=color_normalize,
-                                transform=transform)
+                                transform=transform,
+                                max_taken=max_taken)
         sampler = SlidesSampler(dataset.get_sampler_slides(), batch_size)
 
         super().__init__(
