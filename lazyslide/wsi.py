@@ -214,8 +214,7 @@ class WSI:
         self.masks, self.masks_level = self.h5_file.get_masks()
         self.tiles_coords = self.h5_file.get_coords()
         self.tile_ops = self.h5_file.get_tile_ops()
-        self.contours = []
-        self.holes = []
+        self.contours, self.holes = self.h5_file.get_contours_holes()
 
     def __repr__(self):
         return (f"WSI(image={self.image}, "
@@ -277,7 +276,7 @@ class WSI:
             self.h5_file.set_mask(name, mask, level)
             self.h5_file.save()
 
-    def create_tissue_contours(self, level=-1, **kwargs):
+    def create_tissue_contours(self, level=-1, save=False, **kwargs):
         """Contours will always return
         the version scale back to level 0"""
 
@@ -292,6 +291,9 @@ class WSI:
             holes = [(h * downsample).astype(np.uint) for h in holes]
         self.contours = contours
         self.holes = holes
+        if save:
+            self.h5_file.set_contours_holes(contours, holes)
+            self.h5_file.save()
 
     def get_mask(self, name):
         return self.masks.get(name), self.masks_level.get(name)
