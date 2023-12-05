@@ -13,6 +13,31 @@ except Exception as _:
     pass
 
 
+VIPS_FORMAT_TO_DTYPE = {
+    "uchar": np.uint8,
+    "char": np.int8,
+    "ushort": np.uint16,
+    "short": np.int16,
+    "uint": np.uint32,
+    "int": np.int32,
+    "float": np.float32,
+    "double": np.float64,
+    "complex": np.complex64,
+    "dpcomplex": np.complex128,
+}
+
+
+def vips2numpy(
+    vi: "vips.Image",
+) -> np.ndarray:
+    """Converts a VIPS image into a numpy array"""
+    return np.ndarray(
+        buffer=vi.write_to_memory(),
+        dtype=VIPS_FORMAT_TO_DTYPE[vi.format],
+        shape=[vi.height, vi.width, vi.bands],
+    )
+
+
 class VipsReader(ReaderBase):
     def __init__(
         self,
@@ -43,11 +68,13 @@ class VipsReader(ReaderBase):
         if downsample is not None:
             if downsample != 1:
                 patch = patch.resize(1 / downsample)
+        patch = vips2numpy(patch)
         return self._rgba_to_rgb(patch)
 
     def get_level(self, level):
         level = self.translate_level(level)
         img = self._get_vips_level(level)
+        img = vips2numpy(img)
         return self._rgba_to_rgb(img)
 
     def _get_vips_level(self, level=0):
