@@ -39,7 +39,7 @@ class H5File:
         self._rewrite = True
 
     def load(self):
-        with h5py.File(self.file, "r+") as h5:
+        with h5py.File(self.file, "r") as h5:
             if self.COORDS_KEY in h5:
                 ds = h5[self.COORDS_KEY]
                 self.coords = ds[:]
