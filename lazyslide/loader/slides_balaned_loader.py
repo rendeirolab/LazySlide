@@ -84,7 +84,7 @@ class SlidesDataset(Dataset):
 
     def __getitem__(self, ix):
         ix = int(ix)
-        _, _, slide_ix = next(self.ncls.find_overlap(ix, ix))
+        _, _, slide_ix = next(self.ncls.find_overlap(ix, ix+1))
         tile_ix = ix - self.starts[slide_ix]
         wsi = self.wsi_list[slide_ix]
 
