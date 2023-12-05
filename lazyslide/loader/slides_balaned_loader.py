@@ -80,7 +80,7 @@ class SlidesDataset(Dataset):
         self.max_taken = max_taken
 
     def __len__(self):
-        return np.sum(self.wsi_n_tiles)
+        return sum(self.wsi_n_tiles)
 
     def __getitem__(self, ix):
         _, _, slide_ix = next(self.ncls.find_overlap(ix, ix))
