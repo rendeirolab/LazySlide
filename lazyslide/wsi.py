@@ -209,7 +209,7 @@ class WSI:
 
     def __repr__(self):
         return (f"WSI(image={self.image}, "
-                f"h5_file={self.h5_file})")
+                f"h5_file={self.h5_file.file})")
 
     def create_mask(self, transform, name="user", level=-1, save=False):
         level = self.reader.translate_level(level)
@@ -431,13 +431,14 @@ class WSI:
                 points = rect_coords[:, [1, 0]]
                 is_in = []
                 for c in self.contours:
-                    is_in.append(np.array([cv2.pointPolygonTest(c, point, measureDist=False) \
-                                           for point in points]) == 1)
+                    # Coerce the point to python int and let the opencv decide the type
+                    is_in.append(np.array([cv2.pointPolygonTest(c, (int(x), int(y)), measureDist=False) \
+                                           for x, y in points]) == 1)
 
                 if len(self.holes) > 0:
                     for c in self.contours:
-                        is_in.append(np.array([cv2.pointPolygonTest(c, point, measureDist=False) \
-                                               for point in points]) == -1)
+                        is_in.append(np.array([cv2.pointPolygonTest(c, (int(x), int(y)), measureDist=False) \
+                                               for x, y in points]) == -1)
 
                 is_tiles = np.asarray(is_in).sum(axis=0) == 1
             # The number of points for each tiles inside contours
@@ -451,7 +452,9 @@ class WSI:
 
     def new_tiles(self, tiles_coords, height, width, level=0):
         """Supply a customized tiles"""
-        self.tiles_coords = tiles_coords
+        self.tiles_coords = np.asarray(tiles_coords, dtype=np.uint)
+        height = int(height)
+        width = int(width)
         self.tile_ops = TileOps(level=level,
                                 mpp=self.metadata.mpp,
                                 downsample=1,
