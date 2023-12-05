@@ -6,13 +6,6 @@ from numbers import Number
 from lazyslide.normalizer import ColorNormalizer
 
 
-def get_dest_size(size):
-    if isinstance(size, Number):
-        return size, size
-    else:
-        return size
-
-
 def compose_transform(resize=None,
                       color_normalize=None,
                       feature_extraction=False,
@@ -49,9 +42,9 @@ class FeatureExtractionDataset(Dataset):
             self.transform = transform
         else:
             if resize is not None:
-                resize_to = get_dest_size(resize)
+                resize_to = resize
             elif self.tile_ops.downsample != 1:
-                resize_to = (self.tile_ops.height, self.tile_ops.width)
+                resize_to = (int(self.tile_ops.height), int(self.tile_ops.width))
             else:
                 resize_to = None
             self.transform = compose_transform(resize=resize_to,
