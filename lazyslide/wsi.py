@@ -14,7 +14,6 @@ from numba import njit
 
 from .cv_mods import TissueDetectionHE
 from .h5 import H5File
-from .readers.base import ReaderBase
 from .utils import pairwise, get_reader, TileOps
 
 
@@ -199,9 +198,8 @@ class WSI:
             h5_file = self.image.with_suffix(".coords.h5")
 
         self.h5_file = H5File(h5_file)
-        reader = get_reader(reader)
-        self.reader: ReaderBase = reader(self.image)
-        self.metadata = self.reader.metadata
+        self._reader_class = get_reader(reader)
+        self._reader = None
         self.masks, self.masks_level = self.h5_file.get_masks()
         self.tiles_coords = self.h5_file.get_coords()
         self.tile_ops = self.h5_file.get_tile_ops()
@@ -209,7 +207,18 @@ class WSI:
 
     def __repr__(self):
         return (f"WSI(image={self.image}, "
-                f"h5_file={self.h5_file.file})")
+                f"h5_file={self.h5_file.file},"
+                f"reader={self._reader_class})")
+
+    @property
+    def reader(self):
+        if self._reader is None:
+            self._reader = self._reader_class(self.image)
+        return self._reader
+
+    @property
+    def metadata(self):
+        return self.reader.metadata
 
     def create_mask(self, transform, name="user", level=-1, save=False):
         level = self.reader.translate_level(level)
