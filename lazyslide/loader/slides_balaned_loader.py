@@ -83,6 +83,7 @@ class SlidesDataset(Dataset):
         return sum(self.wsi_n_tiles)
 
     def __getitem__(self, ix):
+        ix = int(ix)
         _, _, slide_ix = next(self.ncls.find_overlap(ix, ix))
         tile_ix = ix - self.starts[slide_ix]
         wsi = self.wsi_list[slide_ix]
@@ -181,11 +182,11 @@ class SlidesBalancedLoader(DataLoader):
                                 color_normalize=color_normalize,
                                 transform=transform,
                                 max_taken=max_taken)
-        sampler = SlidesSampler(dataset.get_sampler_slides(), batch_size)
+        sampler = SlidesSampler(dataset.get_sampler_slides(),
+                                batch_size=batch_size)
 
         super().__init__(
             dataset=dataset,
-            batch_size=batch_size,
             batch_sampler=sampler,
             **kwargs,
         )
