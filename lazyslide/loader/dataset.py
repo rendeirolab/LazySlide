@@ -1,7 +1,6 @@
 import torch
 from torch.utils.data import Dataset
 from torchvision.transforms.v2 import ToImage, ToDtype, Normalize, Compose, Resize
-from numbers import Number
 
 from lazyslide.normalizer import ColorNormalizer
 
@@ -20,7 +19,7 @@ def compose_transform(resize=None,
     middle = []
     after = [Normalize(mean=mean, std=std)]
     if resize is not None:
-        middle.append(Resize(size=resize))
+        middle.append(Resize(size=resize, antialias=True))
     if color_normalize is not None:
         middle.append(ColorNormalizer(method=color_normalize))
 
