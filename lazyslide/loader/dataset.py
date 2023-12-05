@@ -15,15 +15,14 @@ def compose_transform(resize=None,
     else:
         mean = (0.5, 0.5, 0.5)
         std = (0.5, 0.5, 0.5)
-    before = [ToImage(), ToDtype(dtype=torch.float32)]
-    middle = []
-    after = [Normalize(mean=mean, std=std)]
+    pre = []
+    after = [ToImage(), ToDtype(dtype=torch.float32, scale=True), Normalize(mean=mean, std=std)]
     if resize is not None:
-        middle.append(Resize(size=resize, antialias=True))
+        pre += [ToImage(), Resize(size=resize, antialias=True)]
     if color_normalize is not None:
-        middle.append(ColorNormalizer(method=color_normalize))
+        pre.append(ColorNormalizer(method=color_normalize))
 
-    return Compose(before + middle + after)
+    return Compose(pre + after)
 
 
 class FeatureExtractionDataset(Dataset):

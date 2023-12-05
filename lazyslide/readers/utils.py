@@ -16,7 +16,7 @@ def get_crop_left_top_width_height(img_width, img_height,
     if (top_out and bottom_out) or (left_out and right_out):
         raise RuntimeError(f"Extracting region that are completely outside image. \n"
                            f"Image shape: H, W ({img_height}, {img_width}) \n"
-                           f"Tile: ({left}, {top}, {width}, {height})")
+                           f"Tile: Top, Left, Width, Height ({top}, {left}, {width}, {height})")
 
     if top_out and bottom_in and left_out and right_in:
         crop_left, crop_top = 0, 0

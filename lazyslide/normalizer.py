@@ -19,8 +19,12 @@ class ColorNormalizer(torch.nn.Module):
             normalizer = norm.TorchMacenkoNormalizer()
         elif method == "reinhard":
             normalizer = norm.TorchReinhardNormalizer()
+            normalizer.target_means = torch.tensor([72.909996, 20.8268, -4.9465137])
+            normalizer.target_stds = torch.tensor([18.560713, 14.889295, 5.6756697])
         elif method == "reinhard_modified":
             normalizer = norm.TorchReinhardNormalizer(method="modified")
+            normalizer.target_means = torch.tensor([72.909996, 20.8268, -4.9465137])
+            normalizer.target_stds = torch.tensor([18.560713, 14.889295, 5.6756697])
         else:
             raise NotImplementedError(f"Requested method '{method}' not implemented")
         self.normalizer = normalizer
@@ -30,5 +34,8 @@ class ColorNormalizer(torch.nn.Module):
 
     def forward(self, img):
         t_img = self.T(img)
-        norm, _, _ = self.normalizer.normalize(I=t_img)
+        if self.method == "macenko":
+            norm, _, _ = self.normalizer.normalize(I=t_img)
+        else:
+            norm = self.normalizer.normalize(I=t_img)
         return norm.permute(2, 0, 1)
