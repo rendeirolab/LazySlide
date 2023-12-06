@@ -287,8 +287,10 @@ class WSI:
         contours, holes = seg.apply(image)
         if level != 0:
             downsample = self.metadata.level_downsample[level]
-            contours = [(c * downsample).astype(np.uint) for c in contours]
-            holes = [(h * downsample).astype(np.uint) for h in holes]
+        else:
+            downsample = 1
+        contours = [(c * downsample).astype(int) for c in contours]
+        holes = [(h * downsample).astype(int) for h in holes]
         self.contours = contours
         self.holes = holes
         if save:
@@ -437,16 +439,17 @@ class WSI:
             if len(self.contours) == 0:
                 is_tiles = np.zeros(len(rect_coords), dtype=np.bool_)
             else:
-                points = rect_coords[:, [1, 0]]
+                points = rect_coords
                 is_in = []
                 for c in self.contours:
                     # Coerce the point to python int and let the opencv decide the type
-                    is_in.append(np.array([cv2.pointPolygonTest(c, (int(x), int(y)), measureDist=False) \
+                    # Flip x, y beacuse it's different in opencv
+                    is_in.append(np.array([cv2.pointPolygonTest(c, (float(y), float(x)), measureDist=False) \
                                            for x, y in points]) == 1)
 
                 if len(self.holes) > 0:
-                    for c in self.contours:
-                        is_in.append(np.array([cv2.pointPolygonTest(c, (int(x), int(y)), measureDist=False) \
+                    for c in self.holes:
+                        is_in.append(np.array([cv2.pointPolygonTest(c, (float(y), float(x)), measureDist=False) \
                                                for x, y in points]) == -1)
 
                 is_tiles = np.asarray(is_in).sum(axis=0) == 1
