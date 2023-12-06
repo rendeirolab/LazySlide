@@ -127,10 +127,11 @@ class SlidesDataset(Dataset):
 
 class SlidesSampler(Sampler):
 
-    def __init__(self, slides, batch_size):
+    def __init__(self, slides, batch_size, drop_last=False):
         super().__init__()
         self.slides = slides
         self.batch_size = batch_size
+        self.drop_last = drop_last
 
     def __len__(self):
         return sum([len(s) for s in self.slides])
@@ -139,28 +140,34 @@ class SlidesSampler(Sampler):
 
         _iter_slides = deepcopy(self.slides)
 
-        unused_slides = []
+        exhaust_slides = []
         batch = []
 
         while True:
 
             for slide in _iter_slides:
                 t = slide.get_tile()
+                # If tile can be acquired
                 if t is not None:
                     batch.append(t)
+                # If not, the slide is exhausted
                 else:
-                    unused_slides.append(slide)
+                    exhaust_slides.append(slide)
 
                 if len(batch) == self.batch_size:
                     yield batch
                     batch = []
 
-                for s in unused_slides:
+                for s in exhaust_slides:
                     _iter_slides.remove(s)
-                    unused_slides = []
+                    exhaust_slides = []
 
             if len(_iter_slides) == 0:
-                yield batch
+                # There are two situations
+                # 1. All tiles equally divided to each batch
+                # 2. Not equally divided
+                if len(batch) > 0 and not self.drop_last:
+                    yield batch
                 return
 
 
@@ -175,6 +182,7 @@ class SlidesBalancedLoader(DataLoader):
                  color_normalize=None,
                  transform=None,
                  max_taken=None,
+                 drop_last=False,
                  **kwargs,
                  ):
         dataset = SlidesDataset(wsi_list,
@@ -183,7 +191,8 @@ class SlidesBalancedLoader(DataLoader):
                                 transform=transform,
                                 max_taken=max_taken)
         sampler = SlidesSampler(dataset.get_sampler_slides(),
-                                batch_size=batch_size)
+                                batch_size=batch_size,
+                                drop_last=drop_last)
 
         super().__init__(
             dataset=dataset,
