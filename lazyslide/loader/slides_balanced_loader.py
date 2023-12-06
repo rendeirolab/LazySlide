@@ -10,12 +10,12 @@ from .dataset import compose_transform
 
 
 class Slide:
-
-    def __init__(self,
-                 n_tiles,
-                 slide_ix,
-                 start_index,
-                 ):
+    def __init__(
+        self,
+        n_tiles,
+        slide_ix,
+        start_index,
+    ):
         self.n_tiles = n_tiles
         self.ix = slide_ix
         self.start_index = start_index
@@ -31,14 +31,14 @@ class Slide:
 
 
 class SlidesDataset(Dataset):
-
-    def __init__(self,
-                 wsi_list,
-                 resize=None,
-                 color_normalize=None,
-                 transform=None,
-                 max_taken=None,
-                 ):
+    def __init__(
+        self,
+        wsi_list,
+        resize=None,
+        color_normalize=None,
+        transform=None,
+        max_taken=None,
+    ):
         try:
             from ncls import NCLS
         except ImportError:
@@ -48,9 +48,9 @@ class SlidesDataset(Dataset):
         if transform is not None:
             self.transform = transform
         else:
-            self.transform = compose_transform(resize,
-                                               color_normalize=color_normalize,
-                                               feature_extraction=False)
+            self.transform = compose_transform(
+                resize, color_normalize=color_normalize, feature_extraction=False
+            )
 
         if resize is None:
             self.resize_transform = []
@@ -74,8 +74,11 @@ class SlidesDataset(Dataset):
             self.ixs.append(ix)
             self.starts.append(start)
             self.ends.append(end)
-        self.ncls = NCLS(np.array(self.starts, dtype=int), np.array(self.ends, dtype=int),
-                         np.array(self.ixs, dtype=int))
+        self.ncls = NCLS(
+            np.array(self.starts, dtype=int),
+            np.array(self.ends, dtype=int),
+            np.array(self.ixs, dtype=int),
+        )
 
         self.max_taken = max_taken
 
@@ -84,14 +87,16 @@ class SlidesDataset(Dataset):
 
     def __getitem__(self, ix):
         ix = int(ix)
-        _, _, slide_ix = next(self.ncls.find_overlap(ix, ix+1))
+        _, _, slide_ix = next(self.ncls.find_overlap(ix, ix + 1))
         tile_ix = ix - self.starts[slide_ix]
         wsi = self.wsi_list[slide_ix]
 
         # change here how to get the coordinate
         top, left = wsi.tiles_coords[tile_ix]
         tile_ops = wsi.tile_ops
-        img = wsi.get_patch(left, top, tile_ops.ops_width, tile_ops.ops_height, tile_ops.level)
+        img = wsi.get_patch(
+            left, top, tile_ops.ops_width, tile_ops.ops_height, tile_ops.level
+        )
         if self.resize_transform is not None:
             resize_ops = self.resize_transform[slide_ix]
             if resize_ops is not None:
@@ -104,7 +109,9 @@ class SlidesDataset(Dataset):
         less_than_max_taken = []
         less_n_tiles = []
 
-        for slide_ix, (n_tiles, start_index) in enumerate(zip(self.wsi_n_tiles, self.starts)):
+        for slide_ix, (n_tiles, start_index) in enumerate(
+            zip(self.wsi_n_tiles, self.starts)
+        ):
             if self.max_taken is not None:
                 if n_tiles > self.max_taken:
                     n_tiles = self.max_taken
@@ -119,14 +126,17 @@ class SlidesDataset(Dataset):
             if total_less > 30:
                 less_than_max_taken = less_than_max_taken[0:30]
                 less_n_tiles = less_n_tiles[0:30]
-            warn_stats = [f'{i}, {n} tiles' for i, n in zip(less_than_max_taken, less_n_tiles)]
-            warnings.warn(f"There are {total_less} slides has less than max_taken={self.max_taken}:"
-                          f"{', '.join(warn_stats)}")
+            warn_stats = [
+                f"{i}, {n} tiles" for i, n in zip(less_than_max_taken, less_n_tiles)
+            ]
+            warnings.warn(
+                f"There are {total_less} slides has less than max_taken={self.max_taken}:"
+                f"{', '.join(warn_stats)}"
+            )
         return slides
 
 
 class SlidesSampler(Sampler):
-
     def __init__(self, slides, batch_size, drop_last=False):
         super().__init__()
         self.slides = slides
@@ -134,17 +144,15 @@ class SlidesSampler(Sampler):
         self.drop_last = drop_last
 
     def __len__(self):
-        return sum([len(s) for s in self.slides])
+        return sum([len(s) for s in self.slides]) // self.batch_size
 
     def __iter__(self):
-
         _iter_slides = deepcopy(self.slides)
 
         exhaust_slides = []
         batch = []
 
         while True:
-
             for slide in _iter_slides:
                 t = slide.get_tile()
                 # If tile can be acquired
@@ -176,23 +184,27 @@ class SlidesBalancedLoader(DataLoader):
     the tiles are from different slides
     """
 
-    def __init__(self, wsi_list,
-                 batch_size=1,
-                 resize=None,
-                 color_normalize=None,
-                 transform=None,
-                 max_taken=None,
-                 drop_last=False,
-                 **kwargs,
-                 ):
-        dataset = SlidesDataset(wsi_list,
-                                resize=resize,
-                                color_normalize=color_normalize,
-                                transform=transform,
-                                max_taken=max_taken)
-        sampler = SlidesSampler(dataset.get_sampler_slides(),
-                                batch_size=batch_size,
-                                drop_last=drop_last)
+    def __init__(
+        self,
+        wsi_list,
+        batch_size=1,
+        resize=None,
+        color_normalize=None,
+        transform=None,
+        max_taken=None,
+        drop_last=False,
+        **kwargs,
+    ):
+        dataset = SlidesDataset(
+            wsi_list,
+            resize=resize,
+            color_normalize=color_normalize,
+            transform=transform,
+            max_taken=max_taken,
+        )
+        sampler = SlidesSampler(
+            dataset.get_sampler_slides(), batch_size=batch_size, drop_last=drop_last
+        )
 
         super().__init__(
             dataset=dataset,
