@@ -1,2 +1,2 @@
 from .dataset import FeatureExtractionDataset
-from .slides_balaned_loader import SlidesBalancedLoader
+from .slides_balanced_loader import SlidesBalancedLoader
