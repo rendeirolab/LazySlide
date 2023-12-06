@@ -459,9 +459,27 @@ class WSI:
         self.h5_file.set_tile_ops(self.tile_ops)
         self.h5_file.save()
 
-    def new_tiles(self, tiles_coords, height, width, level=0):
-        """Supply a customized tiles"""
+    def new_tiles(self, tiles_coords, height, width, level=0, format="top-left"):
+        """Supply new tiles to WSI
+
+        The default coordination for tiles in top-left, you can change this
+        with the `format` paramters
+
+        Parameters
+        ----------
+        tiles_coords
+        height
+        width
+        level
+        format : str, {'top-left', 'left-top'}
+
+        Returns
+        -------
+
+        """
         self.tiles_coords = np.asarray(tiles_coords, dtype=np.uint)
+        if format == 'left-top':
+            self.tiles_coords = self.tiles_coords[:, [1, 0]]
         height = int(height)
         width = int(width)
         self.tile_ops = TileOps(level=level,
