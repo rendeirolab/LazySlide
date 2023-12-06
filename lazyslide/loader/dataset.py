@@ -1,13 +1,16 @@
 import torch
 from torch.utils.data import Dataset
-from torchvision.transforms.v2 import ToImage, ToDtype, Normalize, Compose, Resize
+from torchvision.transforms.v2 import (ToImage, ToDtype, Normalize,
+                                       Compose, Resize)
 
 from lazyslide.normalizer import ColorNormalizer
 
 
 def compose_transform(resize=None,
+                      antialias=False,
                       color_normalize=None,
                       feature_extraction=False,
+
                       ):
     if feature_extraction:
         mean = (0.485, 0.456, 0.406)
@@ -18,7 +21,7 @@ def compose_transform(resize=None,
     pre = []
     after = [ToImage(), ToDtype(dtype=torch.float32, scale=True), Normalize(mean=mean, std=std)]
     if resize is not None:
-        pre += [ToImage(), Resize(size=resize, antialias=True)]
+        pre += [ToImage(), Resize(size=resize, antialias=antialias)]
     if color_normalize is not None:
         pre.append(ColorNormalizer(method=color_normalize))
 
@@ -31,6 +34,7 @@ class FeatureExtractionDataset(Dataset):
                  wsi,
                  transform=None,
                  resize=None,
+                 antialias=False,
                  color_normalize=None,
                  ):
         self.wsi = wsi
@@ -46,6 +50,7 @@ class FeatureExtractionDataset(Dataset):
             else:
                 resize_to = None
             self.transform = compose_transform(resize=resize_to,
+                                               antialias=antialias,
                                                color_normalize=color_normalize,
                                                feature_extraction=True)
 
