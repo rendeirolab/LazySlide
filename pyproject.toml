@@ -21,9 +21,10 @@ dependencies = [
     "h5py",
     "matplotlib",
     "torch",
-    "torchvision",
+    "torchvision",  # >0.15
     "pyvips",
-    "torchstain"
+    "torchstain",
+    "requests"
 ]
 
 [project.optional-dependencies]
