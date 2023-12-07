@@ -363,7 +363,7 @@ class ForegroundContourDetection(Transform):
         else:
             # separate outside and inside contours (region boundaries vs. holes in regions)
             # find the outside contours by looking for those with no parents (4th column is -1 if no parent)
-            contours_ix = np.arange(len(contours), dtype=object)
+            contours_ix = np.arange(len(contours))
             hierarchy = np.squeeze(hierarchy, axis=0)
             outmost_slice = hierarchy[:, 3] == -1
             hole_slice = ~outmost_slice
