@@ -186,8 +186,9 @@ def get_split_image_indices(image_height, image_width, min_side=20000):
 
 
 class WSI:
+        from .utils import check_wsi_path
 
-    def __init__(self,
+        self.image = check_wsi_path(image)
                  image: Path | str,
                  h5_file: Path | str = None,
                  reader="auto",  # openslide, vips, cucim
@@ -219,6 +220,14 @@ class WSI:
     @property
     def metadata(self):
         return self.reader.metadata
+
+    def move_wsi_file(self, new_path: Path) -> None:
+        new_path = Path(new_path)
+        if not new_path.exists():
+            self.image.rename(new_path)
+            self.image = new_path
+        else:
+            raise FileExistsError(f"File {new_path} already exists.")
 
     def create_mask(self, transform, name="user", level=-1, save=False):
         level = self.reader.translate_level(level)

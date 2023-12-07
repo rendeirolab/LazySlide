@@ -1,11 +1,18 @@
 # LazySlide
 
+
+## Installation
+
+```bash
+pip install git+ssh://git@github.com/rendeirolab/LazySlide.git
+```
+
 ## Usage
 
 ```python
 import lazyslide as zs
 
-slide = ''  # Your SVS file
+slide = 'https://github.com/camicroscope/Distro/raw/master/images/sample.svs'  # Your SVS file
 wsi = zs.WSI(slide)
 wsi.plot_tissue()
 
@@ -21,10 +28,9 @@ wsi.plot_tissue(contours=True)
 
 wsi.create_tiles(tile_px=256, mpp=.5)
 wsi.plot_tissue(tiles=True)
-
 ```
 
-If you want to do feature extration
+To do feature extraction:
 ```python
 import torch
 from torch.utils.data import DataLoader
@@ -37,14 +43,13 @@ loader = DataLoader(
 resnet = torch.hub.load("pytorch/vision", "resnet50", weights="IMAGENET1K_V2")
 
 with torch.no_grad():
-    for tile in loader():
+    for tile in loader:
         tile_feature = resnet(tile)
-
 ```
 
 ### Developer Notes
 
-To make pyvips works on Windows:
+To make pyvips work on Windows:
 
 ```python
 import os
