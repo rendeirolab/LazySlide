@@ -5,12 +5,14 @@ from numbers import Integral
 from pathlib import Path
 from typing import Iterable
 
+from tqdm import tqdm
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle
 from numba import njit
+import torch
 
 from .cv_mods import TissueDetectionHE
 from .h5 import H5File
@@ -615,3 +617,44 @@ class WSI:
 
     def get_patch(self, left, top, width, height, level=0, **kwargs):
         return self.reader.get_patch(left, top, width, height, level=level, **kwargs)
+
+    def as_dataset(self, **kwargs):
+        from lazyslide.loader.dataset import FeatureExtractionDataset
+
+        return FeatureExtractionDataset(self, **kwargs)
+
+    def as_dataloader(self, dataset_kwargs: dict = {}, **kwargs):
+        from torch.utils.data import DataLoader
+
+        return DataLoader(self.as_dataset(**dataset_kwargs), **kwargs)
+
+    def inference(
+        self,
+        model: str | torch.nn.Module = "resnet50",
+        hub: str = "pytorch/vision",
+        device: None | str | torch.DeviceObjType = None,
+        dataset_kwargs={},
+        dataloader_kwargs={},
+    ) -> np.array:
+        if device is None:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        if isinstance(model, str):
+            model = torch.hub.load(hub, model, weights="DEFAULT")
+        elif isinstance(model, torch.nn.Module):
+            model = model
+        else:
+            raise TypeError(
+                f"`model` must be str or torch.nn.Module, got {type(model)}"
+            )
+        model.eval().to(device)
+
+        dataloader = self.as_dataloader(
+            **dataloader_kwargs, dataset_kwargs=dataset_kwargs
+        )
+
+        output = []
+        with torch.no_grad():
+            for batch in tqdm(dataloader, desc="Batch"):
+                output.append(model(batch.to(device)).cpu().numpy())
+                # yield output
+        return np.concatenate(output, axis=0)

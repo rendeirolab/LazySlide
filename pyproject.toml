@@ -22,9 +22,11 @@ dependencies = [
     "matplotlib",
     "torch",
     "torchvision",  # >0.15
+    # "timm",
     "pyvips",
     "torchstain",
-    "requests"
+    "requests",
+    "tqdm"
 ]
 
 [project.optional-dependencies]
