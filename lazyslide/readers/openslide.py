@@ -26,7 +26,7 @@ class OpenSlideReader(ReaderBase):
         self,
         file: Union[Path, str],
     ):
-        self.slide = OpenSlide(self.file)
+        self.slide = OpenSlide(file)
         super().__init__(file, dict(self.slide.properties))
         self._levels = np.arange(self.metadata.n_level)
 
