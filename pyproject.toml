@@ -31,7 +31,11 @@ vips = [
     "pyvips",
 ]
 all = [
-    "ncls"
+    "ncls",
+    "timm",
+    "scipy",
+    "scikit-image",
+    "huggingface_hub",
 ]
 dev = [
     "flit",

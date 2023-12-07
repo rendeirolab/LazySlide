@@ -72,7 +72,7 @@ class SlidesDataset(Dataset):
             self.resize_transform = []
             for wsi in wsi_list:
                 if wsi.tile_ops.downsample != 1:
-                    resize_to = (wsi.tile_ops.height, wsi.tile_ops.width)
+                    resize_to = (int(wsi.tile_ops.height), int(wsi.tile_ops.width))
                     self.resize_transform.append(
                         Compose([ToImage(), Resize(size=resize_to, antialias=antialias)])
                     )
