@@ -186,14 +186,15 @@ def get_split_image_indices(image_height, image_width, min_side=20000):
 
 
 class WSI:
+    def __init__(
+        self,
+        image: Path | str,
+        h5_file: Path | str = None,
+        reader="auto",  # openslide, vips, cucim
+    ):
         from .utils import check_wsi_path
 
         self.image = check_wsi_path(image)
-                 image: Path | str,
-                 h5_file: Path | str = None,
-                 reader="auto",  # openslide, vips, cucim
-                 ):
-        self.image = Path(image)
 
         if h5_file is None:
             h5_file = self.image.with_suffix(".coords.h5")
