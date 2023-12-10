@@ -38,6 +38,9 @@ class FeatureExtractionDataset(Dataset):
                  color_normalize=None,
                  ):
         self.wsi = wsi
+        if not wsi.has_tiles:
+            raise ValueError("WSI does not have tiles. "
+                             "Please create tiles first.")
         self.tiles_coords = self.wsi.h5_file.get_coords()
         self.tile_ops = self.wsi.h5_file.get_tile_ops()
         if transform is not None:

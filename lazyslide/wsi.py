@@ -615,3 +615,15 @@ class WSI:
 
     def get_patch(self, left, top, width, height, level=0, **kwargs):
         return self.reader.get_patch(left, top, width, height, level=level, **kwargs)
+
+    def shuffle_tiles(self, seed=0):
+        rng = np.random.default_rng(seed)
+        rng.shuffle(self.tiles_coords)
+
+    def get_tiles_coords(self):
+        return self.tiles_coords.copy()
+
+    @property
+    def has_tiles(self):
+        return (self.tile_ops is not None) and (self.tiles_coords is not None)
+
