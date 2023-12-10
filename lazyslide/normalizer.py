@@ -3,17 +3,15 @@ from torchvision.transforms.v2 import ToImage, ToDtype, Lambda, Compose
 
 
 class ColorNormalizer(torch.nn.Module):
-
-    T = Compose([
-        ToImage(),
-        ToDtype(torch.float32, scale=True),
-        Lambda(lambda x: x*255)
-    ])
+    T = Compose(
+        [ToImage(), ToDtype(torch.float32, scale=True), Lambda(lambda x: x * 255)]
+    )
 
     def __init__(self, method="macenko"):
         super().__init__()
 
         import torchstain.torch.normalizers as norm
+
         self.method = method
         if method == "macenko":
             normalizer = norm.TorchMacenkoNormalizer()

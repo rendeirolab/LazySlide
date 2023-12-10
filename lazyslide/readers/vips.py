@@ -55,12 +55,16 @@ class VipsReader(ReaderBase):
 
         super().__init__(file, metadata)
 
-    def get_patch(self,
-                  left, top, width, height,
-                  level: int = None,
-                  downsample: float = None,
-                  fill=255,
-                  ):
+    def get_patch(
+        self,
+        left,
+        top,
+        width,
+        height,
+        level: int = None,
+        downsample: float = None,
+        fill=255,
+    ):
         """Get a patch by x, y from top-left corner"""
         level = self.translate_level(level)
         img = self._get_vips_level(level)
@@ -81,18 +85,21 @@ class VipsReader(ReaderBase):
         """Lazy load and load only one for all image level"""
         handler = self.__level_vips_handler.get(level)
         if handler is None:
-            handler = vips.Image.new_from_file(
-                str(self.file), fail=True, level=level)
+            handler = vips.Image.new_from_file(str(self.file), fail=True, level=level)
             self.__level_vips_handler[level] = handler
         return handler
 
     @staticmethod
     def _get_vips_patch(image, left, top, width, height, fill=255):
         bg = [fill]
-        crop_left, crop_top, crop_w, crop_h, pos = \
-            get_crop_left_top_width_height(
-                img_width=image.width, img_height=image.height,
-                left=left, top=top, width=width, height=height)
+        crop_left, crop_top, crop_w, crop_h, pos = get_crop_left_top_width_height(
+            img_width=image.width,
+            img_height=image.height,
+            left=left,
+            top=top,
+            width=width,
+            height=height,
+        )
         cropped = image.crop(crop_left, crop_top, crop_w, crop_h)
         if pos is None:
             return cropped

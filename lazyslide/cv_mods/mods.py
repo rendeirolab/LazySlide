@@ -6,8 +6,12 @@ from .base import Transform
 
 
 class ConvertColorspace(Transform):
-
-    def __init__(self, code=None, old=None, new=None, ):
+    def __init__(
+        self,
+        code=None,
+        old=None,
+        new=None,
+    ):
         if code is None:
             self.old = old.upper()
             self.new = new.upper()
@@ -123,7 +127,7 @@ class BinaryThreshold(Transform):
     def apply(self, image):
         assert image.dtype == np.uint8, f"image dtype {image.dtype} must be np.uint8"
         assert (
-                image.ndim == 2
+            image.ndim == 2
         ), f"input image has shape {image.shape}. Must convert to 1-channel image (H, W)."
         _, out = cv2.threshold(
             src=image,
@@ -219,11 +223,11 @@ class ForegroundDetection(Transform):
     """
 
     def __init__(
-            self,
-            mask_name=None,
-            min_region_size=5000,
-            max_hole_size=1500,
-            outer_contours_only=False,
+        self,
+        mask_name=None,
+        min_region_size=5000,
+        max_hole_size=1500,
+        outer_contours_only=False,
     ):
         self.min_region_size = min_region_size
         self.max_hole_size = max_hole_size
@@ -286,12 +290,12 @@ class ForegroundDetection(Transform):
 
             # loop thru contours
             for (
-                    cnt,
-                    outside,
-                    size_thresh,
-                    hole,
-                    hole_size_thresh,
-                    hole_parent_thresh,
+                cnt,
+                outside,
+                size_thresh,
+                hole,
+                hole_size_thresh,
+                hole_parent_thresh,
             ) in zip(
                 contours,
                 outside_contours,
@@ -331,11 +335,11 @@ class ForegroundContourDetection(Transform):
     """
 
     def __init__(
-            self,
-            mask_name=None,
-            min_region_size=5000,
-            max_hole_size=1500,
-            outer_contours_only=False,
+        self,
+        mask_name=None,
+        min_region_size=5000,
+        max_hole_size=1500,
+        outer_contours_only=False,
     ):
         self.min_region_size = min_region_size
         self.max_hole_size = max_hole_size
@@ -374,16 +378,22 @@ class ForegroundContourDetection(Transform):
 
             # outside contours must be above min_tissue_region_size threshold
             tissue_contours = outmost[
-                contours_areas[outmost_slice] > self.min_region_size]
+                contours_areas[outmost_slice] > self.min_region_size
+            ]
 
             tissue_holes = holes[
                 # hole contours must be above area threshold
-                contours_areas[hole_slice] < self.max_hole_size & \
+                contours_areas[hole_slice]
+                < self.max_hole_size
+                &
                 # holes must have parents above area threshold
-                (contours_areas[hierarchy[hole_slice, 3]] > self.min_region_size)]
+                (contours_areas[hierarchy[hole_slice, 3]] > self.min_region_size)
+            ]
 
-            return ([np.squeeze(contours[ix], axis=1) for ix in tissue_contours],
-                    [np.squeeze(contours[ix], axis=1) for ix in tissue_holes])
+            return (
+                [np.squeeze(contours[ix], axis=1) for ix in tissue_contours],
+                [np.squeeze(contours[ix], axis=1) for ix in tissue_holes],
+            )
 
 
 class TissueDetectionHE(Transform):
@@ -406,16 +416,16 @@ class TissueDetectionHE(Transform):
     """
 
     def __init__(
-            self,
-            use_saturation=True,
-            blur_ksize=17,
-            threshold=7,
-            morph_n_iter=3,
-            morph_k_size=7,
-            min_region_size=2500,
-            max_hole_size=100,
-            outer_contours_only=False,
-            return_contours=False,
+        self,
+        use_saturation=True,
+        blur_ksize=17,
+        threshold=7,
+        morph_n_iter=3,
+        morph_k_size=7,
+        min_region_size=2500,
+        max_hole_size=100,
+        outer_contours_only=False,
+        return_contours=False,
     ):
         self.use_sat = use_saturation
         self.blur_ksize = blur_ksize
@@ -447,12 +457,8 @@ class TissueDetectionHE(Transform):
         self.pipeline = [
             MedianBlur(kernel_size=self.blur_ksize),
             thresholder,
-            MorphOpen(
-                kernel_size=self.morph_k_size,
-                n_iterations=self.morph_n_iter),
-            MorphClose(
-                kernel_size=self.morph_k_size,
-                n_iterations=self.morph_n_iter),
+            MorphOpen(kernel_size=self.morph_k_size, n_iterations=self.morph_n_iter),
+            MorphClose(kernel_size=self.morph_k_size, n_iterations=self.morph_n_iter),
             foreground,
         ]
 
@@ -466,7 +472,7 @@ class TissueDetectionHE(Transform):
 
     def apply(self, image):
         assert (
-                image.dtype == np.uint8
+            image.dtype == np.uint8
         ), f"Input image dtype {image.dtype} must be np.uint8"
         # first get single channel image_ref
         if self.use_sat:

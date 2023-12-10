@@ -3,9 +3,7 @@ from numba import njit
 
 
 @njit(cache=True)
-def get_crop_left_top_width_height(img_width, img_height,
-                                   left, top,
-                                   width, height):
+def get_crop_left_top_width_height(img_width, img_height, left, top, width, height):
     top_in = 0 <= top <= img_height
     left_in = 0 <= left <= img_width
     bottom_in = 0 <= (top + height) <= img_height
@@ -14,9 +12,11 @@ def get_crop_left_top_width_height(img_width, img_height,
     left_out, right_out = not left_in, not right_in
     # If extract from region outside image
     if (top_out and bottom_out) or (left_out and right_out):
-        raise RuntimeError(f"Extracting region that are completely outside image. \n"
-                           f"Image shape: H, W ({img_height}, {img_width}) \n"
-                           f"Tile: Top, Left, Width, Height ({top}, {left}, {width}, {height})")
+        raise RuntimeError(
+            f"Extracting region that are completely outside image. \n"
+            f"Image shape: H, W ({img_height}, {img_width}) \n"
+            f"Tile: Top, Left, Width, Height ({top}, {left}, {width}, {height})"
+        )
 
     if top_out and bottom_in and left_out and right_in:
         crop_left, crop_top = 0, 0

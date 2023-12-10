@@ -25,12 +25,14 @@ def get_reader(reader="auto") -> Type[ReaderBase]:
 
     try:
         import openslide
+
         readers["openslide"] = OpenSlideReader
     except (ModuleNotFoundError, OSError) as _:
         pass
 
     try:
         import pyvips as vips
+
         readers["vips"] = VipsReader
     except (ModuleNotFoundError, OSError) as _:
         pass
@@ -47,8 +49,9 @@ def get_reader(reader="auto") -> Type[ReaderBase]:
             if reader is not None:
                 return reader
     elif reader not in reader_candidates:
-        raise ValueError(f"Reqeusted reader not available, "
-                         f"must be one of {reader_candidates}")
+        raise ValueError(
+            f"Reqeusted reader not available, " f"must be one of {reader_candidates}"
+        )
     else:
         return readers[reader]
 
@@ -86,6 +89,7 @@ def check_wsi_path(path: str | Path, allow_download: bool = True) -> Path:
         if path.exists():
             return path
     raise ValueError("Path must be a URL or Path to existing file.")
+
 
 @dataclass
 class TileOps:

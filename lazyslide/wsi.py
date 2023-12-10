@@ -18,8 +18,9 @@ from .utils import pairwise, get_reader, TileOps
 
 
 @njit
-def create_tiles_top_left(image_shape, tile_h, tile_w,
-                          stride_h=None, stride_w=None, pad=True):
+def create_tiles_top_left(
+    image_shape, tile_h, tile_w, stride_h=None, stride_w=None, pad=True
+):
     """Create the tiles, return only coordination
 
     Padding works as follows:
@@ -73,7 +74,7 @@ def create_tiles_top_left(image_shape, tile_h, tile_w,
 
 
 @njit
-def filter_tiles(mask, tiles_coords, tile_h, tile_w, filter_bg=.8):
+def filter_tiles(mask, tiles_coords, tile_h, tile_w, filter_bg=0.8):
     """Return a binary array that indicate which tile should be left
 
     Parameters
@@ -89,15 +90,16 @@ def filter_tiles(mask, tiles_coords, tile_h, tile_w, filter_bg=.8):
     """
     use = []
     for x, y in tiles_coords:
-        mask_region = mask[x:x + tile_h, y:y + tile_w]
+        mask_region = mask[x : x + tile_h, y : y + tile_w]
         bg_ratio = np.sum(mask_region == 0) / mask_region.size
         use.append(bg_ratio < filter_bg)
     return np.array(use, dtype=np.bool_)
 
 
 @njit
-def create_tiles_coords_index(image_shape, tile_h, tile_w,
-                              stride_h=None, stride_w=None, pad=True):
+def create_tiles_coords_index(
+    image_shape, tile_h, tile_w, stride_h=None, stride_w=None, pad=True
+):
     """Create the tiles, return coordination that comprise the tiles
         and the index of points for each rect
 
@@ -153,15 +155,14 @@ def create_tiles_coords_index(image_shape, tile_h, tile_w,
                 ix3 = (ix_height + 1) * (n_tiles_width + 1) + ix_width
                 indices.append([ix1, ix1 + 1, ix3 + 1, ix3])
 
-    return (np.array(coordinates, dtype=np.uint),
-            np.array(indices, dtype=np.uint))
+    return (np.array(coordinates, dtype=np.uint), np.array(indices, dtype=np.uint))
 
 
 def get_split_image_indices(image_height, image_width, min_side=20000):
     h, w = image_height, image_width
     size = h * w
     n = min_side
-    if (size > n ** 2) or (h > n) or (w > n):
+    if (size > n**2) or (h > n) or (w > n):
         split_h = h > 1.5 * n
         split_w = w > 1.5 * n
 
@@ -173,8 +174,16 @@ def get_split_image_indices(image_height, image_width, min_side=20000):
 
         # If split, return the split chunks
         # Else, it would take the whole
-        ix_h = np.linspace(start=0, stop=h, num=n_chunk_h + 1, dtype=int) if split_h else [0, h]
-        ix_w = np.linspace(start=0, stop=w, num=n_chunk_w + 1, dtype=int) if split_w else [0, w]
+        ix_h = (
+            np.linspace(start=0, stop=h, num=n_chunk_h + 1, dtype=int)
+            if split_h
+            else [0, h]
+        )
+        ix_w = (
+            np.linspace(start=0, stop=w, num=n_chunk_w + 1, dtype=int)
+            if split_w
+            else [0, w]
+        )
 
         slices = []
         for h1, h2 in pairwise(ix_h):
@@ -208,9 +217,11 @@ class WSI:
         self.contours, self.holes = self.h5_file.get_contours_holes()
 
     def __repr__(self):
-        return (f"WSI(image={self.image}, "
-                f"h5_file={self.h5_file.file},"
-                f"reader={self._reader_class})")
+        return (
+            f"WSI(image={self.image}, "
+            f"h5_file={self.h5_file.file},"
+            f"reader={self._reader_class})"
+        )
 
     @property
     def reader(self):
@@ -240,10 +251,9 @@ class WSI:
             self.h5_file.set_mask(name, mask, level)
             self.h5_file.save()
 
-    def create_tissue_mask(self, name="tissue", level=-1,
-                           chunk=True, chunk_at=20000,
-                           save=False,
-                           **kwargs):
+    def create_tissue_mask(
+        self, name="tissue", level=-1, chunk=True, chunk_at=20000, save=False, **kwargs
+    ):
         """Create tissue mask using
         preconfigure segmentation pipeline
 
@@ -266,13 +276,17 @@ class WSI:
         seg = TissueDetectionHE(**kwargs)
 
         # If the image is too large, we will run segmentation by chunk
-        split_indices = get_split_image_indices(img_height, img_width, min_side=chunk_at)
+        split_indices = get_split_image_indices(
+            img_height, img_width, min_side=chunk_at
+        )
         if chunk & (split_indices is not None):
             mask = np.zeros((img_height, img_width), dtype=np.uint)
             for row in split_indices:
                 for ixs in row:
                     h1, h2, w1, w2 = ixs
-                    img_chunk = self.reader.get_patch(w1, h1, w2 - w1, h2 - h1, level=level)
+                    img_chunk = self.reader.get_patch(
+                        w1, h1, w2 - w1, h2 - h1, level=level
+                    )
                     chunk_mask = seg.apply(img_chunk)
                     mask[h1:h2, w1:w2] = chunk_mask
                     del img_chunk  # Explicitly release memory
@@ -310,15 +324,18 @@ class WSI:
     def get_mask(self, name):
         return self.masks.get(name), self.masks_level.get(name)
 
-    def create_tiles(self, tile_px,
-                     stride_px=None,
-                     pad=False,
-                     mpp=None,
-                     tolerance=.05,
-                     mask_name="tissue",
-                     background_fraction=.8,
-                     tile_pts=3,
-                     errors="ignore"):
+    def create_tiles(
+        self,
+        tile_px,
+        stride_px=None,
+        pad=False,
+        mpp=None,
+        tolerance=0.05,
+        mask_name="tissue",
+        background_fraction=0.8,
+        tile_pts=3,
+        errors="ignore",
+    ):
         """
         Parameters
         ----------
@@ -346,8 +363,10 @@ class WSI:
         elif isinstance(tile_px, Iterable):
             tile_h, tile_w = (tile_px[0], tile_px[1])
         else:
-            raise TypeError(f"input tile_px {tile_px} invalid. "
-                            f"Either (H, W), or a single integer for square tiles.")
+            raise TypeError(
+                f"input tile_px {tile_px} invalid. "
+                f"Either (H, W), or a single integer for square tiles."
+            )
 
         if stride_px is None:
             stride_h, stride_w = tile_h, tile_w
@@ -356,17 +375,21 @@ class WSI:
         elif isinstance(stride_px, Iterable):
             stride_h, stride_w = (stride_px[0], stride_px[1])
         else:
-            raise TypeError(f"input stride {stride_px} invalid. "
-                            f"Either (H, W), or a single integer.")
+            raise TypeError(
+                f"input stride {stride_px} invalid. "
+                f"Either (H, W), or a single integer."
+            )
 
         use_mask = True
         mask, mask_level = self.get_mask(mask_name)
         if mask is None:
             # Try to use contours instead
             if self.contours is None:
-                raise NameError(f"Mask with name '{mask_name}' does not exist, "
-                                f"use .create_tissue_contours() or .create_tissue_mask() "
-                                f"to annotate tissue location.")
+                raise NameError(
+                    f"Mask with name '{mask_name}' does not exist, "
+                    f"use .create_tissue_contours() or .create_tissue_mask() "
+                    f"to annotate tissue location."
+                )
             else:
                 use_mask = False
 
@@ -383,14 +406,18 @@ class WSI:
                     downsample = 1
 
                 if downsample < 1:
-                    raise ValueError(f"Cannot perform resize operation "
-                                     f"with reqeust mpp={mpp} on image"
-                                     f"mpp={self.metadata.mpp}, this will"
-                                     f"require up-scaling of image.")
+                    raise ValueError(
+                        f"Cannot perform resize operation "
+                        f"with reqeust mpp={mpp} on image"
+                        f"mpp={self.metadata.mpp}, this will"
+                        f"require up-scaling of image."
+                    )
                 elif downsample == 1:
                     ops_level = 0
                 else:
-                    for ix, level_downsample in enumerate(self.metadata.level_downsample):
+                    for ix, level_downsample in enumerate(
+                        self.metadata.level_downsample
+                    ):
                         if lower_ds < level_downsample < upper_ds:
                             downsample = level_downsample
                             ops_level = ix
@@ -418,18 +445,20 @@ class WSI:
         # Filter coords based on mask
         # TODO: Consider create tiles based on the
         #       bbox of different components
-        self.tile_ops = TileOps(level=ops_level,
-                                mpp=mpp,
-                                downsample=downsample,
-                                height=tile_h, width=tile_w,
-                                ops_height=ops_tile_h,
-                                ops_width=ops_tile_w,
-                                mask_name=mask_name
-                                )
+        self.tile_ops = TileOps(
+            level=ops_level,
+            mpp=mpp,
+            downsample=downsample,
+            height=tile_h,
+            width=tile_w,
+            ops_height=ops_tile_h,
+            ops_width=ops_tile_w,
+            mask_name=mask_name,
+        )
         if use_mask:
             tiles_coords = create_tiles_top_left(
-                image_shape, ops_tile_h, ops_tile_w,
-                ops_stride_h, ops_stride_w, pad=pad)
+                image_shape, ops_tile_h, ops_tile_w, ops_stride_h, ops_stride_w, pad=pad
+            )
             # Map tile level to mask level
             # Only tile can be scale, mask will not be resized
             mask_downsample = self.metadata.level_downsample[mask_level]
@@ -437,15 +466,18 @@ class WSI:
             ratio = tile_downsample / mask_downsample
             down_coords = (tiles_coords * ratio).astype(np.uint32)
             use_tiles = filter_tiles(
-                mask, down_coords,
-                int(ops_tile_h * ratio), int(ops_tile_w * ratio),
-                filter_bg=background_fraction)
+                mask,
+                down_coords,
+                int(ops_tile_h * ratio),
+                int(ops_tile_w * ratio),
+                filter_bg=background_fraction,
+            )
             self.tiles_coords = tiles_coords[use_tiles].copy()
 
         else:
             rect_coords, rect_indices = create_tiles_coords_index(
-                image_shape, ops_tile_h, ops_tile_w,
-                ops_stride_h, ops_stride_w, pad=pad)
+                image_shape, ops_tile_h, ops_tile_w, ops_stride_h, ops_stride_w, pad=pad
+            )
             if len(self.contours) == 0:
                 is_tiles = np.zeros(len(rect_coords), dtype=np.bool_)
             else:
@@ -454,13 +486,31 @@ class WSI:
                 for c in self.contours:
                     # Coerce the point to python int and let the opencv decide the type
                     # Flip x, y beacuse it's different in opencv
-                    is_in.append(np.array([cv2.pointPolygonTest(c, (float(y), float(x)), measureDist=False) \
-                                           for x, y in points]) == 1)
+                    is_in.append(
+                        np.array(
+                            [
+                                cv2.pointPolygonTest(
+                                    c, (float(y), float(x)), measureDist=False
+                                )
+                                for x, y in points
+                            ]
+                        )
+                        == 1
+                    )
 
                 if len(self.holes) > 0:
                     for c in self.holes:
-                        is_in.append(np.array([cv2.pointPolygonTest(c, (float(y), float(x)), measureDist=False) \
-                                               for x, y in points]) == -1)
+                        is_in.append(
+                            np.array(
+                                [
+                                    cv2.pointPolygonTest(
+                                        c, (float(y), float(x)), measureDist=False
+                                    )
+                                    for x, y in points
+                                ]
+                            )
+                            == -1
+                        )
 
                 is_tiles = np.asarray(is_in).sum(axis=0) == 1
             # The number of points for each tiles inside contours
@@ -491,30 +541,33 @@ class WSI:
 
         """
         self.tiles_coords = np.asarray(tiles_coords, dtype=np.uint)
-        if format == 'left-top':
+        if format == "left-top":
             self.tiles_coords = self.tiles_coords[:, [1, 0]]
         height = int(height)
         width = int(width)
-        self.tile_ops = TileOps(level=level,
-                                mpp=self.metadata.mpp,
-                                downsample=1,
-                                height=height,
-                                width=width,
-                                ops_height=height,
-                                ops_width=width,
-                                )
+        self.tile_ops = TileOps(
+            level=level,
+            mpp=self.metadata.mpp,
+            downsample=1,
+            height=height,
+            width=width,
+            ops_height=height,
+            ops_width=width,
+        )
         self.h5_file.set_coords(self.tiles_coords)
         self.h5_file.set_tile_ops(self.tile_ops)
         self.h5_file.save()
 
     def report(self):
         if self.tile_ops is not None:
-            print(f"Generate tiles with mpp={self.tile_ops.mpp}, WSI mpp={self.metadata.mpp}\n"
-                  f"Total tiles: {len(self.tiles_coords)}"
-                  f"Use mask: '{self.tile_ops.mask_name}'\n"
-                  f"Generated Tiles in px (H, W): ({self.tile_ops.height}, {self.tile_ops.width})\n"
-                  f"WSI Tiles in px (H, W): ({self.tile_ops.ops_height}, {self.tile_ops.ops_width}) \n"
-                  f"Down sample ratio: {self.tile_ops.downsample}")
+            print(
+                f"Generate tiles with mpp={self.tile_ops.mpp}, WSI mpp={self.metadata.mpp}\n"
+                f"Total tiles: {len(self.tiles_coords)}"
+                f"Use mask: '{self.tile_ops.mask_name}'\n"
+                f"Generated Tiles in px (H, W): ({self.tile_ops.height}, {self.tile_ops.width})\n"
+                f"WSI Tiles in px (H, W): ({self.tile_ops.ops_height}, {self.tile_ops.ops_width}) \n"
+                f"Down sample ratio: {self.tile_ops.downsample}"
+            )
 
     @staticmethod
     def _get_thumbnail(image_arr, size=1000):
@@ -529,19 +582,19 @@ class WSI:
 
         return x_ratio, thumbnail
 
-    def plot_tissue(self,
-                    size=1000,
-                    tiles=False,
-                    edgecolor=".5",
-                    linewidth=1,
-                    contours=False,
-                    contours_color="green",
-                    holes_color="black",
-                    ax=None,
-                    savefig=None,
-                    savefig_kws=None,
-                    ):
-
+    def plot_tissue(
+        self,
+        size=1000,
+        tiles=False,
+        edgecolor=".5",
+        linewidth=1,
+        contours=False,
+        contours_color="green",
+        holes_color="black",
+        ax=None,
+        savefig=None,
+        savefig_kws=None,
+    ):
         level = self.tile_ops.level if tiles else self.metadata.n_level - 1
         image_arr = self.reader.get_level(level)
         down_ratio, thumbnail = self._get_thumbnail(image_arr, size)
@@ -564,8 +617,9 @@ class WSI:
                 tile_w = self.tile_ops.width * down_ratio
 
                 tiles = [Rectangle(t, tile_w, tile_h) for t in coords]
-                collections = PatchCollection(tiles, facecolor="none",
-                                              edgecolor=edgecolor, lw=linewidth)
+                collections = PatchCollection(
+                    tiles, facecolor="none", edgecolor=edgecolor, lw=linewidth
+                )
 
                 ax.add_collection(collections)
 
@@ -573,26 +627,30 @@ class WSI:
             ratio = (1 / self.metadata.level_downsample[level]) * down_ratio
             if len(self.contours) > 0:
                 for c in self.contours:
-                    ax.plot(c[:, 0] * ratio, c[:, 1] * ratio, lw=linewidth,
-                            c=contours_color)
+                    ax.plot(
+                        c[:, 0] * ratio, c[:, 1] * ratio, lw=linewidth, c=contours_color
+                    )
             if len(self.holes) > 0:
                 for h in self.holes:
-                    ax.plot(h[:, 0] * ratio, h[:, 1] * ratio, lw=linewidth, c=holes_color)
+                    ax.plot(
+                        h[:, 0] * ratio, h[:, 1] * ratio, lw=linewidth, c=holes_color
+                    )
 
         if savefig:
             savefig_kws = {} if savefig_kws is None else savefig_kws
-            save_kws = {'dpi': 150, **savefig_kws}
+            save_kws = {"dpi": 150, **savefig_kws}
             fig.savefig(savefig, **save_kws)
 
         return ax
 
-    def plot_mask(self,
-                  name="tissue",
-                  size=1000,
-                  ax=None,
-                  savefig=None,
-                  savefig_kws=None,
-                  ):
+    def plot_mask(
+        self,
+        name="tissue",
+        size=1000,
+        ax=None,
+        savefig=None,
+        savefig_kws=None,
+    ):
         image_arr = self.masks.get(name)
         if image_arr is None:
             raise NameError(f"Cannot draw non-exist mask with name '{name}'")
@@ -606,7 +664,7 @@ class WSI:
         ax.set_axis_off()
         if savefig:
             savefig_kws = {} if savefig_kws is None else savefig_kws
-            save_kws = {'dpi': 150, **savefig_kws}
+            save_kws = {"dpi": 150, **savefig_kws}
             fig.savefig(savefig, **save_kws)
         return ax
 
@@ -626,4 +684,3 @@ class WSI:
     @property
     def has_tiles(self):
         return (self.tile_ops is not None) and (self.tiles_coords is not None)
-

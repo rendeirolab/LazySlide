@@ -60,7 +60,7 @@ class H5File:
                 for mask_name in masks_group.keys():
                     ds = masks_group.get(mask_name)
                     masks[mask_name] = ds[:]
-                    masks_level[mask_name] = ds.attrs['level']
+                    masks_level[mask_name] = ds.attrs["level"]
                 self.masks = masks
                 self.masks_level = masks_level
 
@@ -115,8 +115,7 @@ class H5File:
                 if self.COORDS_KEY in h5:
                     del h5[self.COORDS_KEY]
 
-                ds = h5.create_dataset(self.COORDS_KEY, data=self.coords,
-                                       chunks=True)
+                ds = h5.create_dataset(self.COORDS_KEY, data=self.coords, chunks=True)
                 attrs = ds.attrs
                 for k, v in asdict(self.tile_ops).items():
                     if v is None:
@@ -130,9 +129,11 @@ class H5File:
 
                 masks_group = h5.create_group(self.MASKS_KEY)
                 for mask_name, mask_array in self.masks.items():
-                    ds = masks_group.create_dataset(mask_name, data=mask_array, chunks=True)
+                    ds = masks_group.create_dataset(
+                        mask_name, data=mask_array, chunks=True
+                    )
                     attrs = ds.attrs
-                    attrs['level'] = self.masks_level[mask_name]
+                    attrs["level"] = self.masks_level[mask_name]
 
             if self._rewrite_contours:
                 if self.CONTOURS_KEY in h5:

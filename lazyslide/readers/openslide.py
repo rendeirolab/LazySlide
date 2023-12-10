@@ -49,7 +49,6 @@ class OpenSlideReader(ReaderBase):
         return region_rgb
 
     def get_level(self, level):
-
         level = self.translate_level(level)
 
         width, height = self.slide.level_dimensions[level]

@@ -22,7 +22,7 @@ def segmentation_lines(mask_in):
     Useful for plotting results of tissue detection or other segmentation.
     """
     assert (
-            mask_in.dtype == np.uint8
+        mask_in.dtype == np.uint8
     ), f"Input mask dtype {mask_in.dtype} must be np.uint8"
     kernel = np.ones((3, 3), np.uint8)
     dilated = cv2.dilate(mask_in, kernel)
@@ -40,15 +40,18 @@ def center_crop_im_batch(batch, dims, batch_order="BCHW"):
         dims: Amount to be cropped (tuple for H, W)
     """
     assert (
-            batch.ndim == 4
+        batch.ndim == 4
     ), f"ERROR input shape is {batch.shape} - expecting a batch with 4 dimensions total"
     assert (
-            len(dims) == 2
+        len(dims) == 2
     ), f"ERROR input cropping dims is {dims} - expecting a tuple with 2 elements total"
-    assert batch_order in {
-        "BHCW",
-        "BCHW",
-    }, f"ERROR input batch order {batch_order} not recognized. Must be one of 'BHCW' or 'BCHW'"
+    assert (
+        batch_order
+        in {
+            "BHCW",
+            "BCHW",
+        }
+    ), f"ERROR input batch order {batch_order} not recognized. Must be one of 'BHCW' or 'BCHW'"
 
     if dims == (0, 0):
         # no cropping necessary in this case
@@ -87,7 +90,7 @@ def dice_loss(true, logits, eps=1e-3):
         dice_loss: the Sørensen–Dice loss.
     """
     assert (
-            true.dtype == torch.long
+        true.dtype == torch.long
     ), f"Input 'true' is of type {true.type}. It should be a long."
     num_classes = logits.shape[1]
     if num_classes == 1:
@@ -536,7 +539,7 @@ def compute_hv_map(mask):
         np.ndarray: array of hv maps of shape (2, H, W). First channel corresponds to horizontal and second vertical.
     """
     assert (
-            mask.ndim == 2
+        mask.ndim == 2
     ), f"Input mask has shape {mask.shape}. Expecting a mask with 2 dimensions (H, W)"
 
     out = np.zeros((2, mask.shape[0], mask.shape[1]))
@@ -615,7 +618,7 @@ def _get_gradient_hv(hv_batch, kernel_size=5):
         Tuple of (h_grad, v_grad) where each is a Tensor giving horizontal and vertical gradients respectively
     """
     assert (
-            hv_batch.shape[1] == 2
+        hv_batch.shape[1] == 2
     ), f"inputs have shape {hv_batch.shape}. Expecting tensor of shape (B, 2, H, W)"
     h_kernel, v_kernel = get_sobel_kernels(kernel_size, dt=hv_batch.dtype)
 
@@ -733,12 +736,12 @@ def loss_hovernet(outputs, ground_truth, n_classes=None):
         nc_loss_ce = 0
 
     loss = (
-            np_loss_dice
-            + np_loss_ce
-            + hv_loss_mse
-            + hv_loss_grad
-            + nc_loss_dice
-            + nc_loss_ce
+        np_loss_dice
+        + np_loss_ce
+        + hv_loss_mse
+        + hv_loss_grad
+        + nc_loss_dice
+        + nc_loss_ce
     )
     return loss
 
@@ -760,7 +763,7 @@ def remove_small_objs(array_in, min_size):
             a different integer from 1 to n, where n is the number of total distinct contiguous regions
     """
     assert (
-            array_in.dtype == np.uint8
+        array_in.dtype == np.uint8
     ), f"Input dtype is {array_in.dtype}. Must be np.uint8"
     # remove elements below size threshold
     # each contiguous nucleus region gets a unique id
@@ -775,7 +778,7 @@ def remove_small_objs(array_in, min_size):
 
 
 def _post_process_single_hovernet(
-        np_out, hv_out, small_obj_size_thresh=10, kernel_size=21, h=0.5, k=0.5
+    np_out, hv_out, small_obj_size_thresh=10, kernel_size=21, h=0.5, k=0.5
 ):
     """
     Combine predictions of np channel and hv channel to create final predictions.
@@ -856,7 +859,7 @@ def _post_process_single_hovernet(
 
 
 def post_process_batch_hovernet(
-        outputs, n_classes, small_obj_size_thresh=10, kernel_size=21, h=0.5, k=0.5
+    outputs, n_classes, small_obj_size_thresh=10, kernel_size=21, h=0.5, k=0.5
 ):
     """
     Post-process HoVer-Net outputs to get a final predicted mask.
@@ -949,6 +952,7 @@ def post_process_batch_hovernet(
         return out_detection, out_classification
     else:
         return out_detection
+
 
 # plotting hovernet outputs
 

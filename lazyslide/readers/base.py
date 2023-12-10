@@ -53,9 +53,10 @@ class ReaderBase:
         return self.metadata
 
     @staticmethod
-    def resize_img(img: np.ndarray,
-                   scale: float,
-                   ):
+    def resize_img(
+        img: np.ndarray,
+        scale: float,
+    ):
         dim = np.asarray(img.shape)
         dim = np.array(dim * scale, dtype=int)
         return cv2.resize(img, dim)
@@ -63,22 +64,27 @@ class ReaderBase:
     @staticmethod
     def _rgba_to_rgb(img):
         image_array_rgba = np.asarray(img)
-        image_array = cv2.cvtColor(image_array_rgba, cv2.COLOR_RGBA2RGB).astype(np.uint8)
+        image_array = cv2.cvtColor(image_array_rgba, cv2.COLOR_RGBA2RGB).astype(
+            np.uint8
+        )
         return image_array
 
-    def _get_ops_params(self,
-                        level: int = None,
-                        mpp: float = None,
-                        magnification: int = None, ):
-
+    def _get_ops_params(
+        self,
+        level: int = None,
+        mpp: float = None,
+        magnification: int = None,
+    ):
         has_level = level is not None
         has_mpp = mpp is not None
         has_mag = magnification is not None
 
         # only one argument is allowed
         if np.sum([has_level, has_mpp, has_mag]) != 1:
-            raise ValueError("Please specific one and only one argument,"
-                             "level, mpp or magnification")
+            raise ValueError(
+                "Please specific one and only one argument,"
+                "level, mpp or magnification"
+            )
 
         ops_resize = False
         ops_level = 0
@@ -111,8 +117,7 @@ class ReaderBase:
 
     def _get_best_level_to_downsample(self, factor):
         if factor <= 1:
-            raise ValueError(f"Downsample factor must >= 1, "
-                             f"the input is {factor}")
+            raise ValueError(f"Downsample factor must >= 1, " f"the input is {factor}")
 
         level_downsample = np.array(self.metadata.level_downsample)
         # Get levels that can be downsample
