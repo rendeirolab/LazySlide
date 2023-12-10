@@ -200,6 +200,7 @@ class WSI:
         image: Path | str,
         h5_file: Path | str = None,
         reader="auto",  # openslide, vips, cucim
+        reader_options=None,
     ):
         from .utils import check_wsi_path
 
@@ -208,6 +209,7 @@ class WSI:
         if h5_file is None:
             h5_file = self.image.with_suffix(".coords.h5")
 
+        self.reader_options = {} if reader_options is None else reader_options
         self.h5_file = H5File(h5_file)
         self._reader_class = get_reader(reader)
         self._reader = None
@@ -226,7 +228,7 @@ class WSI:
     @property
     def reader(self):
         if self._reader is None:
-            self._reader = self._reader_class(self.image)
+            self._reader = self._reader_class(self.image, **self.reader_options)
         return self._reader
 
     @property
