@@ -2,6 +2,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 import h5py
+from h5py import Empty
 
 from .utils import TileOps
 
@@ -47,7 +48,7 @@ class H5File:
                 attrs = {}
                 for key in h5_attrs.keys():
                     value = h5_attrs.get(key)
-                    if key == "mask_name" and value == 0:
+                    if isinstance(value, Empty):
                         value = None
                     attrs[key] = value
                 self.tile_ops = TileOps(**attrs)
@@ -118,8 +119,8 @@ class H5File:
                                        chunks=True)
                 attrs = ds.attrs
                 for k, v in asdict(self.tile_ops).items():
-                    if k == "mask_name" and v is None:
-                        v = 0
+                    if v is None:
+                        v = Empty(dtype="f")
                     attrs[k] = v
 
             if self._rewrite_mask:
