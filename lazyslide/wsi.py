@@ -674,7 +674,9 @@ class WSI:
     #     return WSIDataset(self, transform=transform, run_pretrained=run_pretrained, **kwargs)
 
     def get_patch(self, left, top, width, height, level=0, **kwargs):
-        return self.reader.get_patch(left, top, width, height, level=level, **kwargs)
+        return self.reader.get_patch(
+            int(left), int(top), int(width), int(height), level=level, **kwargs
+        )
 
     def shuffle_tiles(self, seed=0):
         rng = np.random.default_rng(seed)
