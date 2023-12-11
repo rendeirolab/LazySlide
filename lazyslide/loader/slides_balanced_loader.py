@@ -115,7 +115,11 @@ class SlidesDataset(Dataset):
         top, left = wsi.tiles_coords[tile_ix]
         tile_ops = wsi.tile_ops
         img = wsi.get_patch(
-            left, top, tile_ops.ops_width, tile_ops.ops_height, tile_ops.level
+            int(left),
+            int(top),
+            int(tile_ops.ops_width),
+            int(tile_ops.ops_height),
+            int(tile_ops.level),
         )
         if self.resize_transform is not None:
             resize_ops = self.resize_transform[slide_ix]
@@ -151,7 +155,7 @@ class SlidesDataset(Dataset):
             ]
             warnings.warn(
                 f"There are {total_less} slides has less than max_taken={self.max_taken}:"
-                f"{', '.join(warn_stats)}"
+                f"{', '.join(warn_stats)}4\n"
             )
         return slides
 
