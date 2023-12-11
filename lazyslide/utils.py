@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 from dataclasses import dataclass, field
 from itertools import tee
