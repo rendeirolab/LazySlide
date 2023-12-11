@@ -37,17 +37,6 @@ def vips2numpy(
     )
 
 
-def buffer2numpy(
-    buffer,
-) -> np.ndarray:
-    """Converts a VIPS image into a numpy array"""
-    return np.ndarray(
-        buffer=buffer,
-        dtype=VIPS_FORMAT_TO_DTYPE[buffer.format],
-        shape=[buffer.height, buffer.width, buffer.bands],
-    )
-
-
 class VipsReader(ReaderBase):
     def __init__(
         self,
@@ -111,21 +100,23 @@ class VipsReader(ReaderBase):
                 patch = cropped
             else:
                 patch = cropped.gravity(pos, width, height, background=bg)
-
-        return vips2numpy(patch)  # self._rgba_to_rgb(patch)
+        patch = vips2numpy(patch)
+        return self._rgba_to_rgb(patch)
 
     def get_level(self, level):
         level = self.translate_level(level)
         img = self._get_vips_level(level)
         img = vips2numpy(img)
-        return img  # self._rgba_to_rgb(img)
+        return self._rgba_to_rgb(img)
 
     def _get_vips_level(self, level=0):
         """Lazy load and load only one for all image level"""
         handler = self.__level_vips_handler.get(level)
         if handler is None:
             handler = vips.Image.new_from_file(
-                str(self.file), fail=True, level=level, rgb=True
+                str(self.file),
+                fail=True,
+                level=level,
             )
             self.__level_vips_handler[level] = handler
             if self.caching:
