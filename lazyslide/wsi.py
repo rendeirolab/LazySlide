@@ -524,7 +524,9 @@ class WSI:
         self.h5_file.set_tile_ops(self.tile_ops)
         self.h5_file.save()
 
-    def new_tiles(self, tiles_coords, height, width, level=0, format="top-left"):
+    def new_tiles(
+        self, tiles_coords, height, width, level=0, format="top-left", save=False
+    ):
         """Supply new tiles to WSI
 
         The default coordination for tiles in top-left, you can change this
@@ -556,9 +558,10 @@ class WSI:
             ops_height=height,
             ops_width=width,
         )
-        self.h5_file.set_coords(self.tiles_coords)
-        self.h5_file.set_tile_ops(self.tile_ops)
-        self.h5_file.save()
+        if save:
+            self.h5_file.set_coords(self.tiles_coords)
+            self.h5_file.set_tile_ops(self.tile_ops)
+            self.h5_file.save()
 
     def report(self):
         if self.tile_ops is not None:
