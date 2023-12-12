@@ -2,6 +2,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 import h5py
+import numpy as np
 from h5py import Empty
 
 from .utils import TileOps
@@ -115,7 +116,12 @@ class H5File:
                 if self.COORDS_KEY in h5:
                     del h5[self.COORDS_KEY]
 
-                ds = h5.create_dataset(self.COORDS_KEY, data=self.coords, chunks=True)
+                ds = h5.create_dataset(
+                    self.COORDS_KEY,
+                    data=self.coords,
+                    chunks=True,
+                    dtype=np.uint32,
+                )
                 attrs = ds.attrs
                 for k, v in asdict(self.tile_ops).items():
                     if v is None:
