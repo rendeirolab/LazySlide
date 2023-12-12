@@ -239,6 +239,7 @@ class WSI:
     def tiles_coords(self):
         return self._tiles_coords
 
+    @property
     def tile_ops(self):
         return self._tile_ops
 
