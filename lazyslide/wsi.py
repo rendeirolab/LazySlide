@@ -214,8 +214,8 @@ class WSI:
         self._reader_class = get_reader(reader)
         self._reader = None
         self.masks, self.masks_level = self.h5_file.get_masks()
-        self.tiles_coords = self.h5_file.get_coords()
-        self.tile_ops = self.h5_file.get_tile_ops()
+        self._tiles_coords = self.h5_file.get_coords()
+        self._tile_ops = self.h5_file.get_tile_ops()
         self.contours, self.holes = self.h5_file.get_contours_holes()
 
     def __repr__(self):
@@ -234,6 +234,13 @@ class WSI:
     @property
     def metadata(self):
         return self.reader.metadata
+
+    @property
+    def tiles_coords(self):
+        return self._tiles_coords
+
+    def tile_ops(self):
+        return self._tile_ops
 
     def move_wsi_file(self, new_path: Path) -> None:
         new_path = Path(new_path)
@@ -447,7 +454,7 @@ class WSI:
         # Filter coords based on mask
         # TODO: Consider create tiles based on the
         #       bbox of different components
-        self.tile_ops = TileOps(
+        self._tile_ops = TileOps(
             level=ops_level,
             mpp=mpp,
             downsample=downsample,
@@ -474,7 +481,7 @@ class WSI:
                 int(ops_tile_w * ratio),
                 filter_bg=background_fraction,
             )
-            self.tiles_coords = tiles_coords[use_tiles].copy()
+            self._tiles_coords = tiles_coords[use_tiles].copy()
 
         else:
             rect_coords, rect_indices = create_tiles_coords_index(
@@ -518,10 +525,10 @@ class WSI:
             # The number of points for each tiles inside contours
             good_tiles = is_tiles[rect_indices].sum(axis=1) >= tile_pts
             # Select only the top_left corner
-            self.tiles_coords = rect_coords[rect_indices[good_tiles, 0]].copy()
+            self._tiles_coords = rect_coords[rect_indices[good_tiles, 0]].copy()
 
-        self.h5_file.set_coords(self.tiles_coords)
-        self.h5_file.set_tile_ops(self.tile_ops)
+        self.h5_file.set_coords(self._tiles_coords)
+        self.h5_file.set_tile_ops(self._tile_ops)
         self.h5_file.save()
 
     def new_tiles(
@@ -544,12 +551,12 @@ class WSI:
         -------
 
         """
-        self.tiles_coords = np.asarray(tiles_coords, dtype=np.uint)
+        self._tiles_coords = np.asarray(tiles_coords, dtype=np.uint32)
         if format == "left-top":
-            self.tiles_coords = self.tiles_coords[:, [1, 0]]
+            self._tiles_coords = self._tiles_coords[:, [1, 0]]
         height = int(height)
         width = int(width)
-        self.tile_ops = TileOps(
+        self._tile_ops = TileOps(
             level=level,
             mpp=self.metadata.mpp,
             downsample=1,
@@ -559,19 +566,19 @@ class WSI:
             ops_width=width,
         )
         if save:
-            self.h5_file.set_coords(self.tiles_coords)
-            self.h5_file.set_tile_ops(self.tile_ops)
+            self.h5_file.set_coords(self._tiles_coords)
+            self.h5_file.set_tile_ops(self._tile_ops)
             self.h5_file.save()
 
     def report(self):
-        if self.tile_ops is not None:
+        if self._tile_ops is not None:
             print(
-                f"Generate tiles with mpp={self.tile_ops.mpp}, WSI mpp={self.metadata.mpp}\n"
-                f"Total tiles: {len(self.tiles_coords)}"
-                f"Use mask: '{self.tile_ops.mask_name}'\n"
-                f"Generated Tiles in px (H, W): ({self.tile_ops.height}, {self.tile_ops.width})\n"
-                f"WSI Tiles in px (H, W): ({self.tile_ops.ops_height}, {self.tile_ops.ops_width}) \n"
-                f"Down sample ratio: {self.tile_ops.downsample}"
+                f"Generate tiles with mpp={self._tile_ops.mpp}, WSI mpp={self.metadata.mpp}\n"
+                f"Total tiles: {len(self._tiles_coords)}"
+                f"Use mask: '{self._tile_ops.mask_name}'\n"
+                f"Generated Tiles in px (H, W): ({self._tile_ops.height}, {self._tile_ops.width})\n"
+                f"WSI Tiles in px (H, W): ({self._tile_ops.ops_height}, {self._tile_ops.ops_width}) \n"
+                f"Down sample ratio: {self._tile_ops.downsample}"
             )
 
     @staticmethod
@@ -600,7 +607,7 @@ class WSI:
         savefig=None,
         savefig_kws=None,
     ):
-        level = self.tile_ops.level if tiles else self.metadata.n_level - 1
+        level = self._tile_ops.level if tiles else self.metadata.n_level - 1
         image_arr = self.reader.get_level(level)
         down_ratio, thumbnail = self._get_thumbnail(image_arr, size)
 
@@ -612,14 +619,14 @@ class WSI:
         ax.set_axis_off()
 
         if tiles:
-            if self.tiles_coords is None:
+            if self._tiles_coords is None:
                 print("No tile is created")
             else:
                 # In matplotlib, H -> Y, W -> X, so we flip the axis
-                coords = self.tiles_coords[:, ::-1] * down_ratio
+                coords = self._tiles_coords[:, ::-1] * down_ratio
 
-                tile_h = self.tile_ops.height * down_ratio
-                tile_w = self.tile_ops.width * down_ratio
+                tile_h = self._tile_ops.height * down_ratio
+                tile_w = self._tile_ops.width * down_ratio
 
                 tiles = [Rectangle(t, tile_w, tile_h) for t in coords]
                 collections = PatchCollection(
@@ -683,11 +690,11 @@ class WSI:
 
     def shuffle_tiles(self, seed=0):
         rng = np.random.default_rng(seed)
-        rng.shuffle(self.tiles_coords)
+        rng.shuffle(self._tiles_coords)
 
     def get_tiles_coords(self):
-        return self.tiles_coords.copy()
+        return self._tiles_coords.copy()
 
     @property
     def has_tiles(self):
-        return (self.tile_ops is not None) and (self.tiles_coords is not None)
+        return (self._tile_ops is not None) and (self._tiles_coords is not None)
