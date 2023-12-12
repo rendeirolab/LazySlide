@@ -5,6 +5,7 @@
 
 ```bash
 pip install git+ssh://git@github.com/rendeirolab/LazySlide.git
+conda install -c conda-forge pyvips
 ```
 
 ## Usage
