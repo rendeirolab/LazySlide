@@ -85,11 +85,12 @@ class VipsReader(ReaderBase):
                 crop_left, crop_top, crop_w, crop_h
             )
             if pos is None:
-                return np.ndarray(
+                patch = np.ndarray(
                     buffer=cropped,
                     dtype=VIPS_FORMAT_TO_DTYPE[image.format],
                     shape=[crop_h, crop_w, image.bands],
                 )
+                return self._rgba_to_rgb(patch)
             else:
                 patch = vips.Image.new_from_buffer(cropped, "").gravity(
                     pos, width, height, background=bg
