@@ -3,6 +3,7 @@ Benchmark WSI backends
 
 Run with:
 python -m fire tests/test_speed.py benchmark
+python -m fire tests/test_speed.py benchmark_joint
 python -m fire tests/test_speed.py plot
 """
 
@@ -17,13 +18,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import torch
 from torch.utils.data import DataLoader
+from fastai.vision.data import ImageBlock
+from fastai.data.block import DataBlock
+from torchvision.transforms import ToTensor
 
 from wsi_core import WholeSlideImage
 import lazyslide as zs
 from lazyslide.loader import FeatureExtractionDataset
-from fastai.vision.data import ImageBlock
-from fastai.data.block import DataBlock
-from torchvision.transforms import ToTensor
+from lazyslide.loader import SlidesBalancedLoader
 
 
 def download_slide(gtex_id: str, slide_path: Path | None = None) -> Path:
@@ -96,7 +98,10 @@ def run_inference(
 def benchmark(
     model_name: str = "resnet18",
     batch_sizes: list[int] = [1, 2, 4, 8, 16, 32, 64, 128, 256],
-    gtex_ids: list[str] = ["GTEX-OIZI-0826", "GTEX-15CHS-0426"],
+    gtex_ids: list[str] = [
+        "GTEX-OIZI-0826",
+        "GTEX-15CHS-0426",
+    ],
 ):
     res = list()
     for gtex_id in gtex_ids:
@@ -105,16 +110,16 @@ def benchmark(
             url = f"https://brd.nci.nih.gov/brd/imagedownload/{gtex_id}"
             zs.utils.download_file(url, slide_path)
         file_size = slide_path.stat().st_size / 1e6
-        print(file_size)
+        # print(file_size)
 
         for batch_size in batch_sizes:
             for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
                 # CLAM
                 cl = prepare_clam(slide_path)
                 dl = cl.as_data_loader(batch_size=batch_size)
-                print(f"Running inference on {slide_path}")
-                time, n, features = run_inference(dl, model_name, device=device)
-                print(f"CLAM: {time} seconds")
+                # print(f"Running inference on {slide_path}")
+                time, n, _ = run_inference(dl, model_name, device=device)
+                # print(f"CLAM: {time} seconds")
                 res.append(
                     [
                         "CLAM",
@@ -125,10 +130,9 @@ def benchmark(
                         len(dl),
                         time,
                         n,
-                        features.mean(0),
                     ]
                 )
-                print(res[-1][:-1])
+                tqdm.write(str(res[-1]))
 
                 # LazySlide
                 for reader in ["openslide", "vips"]:
@@ -137,9 +141,9 @@ def benchmark(
                     )
                     ds = FeatureExtractionDataset(lz, resize=224, color_normalize=None)
                     dl = DataLoader(dataset=ds, batch_size=batch_size)
-                    print(f"Running inference on {slide_path}")
-                    time, n, features = run_inference(dl, model_name, device=device)
-                    print(f"Lazyslide: {time} seconds")
+                    # print(f"Running inference on {slide_path}")
+                    time, n, _ = run_inference(dl, model_name, device=device)
+                    # print(f"Lazyslide: {time} seconds")
                     res.append(
                         [
                             f"LazySlide ({reader})",
@@ -150,10 +154,9 @@ def benchmark(
                             len(dl),
                             time,
                             n,
-                            features.mean(0),
                         ]
                     )
-                    print(res[-1][:-1])
+                    tqdm.write(str(res[-1]))
 
                 # Disk
                 dir_ = Path(slide_path.parent / slide_path.stem)
@@ -164,11 +167,11 @@ def benchmark(
                     item_tfms=[ToTensor()],
                 )
                 dl = db.dataloaders(list(dir_.glob("*.jpg")), bs=batch_size)
-                print(f"Running inference on {slide_path}")
-                time, n, features = run_inference(
+                # print(f"Running inference on {slide_path}")
+                time, n, _ = run_inference(
                     dl[0], model_name, device=device, category=True
                 )
-                print(f"Disk: {time} seconds")
+                # print(f"Disk: {time} seconds")
                 res.append(
                     [
                         "Disk",
@@ -179,13 +182,12 @@ def benchmark(
                         len(dl),
                         time,
                         n,
-                        features.mean(0),
                     ]
                 )
-                print(res[-1][:-1])
+                tqdm.write(str(res[-1]))
 
     df = pd.DataFrame(
-        [x[:-1] for x in res],
+        res,
         columns=[
             "method",
             "slide_id",
@@ -201,9 +203,74 @@ def benchmark(
     df.to_csv("speed.csv", index=False)
 
 
+def benchmark_joint(
+    model_name: str = "resnet18",
+    batch_sizes: list[int] = [8, 32, 128],
+    slide_sizes: list[int] = [1, 2, 4, 8, 16, 32, 64, 128, 256],
+    gtex_id_file: Path = Path("/projects/histopath/sc_slide_list.txt"),
+):
+    gtex_ids = gtex_id_file.open().read().strip().split("\n")
+    # Download slides
+    slide_paths = list()
+    for gtex_id in tqdm(gtex_ids[: max(slide_sizes)]):
+        slide_path = Path(".") / f"{gtex_id}.svs"
+        if not slide_path.exists():
+            of = Path(f"/projects/histopath/data/gtex/svs/{gtex_id}.svs")
+            if of.exists():
+                of.symlink_to(slide_path)
+            else:
+                url = f"https://brd.nci.nih.gov/brd/imagedownload/{gtex_id}"
+                zs.utils.download_file(url, slide_path)
+        slide_paths.append(slide_path)
+
+    res = list()
+    for reader in ["openslide"]:
+        lzs = [
+            prepare_lazyslide(slide_path, reader=reader)
+            for slide_path in tqdm(slide_paths)
+        ]
+        for batch_size in batch_sizes:
+            for slides in slide_sizes:
+                # TODO: check this makes shuffled batches with images from multiple slides
+                dl = SlidesBalancedLoader(
+                    lzs[:slides], max_taken=480, batch_size=batch_size
+                )
+                for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
+                    s = [f"LazySlide ({reader})", batch_size, slides, device, len(dl)]
+                    if s in [x[:-2] for x in res]:
+                        print("Skipping")
+                        continue
+                    time, n, _ = run_inference(dl, model_name, device=device)
+                    res.append(
+                        [
+                            f"LazySlide ({reader})",
+                            batch_size,
+                            slides,
+                            device,
+                            len(dl),
+                            time,
+                            n,
+                        ]
+                    )
+                    tqdm.write(str(res[-1]))
+
+                    df = pd.DataFrame(
+                        res,
+                        columns=[
+                            "method",
+                            "batch_size",
+                            "slide_count",
+                            "device",
+                            "batch_count",
+                            "time",
+                            "total_images",
+                        ],
+                    )
+                    df.to_csv("speed_join.csv", index=False)
+
+
 def plot():
     df = pd.read_csv("speed.csv")
-
     df = df.query("batch_size < 512")
     # df["time_per_image"] = df["time"] / (df["batch_size"] * df["batch_count"])
     df["time_per_image"] = df["time"] / (df["total_images"])
@@ -240,3 +307,23 @@ def plot():
     ax.set_title("WSI backend speed comparison")
     fig.savefig("speed.per_image.svg", dpi=300, bbox_inches="tight")
     fig.savefig("speed.per_image.png", dpi=300, bbox_inches="tight")
+
+    if not Path("speed_join.csv").exists():
+        return
+    df = pd.read_csv("speed_join.csv")
+
+    fig, ax = plt.subplots()
+    sns.lineplot(
+        data=df,
+        x="slide_count",
+        y="time",
+        hue="batch_size",
+        style="device",
+        markers=True,
+        ax=ax,
+    )
+    ax.set(xlabel="Number of slides", ylabel="Time for all slides (seconds)")
+    ax.set_title("WSI backend speed comparison")
+    fig.savefig("speed_join.svg", dpi=300, bbox_inches="tight")
+    ax.loglog()
+    fig.savefig("speed_join.loglog.svg", dpi=300, bbox_inches="tight")
