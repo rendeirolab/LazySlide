@@ -23,10 +23,13 @@ class WSIMetaData:
 class ReaderBase:
     metadata: WSIMetaData
 
-    def __init__(self, file: Union[Path, str], metadata: Dict):
+    def __init__(self, file: Union[Path, str], metadata: Union[Dict, WSIMetaData]):
         self.file = Path(file)
         self.filename = self.file.name
-        self.metadata = parse_metadata(self.filename, metadata)
+        if isinstance(metadata, WSIMetaData):
+            self.metadata = metadata
+        else:
+            self.metadata = parse_metadata(self.filename, metadata)
         self._levels = np.arange(self.metadata.n_level)
 
     def __repr__(self):
@@ -149,7 +152,7 @@ def parse_metadata(filename, metadata: Dict):
     # search other available mpp keys
     for k in fields:
         # Any keys end with .mpp
-        if k.lower().endswith(".mpp"):
+        if k.lower().endswith("mpp"):
             mpp_keys.append(k)
 
     mpp = None
@@ -166,7 +169,7 @@ def parse_metadata(filename, metadata: Dict):
     # search other available mpp keys
     for k in fields:
         # Any keys end with .mpp
-        if k.lower().endswith(".appmag"):
+        if k.lower().endswith("appmag"):
             mag_keys.append(k)
 
     mag = None

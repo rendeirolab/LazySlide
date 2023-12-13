@@ -9,8 +9,7 @@ from urllib.parse import urlparse
 import requests
 
 from .readers.base import ReaderBase
-from .readers.vips import VipsReader
-from .readers.openslide import OpenSlideReader
+from .readers import VipsReader, OpenSlideReader, CuCIMReader
 
 
 def pairwise(iterable):
@@ -39,11 +38,13 @@ def get_reader(reader="auto") -> Type[ReaderBase]:
     except (ModuleNotFoundError, OSError) as _:
         pass
 
-    # try:
-    #     import cucim
-    #     readers["cucim"] = CuCIMReader
-    # except (ModuleNotFoundError, OSError) as _:
-    #     pass
+    try:
+        import cucim
+
+        readers["cucim"] = CuCIMReader
+    except (ModuleNotFoundError, OSError) as _:
+        pass
+
     reader_candidates = ["cucim", "vips", "openslide"]
     if reader == "auto":
         for i in reader_candidates:

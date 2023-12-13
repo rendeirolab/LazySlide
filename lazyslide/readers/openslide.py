@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import Union
 
-import cv2
 import numpy as np
 
 try:
@@ -9,7 +8,7 @@ try:
 except Exception as _:
     pass
 
-from .base import ReaderBase, parse_metadata
+from .base import ReaderBase
 
 
 class OpenSlideReader(ReaderBase):
@@ -25,6 +24,7 @@ class OpenSlideReader(ReaderBase):
     def __init__(
         self,
         file: Union[Path, str],
+        **kwargs,
     ):
         self.slide = OpenSlide(file)
         super().__init__(file, dict(self.slide.properties))
