@@ -223,6 +223,18 @@ class SlidesBalancedLoader(DataLoader):
         seed=0,
         **kwargs,
     ):
+        # Add these attributes to make pytorch-lightning happy
+        self.wsi_list = wsi_list
+        self.batch_size = batch_size
+        self.resize = resize
+        self.antialias = antialias
+        self.color_normalize = color_normalize
+        self.max_taken = max_taken
+        self.drop_last = drop_last
+        self.shuffle_slides = shuffle_slides
+        self.shuffle_tiles = shuffle_tiles
+        self.seed = seed
+
         dataset = SlidesDataset(
             wsi_list,
             resize=resize,
