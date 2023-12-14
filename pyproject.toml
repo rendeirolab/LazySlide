@@ -22,6 +22,7 @@ dependencies = [
     "matplotlib",
     "torch",
     "torchvision",  # >0.15
+    "timm",
     "pyvips",
     "torchstain",
     "requests"
@@ -44,6 +45,10 @@ dev = [
     "pytest-cov",
     "pre-commit",
     "ruff",
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings",
+    "mkdocstrings-python",
 ]
 
 [tool.ruff]

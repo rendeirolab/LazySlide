@@ -48,7 +48,34 @@ with torch.no_grad():
         tile_feature = resnet(tile)
 ```
 
+To set lazyslide to use different slide readers:
+
+```python
+import lazyslide as zs
+
+slide = 'https://github.com/camicroscope/Distro/raw/master/images/sample.svs'  # Your SVS file
+wsi = zs.WSI(slide, reader='openslide')
+wsi = zs.WSI(slide, reader='vips')
+wsi = zs.WSI(slide, reader='cucim')
+
+```
+
+By default, lazyslide will select an available one for you.
+
 ### Developer Notes
+
+We use pre-commit hooks to ensure code quality.
+
+```bash
+# Install pre-commit
+pip install pre-commit
+
+# Install pre-commit hooks
+pre-commit install
+
+# Run pre-commit hooks on all files
+pre-commit run --all-files
+```
 
 To make pyvips work on Windows:
 
