@@ -195,6 +195,21 @@ def get_split_image_indices(image_height, image_width, min_side=20000):
 
 
 class WSI:
+    """Container class for one whole-slide image
+
+    Parameters
+    ----------
+    image : str or Path
+        The path to the WSI file
+    h5_file : str or Path
+        The path to the h5 file that store the metadata
+    reader : {'auto', 'openslide', 'vips', 'cucim'}
+        The reader to use
+    reader_options : dict
+        The options to pass to the reader
+
+    """
+
     def __init__(
         self,
         image: Path | str,
@@ -269,11 +284,16 @@ class WSI:
 
         Parameters
         ----------
-        name : str, The name of the mask to be created
-        level : int, The slide level to work with
-        chunk : bool, Whether to split image into chunks when it's too large
-        chunk_at : int, Only chunk the image when a side of image is above this threshold
-        save : bool, Whether to save the mask into h5
+        name : str
+            The name of the mask to be created
+        level : int
+            The slide level to work with
+        chunk : bool
+            Whether to split image into chunks when it's too large
+        chunk_at : int
+            Only chunk the image when a side of image is above this threshold
+        save : bool
+            Whether to save the mask into h5
         kwargs
 
         Returns
@@ -349,20 +369,26 @@ class WSI:
         """
         Parameters
         ----------
-        tile_px : int or (int, int), Size of tile, either an integer or a tuple in (Height, Width)
-        stride_px : int or (int, int), Size of stride between each tile,
-                        either an integer or a tuple in (Height, Width).
-                        If not specific, this will be the same as tile_px,
-                        no overlapping between tiles.
-        pad : bool,
-        mpp : float, micron-per-pixel, most cases, 40X is 0.25 MPP, 20X is 0.5 MPP
-                    by default will extract from the level 0.
-        tolerance : float, If the downsample value is within a tolerance range,
-                            use the nearest available level without performing downsampling.
-        mask_name : str, which mask to use to filter tiles.
-        background_fraction : float, If a tile contain this much background, it will be
-                                    filter out.
-        errors : {'ignore', 'raise'}, if mpp is not exist, raise error or ignore it.
+        tile_px : int or (int, int)
+            Size of tile, either an integer or a tuple in (Height, Width)
+        stride_px : int or (int, int)
+            Size of stride between each tile,
+            either an integer or a tuple in (Height, Width).
+            If not specific, this will be the same as tile_px,
+            no overlapping between tiles.
+        pad : bool
+        mpp : float
+            micron-per-pixel, most cases, 40X is 0.25 MPP, 20X is 0.5 MPP
+            by default will extract from the level 0.
+        tolerance : float
+            If the downsample value is within a tolerance range,
+            use the nearest available level without performing downsampling.
+        mask_name : str
+            which mask to use to filter tiles.
+        background_fraction : float
+            If a tile contain this much background, it will be filter out.
+        errors : str, {'ignore', 'raise'}
+            if mpp is not exist, raise error or ignore it.
 
         Returns
         -------

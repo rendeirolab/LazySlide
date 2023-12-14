@@ -13,7 +13,6 @@ from typing import Optional
 import torch
 import torch.nn as nn
 import torch.utils.checkpoint as checkpoint
-from huggingface_hub import hf_hub_download
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.models import build_model_with_cfg
 from timm.models.layers import PatchEmbed, Mlp, DropPath, trunc_normal_, lecun_normal_
@@ -751,6 +750,13 @@ class CTransPathFeatures:
 """
 
     def __init__(self, device=None, center_crop=False):
+        try:
+            from huggingface_hub import hf_hub_download
+        except (ImportError, ModuleNotFoundError):
+            raise ModuleNotFoundError(
+                "Install huggingface-hub with `pip install huggingface-hub`."
+            )
+
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
         self.device = device

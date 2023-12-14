@@ -5,11 +5,8 @@ License: GNU GPL 2.0
 import warnings
 
 import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
-
-from matplotlib.colors import TABLEAU_COLORS
 from scipy.ndimage.morphology import binary_fill_holes
 from skimage.segmentation import watershed
 from torch import nn

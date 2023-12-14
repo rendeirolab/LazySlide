@@ -4,7 +4,6 @@ import torch.nn as nn
 
 from torch.nn import Parameter
 from torchvision import transforms
-from huggingface_hub import hf_hub_download
 
 
 # -----------------------------------------------------------------------------
@@ -357,6 +356,13 @@ class RetCCLFeatures:
 """
 
     def __init__(self, device=None, center_crop=False, ckpt=None):
+        try:
+            from huggingface_hub import hf_hub_download
+        except (ImportError, ModuleNotFoundError):
+            raise ModuleNotFoundError(
+                "Install huggingface-hub with `pip install huggingface-hub`."
+            )
+
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
         self.device = device
