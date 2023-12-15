@@ -151,11 +151,11 @@ class SlidesDataset(Dataset):
                 less_than_max_taken = less_than_max_taken[0:30]
                 less_n_tiles = less_n_tiles[0:30]
             warn_stats = [
-                f"{i}, {n} tiles" for i, n in zip(less_than_max_taken, less_n_tiles)
+                f"{i}, {n} tiles \n" for i, n in zip(less_than_max_taken, less_n_tiles)
             ]
             warnings.warn(
                 f"There are {total_less} slides has less than max_taken={self.max_taken}:"
-                f"{', '.join(warn_stats)}4\n"
+                f"{', '.join(warn_stats)} \n"
             )
         return slides
 
