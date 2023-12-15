@@ -155,7 +155,7 @@ class SlidesDataset(Dataset):
             ]
             warnings.warn(
                 f"There are {total_less} slides has less than max_taken={self.max_taken}:"
-                f"{', '.join(warn_stats)} \n"
+                f"{', '.join(warn_stats)}"
             )
         return slides
 
