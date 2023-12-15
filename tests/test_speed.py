@@ -207,7 +207,9 @@ def benchmark_joint(
     model_name: str = "resnet18",
     batch_sizes: list[int] = [8, 32, 128],
     slide_sizes: list[int] = [1, 2, 4, 8, 16, 32, 64, 128, 256],
-    gtex_id_file: Path = Path("/projects/histopath/sc_slide_list.txt"),
+    gtex_id_file: Path = Path(
+        "/nobackup/lab_rendeiro/projects/histopath/sc_slide_list.txt"
+    ),
 ):
     gtex_ids = gtex_id_file.open().read().strip().split("\n")
     # Download slides
@@ -215,15 +217,21 @@ def benchmark_joint(
     for gtex_id in tqdm(gtex_ids[: max(slide_sizes)]):
         slide_path = Path(".") / f"{gtex_id}.svs"
         if not slide_path.exists():
-            of = Path(f"/projects/histopath/data/gtex/svs/{gtex_id}.svs")
+            of = Path(
+                f"/nobackup/lab_rendeiro/projects/histopath/data/gtex/svs/{gtex_id}.svs"
+            )
             if of.exists():
-                of.symlink_to(slide_path)
+                slide_path.symlink_to(of)
             else:
                 url = f"https://brd.nci.nih.gov/brd/imagedownload/{gtex_id}"
                 zs.utils.download_file(url, slide_path)
         slide_paths.append(slide_path)
 
-    res = list()
+    if Path("speed_join.csv").exists():
+        df = pd.read_csv("speed_join.csv")
+        res = df.values.tolist()
+    else:
+        res = list()
     for reader in ["openslide"]:
         lzs = [
             prepare_lazyslide(slide_path, reader=reader)
@@ -231,11 +239,10 @@ def benchmark_joint(
         ]
         for batch_size in batch_sizes:
             for slides in slide_sizes:
-                # TODO: check this makes shuffled batches with images from multiple slides
                 dl = SlidesBalancedLoader(
                     lzs[:slides], max_taken=480, batch_size=batch_size
                 )
-                for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
+                for device in ["cpu"]:
                     s = [f"LazySlide ({reader})", batch_size, slides, device, len(dl)]
                     if s in [x[:-2] for x in res]:
                         print("Skipping")
@@ -270,60 +277,74 @@ def benchmark_joint(
 
 
 def plot():
-    df = pd.read_csv("speed.csv")
-    df = df.query("batch_size < 512")
-    # df["time_per_image"] = df["time"] / (df["batch_size"] * df["batch_count"])
-    df["time_per_image"] = df["time"] / (df["total_images"])
-    df["time_total_adj"] = df["time_per_image"] * df["total_images"]
+    if Path("speed.csv").exists():
+        df = pd.read_csv("speed.csv")
+        df = df.query("batch_size < 512")
+        # df["time_per_image"] = df["time"] / (df["batch_size"] * df["batch_count"])
+        df["time_per_image"] = df["time"] / (df["total_images"])
+        df["time_total_adj"] = df["time_per_image"] * df["total_images"]
 
-    fig, ax = plt.subplots()
-    sns.lineplot(
-        data=df,
-        x="batch_size",
-        y="time_total_adj",
-        hue="method",
-        style="device",
-        markers=True,
-        ax=ax,
-    )
-    ax.loglog()
-    ax.set(ylabel="Time per slide (seconds)", xlabel="Batch size")
-    ax.set_title("WSI backend speed comparison")
-    fig.savefig("speed.svg", dpi=300, bbox_inches="tight")
-    fig.savefig("speed.png", dpi=300, bbox_inches="tight")
+        fig, ax = plt.subplots()
+        sns.lineplot(
+            data=df,
+            x="batch_size",
+            y="time_total_adj",
+            hue="method",
+            style="device",
+            markers=True,
+            ax=ax,
+        )
+        ax.loglog()
+        ax.set(ylabel="Time per slide (seconds)", xlabel="Batch size")
+        ax.set_title("WSI backend speed comparison")
+        fig.savefig("speed.svg", dpi=300, bbox_inches="tight")
+        fig.savefig("speed.png", dpi=300, bbox_inches="tight")
 
-    fig, ax = plt.subplots()
-    sns.lineplot(
-        data=df,
-        x="batch_size",
-        y="time_per_image",
-        hue="method",
-        style="device",
-        markers=True,
-        ax=ax,
-    )
-    ax.loglog()
-    ax.set(ylabel="Time per image (seconds)", xlabel="Batch size")
-    ax.set_title("WSI backend speed comparison")
-    fig.savefig("speed.per_image.svg", dpi=300, bbox_inches="tight")
-    fig.savefig("speed.per_image.png", dpi=300, bbox_inches="tight")
+        fig, ax = plt.subplots()
+        sns.lineplot(
+            data=df,
+            x="batch_size",
+            y="time_per_image",
+            hue="method",
+            style="device",
+            markers=True,
+            ax=ax,
+        )
+        ax.loglog()
+        ax.set(ylabel="Time per image (seconds)", xlabel="Batch size")
+        ax.set_title("WSI backend speed comparison")
+        fig.savefig("speed.per_image.svg", dpi=300, bbox_inches="tight")
+        fig.savefig("speed.per_image.png", dpi=300, bbox_inches="tight")
 
-    if not Path("speed_join.csv").exists():
-        return
-    df = pd.read_csv("speed_join.csv")
+    for file in Path().glob("speed_join*.csv"):
+        df = pd.read_csv(file)
 
-    fig, ax = plt.subplots()
-    sns.lineplot(
-        data=df,
-        x="slide_count",
-        y="time",
-        hue="batch_size",
-        style="device",
-        markers=True,
-        ax=ax,
-    )
-    ax.set(xlabel="Number of slides", ylabel="Time for all slides (seconds)")
-    ax.set_title("WSI backend speed comparison")
-    fig.savefig("speed_join.svg", dpi=300, bbox_inches="tight")
-    ax.loglog()
-    fig.savefig("speed_join.loglog.svg", dpi=300, bbox_inches="tight")
+        fig, ax = plt.subplots()
+        sns.lineplot(
+            data=df,
+            x="slide_count",
+            y="time",
+            hue="batch_size",
+            style="device",
+            markers=True,
+            ax=ax,
+        )
+        i = df["time"].min()
+        for e in [1, 1.25, 1.5, 1.75, 2]:
+            ax.plot(
+                [1, 256],
+                [i, i + 256**e],
+                color="grey",
+                linestyle="--",
+                label=f"O(n ** {e})",
+            )
+            ax.text(256, i + 256**e, f"O(n ** {e})", ha="left", va="center")
+        ax.set(xlabel="Number of slides (n)", ylabel="Time for all slides (seconds)")
+        ax.set_title(
+            "Scalability across multiple WSIs\n(LazySlide with OpenSlide backend, ResNet18 inference)"
+        )
+        fig.savefig(file.with_suffix(".svg"), dpi=300, bbox_inches="tight")
+        fig.savefig(file.with_suffix(".png"), dpi=300, bbox_inches="tight")
+        ax.loglog()
+        fig.savefig(file.with_suffix(".loglog.svg"), dpi=300, bbox_inches="tight")
+        fig.savefig(file.with_suffix(".loglog.png"), dpi=300, bbox_inches="tight")
