@@ -266,6 +266,12 @@ class WSI:
     def has_tiles(self):
         return self.h5_file.has_tiles
 
+    def shuffle_tiles(self, seed=0):
+        rng = np.random.default_rng(seed)
+        tiles_coords = self.tiles_coords
+        rng.shuffle(tiles_coords)
+        self.h5_file.set_coords(tiles_coords)
+
     def move_wsi_file(self, new_path: Path) -> None:
         new_path = Path(new_path)
         if not new_path.exists():

@@ -59,8 +59,9 @@ class SlidesDataset(Dataset):
         if resize is None:
             self.resize_transform = []
             for wsi in wsi_list:
-                if wsi.tile_ops.downsample != 1:
-                    resize_to = (int(wsi.tile_ops.height), int(wsi.tile_ops.width))
+                tile_ops = wsi.tile_ops
+                if tile_ops.downsample != 1:
+                    resize_to = (int(tile_ops.height), int(tile_ops.width))
                     self.resize_transform.append(
                         Compose(
                             [ToImage(), Resize(size=resize_to, antialias=antialias)]
@@ -80,6 +81,8 @@ class SlidesDataset(Dataset):
         self.wsi_n_tiles = []
         for i in self.proxy_ix:
             wsi = wsi_list[i]
+            if not wsi.has_tiles:
+                raise ValueError(f"{wsi} does not has tiles")
             if shuffle_tiles:
                 wsi.shuffle_tiles(seed)
             self.wsi_n_tiles.append(len(wsi.tiles_coords))
