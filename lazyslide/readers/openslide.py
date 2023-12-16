@@ -24,10 +24,11 @@ class OpenSlideReader(ReaderBase):
     def __init__(
         self,
         file: Union[Path, str],
+        raw_metadata: bool = False,
         **kwargs,
     ):
         self.slide = OpenSlide(file)
-        super().__init__(file, dict(self.slide.properties))
+        super().__init__(file, dict(self.slide.properties), raw_metadata=raw_metadata)
         self._levels = np.arange(self.metadata.n_level)
 
     def get_patch(

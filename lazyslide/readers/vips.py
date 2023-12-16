@@ -41,6 +41,7 @@ class VipsReader(ReaderBase):
     def __init__(
         self,
         file: Union[Path, str],
+        raw_metadata: bool = False,
         caching: bool = True,
     ):
         self.file = file
@@ -55,7 +56,7 @@ class VipsReader(ReaderBase):
         for name in _vips_fields:
             metadata[name] = _vips_img.get(name)
 
-        super().__init__(file, metadata)
+        super().__init__(file, metadata, raw_metadata=raw_metadata)
 
     def get_patch(
         self,

@@ -23,13 +23,20 @@ class WSIMetaData:
 class ReaderBase:
     metadata: WSIMetaData
 
-    def __init__(self, file: Union[Path, str], metadata: Union[Dict, WSIMetaData]):
+    def __init__(
+        self,
+        file: Union[Path, str],
+        metadata: Union[Dict, WSIMetaData],
+        raw_metadata: bool = False,
+    ):
         self.file = Path(file)
         self.filename = self.file.name
         if isinstance(metadata, WSIMetaData):
             self.metadata = metadata
         else:
-            self.metadata = parse_metadata(self.filename, metadata)
+            self.metadata = parse_metadata(
+                self.filename, metadata, attach_raw=raw_metadata
+            )
         self._levels = np.arange(self.metadata.n_level)
 
     def __repr__(self):
@@ -141,7 +148,7 @@ LEVEL_WIDTH_KEY = lambda level: f"openslide.level[{level}].width"
 LEVEL_DOWNSAMPLE_KEY = lambda level: f"openslide.level[{level}].downsample"
 
 
-def parse_metadata(filename, metadata: Dict):
+def parse_metadata(filename, metadata: Dict, attach_raw=False):
     fields = set(metadata.keys())
 
     mpp_keys = []
@@ -211,7 +218,8 @@ def parse_metadata(filename, metadata: Dict):
         level_shape=level_shape,
         level_downsample=level_downsample,
     )
-    for k, v in metadata.items():
-        setattr(wsi_meta, k, v)
+    if attach_raw:
+        for k, v in metadata.items():
+            setattr(wsi_meta, k, v)
 
     return wsi_meta

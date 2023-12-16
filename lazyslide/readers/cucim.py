@@ -20,6 +20,7 @@ class CuCIMReader(ReaderBase):
     def __init__(
         self,
         file: Union[Path, str],
+        raw_metadata: bool = False,
         device=None,
     ):
         self.slide = CuImage(str(file))
