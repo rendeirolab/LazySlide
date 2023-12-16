@@ -225,11 +225,9 @@ class WSI:
             h5_file = self.image.with_suffix(".coords.h5")
 
         self.reader_options = {} if reader_options is None else reader_options
-        self.h5_file = H5File(h5_file)
+        self.h5_file: H5File = H5File(h5_file)
         self._reader_class = get_reader(reader)
         self._reader = None
-        self.masks, self.masks_level = self.h5_file.get_masks()
-        self._tiles_coords = self.h5_file.get_coords()
         self._tile_ops = self.h5_file.get_tile_ops()
         self.contours, self.holes = self.h5_file.get_contours_holes()
 
@@ -252,11 +250,21 @@ class WSI:
 
     @property
     def tiles_coords(self):
-        return self._tiles_coords
+        return self.h5_file.get_coords()
 
     @property
     def tile_ops(self):
         return self._tile_ops
+
+    def get_tiles_coords(self):
+        return self.tiles_coords
+
+    def get_mask(self, name):
+        return self.h5_file.get_masks(name)
+
+    @property
+    def has_tiles(self):
+        return self.h5_file.has_tiles
 
     def move_wsi_file(self, new_path: Path) -> None:
         new_path = Path(new_path)
@@ -270,17 +278,14 @@ class WSI:
         level = self.reader.translate_level(level)
         image = self.reader.get_level(level)
         mask = transform.apply(image)
-        self.masks[name] = mask
-        self.masks_level[name] = level
         if save:
             self.h5_file.set_mask(name, mask, level)
-            self.h5_file.save()
 
     def create_tissue_mask(
         self, name="tissue", level=-1, chunk=True, chunk_at=20000, save=False, **kwargs
     ):
         """Create tissue mask using
-        preconfigure segmentation pipeline
+        a preconfigured segmentation pipeline
 
         Parameters
         ----------
@@ -324,11 +329,8 @@ class WSI:
             image = self.reader.get_level(level)
             mask = seg.apply(image)
 
-        self.masks[name] = mask
-        self.masks_level[name] = level
         if save:
             self.h5_file.set_mask(name, mask, level)
-            self.h5_file.save()
 
     def create_tissue_contours(self, level=-1, save=False, **kwargs):
         """Contours will always return
@@ -349,10 +351,6 @@ class WSI:
         self.holes = holes
         if save:
             self.h5_file.set_contours_holes(contours, holes)
-            self.h5_file.save()
-
-    def get_mask(self, name):
-        return self.masks.get(name), self.masks_level.get(name)
 
     def create_tiles(
         self,
@@ -365,6 +363,7 @@ class WSI:
         background_fraction=0.8,
         tile_pts=3,
         errors="ignore",
+        save=True,
     ):
         """
         Parameters
@@ -389,6 +388,8 @@ class WSI:
             If a tile contain this much background, it will be filter out.
         errors : str, {'ignore', 'raise'}
             if mpp is not exist, raise error or ignore it.
+        save : bool
+            Whether to save the tiles coordination on disk in h5
 
         Returns
         -------
@@ -481,16 +482,7 @@ class WSI:
         # Filter coords based on mask
         # TODO: Consider create tiles based on the
         #       bbox of different components
-        self._tile_ops = TileOps(
-            level=ops_level,
-            mpp=mpp,
-            downsample=downsample,
-            height=tile_h,
-            width=tile_w,
-            ops_height=ops_tile_h,
-            ops_width=ops_tile_w,
-            mask_name=mask_name,
-        )
+
         if use_mask:
             tiles_coords = create_tiles_top_left(
                 image_shape, ops_tile_h, ops_tile_w, ops_stride_h, ops_stride_w, pad=pad
@@ -508,7 +500,7 @@ class WSI:
                 int(ops_tile_w * ratio),
                 filter_bg=background_fraction,
             )
-            self._tiles_coords = tiles_coords[use_tiles].copy()
+            tiles_coords = tiles_coords[use_tiles].copy()
 
         else:
             rect_coords, rect_indices = create_tiles_coords_index(
@@ -552,56 +544,93 @@ class WSI:
             # The number of points for each tiles inside contours
             good_tiles = is_tiles[rect_indices].sum(axis=1) >= tile_pts
             # Select only the top_left corner
-            self._tiles_coords = rect_coords[rect_indices[good_tiles, 0]].copy()
+            tiles_coords = rect_coords[rect_indices[good_tiles, 0]].copy()
 
-        self.h5_file.set_coords(self._tiles_coords)
-        self.h5_file.set_tile_ops(self._tile_ops)
-        self.h5_file.save()
+        self.new_tiles(
+            tiles_coords,
+            height=tile_h,
+            width=tile_w,
+            level=ops_level,
+            mpp=mpp,
+            downsample=downsample,
+            ops_height=ops_tile_h,
+            ops_width=ops_tile_w,
+            save=save,
+        )
 
     def new_tiles(
-        self, tiles_coords, height, width, level=0, format="top-left", save=False
+        self,
+        tiles_coords,
+        height=None,
+        width=None,
+        level=0,
+        mpp=None,
+        downsample=None,
+        ops_height=None,
+        ops_width=None,
+        format="top-left",
+        save=True,
+        **kwargs,
     ):
         """Supply new tiles to WSI
 
         The default coordination for tiles in top-left, you can change this
-        with the `format` paramters
+        with the `format` parameters.
+
+        The coordination will be stored as uint32.
 
         Parameters
         ----------
-        tiles_coords
+        tiles_coords : array-like
+            The coordination of tiles, in (x, y) format
         height
         width
         level
         format : str, {'top-left', 'left-top'}
+            The input format of your tiles coordination
+        save : bool
+            Whether to back up the tiles coordination on disk in h5
 
         Returns
         -------
 
         """
-        self._tiles_coords = np.asarray(tiles_coords, dtype=np.uint32)
+        tiles_coords = np.asarray(tiles_coords, dtype=np.uint32)
         if format == "left-top":
-            self._tiles_coords = self._tiles_coords[:, [1, 0]]
+            tiles_coords = tiles_coords[:, [1, 0]]
         height = int(height)
         width = int(width)
+        if height is None and ops_height is None:
+            raise ValueError("Either height or ops_height must be specified")
+        if width is None and ops_width is None:
+            raise ValueError("Either width or ops_width must be specified")
+        if height is None:
+            height = ops_height
+        if width is None:
+            width = ops_width
+        if ops_height is None:
+            ops_height = height
+        if ops_width is None:
+            ops_width = width
+
         self._tile_ops = TileOps(
             level=level,
-            mpp=self.metadata.mpp,
-            downsample=1,
+            mpp=self.metadata.mpp if mpp is None else mpp,
+            downsample=1 if downsample is None else downsample,
             height=height,
             width=width,
-            ops_height=height,
-            ops_width=width,
+            ops_height=ops_height,
+            ops_width=ops_width,
         )
         if save:
-            self.h5_file.set_coords(self._tiles_coords)
+            self.h5_file.set_coords(tiles_coords)
             self.h5_file.set_tile_ops(self._tile_ops)
-            self.h5_file.save()
 
     def report(self):
         if self._tile_ops is not None:
             print(
                 f"Generate tiles with mpp={self._tile_ops.mpp}, WSI mpp={self.metadata.mpp}\n"
-                f"Total tiles: {len(self._tiles_coords)}"
+                f"Total tiles: {len(self.tiles_coords)}"
                 f"Use mask: '{self._tile_ops.mask_name}'\n"
                 f"Generated Tiles in px (H, W): ({self._tile_ops.height}, {self._tile_ops.width})\n"
                 f"WSI Tiles in px (H, W): ({self._tile_ops.ops_height}, {self._tile_ops.ops_width}) \n"
@@ -646,11 +675,11 @@ class WSI:
         ax.set_axis_off()
 
         if tiles:
-            if self._tiles_coords is None:
+            if not self.has_tiles:
                 print("No tile is created")
             else:
                 # In matplotlib, H -> Y, W -> X, so we flip the axis
-                coords = self._tiles_coords[:, ::-1] * down_ratio
+                coords = self.tiles_coords[:, ::-1] * down_ratio
 
                 tile_h = self._tile_ops.height * down_ratio
                 tile_w = self._tile_ops.width * down_ratio
@@ -690,7 +719,7 @@ class WSI:
         savefig=None,
         savefig_kws=None,
     ):
-        image_arr = self.masks.get(name)
+        image_arr = self.get_mask(name)
         if image_arr is None:
             raise NameError(f"Cannot draw non-exist mask with name '{name}'")
 
@@ -715,13 +744,5 @@ class WSI:
             int(left), int(top), int(width), int(height), level=level, **kwargs
         )
 
-    def shuffle_tiles(self, seed=0):
-        rng = np.random.default_rng(seed)
-        rng.shuffle(self._tiles_coords)
-
-    def get_tiles_coords(self):
-        return self._tiles_coords.copy()
-
-    @property
-    def has_tiles(self):
-        return (self._tile_ops is not None) and (self._tiles_coords is not None)
+    def get_tile_by_index(self, index):
+        return self.h5_file.get_one_coord_by_index(index)

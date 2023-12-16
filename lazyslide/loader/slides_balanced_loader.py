@@ -1,6 +1,5 @@
 import warnings
 from copy import deepcopy
-from collections import deque
 
 import numpy as np
 from torch.utils.data import Dataset, Sampler, DataLoader
@@ -112,7 +111,7 @@ class SlidesDataset(Dataset):
         wsi = self.wsi_list[self.proxy_ix[slide_ix]]
 
         # change here how to get the coordinate
-        top, left = wsi.tiles_coords[tile_ix]
+        top, left = wsi.get_tile_by_index(tile_ix)
         tile_ops = wsi.tile_ops
         img = wsi.get_patch(
             int(left),
