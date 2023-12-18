@@ -271,6 +271,7 @@ class WSI:
         tiles_coords = self.tiles_coords
         rng.shuffle(tiles_coords)
         self.h5_file.set_coords(tiles_coords)
+        self.h5_file.set_tile_ops(self._tile_ops)
 
     def move_wsi_file(self, new_path: Path) -> None:
         new_path = Path(new_path)
