@@ -72,6 +72,7 @@ class OpenSlideReader(ReaderBase):
     def detach_handler(self):
         if self._slide is not None:
             self._slide.close()
+            self._slide = None
 
     def attach_handler(self):
         pass
