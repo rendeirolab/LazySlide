@@ -1,5 +1,6 @@
 import warnings
 from copy import deepcopy
+from multiprocessing import Manager
 
 import numpy as np
 from torch.utils.data import Dataset, Sampler, DataLoader
@@ -77,7 +78,8 @@ class SlidesDataset(Dataset):
             rng.shuffle(self.proxy_ix)
 
         self.seed = seed
-        self.wsi_list = wsi_list
+        manager = Manager()
+        self.wsi_list = manager.list(wsi_list)
         self.wsi_n_tiles = []
         for i in self.proxy_ix:
             wsi = wsi_list[i]
