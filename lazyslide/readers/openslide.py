@@ -1,10 +1,12 @@
 from pathlib import Path
 from typing import Union
+from weakref import WeakValueDictionary
 
 import numpy as np
 
 try:
     from openslide import OpenSlide
+    from openslide import OpenSlideCache
 except Exception as _:
     pass
 
@@ -25,9 +27,12 @@ class OpenSlideReader(ReaderBase):
         self,
         file: Union[Path, str],
         raw_metadata: bool = False,
+        cache: int = 32 * 1024 * 1024,
         **kwargs,
     ):
+        self.slide_cache = OpenSlideCache(cache)
         self.slide = OpenSlide(file)
+        self.slide.set_cache(self.slide_cache)
         super().__init__(file, dict(self.slide.properties), raw_metadata=raw_metadata)
         self._levels = np.arange(self.metadata.n_level)
 
