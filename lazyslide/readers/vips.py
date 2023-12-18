@@ -124,3 +124,12 @@ class VipsReader(ReaderBase):
             if self.caching:
                 self.__region_vips_handler[level] = vips.Region.new(handler)
         return handler
+
+    def detach_handler(self):
+        for handler in self.__level_vips_handler.values():
+            handler.close()
+        self.__level_vips_handler = {}
+        self.__region_vips_handler = {}
+
+    def attach_handler(self):
+        pass

@@ -43,6 +43,7 @@ class SlidesDataset(Dataset):
         shuffle_slides=True,
         shuffle_tiles=True,
         seed=0,
+        shared_memory=True,
     ):
         try:
             from ncls import NCLS
@@ -78,8 +79,12 @@ class SlidesDataset(Dataset):
             rng.shuffle(self.proxy_ix)
 
         self.seed = seed
-        manager = Manager()
-        self.wsi_list = manager.list(wsi_list)
+        self.shared_memory = shared_memory
+        if shared_memory:
+            manager = Manager()
+            self.wsi_list = manager.list(wsi_list)
+        else:
+            self.wsi_list = wsi_list
         self.wsi_n_tiles = []
         for i in self.proxy_ix:
             wsi = wsi_list[i]
@@ -125,6 +130,8 @@ class SlidesDataset(Dataset):
             int(tile_ops.ops_height),
             int(tile_ops.level),
         )
+        if not self.shared_memory:
+            wsi.detach_handler()
         if self.resize_transform is not None:
             resize_ops = self.resize_transform[slide_ix]
             if resize_ops is not None:
@@ -225,6 +232,7 @@ class SlidesBalancedLoader(DataLoader):
         shuffle_slides=True,
         shuffle_tiles=True,
         seed=0,
+        shared_memory=True,
         **kwargs,
     ):
         # Add these attributes to make pytorch-lightning happy
@@ -238,6 +246,7 @@ class SlidesBalancedLoader(DataLoader):
         self.shuffle_slides = shuffle_slides
         self.shuffle_tiles = shuffle_tiles
         self.seed = seed
+        self.shared_memory = shared_memory
 
         dataset = SlidesDataset(
             wsi_list,
@@ -249,6 +258,7 @@ class SlidesBalancedLoader(DataLoader):
             shuffle_slides=shuffle_slides,
             shuffle_tiles=shuffle_tiles,
             seed=seed,
+            shared_memory=shared_memory,
         )
         sampler = SlidesSampler(
             dataset.get_sampler_slides(), batch_size=batch_size, drop_last=drop_last

@@ -29,10 +29,17 @@ class OpenSlideReader(ReaderBase):
         **kwargs,
     ):
         # self.slide_cache = OpenSlideCache(cache)
-        self.slide = OpenSlide(file)
+        slide = OpenSlide(file)
         # self.slide.set_cache(self.slide_cache)
-        super().__init__(file, dict(self.slide.properties), raw_metadata=raw_metadata)
+        self._slide = None
+        super().__init__(file, dict(slide.properties), raw_metadata=raw_metadata)
         self._levels = np.arange(self.metadata.n_level)
+
+    @property
+    def slide(self):
+        if self._slide is None:
+            self._slide = OpenSlide(self.file)
+        return self._slide
 
     def get_patch(
         self,
@@ -61,3 +68,10 @@ class OpenSlideReader(ReaderBase):
         )
         region_rgb = self._rgba_to_rgb(region)
         return region_rgb
+
+    def detach_handler(self):
+        if self._slide is not None:
+            self._slide.close()
+
+    def attach_handler(self):
+        pass

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+import weakref
 from numbers import Integral
 from pathlib import Path
 from typing import Iterable
@@ -243,6 +244,9 @@ class WSI:
         if self._reader is None:
             self._reader = self._reader_class(self.image, **self.reader_options)
         return self._reader
+
+    def detach_handler(self):
+        self._reader.detach_handler()
 
     @property
     def metadata(self):

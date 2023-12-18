@@ -62,6 +62,12 @@ class ReaderBase:
     def get_metadata(self):
         return self.metadata
 
+    def detach_handler(self):
+        return NotImplementedError
+
+    def attach_handler(self):
+        return NotImplementedError
+
     @staticmethod
     def resize_img(
         img: np.ndarray,
