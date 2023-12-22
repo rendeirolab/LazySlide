@@ -20,12 +20,9 @@ dependencies = [
     "openslide-python",
     "h5py",
     "matplotlib",
-    "torch",
-    "torchvision",  # >0.15
-    "timm",
     "pyvips",
-    "torchstain",
-    "requests"
+    "requests",
+    "lazy-imports"
 ]
 
 [project.optional-dependencies]
@@ -38,6 +35,10 @@ all = [
     "scipy",
     "scikit-image",
     "huggingface_hub",
+    "torch",
+    "torchvision",  # >0.15
+    "timm",
+    "torchstain",
 ]
 dev = [
     "flit",

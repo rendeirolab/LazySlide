@@ -1,8 +1,10 @@
-import torch
-from torch.utils.data import Dataset
-from torchvision.transforms.v2 import ToImage, ToDtype, Normalize, Compose, Resize
+from lazy_imports import try_import
 
-from lazyslide.normalizer import ColorNormalizer
+with try_import() as _import:
+    import torch
+    from torch.utils.data import Dataset
+    from torchvision.transforms.v2 import ToImage, ToDtype, Normalize, Compose, Resize
+    from .normalizer import ColorNormalizer
 
 
 def compose_transform(

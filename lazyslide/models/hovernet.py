@@ -6,11 +6,15 @@ import warnings
 
 import cv2
 import numpy as np
-import torch
-from scipy.ndimage.morphology import binary_fill_holes
-from skimage.segmentation import watershed
-from torch import nn
-from torch.nn import functional as F
+
+from lazy_imports import try_import
+
+with try_import() as _import:
+    import torch
+    from scipy.ndimage.morphology import binary_fill_holes
+    from skimage.segmentation import watershed
+    from torch import nn
+    from torch.nn import functional as F
 
 
 def segmentation_lines(mask_in):

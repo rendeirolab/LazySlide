@@ -26,7 +26,7 @@ class H5File:
 
     def set_coords(self, coords):
         # Chunk by row-major order
-        self._save_dataset(self.COORDS_KEY, coords, chunks=True)
+        self._save_dataset(self.COORDS_KEY, coords)
 
     def get_coords(self):
         return self._load_dataset(self.COORDS_KEY)
@@ -126,7 +126,7 @@ class H5File:
         return TileOps(**attrs)
 
     def set_mask(self, name: str, mask: np.ndarray, level: int):
-        self._save_dataset(name, mask, group=self.MASKS_KEY, chunks=False)
+        self._save_dataset(name, mask, group=self.MASKS_KEY, chunks=None)
         self._save_attr(name, {"level": level}, group=self.MASKS_KEY)
 
     def get_masks(self, name) -> (np.ndarray, int):

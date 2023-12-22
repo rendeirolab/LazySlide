@@ -127,7 +127,7 @@ class VipsReader(ReaderBase):
 
     def detach_handler(self):
         for handler in self.__level_vips_handler.values():
-            handler.close()
+            del handler
         self.__level_vips_handler = {}
         self.__region_vips_handler = {}
 

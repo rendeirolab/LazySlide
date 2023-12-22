@@ -3,11 +3,14 @@ from copy import deepcopy
 from multiprocessing import Manager
 
 import numpy as np
-from torch.utils.data import Dataset, Sampler, DataLoader
-from torchvision.transforms.v2 import Resize, Compose, ToImage
-
 from lazyslide.utils import pairwise
 from .dataset import compose_transform
+
+from lazy_imports import try_import
+
+with try_import() as _import:
+    from torch.utils.data import Dataset, Sampler, DataLoader
+    from torchvision.transforms.v2 import Resize, Compose, ToImage
 
 
 class Slide:
@@ -81,6 +84,8 @@ class SlidesDataset(Dataset):
         self.seed = seed
         self.shared_memory = shared_memory
         if shared_memory:
+            for wsi in wsi_list:
+                wsi.detach_handler()
             manager = Manager()
             self.wsi_list = manager.list(wsi_list)
         else:

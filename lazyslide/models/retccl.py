@@ -1,9 +1,12 @@
-import torch
-import torch.nn.functional as F
-import torch.nn as nn
+from lazy_imports import try_import
 
-from torch.nn import Parameter
-from torchvision import transforms
+with try_import() as _import:
+    import torch
+    import torch.nn.functional as F
+    import torch.nn as nn
+
+    from torch.nn import Parameter
+    from torchvision import transforms
 
 
 # -----------------------------------------------------------------------------

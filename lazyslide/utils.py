@@ -45,7 +45,7 @@ def get_reader(reader="auto") -> Type[ReaderBase]:
     except (ModuleNotFoundError, OSError) as _:
         pass
 
-    reader_candidates = ["cucim", "vips", "openslide"]
+    reader_candidates = ["openslide", "cucim", "vips"]
     if reader == "auto":
         for i in reader_candidates:
             reader = readers.get(i)

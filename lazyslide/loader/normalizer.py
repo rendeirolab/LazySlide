@@ -1,5 +1,8 @@
-import torch
-from torchvision.transforms.v2 import ToImage, ToDtype, Lambda, Compose
+from lazy_imports import try_import
+
+with try_import() as _import:
+    import torch
+    from torchvision.transforms.v2 import ToImage, ToDtype, Lambda, Compose
 
 
 class ColorNormalizer(torch.nn.Module):

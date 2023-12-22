@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import warnings
-import weakref
 from numbers import Integral
 from pathlib import Path
 from typing import Iterable
@@ -230,6 +229,9 @@ class WSI:
         self._reader_class = get_reader(reader)
         self._reader = None
         self._tile_ops = self.h5_file.get_tile_ops()
+        self._tile_coords = self.h5_file.get_coords()
+        self._masks = {}
+        self._masks_level = {}
         self.contours, self.holes = self.h5_file.get_contours_holes()
 
     def __repr__(self):
@@ -254,7 +256,7 @@ class WSI:
 
     @property
     def tiles_coords(self):
-        return self.h5_file.get_coords()
+        return self._tile_coords
 
     @property
     def tile_ops(self):
@@ -264,6 +266,8 @@ class WSI:
         return self.tiles_coords
 
     def get_mask(self, name):
+        if name in self._masks:
+            return self._masks[name], self._masks_level[name]
         return self.h5_file.get_masks(name)
 
     @property
@@ -272,10 +276,7 @@ class WSI:
 
     def shuffle_tiles(self, seed=0):
         rng = np.random.default_rng(seed)
-        tiles_coords = self.tiles_coords
-        rng.shuffle(tiles_coords)
-        self.h5_file.set_coords(tiles_coords)
-        self.h5_file.set_tile_ops(self._tile_ops)
+        rng.shuffle(self._tile_coords)
 
     def move_wsi_file(self, new_path: Path) -> None:
         new_path = Path(new_path)
@@ -340,6 +341,8 @@ class WSI:
             image = self.reader.get_level(level)
             mask = seg.apply(image)
 
+        self._masks[name] = mask
+        self._masks_level[name] = level
         if save:
             self.h5_file.set_mask(name, mask, level)
 
@@ -633,6 +636,8 @@ class WSI:
             ops_height=ops_height,
             ops_width=ops_width,
         )
+        self._tile_coords = tiles_coords
+
         if save:
             self.h5_file.set_coords(tiles_coords)
             self.h5_file.set_tile_ops(self._tile_ops)
@@ -730,7 +735,7 @@ class WSI:
         savefig=None,
         savefig_kws=None,
     ):
-        image_arr = self.get_mask(name)
+        image_arr, _ = self.get_mask(name)
         if image_arr is None:
             raise NameError(f"Cannot draw non-exist mask with name '{name}'")
 

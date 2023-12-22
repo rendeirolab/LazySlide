@@ -2,10 +2,11 @@ from pathlib import Path
 from typing import Union
 
 import numpy as np
-from skimage.util import img_as_float32
+
 
 try:
     from cucim import CuImage
+    from skimage.util import img_as_float32
 except Exception as _:
     pass
 

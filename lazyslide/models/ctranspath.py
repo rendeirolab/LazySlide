@@ -10,17 +10,26 @@ GitHub: https://github.com/Xiyue-Wang/TransPath
 import math
 from typing import Optional
 
-import torch
-import torch.nn as nn
-import torch.utils.checkpoint as checkpoint
-from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from timm.models import build_model_with_cfg
-from timm.models.layers import PatchEmbed, Mlp, DropPath, trunc_normal_, lecun_normal_
-from timm.models.layers import _assert
-from timm.models.layers import to_2tuple
-from timm.models.swin_transformer import window_partition, window_reverse
-from timm.models.vision_transformer import checkpoint_filter_fn
-from torchvision import transforms
+from lazy_imports import try_import
+
+with try_import() as _import:
+    import torch
+    import torch.nn as nn
+    import torch.utils.checkpoint as checkpoint
+    from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+    from timm.models import build_model_with_cfg
+    from timm.models.layers import (
+        PatchEmbed,
+        Mlp,
+        DropPath,
+        trunc_normal_,
+        lecun_normal_,
+    )
+    from timm.models.layers import _assert
+    from timm.models.layers import to_2tuple
+    from timm.models.swin_transformer import window_partition, window_reverse
+    from timm.models.vision_transformer import checkpoint_filter_fn
+    from torchvision import transforms
 
 
 # -----------------------------------------------------------------------------

@@ -54,7 +54,7 @@ class OpenSlideReader(ReaderBase):
         level = self.translate_level(level)
         # TODO: Handle situation that crop outside images
         region = self.slide.read_region(
-            location=(top, left), level=level, size=(width, height)
+            location=(left, top), level=level, size=(width, height)
         )
         region_rgb = self._rgba_to_rgb(region)
         return region_rgb
