@@ -91,7 +91,7 @@ def check_wsi_path(path: str | Path, allow_download: bool = True) -> Path:
     elif isinstance(path, Path):
         if path.exists():
             return path
-    raise ValueError("Path must be a URL or Path to existing file.")
+    raise ValueError(f"{path} not exists.")
 
 
 @dataclass
