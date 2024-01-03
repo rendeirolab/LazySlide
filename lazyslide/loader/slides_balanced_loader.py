@@ -1,9 +1,9 @@
 import warnings
+from bisect import bisect_left
 from copy import deepcopy
 from multiprocessing import Manager
 
 import numpy as np
-from lazyslide.utils import pairwise
 from .dataset import compose_transform
 
 from lazy_imports import try_import
@@ -47,12 +47,8 @@ class SlidesDataset(Dataset):
         shuffle_tiles=True,
         seed=0,
         shared_memory=True,
+        num_workers=0,
     ):
-        try:
-            from ncls import NCLS
-        except ImportError:
-            raise ModuleNotFoundError("Install NCLS with `pip install ncls`.")
-
         self.resize_transform = None
         if transform is not None:
             self.transform = transform
@@ -83,14 +79,15 @@ class SlidesDataset(Dataset):
 
         self.seed = seed
         self.shared_memory = shared_memory
-        if shared_memory:
+        if shared_memory and (num_workers > 0):
             for wsi in wsi_list:
-                wsi.detach_handler()
+                wsi.detach_handler()  # detach handler to make WSI serializable
             manager = Manager()
             self.wsi_list = manager.list(wsi_list)
         else:
             self.wsi_list = wsi_list
         self.wsi_n_tiles = []
+
         for i in self.proxy_ix:
             wsi = wsi_list[i]
             if not wsi.has_tiles:
@@ -100,20 +97,6 @@ class SlidesDataset(Dataset):
             self.wsi_n_tiles.append(len(wsi.tiles_coords))
         self.ix_slides = np.insert(np.cumsum(self.wsi_n_tiles), 0, 0)
 
-        self.ixs = []
-        self.starts = []
-        self.ends = []
-
-        for slide_id, (start, end) in enumerate(pairwise(self.ix_slides)):
-            self.ixs.append(slide_id)
-            self.starts.append(start)
-            self.ends.append(end)
-        self.ncls = NCLS(
-            np.array(self.starts, dtype=int),
-            np.array(self.ends, dtype=int),
-            np.array(self.ixs, dtype=int),
-        )
-
         self.max_taken = max_taken
 
     def __len__(self):
@@ -121,8 +104,11 @@ class SlidesDataset(Dataset):
 
     def __getitem__(self, ix):
         ix = int(ix)
-        _, _, slide_ix = next(self.ncls.find_overlap(ix, ix + 1))
-        tile_ix = ix - self.starts[slide_ix]
+        if ix == 0:
+            slide_ix = 0
+        else:
+            slide_ix = bisect_left(self.ix_slides, ix) - 1
+        tile_ix = ix - self.ix_slides[slide_ix]
         wsi = self.wsi_list[self.proxy_ix[slide_ix]]
 
         # change here how to get the coordinate
@@ -135,8 +121,7 @@ class SlidesDataset(Dataset):
             int(tile_ops.ops_height),
             int(tile_ops.level),
         )
-        if not self.shared_memory:
-            wsi.detach_handler()
+
         if self.resize_transform is not None:
             resize_ops = self.resize_transform[slide_ix]
             if resize_ops is not None:
@@ -150,7 +135,7 @@ class SlidesDataset(Dataset):
         less_n_tiles = []
 
         for slide_ix, (n_tiles, start_index) in enumerate(
-            zip(self.wsi_n_tiles, self.starts)
+            zip(self.wsi_n_tiles, self.ix_slides)
         ):
             if self.max_taken is not None:
                 if n_tiles > self.max_taken:
@@ -237,6 +222,7 @@ class SlidesBalancedLoader(DataLoader):
         shuffle_slides=True,
         shuffle_tiles=True,
         seed=0,
+        num_workers=0,
         shared_memory=True,
         **kwargs,
     ):
@@ -252,6 +238,7 @@ class SlidesBalancedLoader(DataLoader):
         self.shuffle_tiles = shuffle_tiles
         self.seed = seed
         self.shared_memory = shared_memory
+        self.num_workers = num_workers
 
         dataset = SlidesDataset(
             wsi_list,
@@ -264,6 +251,7 @@ class SlidesBalancedLoader(DataLoader):
             shuffle_tiles=shuffle_tiles,
             seed=seed,
             shared_memory=shared_memory,
+            num_workers=num_workers,
         )
         sampler = SlidesSampler(
             dataset.get_sampler_slides(), batch_size=batch_size, drop_last=drop_last
@@ -272,5 +260,6 @@ class SlidesBalancedLoader(DataLoader):
         super().__init__(
             dataset=dataset,
             batch_sampler=sampler,
+            num_workers=num_workers,
             **kwargs,
         )

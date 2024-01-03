@@ -30,7 +30,6 @@ vips = [
     "pyvips",
 ]
 all = [
-    "ncls",
     "timm",
     "scipy",
     "scikit-image",
