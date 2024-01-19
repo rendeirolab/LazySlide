@@ -248,7 +248,8 @@ class WSI:
         return self._reader
 
     def detach_handler(self):
-        self._reader.detach_handler()
+        if self._reader is not None:
+            self._reader.detach_handler()
 
     @property
     def metadata(self):
