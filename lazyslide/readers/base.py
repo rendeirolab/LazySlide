@@ -22,6 +22,7 @@ class WSIMetaData:
 
 class ReaderBase:
     metadata: WSIMetaData
+    name = "base"
 
     def __init__(
         self,

@@ -3,195 +3,17 @@ from __future__ import annotations
 import warnings
 from numbers import Integral
 from pathlib import Path
-from typing import Iterable
+from typing import Sequence
 
 import cv2
 import numpy as np
-from matplotlib import pyplot as plt
-from matplotlib.collections import PatchCollection
-from matplotlib.patches import Rectangle
-from numba import njit
+import pandas as pd
 
 from .cv_mods import TissueDetectionHE
-from .h5 import H5File
-from .utils import pairwise, get_reader, TileOps
-
-
-@njit
-def create_tiles_top_left(
-    image_shape, tile_h, tile_w, stride_h=None, stride_w=None, pad=True
-):
-    """Create the tiles, return only coordination
-
-    Padding works as follows:
-    If ``pad is False``, then the first tile will start flush with the edge of the image, and the tile locations
-    will increment according to specified stride, stopping with the last tile that is fully contained in the image.
-    If ``pad is True``, then the first tile will start flush with the edge of the image, and the tile locations
-    will increment according to specified stride, stopping with the last tile which starts in the image. Regions
-    outside the image will be padded with 0.
-    For example, for a 5x5 image with a tile size of 3 and a stride of 2, tile generation with ``pad=False`` will
-    create 4 tiles total, compared to 6 tiles if ``pad=True``.
-
-    Parameters
-    ----------
-    image_shape : (int, int), The shape of the image
-    tile_h : int, The height of tile
-    tile_w : int, The width of tile
-    stride_h : int, The height of stride when move to next tile
-    stride_w : int, The width of stride when move to next tile
-    pad : bool, If ``True``, these edge tiles will be zero-padded
-                and yielded with the other chunks.
-                If ``False``, incomplete edge chunks will be ignored.
-                Defaults to ``False``.
-
-    Returns
-    -------
-
-    """
-    height, width = image_shape
-    if stride_h is None:
-        stride_h = tile_h
-    if stride_w is None:
-        stride_w = tile_w
-
-    # calculate number of expected tiles
-    if pad and height % stride_h != 0:
-        n_tiles_height = height // stride_h + 1
-    else:
-        n_tiles_height = (height - tile_h) // stride_h + 1
-    if pad and width % stride_w != 0:
-        n_tiles_width = width // stride_w + 1
-    else:
-        n_tiles_width = (width - tile_w) // stride_w + 1
-
-    coordinates = []
-    for ix_height in range(n_tiles_height):
-        for ix_width in range(n_tiles_width):
-            coords = (int(ix_height * stride_h), int(ix_width * stride_w))
-            coordinates.append(coords)
-
-    return np.array(coordinates, dtype=np.uint)
-
-
-@njit
-def filter_tiles(mask, tiles_coords, tile_h, tile_w, filter_bg=0.8):
-    """Return a binary array that indicate which tile should be left
-
-    Parameters
-    ----------
-    mask
-    tiles_coords
-    filter_bg
-    tile_h,
-    tile_w,
-    Returns
-    -------
-
-    """
-    use = []
-    for x, y in tiles_coords:
-        mask_region = mask[x : x + tile_h, y : y + tile_w]
-        bg_ratio = np.sum(mask_region == 0) / mask_region.size
-        use.append(bg_ratio < filter_bg)
-    return np.array(use, dtype=np.bool_)
-
-
-@njit
-def create_tiles_coords_index(
-    image_shape, tile_h, tile_w, stride_h=None, stride_w=None, pad=True
-):
-    """Create the tiles, return coordination that comprise the tiles
-        and the index of points for each rect
-
-    Padding works as follows:
-    If ``pad is False``, then the first tile will start flush with the edge of the image, and the tile locations
-    will increment according to specified stride, stopping with the last tile that is fully contained in the image.
-    If ``pad is True``, then the first tile will start flush with the edge of the image, and the tile locations
-    will increment according to specified stride, stopping with the last tile which starts in the image. Regions
-    outside the image will be padded with 0.
-    For example, for a 5x5 image with a tile size of 3 and a stride of 2, tile generation with ``pad=False`` will
-    create 4 tiles total, compared to 6 tiles if ``pad=True``.
-
-    Parameters
-    ----------
-    image_shape : (int, int), The shape of the image
-    tile_h : int, The height of tile
-    tile_w : int, The width of tile
-    stride_h : int, The height of stride when move to next tile
-    stride_w : int, The width of stride when move to next tile
-    pad : bool, If ``True``, these edge tiles will be zero-padded
-                and yielded with the other chunks.
-                If ``False``, incomplete edge chunks will be ignored.
-                Defaults to ``False``.
-
-    Returns
-    -------
-
-    """
-    height, width = image_shape
-    if stride_h is None:
-        stride_h = tile_h
-    if stride_w is None:
-        stride_w = tile_w
-
-    # calculate number of expected tiles
-    if pad and height % stride_h != 0:
-        n_tiles_height = height // stride_h + 1
-    else:
-        n_tiles_height = (height - tile_h) // stride_h + 1
-    if pad and width % stride_w != 0:
-        n_tiles_width = width // stride_w + 1
-    else:
-        n_tiles_width = (width - tile_w) // stride_w + 1
-
-    coordinates = list()
-    indices = list()
-    for ix_height in range(n_tiles_height + 1):
-        for ix_width in range(n_tiles_width + 1):
-            coords = (int(ix_height * stride_h), int(ix_width * stride_w))
-            coordinates.append(coords)
-            if (ix_height != n_tiles_height) & (ix_width != n_tiles_width):
-                ix1 = ix_height * (n_tiles_width + 1) + ix_width
-                ix3 = (ix_height + 1) * (n_tiles_width + 1) + ix_width
-                indices.append([ix1, ix1 + 1, ix3 + 1, ix3])
-
-    return (np.array(coordinates, dtype=np.uint), np.array(indices, dtype=np.uint))
-
-
-def get_split_image_indices(image_height, image_width, min_side=20000):
-    h, w = image_height, image_width
-    size = h * w
-    n = min_side
-    if (size > n**2) or (h > n) or (w > n):
-        split_h = h > 1.5 * n
-        split_w = w > 1.5 * n
-
-        if not split_h and not split_w:
-            return
-
-        n_chunk_h = int(np.ceil(h / n))
-        n_chunk_w = int(np.ceil(w / n))
-
-        # If split, return the split chunks
-        # Else, it would take the whole
-        ix_h = (
-            np.linspace(start=0, stop=h, num=n_chunk_h + 1, dtype=int)
-            if split_h
-            else [0, h]
-        )
-        ix_w = (
-            np.linspace(start=0, stop=w, num=n_chunk_w + 1, dtype=int)
-            if split_w
-            else [0, w]
-        )
-
-        slices = []
-        for h1, h2 in pairwise(ix_h):
-            row = []
-            for w1, w2 in pairwise(ix_w):
-                row.append((h1, h2, w1, w2))
-            slices.append(row)
-        return slices
+from .io import H5ZSFile
+from .plotting import SlideViewer
+from .utils import get_reader, TileOps, get_split_image_indices, filter_tiles, \
+    create_tiles_coords_index, create_tiles
 
 
 class WSI:
@@ -211,35 +33,51 @@ class WSI:
     """
 
     def __init__(
-        self,
-        image: Path | str,
-        h5_file: Path | str = None,
-        reader="auto",  # openslide, vips, cucim
-        reader_options=None,
+            self,
+            image: Path | str,
+            h5_file: Path | str = None,
+            reader="auto",  # openslide, vips, cucim
+            reader_options=None,
     ):
         from .utils import check_wsi_path
 
         self.image = check_wsi_path(image)
 
         if h5_file is None:
-            h5_file = self.image.with_suffix(".coords.h5")
+            h5_file = self.image.with_suffix(".h5zs")
 
         self.reader_options = {} if reader_options is None else reader_options
-        self.h5_file: H5File = H5File(h5_file)
+        self.h5_file: H5ZSFile = H5ZSFile(h5_file)
         self._reader_class = get_reader(reader)
+        if self._reader_class is None:
+            raise RuntimeError("No reader is available")
         self._reader = None
         self._tile_ops = self.h5_file.get_tile_ops()
         self._tile_coords = self.h5_file.get_coords()
         self._masks = {}
         self._masks_level = {}
-        self.contours, self.holes = self.h5_file.get_contours_holes()
+        self._contours, self._holes = None, None
+        self._table = None
+        self._fields = {}
 
     def __repr__(self):
-        return (
-            f"WSI(image={self.image}, "
-            f"h5_file={self.h5_file.file},"
-            f"reader={self._reader_class})"
-        )
+
+        h, w = self.metadata.level_shape[0]
+        repr_str = (f"WSI Image {w}px * {h}px: {self.image}\n"
+                    f"  Levels: {self.metadata.n_level}\n"
+                    f"  MPP: {self.metadata.mpp}\n"
+                    f"  Magnification: {int(self.metadata.magnification)}X\n"
+                    f"H5: {self.h5_file.file}\n"
+                    f"Reader: {self._reader_class.name}\n"
+                    )
+        if self.table is not None:
+            format_table_keys = ", ".join([f'"{k}"' for k in self.table.columns])
+            repr_str += f"Table keys: \n  {format_table_keys}\n"
+        if len(self.fields) > 0:
+            format_field_keys = ", ".join([f'"{k}"' for k in self.fields.keys()])
+            repr_str += f"MD Fields: \n  {format_field_keys}"
+
+        return repr_str
 
     @property
     def reader(self):
@@ -263,17 +101,43 @@ class WSI:
     def tile_ops(self):
         return self._tile_ops
 
+    @property
+    def contours(self):
+        if self._contours is None:
+            self._contours, self._holes = self.h5_file.get_contours_holes()
+        return self._contours
+
+    @property
+    def holes(self):
+        if self._holes is None:
+            self._contours, self._holes = self.h5_file.get_contours_holes()
+        return self._holes
+
+    @property
+    def table(self):
+        if self._table is None:
+            self._table = self.h5_file.get_table()
+        return self._table
+
+    @property
+    def fields(self):
+        if len(self._fields) == 0:
+            field_keys = self.h5_file.get_available_md_fields()
+            for field in field_keys:
+                self._fields[field] = self.h5_file.get_md_field(field)
+        return self._fields
+
     def get_tiles_coords(self):
         return self.tiles_coords
 
     def get_mask(self, name):
         if name in self._masks:
             return self._masks[name], self._masks_level[name]
-        return self.h5_file.get_masks(name)
+        return self.h5_file.get_mask(name)
 
     @property
     def has_tiles(self):
-        return self.h5_file.has_tiles
+        return self.h5_file.has_tiles()
 
     def shuffle_tiles(self, seed=0):
         rng = np.random.default_rng(seed)
@@ -295,7 +159,7 @@ class WSI:
             self.h5_file.set_mask(name, mask, level)
 
     def create_tissue_mask(
-        self, name="tissue", level=-1, chunk=True, chunk_at=20000, save=False, **kwargs
+            self, name="tissue", level=-1, chunk=True, chunk_at=20000, save=False, **kwargs
     ):
         """Create tissue mask using
         a preconfigured segmentation pipeline
@@ -362,32 +226,32 @@ class WSI:
             downsample = 1
         contours = [(c * downsample).astype(int) for c in contours]
         holes = [(h * downsample).astype(int) for h in holes]
-        self.contours = contours
-        self.holes = holes
+        self._contours = contours
+        self._holes = holes
         if save:
             self.h5_file.set_contours_holes(contours, holes)
 
     def create_tiles(
-        self,
-        tile_px,
-        stride_px=None,
-        pad=False,
-        mpp=None,
-        tolerance=0.05,
-        mask_name="tissue",
-        background_fraction=0.8,
-        tile_pts=3,
-        errors="ignore",
-        save=True,
+            self,
+            tile_px,
+            stride_px=None,
+            pad=False,
+            mpp=None,
+            tolerance=0.05,
+            mask_name="tissue",
+            background_fraction=0.8,
+            tile_pts=3,
+            errors="ignore",
+            save=True,
     ):
         """
         Parameters
         ----------
         tile_px : int or (int, int)
-            Size of tile, either an integer or a tuple in (Height, Width)
+            Size of tile, either an integer or a tuple in (Width, Height)
         stride_px : int or (int, int)
             Size of stride between each tile,
-            either an integer or a tuple in (Height, Width).
+            either an integer or a tuple in (Width, Height).
             If not specific, this will be the same as tile_px,
             no overlapping between tiles.
         pad : bool
@@ -411,32 +275,32 @@ class WSI:
 
         """
         if isinstance(tile_px, Integral):
-            tile_h, tile_w = (tile_px, tile_px)
-        elif isinstance(tile_px, Iterable):
-            tile_h, tile_w = (tile_px[0], tile_px[1])
+            tile_w, tile_h = (tile_px, tile_px)
+        elif isinstance(tile_px, Sequence):
+            tile_w, tile_h = (tile_px[0], tile_px[1])
         else:
             raise TypeError(
                 f"input tile_px {tile_px} invalid. "
-                f"Either (H, W), or a single integer for square tiles."
+                f"Either (W, H), or a single integer for square tiles."
             )
 
         if stride_px is None:
             stride_h, stride_w = tile_h, tile_w
         elif isinstance(stride_px, Integral):
             stride_h, stride_w = (stride_px, stride_px)
-        elif isinstance(stride_px, Iterable):
+        elif isinstance(stride_px, Sequence):
             stride_h, stride_w = (stride_px[0], stride_px[1])
         else:
             raise TypeError(
                 f"input stride {stride_px} invalid. "
-                f"Either (H, W), or a single integer."
+                f"Either (W, H), or a single integer."
             )
 
         use_mask = True
         mask, mask_level = self.get_mask(mask_name)
         if mask is None:
             # Try to use contours instead
-            if self.contours is None:
+            if self._contours is None:
                 raise NameError(
                     f"Mask with name '{mask_name}' does not exist, "
                     f"use .create_tissue_contours() or .create_tissue_mask() "
@@ -468,7 +332,7 @@ class WSI:
                     ops_level = 0
                 else:
                     for ix, level_downsample in enumerate(
-                        self.metadata.level_downsample
+                            self.metadata.level_downsample
                     ):
                         if lower_ds < level_downsample < upper_ds:
                             downsample = level_downsample
@@ -483,13 +347,13 @@ class WSI:
                     warnings.warn(msg)
 
         if run_downsample:
-            ops_tile_h = int(tile_h * downsample)
             ops_tile_w = int(tile_w * downsample)
-            ops_stride_h = int(stride_h * downsample)
+            ops_tile_h = int(tile_h * downsample)
             ops_stride_w = int(stride_w * downsample)
+            ops_stride_h = int(stride_h * downsample)
         else:
-            ops_tile_h, ops_tile_w = tile_h, tile_w
-            ops_stride_h, ops_stride_w = stride_h, stride_w
+            ops_tile_w, ops_tile_h = tile_w, tile_h
+            ops_stride_w, ops_stride_h = stride_w, stride_h
 
         # Generate coords
         image_shape = self.metadata.level_shape[ops_level]
@@ -499,8 +363,8 @@ class WSI:
         #       bbox of different components
 
         if use_mask:
-            tiles_coords = create_tiles_top_left(
-                image_shape, ops_tile_h, ops_tile_w, ops_stride_h, ops_stride_w, pad=pad
+            tiles_coords = create_tiles(
+                image_shape, ops_tile_w, ops_tile_h, ops_stride_w, ops_stride_h, pad=pad
             )
             # Map tile level to mask level
             # Only tile can be scale, mask will not be resized
@@ -511,49 +375,33 @@ class WSI:
             use_tiles = filter_tiles(
                 mask,
                 down_coords,
-                int(ops_tile_h * ratio),
                 int(ops_tile_w * ratio),
+                int(ops_tile_h * ratio),
                 filter_bg=background_fraction,
             )
             tiles_coords = tiles_coords[use_tiles].copy()
 
         else:
             rect_coords, rect_indices = create_tiles_coords_index(
-                image_shape, ops_tile_h, ops_tile_w, ops_stride_h, ops_stride_w, pad=pad
+                image_shape, ops_tile_w, ops_tile_h, ops_stride_w, ops_stride_h, pad=pad
             )
-            if len(self.contours) == 0:
+            if len(self._contours) == 0:
                 is_tiles = np.zeros(len(rect_coords), dtype=np.bool_)
             else:
                 points = rect_coords
                 is_in = []
-                for c in self.contours:
+                for c in self._contours:
                     # Coerce the point to python int and let the opencv decide the type
-                    # Flip x, y beacuse it's different in opencv
-                    is_in.append(
-                        np.array(
-                            [
-                                cv2.pointPolygonTest(
-                                    c, (float(y), float(x)), measureDist=False
-                                )
-                                for x, y in points
-                            ]
-                        )
-                        == 1
-                    )
+                    # Flip x, y because it's different in opencv
+                    polytest = [cv2.pointPolygonTest(c, (float(x), float(y)), measureDist=False)
+                                for x, y in points]
+                    is_in.append(np.array(polytest) == 1)
 
-                if len(self.holes) > 0:
-                    for c in self.holes:
-                        is_in.append(
-                            np.array(
-                                [
-                                    cv2.pointPolygonTest(
-                                        c, (float(y), float(x)), measureDist=False
-                                    )
-                                    for x, y in points
-                                ]
-                            )
-                            == -1
-                        )
+                if len(self._holes) > 0:
+                    for c in self._holes:
+                        polytest = [cv2.pointPolygonTest(c, (float(x), float(y)), measureDist=False)
+                                    for x, y in points]
+                        is_in.append(np.array(polytest) == -1)
 
                 is_tiles = np.asarray(is_in).sum(axis=0) == 1
             # The number of points for each tiles inside contours
@@ -563,29 +411,32 @@ class WSI:
 
         self.new_tiles(
             tiles_coords,
-            height=tile_h,
             width=tile_w,
+            height=tile_h,
             level=ops_level,
             mpp=mpp,
             downsample=downsample,
             ops_height=ops_tile_h,
             ops_width=ops_tile_w,
+            overwrite=True,
             save=save,
         )
 
     def new_tiles(
-        self,
-        tiles_coords,
-        height=None,
-        width=None,
-        level=0,
-        mpp=None,
-        downsample=None,
-        ops_height=None,
-        ops_width=None,
-        format="top-left",
-        save=True,
-        **kwargs,
+            self,
+            tiles_coords,
+            height=None,
+            width=None,
+            level=0,
+            mpp=None,
+            downsample=None,
+            ops_height=None,
+            ops_width=None,
+            format="left-top",
+            overwrite=False,
+            preserve_table=True,
+            save=True,
+            **kwargs,
     ):
         """Supply new tiles to WSI
 
@@ -601,7 +452,7 @@ class WSI:
         height
         width
         level
-        format : str, {'top-left', 'left-top'}
+        format : str, {'left-top', 'top-left'}
             The input format of your tiles coordination
         save : bool
             Whether to back up the tiles coordination on disk in h5
@@ -610,8 +461,14 @@ class WSI:
         -------
 
         """
+        if not overwrite:
+            if self.has_tiles:
+                raise ValueError("Tiles already exist, please use overwrite=True to overwrite it."
+                                 "Reset tiles will clean up tables and md fields,"
+                                 "If you want to preserve the table and md fields, "
+                                 "please use preserve_table=True")
         tiles_coords = np.asarray(tiles_coords, dtype=np.uint32)
-        if format == "left-top":
+        if format == "top-left":
             tiles_coords = tiles_coords[:, [1, 0]]
         height = int(height)
         width = int(width)
@@ -642,6 +499,23 @@ class WSI:
         if save:
             self.h5_file.set_coords(tiles_coords)
             self.h5_file.set_tile_ops(self._tile_ops)
+            if not preserve_table:
+                self.h5_file.delete_table()
+                for field in self.fields.keys():
+                    self.h5_file.delete_md_field(field)
+
+    def new_table(self, table: pd.DataFrame, save=True):
+        assert len(table) == len(self._tile_coords), "Table must have the same length as tiles coords"
+        self._table = table.copy()
+        if save:
+            self.h5_file.set_table(table)
+
+    def new_md_field(self, field: str, value: np.ndarray, save=True):
+        assert value.ndim < 3, "Value must be 1D or 2D"
+        assert len(value) == len(self._tile_coords), "Value must have the same length as tiles coords"
+        self._fields[field] = value.copy()
+        if save:
+            self.h5_file.set_md_field(field, value)
 
     def report(self):
         if self._tile_ops is not None:
@@ -654,107 +528,149 @@ class WSI:
                 f"Down sample ratio: {self._tile_ops.downsample}"
             )
 
-    @staticmethod
-    def _get_thumbnail(image_arr, size=1000):
-        x_size, y_size = image_arr.shape[0:2]
-        x_ratio = size / x_size
-        # If the original image is smaller than requested size
-        if x_ratio >= 1:
-            return 1, image_arr
-        y_shape = int(y_size * x_ratio)
-
-        thumbnail = cv2.resize(image_arr, dsize=(y_shape, size))
-
-        return x_ratio, thumbnail
-
     def plot_tissue(
-        self,
-        size=1000,
-        tiles=False,
-        edgecolor=".5",
-        linewidth=1,
-        contours=False,
-        contours_color="green",
-        holes_color="black",
-        ax=None,
-        savefig=None,
-        savefig_kws=None,
+            self,
+            level=-1,
+            max_size=1000,
+            tiles=False,
+            contours=False,
+            contour_color="green",
+            hole_color="red",
+            linewidth=1,
+            show_origin=True,
+            title=None,
+            ax=None,
+            save=None,
+            savefig_kws=None,
     ):
-        level = self._tile_ops.level if tiles else self.metadata.n_level - 1
+
+        level = self.reader.translate_level(level)
         image_arr = self.reader.get_level(level)
-        down_ratio, thumbnail = self._get_thumbnail(image_arr, size)
+        scale_factor = (1 / self.metadata.level_downsample[level])
 
-        if ax is None:
-            fig, ax = plt.subplots()
-        else:
-            fig = ax.get_figure()
-        ax.imshow(thumbnail)
-        ax.set_axis_off()
-
+        if title is None:
+            title = self.image.name
+        viewer = SlideViewer(image_arr, max_size=max_size, ax=ax, title=title)
+        viewer.add_tissue()
+        if show_origin:
+            viewer.add_origin()
         if tiles:
             if not self.has_tiles:
-                print("No tile is created")
+                warnings.warn("No tile is created")
             else:
-                # In matplotlib, H -> Y, W -> X, so we flip the axis
-                coords = self.tiles_coords[:, ::-1] * down_ratio
-
-                tile_h = self._tile_ops.height * down_ratio
-                tile_w = self._tile_ops.width * down_ratio
-
-                tiles = [Rectangle(t, tile_w, tile_h) for t in coords]
-                collections = PatchCollection(
-                    tiles, facecolor="none", edgecolor=edgecolor, lw=linewidth
-                )
-
-                ax.add_collection(collections)
+                viewer.add_tiles(self.tiles_coords, self.tile_ops, scale_factor=scale_factor,
+                                 cmap="gray", alpha=0.5)
 
         if contours:
-            ratio = (1 / self.metadata.level_downsample[level]) * down_ratio
-            if len(self.contours) > 0:
-                for c in self.contours:
-                    ax.plot(
-                        c[:, 0] * ratio, c[:, 1] * ratio, lw=linewidth, c=contours_color
-                    )
-            if len(self.holes) > 0:
-                for h in self.holes:
-                    ax.plot(
-                        h[:, 0] * ratio, h[:, 1] * ratio, lw=linewidth, c=holes_color
-                    )
+            viewer.add_contours_holes(self.contours, self.holes,
+                                      scale_factor=scale_factor,
+                                      contour_color=contour_color,
+                                      hole_color=hole_color,
+                                      linewidth=linewidth)
 
-        if savefig:
+        if save is not None:
             savefig_kws = {} if savefig_kws is None else savefig_kws
-            save_kws = {"dpi": 150, **savefig_kws}
-            fig.savefig(savefig, **save_kws)
+            viewer.fig.savefig(save, **savefig_kws)
 
-        return ax
+        return viewer.ax
+
+    def plot_table(
+            self,
+            column,
+            level=-1,
+            max_size=1000,
+            cmap="viridis",
+            norm=None,
+            palette=None,
+            alpha=None,
+            show_origin=True,
+            title=None,
+            ax=None,
+            save=None,
+            savefig_kws=None,
+    ):
+        if self.table is None:
+            raise ValueError("No table is created")
+        if column not in self._table.columns:
+            raise ValueError(f"Column {column} does not exist in table")
+        if not self.has_tiles:
+            raise ValueError("No tile is created")
+        if title is None:
+            title = column
+
+        plot_arr = self._table[column].values
+
+        return self._plot_values(plot_arr, level=level, max_size=max_size, show_origin=show_origin,
+                                 title=title, cmap=cmap, norm=norm, palette=palette, alpha=alpha,
+                                 ax=ax, save=save, savefig_kws=savefig_kws)
+
+    def plot_md_field(
+            self,
+            field,
+            index=0,
+            level=-1,
+            max_size=1000,
+            cmap="viridis",
+            norm=None,
+            palette=None,
+            alpha=None,
+            show_origin=True,
+            title=None,
+            ax=None,
+            save=None,
+            savefig_kws=None,
+    ):
+        if self.fields is None:
+            raise ValueError("MD Fields are empty")
+        if field not in self.fields.keys():
+            raise ValueError(f"Field {field} does not exist.")
+        if not self.has_tiles:
+            raise ValueError("No tile is created")
+        if title is None:
+            title = f"{field}_{index}"
+
+        plot_arr = self.fields[field]
+        if plot_arr.ndim == 2:
+            plot_arr = plot_arr[:, index]
+        return self._plot_values(plot_arr, level=level, max_size=max_size, show_origin=show_origin, title=title,
+                                 cmap=cmap, norm=norm, palette=palette, alpha=alpha,
+                                 ax=ax, save=save, savefig_kws=savefig_kws)
+
+    def _plot_values(self, value, level=-1, max_size=1000, show_origin=True, title=None, cmap="viridis", norm=None,
+                     palette=None, alpha=None, ax=None, save=None, savefig_kws=None, ):
+
+        level = self.reader.translate_level(level)
+        image_arr = self.reader.get_level(level)
+        scale_factor = (1 / self.metadata.level_downsample[level])
+        viewer = SlideViewer(image_arr, max_size=max_size, ax=ax, title=title)
+        viewer.add_tissue()
+        if show_origin:
+            viewer.add_origin()
+        viewer.add_tiles(self.tiles_coords, self.tile_ops, scale_factor=scale_factor,
+                         value=value, cmap=cmap, norm=norm, palette=palette, alpha=alpha)
+        if save is not None:
+            savefig_kws = {} if savefig_kws is None else savefig_kws
+            viewer.fig.savefig(save, **savefig_kws)
+        return viewer.ax
 
     def plot_mask(
-        self,
-        name="tissue",
-        size=1000,
-        ax=None,
-        savefig=None,
-        savefig_kws=None,
+            self,
+            name="tissue",
+            max_size=1000,
+            ax=None,
+            save=None,
+            savefig_kws=None,
     ):
         image_arr, _ = self.get_mask(name)
         if image_arr is None:
             raise NameError(f"Cannot draw non-exist mask with name '{name}'")
 
-        _, thumbnail = self._get_thumbnail(image_arr, size)
-        if ax is None:
-            fig, ax = plt.subplots()
-        else:
-            fig = ax.get_figure()
-        ax.imshow(thumbnail, cmap="gray")
-        ax.set_axis_off()
-        if savefig:
+        viewer = SlideViewer(image_arr, max_size=max_size, ax=ax)
+        viewer.add_mask(image_arr, cmap="gray")
+        if save is not None:
             savefig_kws = {} if savefig_kws is None else savefig_kws
-            save_kws = {"dpi": 150, **savefig_kws}
-            fig.savefig(savefig, **save_kws)
-        return ax
-
-    # def to_dataset(self, transform=None, run_pretrained=False, **kwargs):
-    #     return WSIDataset(self, transform=transform, run_pretrained=run_pretrained, **kwargs)
+            viewer.fig.savefig(save, **savefig_kws)
+        return viewer.ax
 
     def get_patch(self, left, top, width, height, level=0, **kwargs):
         return self.reader.get_patch(
@@ -762,4 +678,4 @@ class WSI:
         )
 
     def get_tile_by_index(self, index):
-        return self.h5_file.get_one_coord_by_index(index)
+        return self._tile_coords[index]

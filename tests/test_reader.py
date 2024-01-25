@@ -71,3 +71,7 @@ def test_get_crop_xy_wh_outside():
 
     with pytest.raises(RuntimeError):
         test_func(left=50, top=-20, width=10, height=10)
+
+
+def test_read_slide():
+    pass

@@ -3,15 +3,17 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+import pandas as pd
 from h5py import Empty
 
 from .utils import TileOps
 
 
-class H5File:
+class H5LZFile:
     """A class that handles storage and reading of h5 file"""
 
     COORDS_KEY = "coords"
+    TABLE_KEY = "table"
     MASKS_KEY = "masks"
     CONTOURS_KEY = "contours"
     HOLES_kEY = "holes"
@@ -30,6 +32,10 @@ class H5File:
 
     def get_coords(self):
         return self._load_dataset(self.COORDS_KEY)
+
+    def set_table(self, table: pd.DataFrame):
+        structured_array = table.to_records(index=False)
+        self._save_dataset(self.COORDS_KEY, structured_array)
 
     def get_one_coord_by_index(self, index):
         return self._load_dataset_by_slice(self.COORDS_KEY, index)

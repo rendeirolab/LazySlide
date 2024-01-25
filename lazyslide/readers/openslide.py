@@ -20,6 +20,7 @@ class OpenSlideReader(ReaderBase):
     Args:
         filename (str): path to image file on disk
     """
+    name = "openslide"
 
     def __init__(
         self,

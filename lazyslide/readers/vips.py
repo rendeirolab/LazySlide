@@ -38,6 +38,7 @@ def vips2numpy(
 
 
 class VipsReader(ReaderBase):
+    name = "vips"
     def __init__(
         self,
         file: Union[Path, str],

@@ -70,6 +70,6 @@ class FeatureExtractionDataset(Dataset):
         coords = self.tiles_coords[idx]
         x, y = coords
         image = self.wsi.get_patch(
-            y, x, self.tile_ops.ops_width, self.tile_ops.ops_height, self.tile_ops.level
+            x, y, self.tile_ops.ops_width, self.tile_ops.ops_height, self.tile_ops.level
         )
         return self.transform(image)
