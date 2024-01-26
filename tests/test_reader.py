@@ -1,4 +1,8 @@
 from functools import partial
+
+import numpy as np
+
+from lazyslide import WSI
 from lazyslide.readers.utils import get_crop_left_top_width_height
 
 import pytest
@@ -74,4 +78,9 @@ def test_get_crop_xy_wh_outside():
 
 
 def test_read_slide():
-    pass
+    slide = "https://github.com/camicroscope/Distro/raw/master/images/sample.svs"
+    wsi = WSI(slide, reader="openslide")
+    wrapper_read = wsi.get_patch(500, 600, 100, 150, 0)
+    # remove alpha channel
+    openslide_read = np.array(wsi.reader.slide.read_region((500, 600), 0, (100, 150)))[..., :3]
+    assert np.array_equal(wrapper_read, openslide_read)

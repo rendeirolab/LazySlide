@@ -92,8 +92,10 @@ class SlidesDataset(Dataset):
             wsi = wsi_list[i]
             if not wsi.has_tiles:
                 raise ValueError(f"{wsi} does not has tiles")
+            wsi._shuffle_index = np.arange(len(wsi.tiles_coords))
             if shuffle_tiles:
-                wsi.shuffle_tiles(seed)
+                # wsi.shuffle_tiles(seed)
+                rng.shuffle(wsi._shuffle_index)
             self.wsi_n_tiles.append(len(wsi.tiles_coords))
         self.ix_slides = np.insert(np.cumsum(self.wsi_n_tiles), 0, 0)
 
@@ -112,6 +114,7 @@ class SlidesDataset(Dataset):
         wsi = self.wsi_list[self.proxy_ix[slide_ix]]
 
         # change here how to get the coordinate
+        tile_ix = wsi._shuffle_index[tile_ix]
         top, left = wsi.get_tile_by_index(tile_ix)
         tile_ops = wsi.tile_ops
         img = wsi.get_patch(

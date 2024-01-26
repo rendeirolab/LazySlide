@@ -3,11 +3,12 @@ from __future__ import annotations
 import warnings
 from numbers import Integral
 from pathlib import Path
-from typing import Sequence
+from typing import Sequence, Mapping
 
 import cv2
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
 
 from .cv_mods import TissueDetectionHE
 from .io import H5ZSFile
@@ -75,7 +76,7 @@ class WSI:
             repr_str += f"Table keys: \n  {format_table_keys}\n"
         if len(self.fields) > 0:
             format_field_keys = ", ".join([f'"{k}"' for k in self.fields.keys()])
-            repr_str += f"MD Fields: \n  {format_field_keys}"
+            repr_str += f"Feature Fields: \n  {format_field_keys}"
 
         return repr_str
 
@@ -122,9 +123,9 @@ class WSI:
     @property
     def fields(self):
         if len(self._fields) == 0:
-            field_keys = self.h5_file.get_available_md_fields()
+            field_keys = self.h5_file.get_available_feature_fields()
             for field in field_keys:
-                self._fields[field] = self.h5_file.get_md_field(field)
+                self._fields[field] = self.h5_file.get_feature_field(field)
         return self._fields
 
     def get_tiles_coords(self):
@@ -139,9 +140,9 @@ class WSI:
     def has_tiles(self):
         return self.h5_file.has_tiles()
 
-    def shuffle_tiles(self, seed=0):
-        rng = np.random.default_rng(seed)
-        rng.shuffle(self._tile_coords)
+    # def shuffle_tiles(self, seed=0):
+    #     rng = np.random.default_rng(seed)
+    #     rng.shuffle(self._tile_coords)
 
     def move_wsi_file(self, new_path: Path) -> None:
         new_path = Path(new_path)
@@ -464,8 +465,8 @@ class WSI:
         if not overwrite:
             if self.has_tiles:
                 raise ValueError("Tiles already exist, please use overwrite=True to overwrite it."
-                                 "Reset tiles will clean up tables and md fields,"
-                                 "If you want to preserve the table and md fields, "
+                                 "Reset tiles will clean up tables and feature fields,"
+                                 "If you want to preserve the table and feature fields, "
                                  "please use preserve_table=True")
         tiles_coords = np.asarray(tiles_coords, dtype=np.uint32)
         if format == "top-left":
@@ -502,7 +503,7 @@ class WSI:
             if not preserve_table:
                 self.h5_file.delete_table()
                 for field in self.fields.keys():
-                    self.h5_file.delete_md_field(field)
+                    self.h5_file.delete_feature_field(field)
 
     def new_table(self, table: pd.DataFrame, save=True):
         assert len(table) == len(self._tile_coords), "Table must have the same length as tiles coords"
@@ -510,23 +511,23 @@ class WSI:
         if save:
             self.h5_file.set_table(table)
 
-    def new_md_field(self, field: str, value: np.ndarray, save=True):
+    def new_feature_field(self, field: str, value: np.ndarray, save=True):
         assert value.ndim < 3, "Value must be 1D or 2D"
         assert len(value) == len(self._tile_coords), "Value must have the same length as tiles coords"
         self._fields[field] = value.copy()
         if save:
-            self.h5_file.set_md_field(field, value)
+            self.h5_file.set_feature_field(field, value)
 
-    def report(self):
-        if self._tile_ops is not None:
-            print(
-                f"Generate tiles with mpp={self._tile_ops.mpp}, WSI mpp={self.metadata.mpp}\n"
-                f"Total tiles: {len(self.tiles_coords)}"
-                f"Use mask: '{self._tile_ops.mask_name}'\n"
-                f"Generated Tiles in px (H, W): ({self._tile_ops.height}, {self._tile_ops.width})\n"
-                f"WSI Tiles in px (H, W): ({self._tile_ops.ops_height}, {self._tile_ops.ops_width}) \n"
-                f"Down sample ratio: {self._tile_ops.downsample}"
-            )
+    # def report(self):
+    #     if self._tile_ops is not None:
+    #         print(
+    #             f"Generate tiles with mpp={self._tile_ops.mpp}, WSI mpp={self.metadata.mpp}\n"
+    #             f"Total tiles: {len(self.tiles_coords)}"
+    #             f"Use mask: '{self._tile_ops.mask_name}'\n"
+    #             f"Generated Tiles in px (H, W): ({self._tile_ops.height}, {self._tile_ops.width})\n"
+    #             f"WSI Tiles in px (H, W): ({self._tile_ops.ops_height}, {self._tile_ops.ops_width}) \n"
+    #             f"Down sample ratio: {self._tile_ops.downsample}"
+    #         )
 
     def plot_tissue(
             self,
@@ -550,20 +551,19 @@ class WSI:
 
         if title is None:
             title = self.image.name
-        viewer = SlideViewer(image_arr, max_size=max_size, ax=ax, title=title)
-        viewer.add_tissue()
+        viewer = SlideViewer(image_arr, max_size=max_size, ax=ax, scale_factor=scale_factor)
+        viewer.add_tissue(title=title)
         if show_origin:
             viewer.add_origin()
         if tiles:
             if not self.has_tiles:
                 warnings.warn("No tile is created")
             else:
-                viewer.add_tiles(self.tiles_coords, self.tile_ops, scale_factor=scale_factor,
+                viewer.add_tiles(self.tiles_coords, self.tile_ops,
                                  cmap="gray", alpha=0.5)
 
         if contours:
             viewer.add_contours_holes(self.contours, self.holes,
-                                      scale_factor=scale_factor,
                                       contour_color=contour_color,
                                       hole_color=hole_color,
                                       linewidth=linewidth)
@@ -576,82 +576,125 @@ class WSI:
 
     def plot_table(
             self,
-            column,
+            columns: str | Sequence[str],
             level=-1,
             max_size=1000,
+            ncols=5,
+            wspace=0.3,
+            hspace=0.05,
             cmap="viridis",
             norm=None,
             palette=None,
             alpha=None,
             show_origin=True,
+            show_tissue=True,
             title=None,
-            ax=None,
             save=None,
             savefig_kws=None,
     ):
         if self.table is None:
             raise ValueError("No table is created")
-        if column not in self._table.columns:
-            raise ValueError(f"Column {column} does not exist in table")
+        if isinstance(columns, str):
+            columns = [columns]
+        tb_columns = set(self.table.columns)
+        for column in columns:
+            if column not in tb_columns:
+                raise ValueError(f"Column '{column}' does not exist in table")
         if not self.has_tiles:
             raise ValueError("No tile is created")
-        if title is None:
-            title = column
 
-        plot_arr = self._table[column].values
+        # smart layout for subplots
+        if ncols > len(columns):
+            ncols = len(columns)
+        nrows = len(columns) // ncols
+        fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 6, nrows * 6),
+                                 gridspec_kw={"wspace": wspace, "hspace": hspace})
 
-        return self._plot_values(plot_arr, level=level, max_size=max_size, show_origin=show_origin,
-                                 title=title, cmap=cmap, norm=norm, palette=palette, alpha=alpha,
-                                 ax=ax, save=save, savefig_kws=savefig_kws)
+        level = self.reader.translate_level(level)
+        image_arr = self.reader.get_level(level)
+        scale_factor = (1 / self.metadata.level_downsample[level])
+        viewer = SlideViewer(image_arr, max_size=max_size, scale_factor=scale_factor, fig=fig)
 
-    def plot_md_field(
+        for i, (column, ax) in enumerate(zip(columns, axes.flat)):
+            plot_arr = self._table[column].values
+            if show_tissue:
+                viewer.add_tissue(ax=ax)
+            if show_origin:
+                viewer.add_origin(ax=ax)
+            if title is None:
+                t = column
+            elif isinstance(title, Mapping):
+                t = title[column]
+            else:
+                t = title[i]
+            viewer.add_tiles(self.tiles_coords, self.tile_ops, value=plot_arr, title=t,
+                             cmap=cmap, norm=norm, palette=palette, alpha=alpha, ax=ax)
+
+        if save is not None:
+            savefig_kws = {} if savefig_kws is None else savefig_kws
+            viewer.save(save, **savefig_kws)
+
+    def plot_feature_field(
             self,
             field,
             index=0,
             level=-1,
             max_size=1000,
+            ncols=5,
+            wspace=0.3,
+            hspace=0.05,
             cmap="viridis",
             norm=None,
             palette=None,
             alpha=None,
             show_origin=True,
-            title=None,
-            ax=None,
+            show_tissue=True,
             save=None,
             savefig_kws=None,
     ):
         if self.fields is None:
-            raise ValueError("MD Fields are empty")
+            raise ValueError("Feature Fields are empty")
         if field not in self.fields.keys():
             raise ValueError(f"Field {field} does not exist.")
         if not self.has_tiles:
             raise ValueError("No tile is created")
-        if title is None:
-            title = f"{field}_{index}"
+        if isinstance(index, Integral):
+            index = [index]
 
-        plot_arr = self.fields[field]
-        if plot_arr.ndim == 2:
-            plot_arr = plot_arr[:, index]
-        return self._plot_values(plot_arr, level=level, max_size=max_size, show_origin=show_origin, title=title,
-                                 cmap=cmap, norm=norm, palette=palette, alpha=alpha,
-                                 ax=ax, save=save, savefig_kws=savefig_kws)
+        field_data = self.fields[field]
 
-    def _plot_values(self, value, level=-1, max_size=1000, show_origin=True, title=None, cmap="viridis", norm=None,
-                     palette=None, alpha=None, ax=None, save=None, savefig_kws=None, ):
+        # smart layout for subplots
+        if ncols > len(index):
+            ncols = len(index)
+        nrows = len(index) // ncols
+        fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 6, nrows * 6),
+                                 gridspec_kw={"wspace": wspace, "hspace": hspace})
+        if isinstance(axes, np.ndarray):
+            axes = axes.flat
+        else:
+            axes = [axes]
 
         level = self.reader.translate_level(level)
         image_arr = self.reader.get_level(level)
         scale_factor = (1 / self.metadata.level_downsample[level])
-        viewer = SlideViewer(image_arr, max_size=max_size, ax=ax, title=title)
-        viewer.add_tissue()
-        if show_origin:
-            viewer.add_origin()
-        viewer.add_tiles(self.tiles_coords, self.tile_ops, scale_factor=scale_factor,
-                         value=value, cmap=cmap, norm=norm, palette=palette, alpha=alpha)
+        viewer = SlideViewer(image_arr, max_size=max_size, scale_factor=scale_factor, fig=fig)
+
+        for i, (ix, ax) in enumerate(zip(index, axes)):
+            if field_data.ndim == 1:
+                plot_arr = field_data
+            else:
+                plot_arr = field_data[:, index].flatten()
+            if show_tissue:
+                viewer.add_tissue(ax=ax)
+            if show_origin:
+                viewer.add_origin(ax=ax)
+            t = f"{field}_{ix}"
+            viewer.add_tiles(self.tiles_coords, self.tile_ops, value=plot_arr, title=t,
+                             cmap=cmap, norm=norm, palette=palette, alpha=alpha, ax=ax)
+
         if save is not None:
             savefig_kws = {} if savefig_kws is None else savefig_kws
-            viewer.fig.savefig(save, **savefig_kws)
-        return viewer.ax
+            viewer.save(save, **savefig_kws)
 
     def plot_mask(
             self,
