@@ -19,6 +19,7 @@ def cucim2numpy(img: "CuImage") -> np.ndarray:
 
 class CuCIMReader(ReaderBase):
     name = "cucim"
+
     def __init__(
         self,
         file: Union[Path, str],

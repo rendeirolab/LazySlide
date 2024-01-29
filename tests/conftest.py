@@ -5,9 +5,6 @@ import platform
 
 import pytest
 
-WIN_ONLY = pytest.mark.skipif(
-    platform.system() != "Windows", reason="Different import on Windows"
-)
 
 OPENSLIDE_DOWNLOAD_URL = (
     "https://github.com/openslide/openslide-bin/releases/download/"
@@ -30,27 +27,27 @@ def download_file(url, target):
     return z.namelist()[0]
 
 
-@WIN_ONLY
 @pytest.fixture(scope="session", autouse=True)
 def load_module_windows():
-    target = Path(__file__).parent / "lib"
-    target.mkdir(exist_ok=True)
+    if platform.system() == "Windows":
+        target = Path(__file__).parent / "lib"
+        target.mkdir(exist_ok=True)
 
-    if not Path(target / "openslide").exists():
-        openslide_folder = download_file(OPENSLIDE_DOWNLOAD_URL, target)
-        os.rename(target / openslide_folder, target / "openslide")
+        if not Path(target / "openslide").exists():
+            openslide_folder = download_file(OPENSLIDE_DOWNLOAD_URL, target)
+            os.rename(target / openslide_folder, target / "openslide")
 
-    if not Path(target / "vips").exists():
-        vips_folder = download_file(LIBVIPS_DOWNLOAD_URL, target)
-        os.rename(target / vips_folder, target / "vips")
+        if not Path(target / "vips").exists():
+            vips_folder = download_file(LIBVIPS_DOWNLOAD_URL, target)
+            os.rename(target / vips_folder, target / "vips")
 
 
-@WIN_ONLY
 def import_windows_modules():
-    target = Path(__file__).parent / "lib"
-    print(target)
-    with os.add_dll_directory(str(target / "openslide" / "bin")):
-        import openslide
+    if platform.system() == "Windows":
+        target = Path(__file__).parent / "lib"
+        print(target)
+        with os.add_dll_directory(str(target / "openslide" / "bin")):
+            import openslide
 
-    os.environ["PATH"] = str(target / "vips" / "bin") + ";" + os.environ["PATH"]
-    import pyvips
+        os.environ["PATH"] = str(target / "vips" / "bin") + ";" + os.environ["PATH"]
+        import pyvips

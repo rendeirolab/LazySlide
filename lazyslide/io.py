@@ -153,7 +153,9 @@ class H5ZSFile(IOGroup):
         data_index = self._read_dataset(self.INDEX_KEY)
         if data_index is None:
             raise RuntimeError("Coordinates must be set before table.")
-        assert len(table) == len(data_index), "Table length does not match coordinates length"
+        assert len(table) == len(
+            data_index
+        ), "Table length does not match coordinates length"
 
     def set_coords(self, coords: np.ndarray):
         # Chunk by row-major order
@@ -193,9 +195,7 @@ class H5ZSFile(IOGroup):
             self._save_dataset(str(i), arr, group=self.CONTOURS_KEY)
         for i, arr in enumerate(holes):
             self._save_dataset(str(i), arr, group=self.HOLES_KEY)
-        self._save_attributes(
-            self.CONTOURS_KEY, {"length": len(contours)}
-        )
+        self._save_attributes(self.CONTOURS_KEY, {"length": len(contours)})
         self._save_attributes(self.HOLES_KEY, {"length": len(holes)})
 
     def get_index(self):
@@ -221,8 +221,13 @@ class H5ZSFile(IOGroup):
         return masks, masks_levels
 
     def get_mask(self, name):
-        return (self._read_dataset(name, group=self.MASKS_KEY),
-                self._read_attributes(self.MASKS_KEY)[name])
+        level = self._read_attributes(self.MASKS_KEY)
+        if level is not None:
+            level = level[name]
+        return (
+            self._read_dataset(name, group=self.MASKS_KEY),
+            level,
+        )
 
     def get_contours_holes(self):
         contours = []
@@ -247,8 +252,3 @@ class H5ZSFile(IOGroup):
 
     def has_tiles(self):
         return self._has_dataset(self.COORDS_KEY)
-
-
-
-
-

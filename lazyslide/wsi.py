@@ -13,8 +13,14 @@ from matplotlib import pyplot as plt
 from .cv_mods import TissueDetectionHE
 from .io import H5ZSFile
 from .plotting import SlideViewer
-from .utils import get_reader, TileOps, get_split_image_indices, filter_tiles, \
-    create_tiles_coords_index, create_tiles
+from .utils import (
+    get_reader,
+    TileOps,
+    get_split_image_indices,
+    filter_tiles,
+    create_tiles_coords_index,
+    create_tiles,
+)
 
 
 class WSI:
@@ -34,11 +40,11 @@ class WSI:
     """
 
     def __init__(
-            self,
-            image: Path | str,
-            h5_file: Path | str = None,
-            reader="auto",  # openslide, vips, cucim
-            reader_options=None,
+        self,
+        image: Path | str,
+        h5_file: Path | str = None,
+        reader="auto",  # openslide, vips, cucim
+        reader_options=None,
     ):
         from .utils import check_wsi_path
 
@@ -62,15 +68,15 @@ class WSI:
         self._fields = {}
 
     def __repr__(self):
-
         h, w = self.metadata.level_shape[0]
-        repr_str = (f"WSI Image {w}px * {h}px: {self.image}\n"
-                    f"  Levels: {self.metadata.n_level}\n"
-                    f"  MPP: {self.metadata.mpp}\n"
-                    f"  Magnification: {int(self.metadata.magnification)}X\n"
-                    f"H5: {self.h5_file.file}\n"
-                    f"Reader: {self._reader_class.name}\n"
-                    )
+        repr_str = (
+            f"WSI Image {w}px * {h}px: {self.image}\n"
+            f"  Levels: {self.metadata.n_level}\n"
+            f"  MPP: {self.metadata.mpp}\n"
+            f"  Magnification: {int(self.metadata.magnification)}X\n"
+            f"H5: {self.h5_file.file}\n"
+            f"Reader: {self._reader_class.name}\n"
+        )
         if self.table is not None:
             format_table_keys = ", ".join([f'"{k}"' for k in self.table.columns])
             repr_str += f"Table keys: \n  {format_table_keys}\n"
@@ -97,6 +103,12 @@ class WSI:
     @property
     def tiles_coords(self):
         return self._tile_coords
+
+    @property
+    def n_tiles(self):
+        if self._tile_coords is None:
+            return 0
+        return len(self._tile_coords)
 
     @property
     def tile_ops(self):
@@ -160,7 +172,7 @@ class WSI:
             self.h5_file.set_mask(name, mask, level)
 
     def create_tissue_mask(
-            self, name="tissue", level=-1, chunk=True, chunk_at=20000, save=False, **kwargs
+        self, name="tissue", level=-1, chunk=True, chunk_at=20000, save=False, **kwargs
     ):
         """Create tissue mask using
         a preconfigured segmentation pipeline
@@ -233,17 +245,17 @@ class WSI:
             self.h5_file.set_contours_holes(contours, holes)
 
     def create_tiles(
-            self,
-            tile_px,
-            stride_px=None,
-            pad=False,
-            mpp=None,
-            tolerance=0.05,
-            mask_name="tissue",
-            background_fraction=0.8,
-            tile_pts=3,
-            errors="ignore",
-            save=True,
+        self,
+        tile_px,
+        stride_px=None,
+        pad=False,
+        mpp=None,
+        tolerance=0.05,
+        mask_name="tissue",
+        background_fraction=0.8,
+        tile_pts=3,
+        errors="ignore",
+        save=True,
     ):
         """
         Parameters
@@ -333,7 +345,7 @@ class WSI:
                     ops_level = 0
                 else:
                     for ix, level_downsample in enumerate(
-                            self.metadata.level_downsample
+                        self.metadata.level_downsample
                     ):
                         if lower_ds < level_downsample < upper_ds:
                             downsample = level_downsample
@@ -394,14 +406,20 @@ class WSI:
                 for c in self._contours:
                     # Coerce the point to python int and let the opencv decide the type
                     # Flip x, y because it's different in opencv
-                    polytest = [cv2.pointPolygonTest(c, (float(x), float(y)), measureDist=False)
-                                for x, y in points]
+                    polytest = [
+                        cv2.pointPolygonTest(c, (float(x), float(y)), measureDist=False)
+                        for x, y in points
+                    ]
                     is_in.append(np.array(polytest) == 1)
 
                 if len(self._holes) > 0:
                     for c in self._holes:
-                        polytest = [cv2.pointPolygonTest(c, (float(x), float(y)), measureDist=False)
-                                    for x, y in points]
+                        polytest = [
+                            cv2.pointPolygonTest(
+                                c, (float(x), float(y)), measureDist=False
+                            )
+                            for x, y in points
+                        ]
                         is_in.append(np.array(polytest) == -1)
 
                 is_tiles = np.asarray(is_in).sum(axis=0) == 1
@@ -424,20 +442,20 @@ class WSI:
         )
 
     def new_tiles(
-            self,
-            tiles_coords,
-            height=None,
-            width=None,
-            level=0,
-            mpp=None,
-            downsample=None,
-            ops_height=None,
-            ops_width=None,
-            format="left-top",
-            overwrite=False,
-            preserve_table=True,
-            save=True,
-            **kwargs,
+        self,
+        tiles_coords,
+        height=None,
+        width=None,
+        level=0,
+        mpp=None,
+        downsample=None,
+        ops_height=None,
+        ops_width=None,
+        format="left-top",
+        overwrite=False,
+        preserve_table=True,
+        save=True,
+        **kwargs,
     ):
         """Supply new tiles to WSI
 
@@ -464,10 +482,12 @@ class WSI:
         """
         if not overwrite:
             if self.has_tiles:
-                raise ValueError("Tiles already exist, please use overwrite=True to overwrite it."
-                                 "Reset tiles will clean up tables and feature fields,"
-                                 "If you want to preserve the table and feature fields, "
-                                 "please use preserve_table=True")
+                raise ValueError(
+                    "Tiles already exist, please use overwrite=True to overwrite it."
+                    "Reset tiles will clean up tables and feature fields,"
+                    "If you want to preserve the table and feature fields, "
+                    "please use preserve_table=True"
+                )
         tiles_coords = np.asarray(tiles_coords, dtype=np.uint32)
         if format == "top-left":
             tiles_coords = tiles_coords[:, [1, 0]]
@@ -506,14 +526,18 @@ class WSI:
                     self.h5_file.delete_feature_field(field)
 
     def new_table(self, table: pd.DataFrame, save=True):
-        assert len(table) == len(self._tile_coords), "Table must have the same length as tiles coords"
+        assert len(table) == len(
+            self._tile_coords
+        ), "Table must have the same length as tiles coords"
         self._table = table.copy()
         if save:
             self.h5_file.set_table(table)
 
-    def new_feature_field(self, field: str, value: np.ndarray, save=True):
+    def new_feature(self, field: str, value: np.ndarray, save=True):
         assert value.ndim < 3, "Value must be 1D or 2D"
-        assert len(value) == len(self._tile_coords), "Value must have the same length as tiles coords"
+        assert len(value) == len(
+            self._tile_coords
+        ), "Value must have the same length as tiles coords"
         self._fields[field] = value.copy()
         if save:
             self.h5_file.set_feature_field(field, value)
@@ -530,28 +554,29 @@ class WSI:
     #         )
 
     def plot_tissue(
-            self,
-            level=-1,
-            max_size=1000,
-            tiles=False,
-            contours=False,
-            contour_color="green",
-            hole_color="red",
-            linewidth=1,
-            show_origin=True,
-            title=None,
-            ax=None,
-            save=None,
-            savefig_kws=None,
+        self,
+        level=-1,
+        max_size=1000,
+        tiles=False,
+        contours=False,
+        contour_color="green",
+        hole_color="red",
+        linewidth=1,
+        show_origin=True,
+        title=None,
+        ax=None,
+        save=None,
+        savefig_kws=None,
     ):
-
         level = self.reader.translate_level(level)
         image_arr = self.reader.get_level(level)
-        scale_factor = (1 / self.metadata.level_downsample[level])
+        scale_factor = 1 / self.metadata.level_downsample[level]
 
         if title is None:
             title = self.image.name
-        viewer = SlideViewer(image_arr, max_size=max_size, ax=ax, scale_factor=scale_factor)
+        viewer = SlideViewer(
+            image_arr, max_size=max_size, ax=ax, scale_factor=scale_factor
+        )
         viewer.add_tissue(title=title)
         if show_origin:
             viewer.add_origin()
@@ -559,14 +584,18 @@ class WSI:
             if not self.has_tiles:
                 warnings.warn("No tile is created")
             else:
-                viewer.add_tiles(self.tiles_coords, self.tile_ops,
-                                 cmap="gray", alpha=0.5)
+                viewer.add_tiles(
+                    self.tiles_coords, self.tile_ops, cmap="gray", alpha=0.5
+                )
 
         if contours:
-            viewer.add_contours_holes(self.contours, self.holes,
-                                      contour_color=contour_color,
-                                      hole_color=hole_color,
-                                      linewidth=linewidth)
+            viewer.add_contours_holes(
+                self.contours,
+                self.holes,
+                contour_color=contour_color,
+                hole_color=hole_color,
+                linewidth=linewidth,
+            )
 
         if save is not None:
             savefig_kws = {} if savefig_kws is None else savefig_kws
@@ -575,22 +604,22 @@ class WSI:
         return viewer.ax
 
     def plot_table(
-            self,
-            columns: str | Sequence[str],
-            level=-1,
-            max_size=1000,
-            ncols=5,
-            wspace=0.3,
-            hspace=0.05,
-            cmap="viridis",
-            norm=None,
-            palette=None,
-            alpha=None,
-            show_origin=True,
-            show_tissue=True,
-            title=None,
-            save=None,
-            savefig_kws=None,
+        self,
+        columns: str | Sequence[str],
+        level=-1,
+        max_size=1000,
+        ncols=5,
+        wspace=0.3,
+        hspace=0.05,
+        cmap="viridis",
+        norm=None,
+        palette=None,
+        alpha=None,
+        show_origin=True,
+        show_tissue=True,
+        title=None,
+        save=None,
+        savefig_kws=None,
     ):
         if self.table is None:
             raise ValueError("No table is created")
@@ -607,15 +636,22 @@ class WSI:
         if ncols > len(columns):
             ncols = len(columns)
         nrows = len(columns) // ncols
-        fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 6, nrows * 6),
-                                 gridspec_kw={"wspace": wspace, "hspace": hspace})
+        fig, axes = plt.subplots(
+            nrows,
+            ncols,
+            figsize=(ncols * 6, nrows * 6),
+            gridspec_kw={"wspace": wspace, "hspace": hspace},
+        )
 
         level = self.reader.translate_level(level)
         image_arr = self.reader.get_level(level)
-        scale_factor = (1 / self.metadata.level_downsample[level])
-        viewer = SlideViewer(image_arr, max_size=max_size, scale_factor=scale_factor, fig=fig)
+        scale_factor = 1 / self.metadata.level_downsample[level]
+        viewer = SlideViewer(
+            image_arr, max_size=max_size, scale_factor=scale_factor, fig=fig
+        )
 
-        for i, (column, ax) in enumerate(zip(columns, axes.flat)):
+        axes = axes.flat if isinstance(axes, np.ndarray) else [axes]
+        for i, (column, ax) in enumerate(zip(columns, axes)):
             plot_arr = self._table[column].values
             if show_tissue:
                 viewer.add_tissue(ax=ax)
@@ -627,30 +663,39 @@ class WSI:
                 t = title[column]
             else:
                 t = title[i]
-            viewer.add_tiles(self.tiles_coords, self.tile_ops, value=plot_arr, title=t,
-                             cmap=cmap, norm=norm, palette=palette, alpha=alpha, ax=ax)
+            viewer.add_tiles(
+                self.tiles_coords,
+                self.tile_ops,
+                value=plot_arr,
+                title=t,
+                cmap=cmap,
+                norm=norm,
+                palette=palette,
+                alpha=alpha,
+                ax=ax,
+            )
 
         if save is not None:
             savefig_kws = {} if savefig_kws is None else savefig_kws
             viewer.save(save, **savefig_kws)
 
-    def plot_feature_field(
-            self,
-            field,
-            index=0,
-            level=-1,
-            max_size=1000,
-            ncols=5,
-            wspace=0.3,
-            hspace=0.05,
-            cmap="viridis",
-            norm=None,
-            palette=None,
-            alpha=None,
-            show_origin=True,
-            show_tissue=True,
-            save=None,
-            savefig_kws=None,
+    def plot_feature(
+        self,
+        field,
+        index=0,
+        level=-1,
+        max_size=1000,
+        ncols=5,
+        wspace=0.3,
+        hspace=0.05,
+        cmap="viridis",
+        norm=None,
+        palette=None,
+        alpha=None,
+        show_origin=True,
+        show_tissue=True,
+        save=None,
+        savefig_kws=None,
     ):
         if self.fields is None:
             raise ValueError("Feature Fields are empty")
@@ -667,18 +712,21 @@ class WSI:
         if ncols > len(index):
             ncols = len(index)
         nrows = len(index) // ncols
-        fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 6, nrows * 6),
-                                 gridspec_kw={"wspace": wspace, "hspace": hspace})
-        if isinstance(axes, np.ndarray):
-            axes = axes.flat
-        else:
-            axes = [axes]
+        fig, axes = plt.subplots(
+            nrows,
+            ncols,
+            figsize=(ncols * 6, nrows * 6),
+            gridspec_kw={"wspace": wspace, "hspace": hspace},
+        )
 
         level = self.reader.translate_level(level)
         image_arr = self.reader.get_level(level)
-        scale_factor = (1 / self.metadata.level_downsample[level])
-        viewer = SlideViewer(image_arr, max_size=max_size, scale_factor=scale_factor, fig=fig)
+        scale_factor = 1 / self.metadata.level_downsample[level]
+        viewer = SlideViewer(
+            image_arr, max_size=max_size, scale_factor=scale_factor, fig=fig
+        )
 
+        axes = axes.flat if isinstance(axes, np.ndarray) else [axes]
         for i, (ix, ax) in enumerate(zip(index, axes)):
             if field_data.ndim == 1:
                 plot_arr = field_data
@@ -689,20 +737,29 @@ class WSI:
             if show_origin:
                 viewer.add_origin(ax=ax)
             t = f"{field}_{ix}"
-            viewer.add_tiles(self.tiles_coords, self.tile_ops, value=plot_arr, title=t,
-                             cmap=cmap, norm=norm, palette=palette, alpha=alpha, ax=ax)
+            viewer.add_tiles(
+                self.tiles_coords,
+                self.tile_ops,
+                value=plot_arr,
+                title=t,
+                cmap=cmap,
+                norm=norm,
+                palette=palette,
+                alpha=alpha,
+                ax=ax,
+            )
 
         if save is not None:
             savefig_kws = {} if savefig_kws is None else savefig_kws
             viewer.save(save, **savefig_kws)
 
     def plot_mask(
-            self,
-            name="tissue",
-            max_size=1000,
-            ax=None,
-            save=None,
-            savefig_kws=None,
+        self,
+        name="tissue",
+        max_size=1000,
+        ax=None,
+        save=None,
+        savefig_kws=None,
     ):
         image_arr, _ = self.get_mask(name)
         if image_arr is None:

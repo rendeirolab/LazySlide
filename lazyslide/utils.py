@@ -110,7 +110,9 @@ class TileOps:
 
 
 @njit
-def _creat_tiles_params(image_shape, tile_w, tile_h, stride_w=None, stride_h=None, pad=True):
+def _creat_tiles_params(
+    image_shape, tile_w, tile_h, stride_w=None, stride_h=None, pad=True
+):
     height, width = image_shape
     if stride_w is None:
         stride_w = tile_w
@@ -130,9 +132,7 @@ def _creat_tiles_params(image_shape, tile_w, tile_h, stride_w=None, stride_h=Non
 
 
 @njit
-def create_tiles(
-        image_shape, tile_w, tile_h, stride_w=None, stride_h=None, pad=True
-):
+def create_tiles(image_shape, tile_w, tile_h, stride_w=None, stride_h=None, pad=True):
     """Create the tiles, return only coordination
 
     Padding works as follows:
@@ -160,7 +160,9 @@ def create_tiles(
     -------
 
     """
-    n_tiles_width, n_tiles_height = _creat_tiles_params(image_shape, tile_w, tile_h, stride_w, stride_h, pad)
+    n_tiles_width, n_tiles_height = _creat_tiles_params(
+        image_shape, tile_w, tile_h, stride_w, stride_h, pad
+    )
 
     coordinates = []
     for ix_width in range(n_tiles_width):
@@ -173,7 +175,7 @@ def create_tiles(
 
 @njit
 def create_tiles_coords_index(
-        image_shape, tile_w, tile_h, stride_w=None, stride_h=None, pad=True
+    image_shape, tile_w, tile_h, stride_w=None, stride_h=None, pad=True
 ):
     """Create the tiles, return coordination that comprise the tiles
         and the index of points for each rect
@@ -203,7 +205,9 @@ def create_tiles_coords_index(
     -------
 
     """
-    n_tiles_width, n_tiles_height = _creat_tiles_params(image_shape, tile_w, tile_h, stride_w, stride_h, pad)
+    n_tiles_width, n_tiles_height = _creat_tiles_params(
+        image_shape, tile_w, tile_h, stride_w, stride_h, pad
+    )
 
     coordinates = list()
     indices = list()
@@ -236,7 +240,7 @@ def filter_tiles(mask, tiles_coords, tile_w, tile_h, filter_bg=0.8):
     """
     use = []
     for w, h in tiles_coords:
-        mask_region = mask[h: h + tile_h, w: w + tile_w]
+        mask_region = mask[h : h + tile_h, w : w + tile_w]
         bg_ratio = np.sum(mask_region == 0) / mask_region.size
         use.append(bg_ratio < filter_bg)
     return np.array(use, dtype=np.bool_)
@@ -246,7 +250,7 @@ def get_split_image_indices(image_height, image_width, min_side=20000):
     h, w = image_height, image_width
     size = h * w
     n = min_side
-    if (size > n ** 2) or (h > n) or (w > n):
+    if (size > n**2) or (h > n) or (w > n):
         split_h = h > 1.5 * n
         split_w = w > 1.5 * n
 
@@ -303,8 +307,8 @@ def create_mesh_array(shape, coords, h, w, values=None):
     mesh = np.full(shape, fill_value=np.nan)
     if values is None:
         for cw, ch in coords:
-            mesh[int(ch):int(ch + h), int(cw):int(cw + w)] = 1
+            mesh[int(ch) : int(ch + h), int(cw) : int(cw + w)] = 1
     else:
         for (cw, ch), v in zip(coords, values):
-            mesh[int(ch):int(ch + h), int(cw):int(cw + w)] = v
+            mesh[int(ch) : int(ch + h), int(cw) : int(cw + w)] = v
     return mesh
