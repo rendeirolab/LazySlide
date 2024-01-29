@@ -82,5 +82,7 @@ def test_read_slide():
     wsi = WSI(slide, reader="openslide")
     wrapper_read = wsi.get_patch(500, 600, 100, 150, 0)
     # remove alpha channel
-    openslide_read = np.array(wsi.reader.slide.read_region((500, 600), 0, (100, 150)))[..., :3]
+    openslide_read = np.array(wsi.reader.slide.read_region((500, 600), 0, (100, 150)))[
+        ..., :3
+    ]
     assert np.array_equal(wrapper_read, openslide_read)

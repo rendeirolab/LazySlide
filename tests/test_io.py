@@ -55,7 +55,6 @@ class TestIOGroup:
 
 
 class TestH5ZSFile:
-
     def test_init(self, tmp_path):
         h5zsfile = H5ZSFile(tmp_path / "test.h5")
         assert h5zsfile.file.exists()
@@ -76,8 +75,16 @@ class TestH5ZSFile:
 
     def test_set_tile_ops(self, tmp_path):
         h5zsfile = H5ZSFile(tmp_path / "test.h5")
-        tile_ops = TileOps(level=0, downsample=1, mpp=0.25, height=100, width=100,
-                           ops_height=100, ops_width=100, mask_name="mask")
+        tile_ops = TileOps(
+            level=0,
+            downsample=1,
+            mpp=0.25,
+            height=100,
+            width=100,
+            ops_height=100,
+            ops_width=100,
+            mask_name="mask",
+        )
         h5zsfile.set_tile_ops(tile_ops)
         assert h5zsfile.get_tile_ops() == tile_ops
 
@@ -104,6 +111,3 @@ class TestH5ZSFile:
         h5zsfile.set_coords(np.array([[0, 0], [1, 1], [10, 10]]))
         h5zsfile.set_feature_field(field, value)
         assert np.array_equal(h5zsfile.get_feature_field(field), value)
-
-
-

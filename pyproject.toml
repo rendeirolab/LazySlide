@@ -18,10 +18,9 @@ dependencies = [
     "numba",
     "opencv-python",
     "openslide-python",
-    "h5py",
     "matplotlib",
-    "pyvips",
     "requests",
+    "tables",
     "lazy-imports"
 ]
 
