@@ -19,6 +19,7 @@ dependencies = [
     "opencv-python",
     "openslide-python",
     "matplotlib",
+    "legendkit",
     "requests",
     "tables",
     "lazy-imports"
