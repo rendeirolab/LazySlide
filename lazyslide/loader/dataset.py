@@ -62,6 +62,7 @@ class FeatureExtractionDataset(Dataset):
                 color_normalize=color_normalize,
                 feature_extraction=True,
             )
+        self.wsi.detach_handler()
 
     def __len__(self):
         return len(self.tiles_coords)
