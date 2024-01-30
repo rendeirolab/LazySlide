@@ -36,11 +36,20 @@ jobs:
             channels: 
               - conda-forge
           environment-name: lazyslide
-          init-shell: bash powershell
           create-args: python=${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install UNIX dependencies
+        if: ${{ matrix.os != 'windows-latest' }}
         run: |
+          eval "$(micromamba shell hook --shell bash)"
+          micromamba activate lazyslide
+          micromamba install openslide-python
+          python -m pip install --upgrade pip
+          pip install .[all,dev]
+      - name: Install Windows dependencies
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          eval "$(micromamba shell hook --shell powershell)"
           micromamba activate lazyslide
           micromamba install openslide-python
           python -m pip install --upgrade pip
