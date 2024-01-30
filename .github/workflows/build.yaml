@@ -25,38 +25,20 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-#      - name: Set up Python ${{ matrix.python-version }}
-#        uses: actions/setup-python@v4
-#        with:
-#          python-version: ${{ matrix.python-version }}
-
-      - uses: mamba-org/setup-micromamba@v1
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
         with:
-          condarc: |
-            channels: 
-              - conda-forge
-          environment-name: lazyslide
-          create-args: python=${{ matrix.python-version }}
-
+          python-version: ${{ matrix.python-version }}
       - name: Install UNIX dependencies
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
-          eval "$(micromamba shell hook --shell bash)"
-          micromamba activate lazyslide
-          micromamba install openslide-python
-          python -m pip install --upgrade pip
-          pip install .[all,dev]
-      - name: Install Windows dependencies
-        if: ${{ matrix.os == 'windows-latest' }}
+          apt install openslide-tools
+      - name: Install Project dependencies
         run: |
-          eval "$(micromamba shell hook --shell powershell)"
-          micromamba activate lazyslide
-          micromamba install openslide-python
           python -m pip install --upgrade pip
           pip install .[all,dev]
       - name: Test with pytest
         run: |
-          pip install pytest pytest-cov
           pytest tests/
 
 #  Upload_to_test_pypi:
