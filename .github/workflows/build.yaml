@@ -36,8 +36,8 @@ jobs:
             channels: 
               - conda-forge
           environment-name: lazyslide
-          create-args: >-
-            python=${{ matrix.python-version }}
+          init-shell: bash powershell
+          create-args: python=${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
