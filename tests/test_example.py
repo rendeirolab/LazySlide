@@ -10,7 +10,7 @@ import lazyslide as zs
 @pytest.mark.parametrize("reader", ["openslide"])
 class TestWSI:
     @pytest.fixture(scope="function", autouse=True)
-    def setup(self, reader):
+    def setup_method(self, reader):
         slide = "https://github.com/camicroscope/Distro/raw/master/images/sample.svs"
         self.slide = slide
         self.wsi = zs.WSI(slide, reader=reader)

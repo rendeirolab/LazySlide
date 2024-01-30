@@ -5,7 +5,7 @@ from lazyslide import WSI
 
 
 class TestPlotting:
-    def setup(self):
+    def setup_method(self):
         wsi = WSI("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
         wsi.create_tissue_mask()
         wsi.create_tissue_contours()

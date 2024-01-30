@@ -36,7 +36,7 @@ jobs:
       - name: Install MacOS dependencies
         if: ${{ matrix.os == 'macos-latest' }}
         run: |
-          sudo brew install openslide
+          brew install openslide
       - name: Install Project dependencies
         run: |
           python -m pip install --upgrade pip

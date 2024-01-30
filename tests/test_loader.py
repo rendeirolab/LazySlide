@@ -9,7 +9,7 @@ from lazyslide.loader import SlidesBalancedLoader, FeatureExtractionDataset
 
 
 class TestLoader:
-    def setup(self):
+    def setup_method(self):
         slide = "https://github.com/camicroscope/Distro/raw/master/images/sample.svs"
         wsi = zs.WSI(slide)
         wsi.create_tissue_mask()
