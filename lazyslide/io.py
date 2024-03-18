@@ -84,6 +84,9 @@ class IOGroup:
             return slot[:]
 
     def _read_dataframe(self, key: str):
+        # Handle when key is missing
+        if not self._has_dataset(key):
+            return None
         return pd.read_hdf(self.file, key=key)
 
     def _read_attributes(self, key: str):
