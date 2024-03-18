@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from concurrent.futures import ProcessPoolExecutor
 from numbers import Integral
 from pathlib import Path
 from typing import Sequence, Mapping
@@ -255,6 +256,7 @@ class WSI:
         background_fraction=0.8,
         tile_pts=3,
         errors="ignore",
+        tile_filter=None,
         save=True,
     ):
         """
@@ -404,8 +406,6 @@ class WSI:
                 points = rect_coords
                 is_in = []
                 for c in self._contours:
-                    # Coerce the point to python int and let the opencv decide the type
-                    # Flip x, y because it's different in opencv
                     polytest = [
                         cv2.pointPolygonTest(c, (float(x), float(y)), measureDist=False)
                         for x, y in points
@@ -427,6 +427,16 @@ class WSI:
             good_tiles = is_tiles[rect_indices].sum(axis=1) >= tile_pts
             # Select only the top_left corner
             tiles_coords = rect_coords[rect_indices[good_tiles, 0]].copy()
+
+        # Run tile filter
+        if tile_filter is not None:
+            masks = []
+
+            for c in tiles_coords:
+                left, top = c
+                patch = self.get_patch(left, top, tile_w, tile_h, level=0)
+                masks.append(tile_filter.filter(patch))
+            tiles_coords = tiles_coords[masks].copy()
 
         self.new_tiles(
             tiles_coords,
@@ -589,13 +599,16 @@ class WSI:
                 )
 
         if contours:
-            viewer.add_contours_holes(
-                self.contours,
-                self.holes,
-                contour_color=contour_color,
-                hole_color=hole_color,
-                linewidth=linewidth,
-            )
+            if self.contours is None:
+                warnings.warn("No contours is created")
+            else:
+                viewer.add_contours_holes(
+                    self.contours,
+                    self.holes,
+                    contour_color=contour_color,
+                    hole_color=hole_color,
+                    linewidth=linewidth,
+                )
 
         if save is not None:
             savefig_kws = {} if savefig_kws is None else savefig_kws

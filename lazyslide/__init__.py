@@ -3,6 +3,7 @@ __version__ = "0.1.0"
 
 from .wsi import WSI
 from .utils import get_reader
+from .filter import SobelFilter, BlurFilter, FocusLiteFilter
 
 
 def about():
