@@ -338,7 +338,7 @@ class ForegroundContourDetection(Transform):
         self,
         mask_name=None,
         min_region_size=5000,
-        max_hole_size=1500,
+        max_hole_size=100,
         outer_contours_only=False,
     ):
         self.min_region_size = min_region_size
@@ -384,7 +384,7 @@ class ForegroundContourDetection(Transform):
             tissue_holes = holes[
                 # hole contours must be above area threshold
                 contours_areas[hole_slice]
-                < self.max_hole_size
+                > self.max_hole_size
                 &
                 # holes must have parents above area threshold
                 (contours_areas[hierarchy[hole_slice, 3]] > self.min_region_size)
