@@ -77,6 +77,7 @@ class SlideViewer:
             ax = self.ax
         _, mask_thumbnail = _get_thumbnail(mask, max_size=self.max_size)
         ax.imshow(mask_thumbnail, cmap=cmap, alpha=alpha, extent=self.extent)
+        ax.set_axis_off()
 
     def add_origin(self, ax=None):
         if ax is None:

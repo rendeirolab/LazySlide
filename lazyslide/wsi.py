@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import warnings
 from concurrent.futures import ProcessPoolExecutor
+from copy import deepcopy
 from numbers import Integral
 from pathlib import Path
 from typing import Sequence, Mapping
@@ -570,7 +571,7 @@ class WSI:
         tiles=False,
         contours=False,
         contour_color="green",
-        hole_color="red",
+        hole_color="blue",
         linewidth=1,
         show_origin=True,
         title=None,
@@ -591,12 +592,26 @@ class WSI:
         if show_origin:
             viewer.add_origin()
         if tiles:
-            if not self.has_tiles:
-                warnings.warn("No tile is created")
+            if isinstance(tiles, bool):
+                if not self.has_tiles:
+                    warnings.warn("No tile is created")
+                else:
+                    viewer.add_tiles(self.tiles_coords, self.tile_ops, alpha=0.5)
             else:
-                viewer.add_tiles(
-                    self.tiles_coords, self.tile_ops, cmap="gray", alpha=0.5
-                )
+                if isinstance(tiles, tuple) and len(tiles) == 4:
+                    x1, y1, w, h = tiles
+                    tile_ops = deepcopy(self.tile_ops)
+                    tile_ops.ops_height = h
+                    tile_ops.ops_width = w
+                    viewer.add_tiles(
+                        np.array([[x1, y1]]),
+                        tile_ops,
+                        alpha=0.5,
+                    )
+                else:
+                    raise ValueError(
+                        "tiles must be a tuple of (x1, y1, w, h) or a boolean"
+                    )
 
         if contours:
             if self.contours is None:
