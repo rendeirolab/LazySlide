@@ -6,7 +6,9 @@ import cv2
 import numpy as np
 from legendkit import cat_legend, colorart
 from matplotlib import pyplot as plt
+from matplotlib.collections import PatchCollection
 from matplotlib.colors import ListedColormap
+from matplotlib.patches import Rectangle
 
 from lazyslide.utils import create_mesh_array
 
@@ -60,12 +62,12 @@ class SlideViewer:
         self.max_size = max_size
         self.legend = None
         self.tissue_shape = thumbnail.shape[0:2]
-        self.extent = [0, self.tissue_shape[0], self.tissue_shape[1], 0]
+        self.extent = [0, self.tissue_shape[1], self.tissue_shape[0], 0]
 
     def add_tissue(self, title=None, ax=None):
         if ax is None:
             ax = self.ax
-        ax.imshow(self.thumbnail, extent=self.extent)
+        ax.imshow(self.thumbnail)  # , extent=self.extent)
         ax.set_axis_off()
         if title is not None:
             ax.set_title(title)
@@ -79,22 +81,24 @@ class SlideViewer:
     def add_origin(self, ax=None):
         if ax is None:
             ax = self.ax
+        ox, upper_x = ax.get_xlim()
+        oy, upper_y = ax.get_ylim()
+        arrow_length = upper_x * 0.05
+
         arrow_options = dict(
-            head_width=0.02,
-            head_length=0.02,
+            head_width=arrow_length * 0.2,
+            head_length=arrow_length * 0.2,
             fc="k",
             ec="k",
-            transform=ax.transAxes,
             clip_on=False,
             length_includes_head=True,
         )
-        origin = (-0.02, 1.02)
         # x arrow
-        ax.arrow(*origin, 0.1, 0, **arrow_options)
-        ax.text(0.1, origin[1], "x", transform=ax.transAxes, ha="left", va="center")
+        ax.arrow(ox, upper_y, arrow_length, 0, **arrow_options)
+        ax.text(arrow_length, upper_y, "x", ha="left", va="center")
         # y arrow
-        ax.arrow(*origin, 0, -0.1, **arrow_options)
-        ax.text(origin[0], 1 - 0.1, "y", transform=ax.transAxes, ha="center", va="top")
+        ax.arrow(ox, upper_y, 0, arrow_length, **arrow_options)
+        ax.text(ox, arrow_length, "y", ha="center", va="top")
 
     def add_tiles(
         self,
@@ -114,14 +118,27 @@ class SlideViewer:
             ax.set_title(title)
         coords = tiles * self.downsample_ratio
 
-        tile_h = tile_ops.height * self.downsample_ratio
-        tile_w = tile_ops.width * self.downsample_ratio
+        tile_h = tile_ops.ops_height * self.downsample_ratio
+        tile_w = tile_ops.ops_width * self.downsample_ratio
 
         img_shape = self.thumbnail.shape[0:2]
         if value is None:
-            v_arr = create_mesh_array(img_shape, coords, tile_h, tile_w)
-            v_arr = np.ma.masked_invalid(v_arr)
-            ax.pcolorfast(v_arr, norm=norm, cmap=cmap, alpha=alpha)
+            # v_arr = create_mesh_array(img_shape, coords, tile_h, tile_w)
+            # v_arr = np.ma.masked_invalid(v_arr)
+            # ax.pcolorfast(v_arr, norm=norm, cmap=cmap, alpha=alpha)
+            rects = []
+            for x, y in coords:
+                rects.append(
+                    Rectangle(
+                        (x, y),
+                        tile_w,
+                        tile_h,
+                        fill=False,
+                        edgecolor="black",
+                        linewidth=0.5,
+                    )
+                )
+            ax.add_collection(PatchCollection(rects, match_original=True, alpha=alpha))
         else:
             # check value is numeric or categorical
             isnumeric = isinstance(value[0], Number)
@@ -164,7 +181,7 @@ class SlideViewer:
         contours,
         holes,
         contour_color="green",
-        hole_color="red",
+        hole_color="blue",
         linewidth=1,
         alpha=None,
         ax=None,
@@ -173,7 +190,7 @@ class SlideViewer:
             ax = self.ax
         ratio = self.downsample_ratio
         for contour in contours:
-            ax.fill(
+            ax.plot(
                 contour[:, 0] * ratio,
                 contour[:, 1] * ratio,
                 color=contour_color,
@@ -181,7 +198,7 @@ class SlideViewer:
                 lw=linewidth,
             )
         for hole in holes:
-            ax.fill(
+            ax.plot(
                 hole[:, 0] * ratio,
                 hole[:, 1] * ratio,
                 color=hole_color,
