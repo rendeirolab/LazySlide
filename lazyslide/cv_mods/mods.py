@@ -1,5 +1,6 @@
 # See https://github.com/Dana-Farber-AIOS/pathml/blob/master/pathml/preprocessing/transforms.py
 import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 
 from .base import Transform
@@ -134,6 +135,33 @@ class BinaryThreshold(Transform):
             thresh=self.threshold,
             maxval=self.max_value,
             type=self.type,
+        )
+        return out.astype(np.uint8)
+
+
+class ArtifactFilterThreshold(Transform):
+    def __init__(self, threshold=0):
+        self.threshold = threshold
+
+    def __repr__(self):
+        return "ArtifactFilterThreshold()"
+
+    def apply(self, image):
+        assert image.dtype == np.uint8, f"image dtype {image.dtype} must be np.uint8"
+        red_channel = image[:, :, 0].astype(float)
+        green_channel = image[:, :, 1].astype(float)
+        blue_channel = image[:, :, 2].astype(float)
+
+        red_to_green_mask = np.maximum(red_channel - green_channel, 0)
+        blue_to_green_mask = np.maximum(blue_channel - green_channel, 0)
+
+        tissue_heatmap = red_to_green_mask * blue_to_green_mask
+
+        _, out = cv2.threshold(
+            src=tissue_heatmap.astype(np.uint8),
+            thresh=self.threshold,
+            maxval=255,
+            type=(cv2.THRESH_BINARY + cv2.THRESH_OTSU),
         )
         return out.astype(np.uint8)
 
@@ -417,7 +445,7 @@ class TissueDetectionHE(Transform):
 
     def __init__(
         self,
-        use_saturation=True,
+        use_saturation=False,
         blur_ksize=17,
         threshold=7,
         morph_n_iter=3,
@@ -426,6 +454,7 @@ class TissueDetectionHE(Transform):
         max_hole_size=100,
         outer_contours_only=False,
         return_contours=False,
+        filter_artifacts=True,
     ):
         self.use_sat = use_saturation
         self.blur_ksize = blur_ksize
@@ -435,11 +464,15 @@ class TissueDetectionHE(Transform):
         self.min_region_size = min_region_size
         self.max_hole_size = max_hole_size
         self.outer_contours_only = outer_contours_only
+        self.filter_artifacts = filter_artifacts
 
-        if self.threshold is None:
-            thresholder = BinaryThreshold(use_otsu=True)
+        if self.filter_artifacts:
+            thresholder = ArtifactFilterThreshold(threshold=self.threshold)
         else:
-            thresholder = BinaryThreshold(use_otsu=False, threshold=self.threshold)
+            if self.threshold is None:
+                thresholder = BinaryThreshold(use_otsu=True)
+            else:
+                thresholder = BinaryThreshold(use_otsu=False, threshold=self.threshold)
 
         if not return_contours:
             foreground = ForegroundDetection(
@@ -457,7 +490,7 @@ class TissueDetectionHE(Transform):
         self.pipeline = [
             MedianBlur(kernel_size=self.blur_ksize),
             thresholder,
-            MorphOpen(kernel_size=self.morph_k_size, n_iterations=self.morph_n_iter),
+            # MorphOpen(kernel_size=self.morph_k_size, n_iterations=self.morph_n_iter),
             MorphClose(kernel_size=self.morph_k_size, n_iterations=self.morph_n_iter),
             foreground,
         ]
@@ -475,13 +508,13 @@ class TissueDetectionHE(Transform):
             image.dtype == np.uint8
         ), f"Input image dtype {image.dtype} must be np.uint8"
         # first get single channel image_ref
-        if self.use_sat:
-            one_channel = ConvertColorspace(code=cv2.COLOR_RGB2HSV).apply(image)
-            one_channel = one_channel[:, :, 1]
-        else:
-            one_channel = ConvertColorspace(code=cv2.COLOR_RGB2GRAY).apply(image)
+        # if self.use_sat:
+        #     one_channel = ConvertColorspace(code=cv2.COLOR_RGB2HSV).apply(image)
+        #     one_channel = one_channel[:, :, 1]
+        # else:
+        #     one_channel = ConvertColorspace(code=cv2.COLOR_RGB2GRAY).apply(image)
 
-        tissue = one_channel
+        tissue = image
         for p in self.pipeline:
             tissue = p.apply(tissue)
         return tissue
