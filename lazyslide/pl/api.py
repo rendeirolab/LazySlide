@@ -4,6 +4,7 @@ from lazyslide.wsi import WSI
 from .viewer import SlideViewer
 
 
+# TODO: Plot tissue ID at the center of tissue piece
 def tissue(
     wsi: WSI,
     level="auto",

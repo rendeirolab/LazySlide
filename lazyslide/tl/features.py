@@ -1,10 +1,18 @@
 from __future__ import annotations
 
 from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import Manager
 from pathlib import Path
 from typing import Callable, Any
 
 import numpy as np
+from rich.progress import (
+    Progress,
+    TextColumn,
+    BarColumn,
+    TaskProgressColumn,
+    TimeRemainingColumn,
+)
 
 from lazyslide import WSI
 from lazyslide.data.datasets import WSIImageDataset
@@ -81,22 +89,44 @@ def feature_extraction(
     model.eval()
 
     # Create dataloader
-    # Auto chunk the wsi tile coordinates to the number of workers
+    # Auto chunk the wsi tile coordinates to the number of workers'
+    tiles_count = len(wsi.sdata.points[tile_key])
+
+    pbar = Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(bar_width=30),
+        TaskProgressColumn(),
+        TimeRemainingColumn(compact=True, elapsed_when_finished=True),
+    )
+    task = pbar.add_task("Extracting features", total=tiles_count)
+    pbar.start()
+
     if mode == "chunk":
         if num_workers == 0:
             num_workers = 1
 
-        with ProcessPoolExecutor(max_workers=num_workers) as executor:
-            wsi.reader.detach_reader()
-            chunks = chunker(np.arange(len(wsi.sdata.points[tile_key])), num_workers)
-            dataset = WSIImageDataset(wsi, transform=transform, key=tile_key)
-            futures = [
-                executor.submit(_inference, dataset, chunk, model) for chunk in chunks
-            ]
-            features = []
-            for f in futures:
-                features += f.result()
-            features = np.vstack(features)
+        with Manager() as manager:
+            queue = manager.Queue()
+
+            with ProcessPoolExecutor(max_workers=num_workers) as executor:
+                wsi.reader.detach_reader()
+                chunks = chunker(np.arange(tiles_count), num_workers)
+                dataset = WSIImageDataset(wsi, transform=transform, key=tile_key)
+                futures = [
+                    executor.submit(_inference, dataset, chunk, model, queue)
+                    for chunk in chunks
+                ]
+                while any(future.running() for future in futures):
+                    if queue.empty():
+                        continue
+                    _ = queue.get()
+                    pbar.update(task, advance=1)
+
+                features = []
+                for f in futures:
+                    features += f.result()
+                features = np.vstack(features)
+
     else:
         dataset = WSIImageDataset(wsi, transform=transform, key=tile_key)
         loader = DataLoader(
@@ -104,12 +134,14 @@ def feature_extraction(
         )
         # Extract features
         features = []
-        for batch in loader:
-            with torch.inference_mode():
+        with torch.inference_mode():
+            for batch in loader:
                 output = model(batch.to(device))
                 features.append(output.cpu().numpy())
+                pbar.update(task, advance=batch_size)
         features = np.vstack(features)
 
+    pbar.stop()
     # Write features to WSI
     wsi.add_features(features, tile_key, model_name)
 
@@ -126,7 +158,7 @@ def chunker(seq, num_workers):
     return out
 
 
-def _inference(dataset, chunk, model):
+def _inference(dataset, chunk, model, queue):
     import torch
 
     with torch.inference_mode():
@@ -137,4 +169,5 @@ def _inference(dataset, chunk, model):
             img = img.unsqueeze(0)
             output = model(img)
             X.append(output.cpu().numpy())
+            queue.put(1)
     return X

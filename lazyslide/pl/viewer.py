@@ -86,6 +86,7 @@ class SlideViewer:
         tile_key="tiles",
     ):
         if tissue_id is None:
+            # TODO: When there is only ONE LEVEL
             if level == "auto":
                 level = _get_best_level(wsi, render_size)
             level_downsample = wsi.metadata.level_downsample[level]
@@ -129,6 +130,7 @@ class SlideViewer:
         else:
             self.bounds = None
 
+        # TODO: Only get tiles when tile_key is not None
         self.tile_key = tile_key
         self.tile_coords = wsi.sdata.points[tile_key][["x", "y"]].compute().to_numpy()
         self.tile_spec = wsi.get_tile_spec(tile_key)
