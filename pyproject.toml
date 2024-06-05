@@ -1,6 +1,6 @@
 [build-system]
-requires = ["flit_core >=3.2,<4"]
-build-backend = "flit_core.buildapi"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "lazyslide"
@@ -20,20 +20,18 @@ dependencies = [
     "openslide-python",
     "matplotlib",
     "legendkit",
-    "requests",
-    "tables",
-    "lazy-imports"
+    "anndata",
+    "spatialdata",
+    "lazy-loader"
 ]
 
+[tool.hatch.version]
+path = "lazyslide/__init__.py"
+
 [project.optional-dependencies]
-vips = [
-    "pyvips",
-]
 all = [
     "timm",
     "scipy",
-    "scikit-image",
-    "huggingface_hub",
     "torch",
     "torchvision",  # >0.15
     "timm",
@@ -50,6 +48,10 @@ dev = [
     "mkdocstrings",
     "mkdocstrings-python",
 ]
+
+# Define entry points
+[project.scripts]
+lazyslide = "lazyslide.__main__:app"
 
 [tool.ruff]
 ignore = ["F401"]

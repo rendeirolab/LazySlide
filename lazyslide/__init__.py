@@ -1,12 +1,25 @@
-"""Working with whole slide imaging"""
+import lazy_loader as lazy
+
 __version__ = "0.1.0"
 
-from .wsi import WSI
-from .utils import get_reader
-from .filter import SobelFilter, BlurFilter, FocusLiteFilter
+subpackages = [
+    "pp",
+    "tl",
+    "pl",
+    "get",
+]
 
 
-def about():
-    """Provide current information for the Lazyslide"""
-    print("Version:", __version__)
-    print("Backend:", get_reader().__name__)
+__getattr__, __dir__, __all__ = lazy.attach(
+    __name__,
+    submodules=subpackages,
+    submod_attrs={
+        "wsi": ["WSI"],
+    },
+)
+
+# from .wsi import WSI
+# import lazyslide.pp as pp
+# import lazyslide.tl as tl
+# import lazyslide.pl as pl
+# import lazyslide.get as get

@@ -86,3 +86,10 @@ os.environ['PATH'] = vipsbin + ';' + os.environ['PATH']
 
 import pyvips as vips
 ```
+
+```shell
+
+nextflow run lazyslide --annotations slides.csv --output output --tiles 256 \
+--mpp 0.5 --model resnet50 --batch 16 --color_normalize macenko
+
+```
