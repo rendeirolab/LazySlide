@@ -22,7 +22,9 @@ dependencies = [
     "legendkit",
     "anndata",
     "spatialdata",
-    "lazy-loader"
+    "lazy-loader",
+    "rich",
+    "ipywidgets",
 ]
 
 [tool.hatch.version]
