@@ -48,6 +48,8 @@ def feature_extraction(
     batch_size=32,
     num_workers=0,
     mode="batch",  # "batch" or "chunk"
+    pbar: bool = True,
+    return_features: bool = False,
     **kwargs,
 ):
     try:
@@ -97,53 +99,60 @@ def feature_extraction(
         BarColumn(bar_width=30),
         TaskProgressColumn(),
         TimeRemainingColumn(compact=True, elapsed_when_finished=True),
+        disable=not pbar,
     )
     task = pbar.add_task("Extracting features", total=tiles_count)
     pbar.start()
 
-    if mode == "chunk":
-        if num_workers == 0:
-            num_workers = 1
+    try:
+        if mode == "chunk":
+            if num_workers == 0:
+                num_workers = 1
 
-        with Manager() as manager:
-            queue = manager.Queue()
+            with Manager() as manager:
+                queue = manager.Queue()
 
-            with ProcessPoolExecutor(max_workers=num_workers) as executor:
-                wsi.reader.detach_reader()
-                chunks = chunker(np.arange(tiles_count), num_workers)
-                dataset = WSIImageDataset(wsi, transform=transform, key=tile_key)
-                futures = [
-                    executor.submit(_inference, dataset, chunk, model, queue)
-                    for chunk in chunks
-                ]
-                while any(future.running() for future in futures):
-                    if queue.empty():
-                        continue
-                    _ = queue.get()
-                    pbar.update(task, advance=1)
+                with ProcessPoolExecutor(max_workers=num_workers) as executor:
+                    wsi.reader.detach_reader()
+                    chunks = chunker(np.arange(tiles_count), num_workers)
+                    dataset = WSIImageDataset(wsi, transform=transform, key=tile_key)
+                    futures = [
+                        executor.submit(_inference, dataset, chunk, model, queue)
+                        for chunk in chunks
+                    ]
+                    while any(future.running() for future in futures):
+                        if queue.empty():
+                            continue
+                        _ = queue.get()
+                        pbar.update(task, advance=1)
 
-                features = []
-                for f in futures:
-                    features += f.result()
-                features = np.vstack(features)
+                    features = []
+                    for f in futures:
+                        features += f.result()
+                    features = np.vstack(features)
 
-    else:
-        dataset = WSIImageDataset(wsi, transform=transform, key=tile_key)
-        loader = DataLoader(
-            dataset, batch_size=batch_size, num_workers=num_workers, **kwargs
-        )
-        # Extract features
-        features = []
-        with torch.inference_mode():
-            for batch in loader:
-                output = model(batch.to(device))
-                features.append(output.cpu().numpy())
-                pbar.update(task, advance=batch_size)
-        features = np.vstack(features)
+        else:
+            dataset = WSIImageDataset(wsi, transform=transform, key=tile_key)
+            loader = DataLoader(
+                dataset, batch_size=batch_size, num_workers=num_workers, **kwargs
+            )
+            # Extract features
+            features = []
+            with torch.inference_mode():
+                for batch in loader:
+                    output = model(batch.to(device))
+                    features.append(output.cpu().numpy())
+                    pbar.update(task, advance=batch_size)
+            features = np.vstack(features)
+        pbar.stop()
+    except KeyboardInterrupt:
+        pbar.stop()
+        raise KeyboardInterrupt
 
-    pbar.stop()
     # Write features to WSI
     wsi.add_features(features, tile_key, model_name)
+    if return_features:
+        return features
 
 
 def chunker(seq, num_workers):
