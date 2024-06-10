@@ -138,6 +138,10 @@ def tiles(
         ops_stride_w, ops_stride_h = stride_w, stride_h
 
     # Get contours
+    if f"{tissue_key}_contours" not in wsi.sdata.shapes:
+        raise ValueError(
+            f"Contour {tissue_key}_contours not found. " f"Did you run pp.find_tissue?"
+        )
     contours = wsi.sdata.shapes[f"{tissue_key}_contours"]
     if f"{tissue_key}_holes" in wsi.sdata.shapes:
         holes = wsi.sdata.shapes[f"{tissue_key}_holes"]
@@ -266,11 +270,12 @@ def score_tiles(
         The key of the tiles
 
     """
-
+    if key not in wsi.sdata.points:
+        raise ValueError(f"Tile {key} not found.")
     tiles_tb = wsi.sdata.points[key]
     if hasattr(tiles_tb, "compute"):
         tiles_tb = tiles_tb.compute()
-    spec = TileSpec(**wsi.sdata.tables[f"{key}_spec"].uns["tile_spec"])
+    spec = TileSpec(**wsi.sdata.tables[f"{key}_spec"].uns["tiles_spec"])
 
     # Get the score function and name
     if isinstance(scorer, ScorerBase):
