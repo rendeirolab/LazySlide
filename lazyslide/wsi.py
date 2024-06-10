@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from fsspec import open
 from fsspec.core import OpenFile
+from fsspec.implementations.cached import WholeFileCacheFileSystem
 from pydantic import BaseModel
 
 from .reader import get_reader
@@ -100,7 +101,7 @@ class SlideData:
         if isinstance(spec, dict):
             spec = TileSpec(**spec)
         spec = spec.model_dump()
-        ref_adata = ad.AnnData(uns={"tile_spec": spec})
+        ref_adata = ad.AnnData(uns={"tiles_spec": spec})
         self.sdata.tables[f"{name}_spec"] = ref_adata
 
     def add_tile_annotations(self, annotations: Dict[str, Sequence], name: str):
@@ -125,26 +126,10 @@ class SlideData:
         feature_adata = ad.AnnData(X=features)
         self.sdata.tables[f"{tile_name}/{feature_name}"] = feature_adata
 
-    def add_metadata(self, metadata: dict):
-        if "metadata" in self.sdata.tables:
-            self.sdata.tables["metadata"].uns["metadata"].update(metadata)
-        self.sdata.tables["metadata"] = ad.AnnData(uns={"metadata": metadata})
-
-    def to_tile_anndata(self, tile_name: str, feature_name: str = None):
-        if feature_name is not None:
-            feature_table = self.sdata.tables[f"{tile_name}/{feature_name}"]
-            X = feature_table.X
-            var = feature_table.var
-        else:
-            X = None
-            var = None
-
-        tile_table = self.sdata.tables[f"{tile_name}_table"]
-        spec_table = self.sdata.tables[f"{tile_name}_spec"]
-        obs = tile_table.obs
-        return ad.AnnData(
-            X=X, obs=obs, var=var, uns=spec_table.uns, obsm=spec_table.obsm
-        )
+    def add_slide_annotations(self, annotations: dict):
+        if "annotations" in self.sdata.tables:
+            self.sdata.tables["annotations"].uns["annotations"].update(annotations)
+        self.sdata.tables["annotations"] = ad.AnnData(uns={"annotations": annotations})
 
     def write(self, file=None, overwrite=True, **kws):
         if file is None:
@@ -156,12 +141,42 @@ class SlideData:
 
 
 class WSI(SlideData):
+    """Whole-slide image data
+
+    Parameters
+    ----------
+    slide : Any
+        The slide file or URL. You can use any file path or URL.
+    backed_file : str, optional
+        The backed file path, by default will create
+        a zarr file with the same name as the slide file.
+    reader : str, optional
+        The reader type, by default "auto"
+
+
+    """
+
     def __init__(self, slide: Any, backed_file=None, reader="auto", **kwargs):
-        # TODO: Use fsspec to download remote slide to temporary file
+        # Check if the slide is a file or URL
         self.slide = str(slide)
-        open(self.slide)
+        self.slide_origin = self.slide
+        slide_openfile = open(self.slide)
+        if not slide_openfile.fs.exists(self.slide):
+            raise ValueError(f"Slide {self.slide} not found.")
+
+        # Early attempt with reader
         reader_cls = get_reader(reader)
+
+        # Try to download remote slide when possible
+        if slide_openfile.fs.protocol != "file":
+            # Download the slide to a temporary file
+            cfs = WholeFileCacheFileSystem(fs=slide_openfile.fs)
+            cache_slide = cfs.open(self.slide)
+            self.slide = cache_slide.name
+            self.slide_origin = cache_slide.original
+
         self.reader = reader_cls(self.slide, **kwargs)
+
         if backed_file is None:
             self.backed_file = Path(slide).with_suffix(".zarr")
         super().__init__(self.backed_file)
@@ -171,7 +186,7 @@ class WSI(SlideData):
         return self.reader.metadata
 
     def get_tile_spec(self, key) -> TileSpec:
-        return TileSpec(**self.sdata.tables[f"{key}_spec"].uns["tile_spec"])
+        return TileSpec(**self.sdata.tables[f"{key}_spec"].uns["tiles_spec"])
 
     def get_region(self, x, y, width, height, level=0, **kwargs):
         return self.reader.get_region(x, y, width, height, level=level, **kwargs)
