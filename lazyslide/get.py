@@ -99,18 +99,39 @@ def pyramids(wsi):
     )
 
 
-# def to_anndata(wsi,
-#                tile_key="tiles",
-#                feature_key=None,
-#                ):
-#     """Convert the WSI to an AnnData object"""
-#     import anndata as ad
-#     adata = ad.AnnData(X=wsi.sdata.points["tiles"].to_pandas())
-#     slide_metadata = wsi.sdata.tables["metadata"].uns["metadata"]
-#     slide_properties = wsi.metadata
-#     adata.uns = {"metadata": slide_metadata, "properties": slide_properties}
-#     for key, table in wsi.sdata.tables.items():
-#         if key == "metadata":
-#             continue
-#         adata.uns[key] = table.to_pandas()
-#     return adata
+def tiles_anndata(
+    wsi,
+    tile_key="tiles",
+    feature_key=None,
+):
+    """Convert the WSI to an AnnData object"""
+    import anndata as ad
+
+    X, var = None, None
+    if feature_key is not None:
+        feature_tb = wsi.sdata.tables[f"{tile_key}/{feature_key}"]
+        X = feature_tb.X
+        var = feature_tb.var
+
+    obs = wsi.sdata.points[tile_key].compute()
+    obs.index = obs.index.astype(str)
+    spatial = obs[["x", "y"]].values
+
+    adata = ad.AnnData(
+        X=X,
+        var=var,
+        obs=obs,
+        obsm={"spatial": spatial},
+    )
+    if "annotations" in wsi.sdata.tables:
+        slide_annotations = wsi.sdata.tables["annotations"].uns["annotations"]
+    else:
+        slide_annotations = {}
+    adata.uns = {
+        "annotations": slide_annotations,
+        "metadata": wsi.metadata.model_dump(),
+    }
+    for key, table in wsi.sdata.tables.items():
+        if key == f"{tile_key}_spec":
+            adata.uns[key] = table.uns["tiles_spec"]
+    return adata
