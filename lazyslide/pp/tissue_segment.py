@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 
 import numpy as np
 
@@ -27,8 +28,15 @@ def find_tissue(
     # Get optimal level for segmentation
     if level is None:
         metadata = wsi.metadata
-        search_space = np.asarray(metadata.level_downsample) * metadata.mpp
-        level = np.argmin(np.abs(search_space - TARGET))
+        if metadata.mpp is None:
+            # Use the middle level
+            level = metadata.n_level // 2
+            warnings.warn(
+                f"mpp is not available, " f"use level {level} for segmentation."
+            )
+        else:
+            search_space = np.asarray(metadata.level_downsample) * metadata.mpp
+            level = np.argmin(np.abs(search_space - TARGET))
     else:
         level = wsi.reader.translate_level(level)
 
@@ -63,6 +71,9 @@ def find_tissue(
             holes.append((hole * downsample))
             holes_ids.append(tissue.id)
 
+    if len(contours) == 0:
+        logging.warning("No tissue is found.")
+        return
     wsi.add_contours(contours, data={"tissue_id": contours_ids}, name=f"{key}_contours")
     if len(holes) > 0:
         wsi.add_holes(holes, data={"tissue_id": holes_ids}, name=f"{key}_holes")
