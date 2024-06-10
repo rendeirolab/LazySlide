@@ -18,6 +18,7 @@ def tiles(
     stride_px: int = None,
     edge: bool = False,
     mpp: float = None,
+    slide_mpp: float = None,
     tolerance: float = 0.05,
     background_fraction: float = 0.3,
     min_pts: int = 3,
@@ -42,6 +43,8 @@ def tiles(
         Whether to include the edge tiles
     mpp : float
         The requested mpp of the tiles, if None, use the slide mpp
+    slide_mpp : float
+        This value will override the slide mpp
     tolerance : float
         The tolerance when matching the mpp
     background_fraction : float
@@ -96,37 +99,37 @@ def tiles(
     run_downsample = False
     if mpp is None:
         mpp = wsi.metadata.mpp
-    else:
-        if wsi.metadata.mpp is not None:
-            downsample = mpp / wsi.metadata.mpp
+    if slide_mpp is not None:
+        slide_mpp = wsi.metadata.mpp
+        downsample = mpp / slide_mpp
 
-            lower_ds = downsample - tolerance
-            upper_ds = downsample + tolerance
-            if lower_ds < 1 < upper_ds:
-                downsample = 1
+        lower_ds = downsample - tolerance
+        upper_ds = downsample + tolerance
+        if lower_ds < 1 < upper_ds:
+            downsample = 1
 
-            if downsample < 1:
-                raise ValueError(
-                    f"Cannot perform resize operation "
-                    f"with reqeust mpp={mpp} on image"
-                    f"mpp={wsi.metadata.mpp}, this will"
-                    f"require up-scaling of image."
-                )
-            elif downsample == 1:
-                ops_level = 0
-            else:
-                for ix, level_downsample in enumerate(wsi.metadata.level_downsample):
-                    if lower_ds < level_downsample < upper_ds:
-                        downsample = level_downsample
-                        ops_level = ix
-                else:
-                    run_downsample = True
+        if downsample < 1:
+            raise ValueError(
+                f"Cannot perform resize operation "
+                f"with reqeust mpp={mpp} on image"
+                f"mpp={slide_mpp}, this will"
+                f"require up-scaling of image."
+            )
+        elif downsample == 1:
+            ops_level = 0
         else:
-            msg = f"{wsi.file} does not contain MPP."
-            if errors:
-                raise ValueError(msg)
+            for ix, level_downsample in enumerate(wsi.metadata.level_downsample):
+                if lower_ds < level_downsample < upper_ds:
+                    downsample = level_downsample
+                    ops_level = ix
             else:
-                warnings.warn(msg)
+                run_downsample = True
+    else:
+        msg = f"{wsi.file} does not contain MPP."
+        if errors == "raise":
+            raise ValueError(msg)
+        else:
+            warnings.warn(msg)
 
     if run_downsample:
         ops_tile_w = int(tile_w * downsample)
