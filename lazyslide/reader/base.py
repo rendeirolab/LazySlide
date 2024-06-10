@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 from functools import singledispatch
-from typing import List, Optional, Tuple, Mapping
+from typing import Optional, List, Mapping
 
 import cv2
 import numpy as np
 from PIL import Image
 from pydantic import BaseModel
 
-SHAPE = Tuple[int, int]
+# Tuple is not serializable for anndata
+SHAPE = List[int]
 
 
 class SlideMetadata(BaseModel):
