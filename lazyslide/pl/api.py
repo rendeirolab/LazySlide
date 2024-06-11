@@ -11,6 +11,8 @@ def tissue(
     tissue_id=None,
     tissue_key="tissue",
     show_contours=True,
+    show_origin=True,
+    show_id=True,
     render_size=1000,
     ax=None,
 ):
