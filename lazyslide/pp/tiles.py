@@ -99,8 +99,10 @@ def tiles(
     run_downsample = False
     if mpp is None:
         mpp = wsi.metadata.mpp
-    if slide_mpp is not None:
+    if slide_mpp is None:
         slide_mpp = wsi.metadata.mpp
+        
+    if slide_mpp is not None:
         downsample = mpp / slide_mpp
 
         lower_ds = downsample - tolerance
