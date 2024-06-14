@@ -15,7 +15,7 @@ from rich.progress import (
 )
 
 from lazyslide import WSI
-from lazyslide.data.datasets import WSIImageDataset
+from lazyslide.data.datasets import TileImagesDataset
 
 
 def get_default_transform():
@@ -124,7 +124,7 @@ def feature_extraction(
                 with ProcessPoolExecutor(max_workers=num_workers) as executor:
                     wsi.reader.detach_reader()
                     chunks = chunker(np.arange(tiles_count), num_workers)
-                    dataset = WSIImageDataset(wsi, transform=transform, key=tile_key)
+                    dataset = TileImagesDataset(wsi, transform=transform, key=tile_key)
                     futures = [
                         executor.submit(
                             _inference, dataset, chunk, model, queue, model_func
@@ -143,7 +143,7 @@ def feature_extraction(
                     features = np.vstack(features)
 
         else:
-            dataset = WSIImageDataset(wsi, transform=transform, key=tile_key)
+            dataset = TileImagesDataset(wsi, transform=transform, key=tile_key)
             loader = DataLoader(
                 dataset, batch_size=batch_size, num_workers=num_workers, **kwargs
             )

@@ -5,6 +5,7 @@ from typing import Any, Optional, Dict, Sequence
 
 import numpy as np
 import pandas as pd
+import xarray
 from fsspec import open
 from fsspec.core import OpenFile
 from fsspec.implementations.cached import WholeFileCacheFileSystem
@@ -156,8 +157,13 @@ class WSI(SlideData):
 
     """
 
-    def __init__(self, slide: Any, backed_file=None, reader="auto", **kwargs):
+    def __init__(
+        self, slide: Any, backed_file=None, reader="auto", cache_dir=None, **kwargs
+    ):
         # Check if the slide is a file or URL
+        from spatial_image import SpatialImage
+        from multiscale_spatial_image import MultiscaleSpatialImage
+
         self.slide = str(slide)
         self.slide_origin = self.slide
         slide_openfile = open(self.slide)
@@ -166,20 +172,40 @@ class WSI(SlideData):
 
         # Early attempt with reader
         reader_cls = get_reader(reader)
-
-        # Try to download remote slide when possible
-        if slide_openfile.fs.protocol != "file":
-            # Download the slide to a temporary file
-            cfs = WholeFileCacheFileSystem(fs=slide_openfile.fs)
-            cache_slide = cfs.open(self.slide)
-            self.slide = cache_slide.name
-            self.slide_origin = cache_slide.original
+        if reader_cls.name == "tiffslide":
+            self.reader = reader_cls(self.slide, **kwargs)
+        else:
+            # Try to download remote slide when possible
+            if slide_openfile.fs.protocol != "file":
+                # Download the slide to a temporary file
+                if cache_dir is None:
+                    cache_dir = "TMP"
+                cfs = WholeFileCacheFileSystem(
+                    fs=slide_openfile.fs, cache_storage=cache_dir
+                )
+                cache_slide = cfs.open(self.slide)
+                self.slide = cache_slide.name
+                self.slide_origin = cache_slide.original
 
         self.reader = reader_cls(self.slide, **kwargs)
 
         if backed_file is None:
             self.backed_file = Path(slide).with_suffix(".zarr")
         super().__init__(self.backed_file)
+
+    def __repr__(self):
+        return (
+            f"Slide: {self.slide}\n"
+            f"Backed Zarr: {self.backed_file}\n"
+            f"Reader: {self.reader.name}\n"
+            f"{self.sdata}"
+        )
+
+    # def _repr_html_(self):
+    #     return (f"<h3>Slide: {self.slide}</h3>"
+    #             f"<h3>Backed Zarr: {self.backed_file}</h3>"
+    #             f"<h3>Reader: {self.reader.name}</h3>"
+    #             f"{self.sdata}")
 
     @property
     def metadata(self):

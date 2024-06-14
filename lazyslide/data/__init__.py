@@ -1,1 +1,1 @@
-from .datasets import WSIImageDataset
+from .datasets import TileImagesDataset

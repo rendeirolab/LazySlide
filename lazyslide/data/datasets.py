@@ -11,7 +11,7 @@ except ImportError:
     DataLoader = object
 
 
-class WSIImageDataset(Dataset):
+class TileImagesDataset(Dataset):
     def __init__(
         self,
         wsi: WSI,
@@ -69,16 +69,28 @@ class WSIImageDataset(Dataset):
         return tile
 
 
+class TileFeatureDataset(Dataset):
+    pass
+
+
+class GraphDataset(Dataset):
+    pass
+
+
 class WSIListDataset(Dataset):
     def __init__(
         self,
-        wsi_list: List[WSI],
+        wsi_list: List[WSI | str],
         targets: pd.DataFrame = None,
         transform=None,
         target_transform=None,
+        wsi_init_fn=None,
     ):
         self.wsi_list = wsi_list
         self.transform = transform
+
+        if targets is not None:
+            self.targets = targets.to_numpy()
 
 
 class ImageLoader(DataLoader):

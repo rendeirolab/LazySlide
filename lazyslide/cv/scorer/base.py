@@ -1,3 +1,5 @@
+from typing import Dict
+
 import numpy as np
 
 
@@ -23,7 +25,8 @@ class ScorerBase:
         """Get scores for a patch"""
         raise NotImplementedError
 
-    def get_scores(self, patches) -> np.ndarray:
+    def get_scores(self, patches) -> Dict[str, np.ndarray]:
         """Get scores for a list of patches"""
-        scores = [self.get_score(patch) for patch in patches]
-        return np.array(scores)
+        # scores = [self.get_score(patch) for patch in patches]
+        # return np.array(scores)
+        raise NotImplementedError
