@@ -25,6 +25,15 @@ class SlideMetadata(BaseModel):
         metadata = parse_metadata(metadata)
         return SlideMetadata(**metadata)
 
+    def _repr_html_(self):
+        return (
+            "<h4>Slide Metadata</h4><table><tr><th>Field</th><th>Value</th></tr>"
+            + "".join(
+                f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in self.dict().items()
+            )
+            + "</table>"
+        )
+
 
 class ReaderBase:
     file: str
@@ -88,24 +97,29 @@ def _(img: Image.Image):
     return cv2.cvtColor(np.asarray(img), cv2.COLOR_RGBA2RGB).astype(np.uint8)
 
 
-MAG_KEY = "openslide.objective-power"
-MPP_KEYS = ("openslide.mpp-x", "openslide.mpp-y")
-N_LEVEL_KEY = "openslide.level-count"
+MAG_KEY = "objective-power"
+MPP_KEYS = ("mpp-x", "mpp-y")
 
-LEVEL_HEIGHT_KEY = lambda level: f"openslide.level[{level}].height"  # noqa: E731
-LEVEL_WIDTH_KEY = lambda level: f"openslide.level[{level}].width"  # noqa: E731
-LEVEL_DOWNSAMPLE_KEY = lambda level: f"openslide.level[{level}].downsample"  # noqa: E731
+LEVEL_HEIGHT_KEY = lambda level: f"level[{level}].height"  # noqa: E731
+LEVEL_WIDTH_KEY = lambda level: f"level[{level}].width"  # noqa: E731
+LEVEL_DOWNSAMPLE_KEY = lambda level: f"level[{level}].downsample"  # noqa: E731
 
 
 def parse_metadata(metadata: Mapping):
+    metadata = dict(metadata)
+    new_metadata = {}
+    for k, v in metadata.items():
+        new_metadata[".".join(k.split(".")[1::])] = v
+    metadata.update(new_metadata)
+
     fields = set(metadata.keys())
 
     mpp_keys = []
     # openslide specific mpp keys
-    for k in MPP_KEYS:
-        if k in fields:
-            mpp_keys.append(k)
-    # search other available mpp keys
+    if MPP_KEYS[0] in fields:
+        mpp_keys.append(MPP_KEYS[0])
+    if MPP_KEYS[1] in fields:
+        mpp_keys.append(MPP_KEYS[1])
     for k in fields:
         # Any keys end with .mpp
         if k.lower().endswith("mpp"):
@@ -118,11 +132,10 @@ def parse_metadata(metadata: Mapping):
             mpp = float(mpp_tmp)
 
     # search magnification
+    # search other available mpp keys
     mag_keys = []
     if MAG_KEY in fields:
         mag_keys.append(MAG_KEY)
-
-    # search other available mpp keys
     for k in fields:
         # Any keys end with .mpp
         if k.lower().endswith("appmag"):
@@ -134,29 +147,26 @@ def parse_metadata(metadata: Mapping):
         if mag_tmp is not None:
             mag = float(mag_tmp)
 
-    # TODO: Do we need to handle when level-count is 0?
-    n_level = 1
     level_shape = []
     level_downsample = []
-    shape = (None, None)
 
-    if N_LEVEL_KEY in fields:
-        n_level_tmp = metadata.get(N_LEVEL_KEY)
-        if n_level_tmp is not None:
-            n_level = int(n_level_tmp)
+    # Get the number of levels
+    n_level = 0
+    while f"level[{n_level}].width" in fields:
+        n_level += 1
 
-        for level in range(n_level):
-            height = metadata.get(LEVEL_HEIGHT_KEY(level))
-            width = metadata.get(LEVEL_WIDTH_KEY(level))
-            downsample = metadata.get(LEVEL_DOWNSAMPLE_KEY(level))
+    for level in range(n_level):
+        height = metadata.get(LEVEL_HEIGHT_KEY(level))
+        width = metadata.get(LEVEL_WIDTH_KEY(level))
+        downsample = metadata.get(LEVEL_DOWNSAMPLE_KEY(level))
 
-            level_shape.append((int(height), int(width)))
+        level_shape.append((int(height), int(width)))
 
-            if downsample is not None:
-                downsample = float(downsample)
-            level_downsample.append(downsample)
+        if downsample is not None:
+            downsample = float(downsample)
+        level_downsample.append(downsample)
 
-        shape = level_shape[0]
+    shape = level_shape[0]
 
     metadata = {
         "mpp": mpp,
