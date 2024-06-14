@@ -26,7 +26,10 @@ def tissue(
         tissue_id=tissue_id,
     )
     slide.add_tissue(ax=ax)
-    slide.add_origin(ax=ax)
+    if show_origin:
+        slide.add_origin(ax=ax)
+    if show_id:
+        slide.add_tissue_id(ax=ax)
     if show_contours:
         slide.add_contours_holes(ax=ax)
 

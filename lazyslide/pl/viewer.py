@@ -132,8 +132,11 @@ class SlideViewer:
 
         # TODO: Only get tiles when tile_key is not None
         self.tile_key = tile_key
-        self.tile_coords = wsi.sdata.points[tile_key][["x", "y"]].compute().to_numpy()
-        self.tile_spec = wsi.get_tile_spec(tile_key)
+        if self.tile_key is None:
+            self.tile_coords = (
+                wsi.sdata.points[tile_key][["x", "y"]].compute().to_numpy()
+            )
+            self.tile_spec = wsi.get_tile_spec(tile_key)
 
     def add_tissue(self, title=None, ax=None, scale_bar=True):
         from matplotlib.lines import Line2D
@@ -313,6 +316,35 @@ class SlideViewer:
         tissue_key = self.tissue_key
         self._draw_cnt(f"{tissue_key}_contours", ax, contour_color, linewidth, alpha)
         self._draw_cnt(f"{tissue_key}_holes", ax, hole_color, linewidth, alpha)
+
+    def _draw_cnt_anno(self, key, ax, fmt=None, **kwargs):
+        default_style = dict(
+            fontsize=10,
+            color="black",
+            ha="center",
+            va="center",
+            bbox=dict(facecolor="white"),
+        )
+        kwargs = {**default_style, **kwargs}
+        if key in self.wsi.sdata.shapes:
+            shapes = self.wsi.sdata.shapes[key]
+            if self.tissue_id is not None:
+                shapes = shapes[shapes["tissue_id"] == self.tissue_id]
+            for _, row in shapes.iterrows():
+                centroid = row.geometry.centroid
+                x, y = centroid.x / self.downsample, centroid.y / self.downsample
+                tissue_id = row.tissue_id
+                text = tissue_id
+                if fmt is not None:
+                    text = fmt.format(tissue_id)
+                ax.text(x, y, text, **kwargs)
+
+    def add_tissue_id(self, ax=None, fmt=None, **kwargs):
+        if ax is None:
+            ax = plt.gca()
+
+        tissue_key = self.tissue_key
+        self._draw_cnt_anno(f"{tissue_key}_contours", ax, **kwargs)
 
     def save(self, filename, **kwargs):
         kwargs.update(dict(bbox_inches="tight"))
