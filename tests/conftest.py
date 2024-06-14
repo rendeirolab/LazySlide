@@ -10,10 +10,6 @@ OPENSLIDE_DOWNLOAD_URL = (
     "https://github.com/openslide/openslide-bin/releases/download/"
     "v20231011/openslide-win64-20231011.zip"
 )
-LIBVIPS_DOWNLOAD_URL = (
-    "https://github.com/libvips/build-win64-mxe/releases/download/"
-    "v8.15.1/vips-dev-w64-all-8.15.1.zip"
-)
 
 
 def download_file(url, target):
@@ -37,10 +33,6 @@ def load_module_windows():
             openslide_folder = download_file(OPENSLIDE_DOWNLOAD_URL, target)
             os.rename(target / openslide_folder, target / "openslide")
 
-        if not Path(target / "vips").exists():
-            vips_folder = download_file(LIBVIPS_DOWNLOAD_URL, target)
-            os.rename(target / vips_folder, target / "vips")
-
 
 def import_windows_modules():
     if platform.system() == "Windows":
@@ -48,6 +40,3 @@ def import_windows_modules():
         print(target)
         with os.add_dll_directory(str(target / "openslide" / "bin")):
             import openslide
-
-        os.environ["PATH"] = str(target / "vips" / "bin") + ";" + os.environ["PATH"]
-        import pyvips
