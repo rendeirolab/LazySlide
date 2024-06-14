@@ -1,9 +1,54 @@
+from collections import namedtuple
+from typing import Literal
+
 import cv2
 import numpy as np
 import pandas as pd
 
+TissueContour = namedtuple("TissueContour", ["id", "contour", "holes"])
 
-def tissue_images(wsi, tissue_key="tissue", level=0, mask_bg=False):
+
+def tissue_contours(
+    wsi,
+    key="tissue",
+    return_type: Literal["shapely", "numpy"] = "shapely",
+):
+    if f"{key}_contours" not in wsi.sdata.shapes:
+        raise ValueError(f"Contour {key}_contours not found.")
+    contours = wsi.sdata.shapes[f"{key}_contours"]
+    if f"{key}_holes" in wsi.sdata.shapes:
+        holes = wsi.sdata.shapes[f"{key}_holes"]
+    else:
+        holes = None
+
+    for ix, cnt in contours.iterrows():
+        tissue_id = cnt["tissue_id"]
+        if holes is not None:
+            hs = holes[holes["tissue_id"] == tissue_id].geometry.tolist()
+            if return_type == "numpy":
+                hs = [np.array(h.exterior.coords, dtype=np.int32) for h in hs]
+        else:
+            hs = []
+        if return_type == "numpy":
+            yield TissueContour(
+                id=tissue_id,
+                contour=np.array(cnt.geometry.exterior.coords, dtype=np.int32),
+                holes=hs,
+            )
+        else:
+            yield TissueContour(id=tissue_id, contour=cnt.geometry, holes=hs)
+
+
+TissueImage = namedtuple("TissueImage", ["id", "x", "y", "image"])
+
+
+def tissue_images(
+    wsi,
+    tissue_key="tissue",
+    level=0,
+    mask_bg=False,
+    color_norm: str = None,
+):
     """Extract tissue images from the WSI.
 
     Parameters
@@ -19,13 +64,20 @@ def tissue_images(wsi, tissue_key="tissue", level=0, mask_bg=False):
         If False, the background is not masked.
         If True, the background is masked with 0.
         If an integer, the background is masked with the given value.
+    color_norm : str, {"macenko", "reinhard"}, default: None
+        Color normalization method.
 
     """
-    if f"{tissue_key}_contours" not in wsi.sdata.shapes:
-        raise ValueError(f"Contour {tissue_key}_contours not found.")
-    contours = wsi.sdata.shapes[f"{tissue_key}_contours"]
-    tissue_bboxes = contours.bounds
+
     level_downsample = wsi.metadata.level_downsample[level]
+    if color_norm is not None:
+        from lazyslide.cv.colornorm import ColorNormalizer
+
+        cn = ColorNormalizer(method=color_norm)
+        cn_func = lambda x: cn(x).numpy()  # noqa
+    else:
+        cn_func = lambda x: x  # noqa
+
     if isinstance(mask_bg, bool):
         do_mask = mask_bg
         if do_mask:
@@ -33,25 +85,35 @@ def tissue_images(wsi, tissue_key="tissue", level=0, mask_bg=False):
     else:
         do_mask = True
         mask_bg = mask_bg
-    for ix, (minx, miny, maxx, maxy) in tissue_bboxes.iterrows():
+    for tissue_contour in tissue_contours(wsi, key=tissue_key):
+        ix = tissue_contour.id
+        contour = tissue_contour.contour
+        holes = tissue_contour.holes
+        minx, miny, maxx, maxy = contour.bounds
         x = int(minx)
         y = int(miny)
         w = int(maxx - minx) / level_downsample
         h = int(maxy - miny) / level_downsample
         img = wsi.reader.get_region(x, y, w, h, level=level)
+        img = cn_func(img)
         if do_mask:
-            cnt = contours.geometry[ix]
             mask = np.zeros_like(img[:, :, 0])
             # Offset and scale the contour
             offset_x, offset_y = x / level_downsample, y / level_downsample
-            coords = np.array(cnt.exterior.coords) - [offset_x, offset_y]
+            coords = np.array(contour.exterior.coords) - [offset_x, offset_y]
             coords = (coords / level_downsample).astype(np.int32)
             # Fill the contour with 1
             cv2.fillPoly(mask, [coords], 1)
+
+            # Fill the holes with 0
+            for hole in holes:
+                hole = np.array(hole.exterior.coords) - [offset_x, offset_y]
+                hole = (hole / level_downsample).astype(np.int32)
+                cv2.fillPoly(mask, [hole], 0)
             # Fill everything that is not the contour
             # (which is background) with 0
             img[mask != 1] = mask_bg
-        yield (x, y), img
+        yield TissueImage(id=ix, x=x, y=y, image=img)
 
 
 def tile_images(wsi, tile_key="tiles", raw=True):
@@ -135,3 +197,14 @@ def tiles_anndata(
         if key == f"{tile_key}_spec":
             adata.uns[key] = table.uns["tiles_spec"]
     return adata
+
+
+def n_tissue(wsi, key="tissue"):
+    """Return the number of tissue regions"""
+    cnt = wsi.sdata.shapes[f"{key}_contours"]
+    return cnt["tissue_id"].nunique()
+
+
+def n_tiles(wsi, key="tiles"):
+    """Return the number of tiles"""
+    return wsi.sdata.points[key].shape[0].compute()
