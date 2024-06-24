@@ -8,11 +8,29 @@ import pandas as pd
 TissueContour = namedtuple("TissueContour", ["id", "contour", "holes"])
 
 
+# TODO: Return random tissue images
 def tissue_contours(
     wsi,
     key="tissue",
-    return_type: Literal["shapely", "numpy"] = "shapely",
+    as_array: bool = False,
+    shuffle: bool = False,
+    seed: int = 0,
 ):
+    """A generator to extract tissue contours from the WSI.
+
+    Parameters
+    ----------
+    wsi : WSI
+        The whole-slide image object.
+    key : str, default: "tissue"
+        The tissue key.
+    as_array : bool, default: False
+        Return the contour as an array.
+        If False, the contour is returned as a shapely geometry.
+    shuffle : bool, default: False
+        If True, return tissue contour in random order.
+
+    """
     if f"{key}_contours" not in wsi.sdata.shapes:
         raise ValueError(f"Contour {key}_contours not found.")
     contours = wsi.sdata.shapes[f"{key}_contours"]
@@ -21,15 +39,18 @@ def tissue_contours(
     else:
         holes = None
 
+    if shuffle:
+        contours = contours.sample(frac=1, random_state=seed)
+
     for ix, cnt in contours.iterrows():
         tissue_id = cnt["tissue_id"]
         if holes is not None:
             hs = holes[holes["tissue_id"] == tissue_id].geometry.tolist()
-            if return_type == "numpy":
+            if as_array:
                 hs = [np.array(h.exterior.coords, dtype=np.int32) for h in hs]
         else:
             hs = []
-        if return_type == "numpy":
+        if as_array:
             yield TissueContour(
                 id=tissue_id,
                 contour=np.array(cnt.geometry.exterior.coords, dtype=np.int32),
@@ -116,6 +137,9 @@ def tissue_images(
         yield TissueImage(id=ix, x=x, y=y, image=img)
 
 
+TileImage = namedtuple("TileImage", ["x", "y", "image"])
+
+
 def tile_images(wsi, tile_key="tiles", raw=True):
     """Extract tile images from the WSI.
 
@@ -143,9 +167,13 @@ def tile_images(wsi, tile_key="tiles", raw=True):
             x, y, tile_spec.ops_width, tile_spec.ops_height, level=tile_spec.level
         )
         if raw and not need_transform:
-            yield (x, y), img
+            yield TileImage(x=x, y=y, image=img)
         else:
-            yield (x, y), cv2.resize(img, (tile_spec.width, tile_spec.height))
+            yield TileImage(
+                x=x,
+                y=y,
+                image=cv2.resize(img, (tile_spec.width, tile_spec.height)),
+            )
 
 
 def pyramids(wsi):
