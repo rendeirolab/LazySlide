@@ -12,7 +12,6 @@ class ScorerBase:
     Image -> float
     """
 
-    threshold: float
     name: str = "base_score"
 
     def __call__(self, patch):
@@ -20,6 +19,10 @@ class ScorerBase:
 
     def __repr__(self):
         return f"{self.__class__.__name__}()"
+
+    def filter(self, scores):
+        """Return a boolean mask of the scores"""
+        raise NotImplementedError
 
     def get_score(self, patch) -> float:
         """Get scores for a patch"""

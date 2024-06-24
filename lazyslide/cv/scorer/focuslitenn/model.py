@@ -8,10 +8,9 @@ from lazyslide.cv.scorer.base import ScorerBase
 import lazy_loader
 
 torch = lazy_loader.load("torch")
-nn = lazy_loader.load("torch.nn")
 
 
-class FocusLiteNN(nn.Module):
+class FocusLiteNN(torch.nn.Module):
     """
     A FocusLiteNN model for filtering out-of-focus regions in whole slide images.
     """
@@ -19,13 +18,15 @@ class FocusLiteNN(nn.Module):
     def __init__(self, num_channel=2):
         super().__init__()
         self.num_channel = num_channel
-        self.conv = nn.Conv2d(3, self.num_channel, 7, stride=5, padding=1)  # 47x47
-        self.maxpool = nn.MaxPool2d(kernel_size=47)
+        self.conv = torch.nn.Conv2d(
+            3, self.num_channel, 7, stride=5, padding=1
+        )  # 47x47
+        self.maxpool = torch.nn.MaxPool2d(kernel_size=47)
         if self.num_channel > 1:
-            self.fc = nn.Conv2d(self.num_channel, 1, 1, stride=1, padding=0)
+            self.fc = torch.nn.Conv2d(self.num_channel, 1, 1, stride=1, padding=0)
 
         for m in self.modules():
-            if isinstance(m, nn.Conv2d):
+            if isinstance(m, torch.nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2.0 / n))
 
@@ -53,7 +54,7 @@ def load_focuslite_model(device="cpu"):
 
 
 class FocusLite(ScorerBase):
-    name = "focuslite_score"
+    name = "focus"
 
     def __init__(self, threshold=3, device="cpu"):
         from torchvision.transforms import ToTensor
@@ -72,3 +73,6 @@ class FocusLite(ScorerBase):
         score = self.model(arr)
         score = max(0, np.mean(torch.squeeze(score.cpu().data, dim=1).numpy()))
         return score
+
+    def filter(self, scores):
+        return scores > self.threshold
