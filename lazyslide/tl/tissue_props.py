@@ -15,10 +15,10 @@ def tissue_props(
     """Extract tissue properties from the WSI."""
     props = []
     cnts = []
-    for tissue_contour in tissue_contours(wsi, key=key, return_type="numpy"):
+    for tissue_contour in tissue_contours(wsi, key=key, as_array=True):
         cnt = tissue_contour.contour
         holes = tissue_contour.holes
-        _props = TissueProps(cnt, holes)()
+        _props = contour_props(cnt, holes)
         cnts.append(cnt)
         _props["tissue_id"] = tissue_contour.id
         props.append(_props)
@@ -26,7 +26,7 @@ def tissue_props(
     wsi.add_contours(cnts, data=pd.DataFrame(props), name=f"{key}_contours")
 
 
-class TissueProps:
+class ContourProps:
     def __init__(self, cnt, holes=None):
         self.cnt = cnt
         self.holes = holes
@@ -161,3 +161,8 @@ class TissueProps:
             props[f"moment-{key}"] = value
 
         return props
+
+
+def contour_props(cnt: np.ndarray, holes=None):
+    """Calculate the properties of a contour."""
+    return ContourProps(cnt, holes)()
