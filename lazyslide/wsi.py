@@ -3,17 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Optional, Dict, Sequence
 
+import lazy_loader as lazy
 import numpy as np
 import pandas as pd
-import xarray
 from fsspec import open
 from fsspec.core import OpenFile
 from fsspec.implementations.cached import WholeFileCacheFileSystem
 from pydantic import BaseModel
 
 from .reader import get_reader
-
-import lazy_loader as lazy
 
 ad = lazy.load("anndata")
 
@@ -42,11 +40,15 @@ class SlideData:
         fs = open_file.fs
 
         if fs.exists(self.file):
-            self.sdata = read_zarr(self.file)
+            self._sdata = read_zarr(self.file)
         else:
-            self.sdata = SpatialData()
+            self._sdata = SpatialData()
 
         open_file.close()
+
+    @property
+    def sdata(self):
+        return self._sdata
 
     def add_image(self, image: np.ndarray, level: int, dims=("c", "y", "x")):
         from spatialdata.models import Image2DModel
@@ -117,14 +119,32 @@ class SlideData:
     def add_features(
         self, features: np.ndarray | pd.DataFrame, tile_name: str, feature_name: str
     ):
+        from spatialdata.models import TableModel
+
         # Check if the tile exists
         if tile_name not in self.sdata.points:
             raise ValueError(f"Tile {tile_name} not found.")
         # Check if the features are correct
         # if len(features) != self.sdata.tables[tile_name].shape[0]:
         #     raise ValueError(f"Features length does not match the tile {tile_name}.")
+        points = self.sdata.points[tile_name][["x", "y", "tissue_id"]].compute()
+        points["region"] = "tiles"
+        points["instances"] = np.arange(points.shape[0])
+        # To suppress warnings
+        points["region"] = points["region"].astype("category")
+        points.index = points.index.astype(str)
 
-        feature_adata = ad.AnnData(X=features)
+        feature_adata = ad.AnnData(
+            X=features,
+            obs=points,
+            obsm={"spatial": points[["x", "y"]].values},
+        )
+        feature_adata = TableModel.parse(
+            feature_adata,
+            region=["tiles"],
+            region_key="region",
+            instance_key="instances",
+        )
         self.sdata.tables[f"{tile_name}/{feature_name}"] = feature_adata
 
     def add_slide_annotations(self, annotations: dict):
@@ -135,6 +155,15 @@ class SlideData:
     def write(self, file=None, overwrite=True, **kws):
         if file is None:
             file = self.file
+        # This is only a temporary solution
+        # Need to wait for spatialdata to provide
+        # a proper write method
+        try:
+            import shutil
+
+            shutil.rmtree(file)
+        except FileNotFoundError:
+            pass
         self.sdata.write(file, overwrite=overwrite, **kws)
 
     def is_backed(self):
@@ -161,9 +190,6 @@ class WSI(SlideData):
         self, slide: Any, backed_file=None, reader="auto", cache_dir=None, **kwargs
     ):
         # Check if the slide is a file or URL
-        from spatial_image import SpatialImage
-        from multiscale_spatial_image import MultiscaleSpatialImage
-
         self.slide = str(slide)
         self.slide_origin = self.slide
         slide_openfile = open(self.slide)
