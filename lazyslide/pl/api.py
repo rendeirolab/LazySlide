@@ -65,3 +65,33 @@ def features(
             :, feature_name
         ].X.flatten()
     slide.add_tiles(ax=ax, value=value, alpha=alpha)
+
+
+def tiles(
+    wsi: WSI,
+    feature_key=None,
+    color=None,
+    level="auto",
+    tissue_id=None,
+    tissue_key="tissue",
+    tile_key="tiles",
+    render_size=1000,
+    alpha=0.5,
+    size=50,
+    ax=None,
+    **kwargs,
+):
+    if ax is None:
+        _, ax = plt.subplots()
+    slide = SlideViewer(
+        wsi,
+        level=level,
+        render_size=render_size,
+        tissue_key=tissue_key,
+        tissue_id=tissue_id,
+        tile_key=tile_key,
+    )
+    slide.add_tissue(ax=ax)
+    slide.add_points(
+        feature_key=feature_key, color=color, alpha=alpha, size=size, ax=ax, **kwargs
+    )

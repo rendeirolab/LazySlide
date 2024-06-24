@@ -1,10 +1,10 @@
 from itertools import cycle
 from numbers import Number
-from typing import Sequence
+from typing import Iterable
 
 import cv2
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 from lazyslide import WSI
 
@@ -132,7 +132,7 @@ class SlideViewer:
 
         # TODO: Only get tiles when tile_key is not None
         self.tile_key = tile_key
-        if self.tile_key is None:
+        if self.tile_key is not None:
             self.tile_coords = (
                 wsi.sdata.points[tile_key][["x", "y"]].compute().to_numpy()
             )
@@ -269,7 +269,7 @@ class SlideViewer:
                 entries = np.unique(value)
                 if palette is None:
                     palette = cycle(ADOBE_SPECTRUM)
-                if isinstance(palette, Sequence):
+                if isinstance(palette, Iterable):
                     palette = dict(zip(entries, palette))
                 tiles_colors = [palette.get(v, "black") for v in value]
 
@@ -282,6 +282,68 @@ class SlideViewer:
                     Rectangle((x, y), w, h, fill=False, ec="black", lw=0.5, alpha=alpha)
                 )
         ax.add_collection(PatchCollection(rects, match_original=True))
+
+    def add_points(
+        self,
+        feature_key=None,
+        color=None,
+        cmap=None,
+        norm=None,
+        palette=None,
+        alpha=None,
+        ax=None,
+        title=None,
+        size=50,
+        **kwargs,
+    ):
+        from legendkit import cat_legend, colorart
+
+        if ax is None:
+            ax = self.ax
+        if title is not None:
+            ax.set_title(title)
+
+        if feature_key is not None:
+            adata = self.wsi.sdata.tables[f"{self.tile_key}/{feature_key}"]
+
+        add_cat_legend = False
+        add_colorart = False
+
+        if color is not None:
+            if color in adata.obs.columns:
+                c = adata.obs[color]
+            else:
+                c = adata[:, color].X.flatten()
+
+            if not isinstance(c[0], Number):
+                # If value is categorical
+                entries = np.unique(c)
+                if palette is None:
+                    palette = cycle(ADOBE_SPECTRUM)
+                if isinstance(palette, Iterable):
+                    palette = dict(zip(entries, palette))
+                c = [palette.get(v, "black") for v in c]
+                add_cat_legend = True
+            else:
+                if cmap is None:
+                    cmap = "rainbow"
+                add_colorart = True
+        else:
+            c = "black"
+
+        xy = self.tile_coords / self.downsample
+        sm = ax.scatter(
+            xy[:, 0], xy[:, 1], c=c, s=size, cmap=cmap, norm=norm, alpha=alpha, **kwargs
+        )
+        if add_colorart:
+            colorart(sm, ax=ax)
+        if add_cat_legend:
+            cat_legend(
+                colors=palette.values(),
+                labels=palette.keys(),
+                loc="out right center",
+                ax=ax,
+            )
 
     def _draw_cnt(self, key, ax, color, linewidth, alpha):
         if key in self.wsi.sdata.shapes:
