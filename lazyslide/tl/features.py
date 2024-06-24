@@ -46,6 +46,7 @@ def feature_extraction(
     compile_opts: dict = None,
     device: str = "cpu",
     tile_key: str = "tiles",
+    feature_key: str = None,
     batch_size=32,
     num_workers=0,
     mode="batch",  # "batch" or "chunk"
@@ -61,7 +62,7 @@ def feature_extraction(
 
     try:
         model_path = Path(model)
-        model_name = model_path.stem
+        feature_key = model_path.stem
         if model_path.exists():
             try:
                 model = torch.load(model)
@@ -74,7 +75,7 @@ def feature_extraction(
                 raise ImportError("Using model from model market requires timm.")
             try:
                 create_opts = {} if create_opts is None else create_opts
-                model_name = model
+                feature_key = model
                 model = timm.create_model(
                     model, pretrained=True, scriptable=scriptable, **create_opts
                 )
@@ -91,8 +92,19 @@ def feature_extraction(
         compile_opts = {} if compile_opts is None else compile_opts
         torch.compile(model, **compile_opts)
 
-    model = model.to(device)
-    model.eval()
+    try:
+        model = model.to(device)
+        model.eval()
+    except:  # noqa: E722
+        pass
+
+    if feature_key is None:
+        if hasattr(model, "__class__"):
+            feature_key = model.__class__.__name__
+        elif hasattr(model, "__name__"):
+            feature_key = model.__name__
+        else:
+            feature_key = "features"
 
     if model_func is None:
 
@@ -103,17 +115,15 @@ def feature_extraction(
     # Auto chunk the wsi tile coordinates to the number of workers'
     tiles_count = len(wsi.sdata.points[tile_key])
 
-    pbar = Progress(
+    with Progress(
         TextColumn("[progress.description]{task.description}"),
         BarColumn(bar_width=30),
         TaskProgressColumn(),
         TimeRemainingColumn(compact=True, elapsed_when_finished=True),
         disable=not pbar,
-    )
-    task = pbar.add_task("Extracting features", total=tiles_count)
-    pbar.start()
+    ) as pbar:
+        task = pbar.add_task("Extracting features", total=tiles_count)
 
-    try:
         if mode == "chunk":
             if num_workers == 0:
                 num_workers = 1
@@ -151,17 +161,18 @@ def feature_extraction(
             features = []
             with torch.inference_mode():
                 for batch in loader:
-                    output = model_func(model, (batch.to(device)))
+                    batch = batch.to(device)
+                    print(batch.shape)
+                    output = model_func(model, batch)
                     features.append(output.cpu().numpy())
-                    pbar.update(task, advance=batch_size)
+                    pbar.update(task, advance=len(batch))
+            # The progress bar may not reach 100% if exit too early
+            # Force update
+            pbar.refresh()
             features = np.vstack(features)
-        pbar.stop()
-    except KeyboardInterrupt:
-        pbar.stop()
-        raise KeyboardInterrupt
 
     # Write features to WSI
-    wsi.add_features(features, tile_key, model_name)
+    wsi.add_features(features, tile_key, feature_key)
     if return_features:
         return features
 
