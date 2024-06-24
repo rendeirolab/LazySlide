@@ -95,3 +95,9 @@ class WSIListDataset(Dataset):
 
 class ImageLoader(DataLoader):
     pass
+
+
+class DirectoryDataset(Dataset):
+    """Load Images/Features/Graph from a directory."""
+
+    pass
