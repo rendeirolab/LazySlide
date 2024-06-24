@@ -18,6 +18,7 @@ dependencies = [
     "numba",
     "opencv-python",
     "openslide-python",
+    "tiffslide",
     "matplotlib",
     "legendkit",
     "anndata",
@@ -40,15 +41,12 @@ all = [
     "torchstain",
 ]
 dev = [
-    "flit",
-    "pytest >=2.7.3",
-    "pytest-cov",
-    "pre-commit",
-    "ruff",
-    "mkdocs",
-    "mkdocs-material",
-    "mkdocstrings",
-    "mkdocstrings-python",
+    "hatchling",
+    "sphinx",
+    "sphinxawesome-theme",
+    "numpydoc",
+    "sphinx_design",
+    "sphinx_copybutton",
 ]
 
 # Define entry points
