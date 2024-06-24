@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from numbers import Integral
-from typing import Sequence, Callable
+from typing import Sequence, Callable, Union
 
 import cv2
 import numpy as np
@@ -101,7 +101,7 @@ def tiles(
         mpp = wsi.metadata.mpp
     if slide_mpp is None:
         slide_mpp = wsi.metadata.mpp
-        
+
     if slide_mpp is not None:
         downsample = mpp / slide_mpp
 
@@ -254,62 +254,82 @@ def tiles(
         wsi.add_tiles(tile_coords, key, tile_spec, data={"tissue_id": tiles_tissue_id})
 
 
-def score_tiles(
+Scorer = Union[ScorerBase, str]
+
+
+def tiles_qc(
     wsi: WSI,
-    scorer: ScorerBase | Callable,
-    score_name: str = None,
+    scorers: Scorer | Sequence[Scorer],
     key: str = "tiles",
+    key_added: str = "tiles",
 ):
     """
-    Score the tiles
+    Score the tiles and filter the tiles based on the score
 
     Parameters
     ----------
     wsi : WSI
         The whole slide image object
-    scorer : ScorerBase or Callable
+    scorers : ScorerBase
         The scorer object or a callable that takes in a image and return a score
-    score_name : str
-        The name of the score
+        You can also pass in a string
+        - 'focus': A FocusLite scorer that will score the focus of the image
+        - 'contrast': A Contrast scorer that will score the contrast of the image
     key : str
         The key of the tiles
+    key_added : str
+        The key of the filtered tiles
 
     """
+    from lazyslide.cv.scorer import FocusLite, Contrast
+
+    scorer_mapper = {
+        "focus": FocusLite(),
+        "contrast": Contrast(),
+    }
+
     if key not in wsi.sdata.points:
         raise ValueError(f"Tile {key} not found.")
-    tiles_tb = wsi.sdata.points[key]
-    if hasattr(tiles_tb, "compute"):
-        tiles_tb = tiles_tb.compute()
+    tiles_tb = wsi.sdata.points[key].compute()
     spec = TileSpec(**wsi.sdata.tables[f"{key}_spec"].uns["tiles_spec"])
 
-    # Get the score function and name
-    if isinstance(scorer, ScorerBase):
-        score_func = scorer.get_score
-        score_name = scorer.name if score_name is None else score_name
-    else:
-        score_func = scorer
-        if score_name is None:
-            if hasattr(scorer, "__name__"):
-                score_name = f"{scorer.__name__}_score"
-            else:
-                score_name = "unknown_score"
+    scorer_funcs = {}
+    for s in scorers:
+        if isinstance(s, ScorerBase):
+            scorer_funcs[s.name] = s
+        elif isinstance(s, str):
+            scorer = scorer_mapper.get(s)
+            if scorer is None:
+                raise ValueError(
+                    f"Unknown scorer {s}, "
+                    f"available scorers are {'.'.join(scorer_mapper.keys())}"
+                )
+            scorer_funcs[scorer.name] = scorer
+        else:
+            raise TypeError(f"Unknown scorer type {type(s)}")
 
     # Score the tiles
     tiles = tiles_tb[["x", "y"]].values
-    scores = []
+    scores = {name: [] for name in scorer_funcs.keys()}
     for tile in tiles:
         x, y = tile
         img = wsi.get_region(x, y, spec.ops_width, spec.ops_height, level=spec.level)
-        score = score_func(img)
-        scores.append(score)
+        for name, s in scorer_funcs.items():
+            score = s.get_score(img)
+            scores[name].append(score)
 
-    # Get other columns in tiles table that are not x, y
-    data = {}
-    for col in tiles_tb.columns:
-        if col not in ["x", "y"]:
-            data[col] = tiles_tb[col].values
-    data[score_name] = scores
-    wsi.add_tiles(tiles, key, spec, data=data)
+    # Filter the tiles
+    to_use = np.ones(len(tiles), dtype=bool)
+    for name, scores in scores.items():
+        filter_func = scorer_funcs[name].filter
+        mask = filter_func(np.array(scores))
+        to_use = to_use & mask
+
+    use_tiles = tiles_tb.loc[to_use, ["x", "y"]].values
+    # Get the tiles table that are not 'x', 'y'
+    columns = [c for c in tiles_tb.columns if c not in ["x", "y"]]
+    data = tiles_tb.loc[to_use, columns]
+    wsi.add_tiles(use_tiles, key, spec, data=data)
 
 
 @njit

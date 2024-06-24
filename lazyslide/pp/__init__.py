@@ -1,4 +1,4 @@
-__all__ = ["find_tissue", "tiles", "score_tiles"]
+__all__ = ["find_tissue", "tiles", "tiles_qc"]
 
 from .tissue_segment import find_tissue
-from .tiles import tiles, score_tiles
+from .tiles import tiles, tiles_qc

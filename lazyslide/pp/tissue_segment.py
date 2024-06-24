@@ -8,6 +8,8 @@ import numpy as np
 from lazyslide.cv.transform import TissueDetectionHE
 from lazyslide.wsi import WSI
 
+# TODO: Auto-selection of tissue level
+#  should be decided by the RAM size
 TARGET = 4  # mpp = 0.5 and downsample = 4
 
 
@@ -25,6 +27,16 @@ def find_tissue(
     filter_artifacts: bool = True,
     key: str = "tissue",
 ):
+    """Find tissue regions in the WSI and add them as contours and holes.
+
+    Parameters
+    ----------
+    wsi : WSI
+        Whole-slide image object.
+    level : int, optional
+        The level to use for segmentation, by default None.
+
+    """
     # Get optimal level for segmentation
     if level is None:
         metadata = wsi.metadata
