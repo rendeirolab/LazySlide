@@ -7,8 +7,9 @@ import lazy_loader as lazy
 import numpy as np
 import pandas as pd
 from fsspec import open
-from fsspec.core import OpenFile
+from fsspec.core import OpenFile, url_to_fs
 from fsspec.implementations.cached import WholeFileCacheFileSystem
+from fsspec.implementations.local import LocalFileSystem
 from pydantic import BaseModel
 
 from .reader import get_reader
@@ -22,8 +23,8 @@ class TileSpec(BaseModel):
     mpp: Optional[float] = None
     height: int
     width: int
-    ops_height: int
-    ops_width: int
+    raw_height: int
+    raw_width: int
     tissue_name: str
 
 
@@ -63,22 +64,44 @@ class SlideData:
             attrs = ad.AnnData(uns=attributes)
             self.sdata.tables[name] = attrs
 
-    def _add_shape(self, shapes, name, data=None):
+    def add_shapes(self, shapes, name, data):
         import geopandas as gpd
         from shapely.geometry import Polygon
-        from spatialdata.models import ShapesModel
+        from spatialdata.models import ShapesModel, TableModel
 
-        gdf = gpd.GeoDataFrame(geometry=[Polygon(c) for c in shapes], data=data)
+        gdf = gpd.GeoDataFrame(geometry=[Polygon(c) for c in shapes])
         cs = ShapesModel.parse(gdf)
         self.sdata.shapes[name] = cs
+        data = pd.DataFrame(data)
+        data["id"] = np.arange(data.shape[0])
+        data["shape_key"] = name
+        data["shape_key"] = data["shape_key"].astype("category")
+        data.index = data.index.astype(str)
+        shape_adata = ad.AnnData(obs=data)
+        shape_adata = TableModel.parse(
+            shape_adata, region=[name], region_key="shape_key", instance_key="id"
+        )
+        self.sdata.tables[f"{name}_table"] = shape_adata
 
-    def add_contours(self, contours: list[np.ndarray], data=None, name="contours"):
-        self._add_shape(contours, name, data)
+    def add_shapes_data(self, data: Dict[str, Sequence], name: str):
+        table_name = f"{name}_table"
+        if table_name not in self.sdata.tables:
+            raise ValueError(f"Shape {table_name} not found.")
+        shapes = self.sdata.tables[table_name]
+        for key, value in data.items():
+            shapes.obs[key] = value
 
-    def add_holes(self, holes: list[np.ndarray], data=None, name="holes"):
-        self._add_shape(holes, name, data)
+    def get_shape_table(self, name):
+        # Check if the shape exists
+        if name not in self.sdata.shapes:
+            raise ValueError(f"Shape {name} not found.")
+        shapes = self.sdata.shapes[name]
+        tables = self.sdata.tables[f"{name}_table"].obs.reset_index(drop=True)
+        return pd.concat([shapes, tables], axis=1)
 
-    def add_tiles(self, xy: np.ndarray, name: str, spec: TileSpec | dict, data=None):
+    def add_tiles(
+        self, xy: np.ndarray, tissue_id: np.ndarray, name: str, spec: TileSpec | dict
+    ):
         """
         Add tiles to the slide data.
 
@@ -86,38 +109,70 @@ class SlideData:
         ----------
         xy : np.ndarray
             An array of tile coordinates.
+        tissue_id : np.ndarray
+            An array of tissue ids.
         name: str
             The name of the tile.
         spec : TileSpec | dict
             The tile specification.
 
         """
-        from spatialdata.models import PointsModel
+        from spatialdata.models import PointsModel, TableModel
 
-        if data is not None:
-            annotation = pd.DataFrame(data)
-        else:
-            annotation = None
-        tiles = PointsModel.parse(xy.astype(int), annotation=annotation)
+        # Add to points field
+        xy = xy.astype(int)
+        tiles = PointsModel.parse(xy)
         self.sdata.points[name] = tiles
+
+        # Add to tables field
+        points = pd.DataFrame(xy, columns=["x", "y"])
+        points["tissue_id"] = tissue_id
+        points["id"] = np.arange(xy.shape[0])
+        # To suppress warnings
+        points["tile_key"] = name
+        points["tile_key"] = points["tile_key"].astype("category")
+        points.index = points.index.astype(str)
+
         # Parse spec
         if isinstance(spec, dict):
             spec = TileSpec(**spec)
         spec = spec.model_dump()
-        ref_adata = ad.AnnData(uns={"tiles_spec": spec})
-        self.sdata.tables[f"{name}_spec"] = ref_adata
+        ref_adata = ad.AnnData(obs=points, uns={"tile_spec": spec})
+        ref_adata = TableModel.parse(
+            ref_adata,
+            region=[name],
+            region_key="tile_key",
+            instance_key="id",
+        )
+        self.sdata.tables[f"{name}_table"] = ref_adata
 
-    def add_tile_annotations(self, annotations: Dict[str, Sequence], name: str):
-        import dask.array as da
+    def add_tiles_data(self, data: Dict[str, Sequence], name: str):
+        table_name = f"{name}_table"
+        if table_name not in self.sdata.tables:
+            raise ValueError(f"Tile {table_name} not found.")
+        tiles = self.sdata.tables[table_name]
+        for key, value in data.items():
+            tiles.obs[key] = value
 
-        if name not in self.sdata.points:
+    def get_tiles_table(self, name):
+        if name in self.sdata.tables:
+            return self.sdata.tables[name].obs
+        if f"{name}_table" in self.sdata.tables:
+            return self.sdata.tables[f"{name}_table"].obs
+        else:
             raise ValueError(f"Tile {name} not found.")
-        tiles = self.sdata.points[name]
-        for key, value in annotations.items():
-            tiles[key] = da.from_array(value)
+
+    def get_tile_spec(self, key) -> TileSpec:
+        if f"{key}_table" not in self.sdata.tables:
+            raise ValueError(f"Tile {key} not found.")
+        return TileSpec(**self.sdata.tables[f"{key}_table"].uns["tile_spec"])
 
     def add_features(
-        self, features: np.ndarray | pd.DataFrame, tile_name: str, feature_name: str
+        self,
+        features: np.ndarray | pd.DataFrame,
+        tile_name: str,
+        feature_name: str,
+        var=None,
     ):
         from spatialdata.models import TableModel
 
@@ -127,30 +182,31 @@ class SlideData:
         # Check if the features are correct
         # if len(features) != self.sdata.tables[tile_name].shape[0]:
         #     raise ValueError(f"Features length does not match the tile {tile_name}.")
-        points = self.sdata.points[tile_name][["x", "y", "tissue_id"]].compute()
-        points["region"] = "tiles"
-        points["instances"] = np.arange(points.shape[0])
-        # To suppress warnings
-        points["region"] = points["region"].astype("category")
-        points.index = points.index.astype(str)
+        points = self.sdata.tables[f"{tile_name}_table"].obs
 
         feature_adata = ad.AnnData(
             X=features,
             obs=points,
             obsm={"spatial": points[["x", "y"]].values},
+            var=var,
         )
         feature_adata = TableModel.parse(
             feature_adata,
-            region=["tiles"],
-            region_key="region",
-            instance_key="instances",
+            region=[tile_name],
+            region_key="tile_key",
+            instance_key="id",
         )
-        self.sdata.tables[f"{tile_name}/{feature_name}"] = feature_adata
+        self.sdata.tables[f"{tile_name}_{feature_name}"] = feature_adata
 
     def add_slide_annotations(self, annotations: dict):
         if "annotations" in self.sdata.tables:
             self.sdata.tables["annotations"].uns["annotations"].update(annotations)
         self.sdata.tables["annotations"] = ad.AnnData(uns={"annotations": annotations})
+
+    def get_slide_annotations(self):
+        if "annotations" in self.sdata.tables:
+            return self.sdata.tables["annotations"].uns["annotations"]
+        return {}
 
     def write(self, file=None, overwrite=True, **kws):
         if file is None:
@@ -180,43 +236,65 @@ class WSI(SlideData):
     backed_file : str, optional
         The backed file path, by default will create
         a zarr file with the same name as the slide file.
-    reader : str, optional
+        You can either supply a file path or a directory.
+    name : str, optional
+        The name of the slide, by default will derive from the slide url.
+    reader : str, optional, {"auto", "openslide", "tiffslide"}
         The reader type, by default "auto"
+    cache_dir : str, optional
+        The cache directory, by default None
 
 
     """
 
     def __init__(
-        self, slide: Any, backed_file=None, reader="auto", cache_dir=None, **kwargs
+        self,
+        slide: Any,
+        backed_file=None,
+        name=None,
+        reader="auto",
+        cache_dir=None,
+        **kwargs,
     ):
         # Check if the slide is a file or URL
         self.slide = str(slide)
+        if name is None:
+            self.name = Path(self.slide).stem
+        else:
+            self.name = name
         self.slide_origin = self.slide
-        slide_openfile = open(self.slide)
-        if not slide_openfile.fs.exists(self.slide):
-            raise ValueError(f"Slide {self.slide} not found.")
-
+        fs, slide_path = url_to_fs(self.slide)
+        if not fs.exists(slide_path):
+            raise ValueError(f"Slide {self.slide} not existed or not accessible.")
         # Early attempt with reader
         reader_cls = get_reader(reader)
-        if reader_cls.name == "tiffslide":
-            self.reader = reader_cls(self.slide, **kwargs)
-        else:
-            # Try to download remote slide when possible
-            if slide_openfile.fs.protocol != "file":
-                # Download the slide to a temporary file
-                if cache_dir is None:
-                    cache_dir = "TMP"
-                cfs = WholeFileCacheFileSystem(
-                    fs=slide_openfile.fs, cache_storage=cache_dir
-                )
-                cache_slide = cfs.open(self.slide)
-                self.slide = cache_slide.name
-                self.slide_origin = cache_slide.original
+
+        # Try to download remote slide when possible
+        if not isinstance(fs, LocalFileSystem):
+            # Download the slide to a temporary file
+            if cache_dir is None:
+                cache_dir = "TMP"
+            cfs = WholeFileCacheFileSystem(
+                fs=fs,
+                cache_storage=cache_dir,
+                same_names=True,
+            )
+            cache_slide = cfs.open(self.slide)
+            self.slide = cache_slide.name
+            self.slide_origin = cache_slide.original
 
         self.reader = reader_cls(self.slide, **kwargs)
 
         if backed_file is None:
-            self.backed_file = Path(slide).with_suffix(".zarr")
+            self.backed_file = Path(self.slide).with_suffix(".zarr")
+        else:
+            backed_file = Path(backed_file)
+            if backed_file.is_dir():
+                zarr_name = Path(self.slide).with_suffix(".zarr").name
+                self.backed_file = backed_file / zarr_name
+            else:
+                self.backed_file = backed_file
+
         super().__init__(self.backed_file)
 
     def __repr__(self):
@@ -237,8 +315,31 @@ class WSI(SlideData):
     def metadata(self):
         return self.reader.metadata
 
-    def get_tile_spec(self, key) -> TileSpec:
-        return TileSpec(**self.sdata.tables[f"{key}_spec"].uns["tiles_spec"])
-
     def get_region(self, x, y, width, height, level=0, **kwargs):
         return self.reader.get_region(x, y, width, height, level=level, **kwargs)
+
+    def get_features(self, feature_key, tile_key="tiles"):
+        X, var = None, None
+        if feature_key is not None:
+            feature_tb = self.sdata.tables[f"{tile_key}_{feature_key}"]
+            X = feature_tb.X
+            var = feature_tb.var
+
+        tile_adata = self.sdata.tables[f"{tile_key}_table"]
+        obs = tile_adata.obs
+        obs.index = obs.index.astype(str)
+        spatial = obs[["x", "y"]].values
+
+        adata = ad.AnnData(
+            X=X,
+            var=var,
+            obs=obs,
+            obsm={"spatial": spatial},
+        )
+        slide_annotations = self.get_slide_annotations()
+        adata.uns = {
+            "annotations": slide_annotations,
+            "metadata": self.metadata.model_dump(),
+        }
+        adata.uns.update(tile_adata.uns)
+        return adata
