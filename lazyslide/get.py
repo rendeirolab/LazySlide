@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import pandas as pd
 
-TissueContour = namedtuple("TissueContour", ["id", "contour", "holes"])
+TissueContour = namedtuple("TissueContour", ["tissue_id", "contour", "holes"])
 
 
 # TODO: Return random tissue images
@@ -33,9 +33,9 @@ def tissue_contours(
     """
     if f"{key}_contours" not in wsi.sdata.shapes:
         raise ValueError(f"Contour {key}_contours not found.")
-    contours = wsi.sdata.shapes[f"{key}_contours"]
+    contours = wsi.get_shape_table(f"{key}_contours")
     if f"{key}_holes" in wsi.sdata.shapes:
-        holes = wsi.sdata.shapes[f"{key}_holes"]
+        holes = wsi.get_shape_table(f"{key}_holes")
     else:
         holes = None
 
@@ -52,15 +52,15 @@ def tissue_contours(
             hs = []
         if as_array:
             yield TissueContour(
-                id=tissue_id,
+                tissue_id=tissue_id,
                 contour=np.array(cnt.geometry.exterior.coords, dtype=np.int32),
                 holes=hs,
             )
         else:
-            yield TissueContour(id=tissue_id, contour=cnt.geometry, holes=hs)
+            yield TissueContour(tissue_id=tissue_id, contour=cnt.geometry, holes=hs)
 
 
-TissueImage = namedtuple("TissueImage", ["id", "x", "y", "image"])
+TissueImage = namedtuple("TissueImage", ["tissue_id", "x", "y", "image"])
 
 
 def tissue_images(
@@ -107,7 +107,7 @@ def tissue_images(
         do_mask = True
         mask_bg = mask_bg
     for tissue_contour in tissue_contours(wsi, key=tissue_key):
-        ix = tissue_contour.id
+        ix = tissue_contour.tissue_id
         contour = tissue_contour.contour
         holes = tissue_contour.holes
         minx, miny, maxx, maxy = contour.bounds
@@ -134,13 +134,21 @@ def tissue_images(
             # Fill everything that is not the contour
             # (which is background) with 0
             img[mask != 1] = mask_bg
-        yield TissueImage(id=ix, x=x, y=y, image=img)
+        yield TissueImage(tissue_id=ix, x=x, y=y, image=img)
 
 
-TileImage = namedtuple("TileImage", ["x", "y", "image"])
+TileImage = namedtuple("TileImage", ["id", "x", "y", "tissue_id", "image"])
 
 
-def tile_images(wsi, tile_key="tiles", raw=True):
+def tile_images(
+    wsi,
+    tile_key="tiles",
+    raw=False,
+    color_norm: str = None,
+    shuffle: bool = False,
+    sample_n: int = None,
+    seed: int = 0,
+):
     """Extract tile images from the WSI.
 
     Parameters
@@ -152,26 +160,54 @@ def tile_images(wsi, tile_key="tiles", raw=True):
     raw : bool, default: True
         Return the raw image without resizing.
         If False, the image is resized to the requested tile size.
+    color_norm : str, {"macenko", "reinhard"}, default: None
+        Color normalization method.
+    shuffle : bool, default: False
+        If True, return tile images in random order.
+    sample_n : int, default: None
+        The number of samples to return.
+    seed : int, default: 0
+        The random seed.
 
     """
-    if tile_key not in wsi.sdata.points:
-        raise ValueError(f"Tile {tile_key} not found.")
     tile_spec = wsi.get_tile_spec(tile_key)
     # Check if the image needs to be transformed
     need_transform = (
-        tile_spec.ops_width != tile_spec.width
-        or tile_spec.ops_height != tile_spec.height
+        tile_spec.raw_width != tile_spec.width
+        or tile_spec.raw_height != tile_spec.height
     )
-    for x, y in wsi.sdata.points[tile_key][["x", "y"]].compute().to_numpy():
+
+    if color_norm is not None:
+        from lazyslide.cv.colornorm import ColorNormalizer
+
+        cn = ColorNormalizer(method=color_norm)
+        cn_func = lambda x: cn(x).numpy()  # noqa
+    else:
+        cn_func = lambda x: x  # noqa
+
+    points = wsi.get_tiles_table(tile_key)
+    if sample_n is not None:
+        points = points.sample(n=sample_n, random_state=seed)
+    elif shuffle:
+        points = points.sample(frac=1, random_state=seed)
+
+    for _, row in points.iterrows():
+        x = row["x"]
+        y = row["y"]
+        ix = row["id"]
+        tix = row["tissue_id"]
         img = wsi.reader.get_region(
-            x, y, tile_spec.ops_width, tile_spec.ops_height, level=tile_spec.level
+            x, y, tile_spec.raw_width, tile_spec.raw_height, level=tile_spec.level
         )
+        img = cn_func(img)
         if raw and not need_transform:
-            yield TileImage(x=x, y=y, image=img)
+            yield TileImage(id=ix, x=x, y=y, tissue_id=tix, image=img)
         else:
             yield TileImage(
+                id=ix,
                 x=x,
                 y=y,
+                tissue_id=tix,
                 image=cv2.resize(img, (tile_spec.width, tile_spec.height)),
             )
 
@@ -189,42 +225,13 @@ def pyramids(wsi):
     )
 
 
-def tiles_anndata(
+def features_anndata(
     wsi,
     tile_key="tiles",
     feature_key=None,
 ):
     """Convert the WSI to an AnnData object"""
-    import anndata as ad
-
-    X, var = None, None
-    if feature_key is not None:
-        feature_tb = wsi.sdata.tables[f"{tile_key}/{feature_key}"]
-        X = feature_tb.X
-        var = feature_tb.var
-
-    obs = wsi.sdata.points[tile_key].compute()
-    obs.index = obs.index.astype(str)
-    spatial = obs[["x", "y"]].values
-
-    adata = ad.AnnData(
-        X=X,
-        var=var,
-        obs=obs,
-        obsm={"spatial": spatial},
-    )
-    if "annotations" in wsi.sdata.tables:
-        slide_annotations = wsi.sdata.tables["annotations"].uns["annotations"]
-    else:
-        slide_annotations = {}
-    adata.uns = {
-        "annotations": slide_annotations,
-        "metadata": wsi.metadata.model_dump(),
-    }
-    for key, table in wsi.sdata.tables.items():
-        if key == f"{tile_key}_spec":
-            adata.uns[key] = table.uns["tiles_spec"]
-    return adata
+    return wsi.get_features(feature_key, tile_key=tile_key)
 
 
 def n_tissue(wsi, key="tissue"):
@@ -235,4 +242,4 @@ def n_tissue(wsi, key="tissue"):
 
 def n_tiles(wsi, key="tiles"):
     """Return the number of tiles"""
-    return wsi.sdata.points[key].shape[0].compute()
+    return len(wsi.sdata.points[key])
