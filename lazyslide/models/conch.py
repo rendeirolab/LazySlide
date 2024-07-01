@@ -33,7 +33,6 @@ class CONCH(torch.nn.Module):
 
     def encode_image(self, image, normalize=True):
         image = self.processor(image).unsqueeze(0)
-        print(self.processor)
         image_feature = self.model.encode_image(
             image, normalize=normalize, proj_contrast=normalize
         )
