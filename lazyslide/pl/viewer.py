@@ -1,3 +1,4 @@
+import warnings
 from itertools import cycle
 from numbers import Number
 from typing import Iterable
@@ -7,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from lazyslide import WSI
+from lazyslide.utils import check_feature_key
 
 ADOBE_SPECTRUM = [
     "#0FB5AE",
@@ -85,6 +87,10 @@ class SlideViewer:
         tissue_id=None,
         tile_key="tiles",
     ):
+        if tissue_id is not None:
+            if f"{tissue_key}_contours" not in wsi.sdata.shapes:
+                tissue_id = None
+
         if tissue_id is None:
             # TODO: When there is only ONE LEVEL
             if level == "auto":
@@ -94,7 +100,7 @@ class SlideViewer:
             slide_img[np.where(slide_img == 0)] = 255
             bounds = None
         else:
-            gdf = wsi.sdata.shapes[f"{tissue_key}_contours"]
+            gdf = wsi.get_shape_table(f"{tissue_key}_contours")
             gdf = gdf[gdf["tissue_id"] == tissue_id]
             minx, miny, maxx, maxy = gdf.bounds.iloc[0]
 
@@ -130,23 +136,37 @@ class SlideViewer:
         else:
             self.bounds = None
 
-        # TODO: Only get tiles when tile_key is not None
-        self.tile_key = tile_key
-        if self.tile_key is not None:
-            self.tile_coords = (
-                wsi.sdata.points[tile_key][["x", "y"]].compute().to_numpy()
-            )
+        if tile_key in wsi.sdata.points:
             self.tile_spec = wsi.get_tile_spec(tile_key)
+            self.tile_table = wsi.get_tiles_table(tile_key)
+            if self.tissue_id is not None:
+                self.tile_table = self.tile_table[
+                    self.tile_table["tissue_id"] == self.tissue_id
+                ]
+            self.tile_coords = self.tile_table[["x", "y"]].values
+            if self.bounds is not None:
+                self.tile_coords -= np.array(self.bounds[0:2])
+            self.tile_center_coords = self.tile_coords + np.array(
+                [self.tile_spec.raw_width / 2, self.tile_spec.raw_height / 2]
+            )
+            self.tile_key = tile_key
+        else:
+            self.tile_coords = None
+            self.tile_spec = None
+            self.tile_key = None
+        self._title = None
 
-    def add_tissue(self, title=None, ax=None, scale_bar=True):
+    def set_title(self, title):
+        if title is not None:
+            self._title = title
+
+    def add_tissue(self, ax=None, scale_bar=True):
         from matplotlib.lines import Line2D
 
         if ax is None:
             ax = plt.gca()
         ax.imshow(self.thumbnail)  # , extent=self.extent)
         ax.set_axis_off()
-        if title is not None:
-            ax.set_title(title)
         # add a scale bar
         if scale_bar:
             mpp = self.wsi.metadata.mpp
@@ -231,90 +251,100 @@ class SlideViewer:
 
     def add_tiles(
         self,
-        value=None,
-        cmap=None,
-        norm=None,
-        palette=None,
         alpha=None,
         ax=None,
-        title=None,
     ):
-        from legendkit import colorart
+        if self.tile_key is None:
+            warnings.warn("No tiles found.")
+            return
         from matplotlib.collections import PatchCollection
         from matplotlib.patches import Rectangle
 
         if ax is None:
             ax = self.ax
-        if title is not None:
-            ax.set_title(title)
 
         w, h = (
-            self.tile_spec.ops_width / self.downsample,
-            self.tile_spec.ops_height / self.downsample,
+            self.tile_spec.raw_width / self.downsample,
+            self.tile_spec.raw_height / self.downsample,
         )
 
         rects = []
-        # If value is not None, color the tiles
-        if value is not None:
-            default_cmap = "bwr"
-            # If value is continuous
-            if isinstance(value[0], Number):
-                cmap = default_cmap if cmap is None else cmap
-                sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-                sm.set_array(value)
-                tiles_colors = sm.to_rgba(value)
-                colorart(sm, ax=ax)
-            else:
-                # If value is categorical
-                entries = np.unique(value)
-                if palette is None:
-                    palette = cycle(ADOBE_SPECTRUM)
-                if isinstance(palette, Iterable):
-                    palette = dict(zip(entries, palette))
-                tiles_colors = [palette.get(v, "black") for v in value]
-
-            for (x, y), c in zip(self.tile_coords / self.downsample, tiles_colors):
-                rects.append(Rectangle((x, y), w, h, fc=c, ec="none", alpha=alpha))
-        # Else, just draw the tiles
-        else:
-            for x, y in self.tile_coords / self.downsample:
-                rects.append(
-                    Rectangle((x, y), w, h, fill=False, ec="black", lw=0.5, alpha=alpha)
-                )
+        for x, y in self.tile_coords / self.downsample:
+            rects.append(
+                Rectangle((x, y), w, h, fill=False, ec="black", lw=0.5, alpha=alpha)
+            )
         ax.add_collection(PatchCollection(rects, match_original=True))
 
     def add_points(
         self,
         feature_key=None,
         color=None,
+        vmin=None,
+        vmax=None,
         cmap=None,
         norm=None,
         palette=None,
         alpha=None,
         ax=None,
-        title=None,
+        marker="o",
         size=50,
         **kwargs,
     ):
+        # If there are no tiles, return
+        if self.tile_key is None:
+            print("No tiles found.")
+            return
+
         from legendkit import cat_legend, colorart
 
         if ax is None:
             ax = self.ax
-        if title is not None:
-            ax.set_title(title)
 
+        c = None
+        add_title = ""
         if feature_key is not None:
-            adata = self.wsi.sdata.tables[f"{self.tile_key}/{feature_key}"]
+            table_key = check_feature_key(self.wsi, feature_key, self.tile_key)
+            adata = self.wsi.get_features(feature_key, self.tile_key)[
+                self.tile_table.index
+            ]
+            if adata.shape[0] != self.tile_table.shape[0]:
+                raise ValueError(
+                    f"Seems like your tiles in {self.tile_key} has changed, "
+                    f"please rerun zs.tl.feature_extraction."
+                )
+                return
+            if color is not None:
+                if isinstance(color, str):
+                    if color in adata.obs.columns:
+                        c = adata.obs.loc[:, color].values
+                        add_title = color
+                    elif color in adata.var.index:
+                        c = adata[:, color].X.flatten()
+                        add_title = f"{feature_key} feature {color}"
+                    else:
+                        raise KeyError(
+                            f"The requested color `{color}` not found in tables {table_key}."
+                        )
+                elif isinstance(color, int):
+                    c = adata[:, color].X.flatten()
+                    add_title = f"{feature_key} feature {adata.var.index[color]}"
+                else:
+                    raise ValueError(f"The requested color `{color}` is invalid.")
+        else:
+            if color is not None:
+                if color not in self.tile_table:
+                    raise KeyError(
+                        f"The requested color `{color}` "
+                        f"not found in points {self.tile_key}. "
+                        f"If you want to visualize features, please provide a feature_key."
+                    )
+                c = self.tile_table.loc[:, color].values
+                add_title = color
 
         add_cat_legend = False
         add_colorart = False
 
-        if color is not None:
-            if color in adata.obs.columns:
-                c = adata.obs[color]
-            else:
-                c = adata[:, color].X.flatten()
-
+        if c is not None:
             if not isinstance(c[0], Number):
                 # If value is categorical
                 entries = np.unique(c)
@@ -331,9 +361,21 @@ class SlideViewer:
         else:
             c = "black"
 
-        xy = self.tile_coords / self.downsample
+        # The points are drawn at the center of the tiles
+        xy = self.tile_center_coords / self.downsample
+        kwargs = {"zorder": 10, **kwargs}
         sm = ax.scatter(
-            xy[:, 0], xy[:, 1], c=c, s=size, cmap=cmap, norm=norm, alpha=alpha, **kwargs
+            xy[:, 0],
+            xy[:, 1],
+            c=c,
+            s=size,
+            vmin=vmin,
+            vmax=vmax,
+            cmap=cmap,
+            norm=norm,
+            alpha=alpha,
+            marker=marker,
+            **kwargs,
         )
         if add_colorart:
             colorart(sm, ax=ax)
@@ -342,12 +384,14 @@ class SlideViewer:
                 colors=palette.values(),
                 labels=palette.keys(),
                 loc="out right center",
+                handle=marker,
                 ax=ax,
             )
+        self.set_title(add_title)
 
     def _draw_cnt(self, key, ax, color, linewidth, alpha):
         if key in self.wsi.sdata.shapes:
-            shapes = self.wsi.sdata.shapes[key]
+            shapes = self.wsi.get_shape_table(key)
             if self.tissue_id is not None:
                 shapes = shapes[shapes["tissue_id"] == self.tissue_id]
             for c in shapes.geometry:
@@ -389,12 +433,17 @@ class SlideViewer:
         )
         kwargs = {**default_style, **kwargs}
         if key in self.wsi.sdata.shapes:
-            shapes = self.wsi.sdata.shapes[key]
+            shapes = self.wsi.get_shape_table(key)
             if self.tissue_id is not None:
                 shapes = shapes[shapes["tissue_id"] == self.tissue_id]
             for _, row in shapes.iterrows():
                 centroid = row.geometry.centroid
-                x, y = centroid.x / self.downsample, centroid.y / self.downsample
+                x = centroid.x
+                y = centroid.y
+                if self.bounds is not None:
+                    x = x - self.bounds[0]
+                    y = y - self.bounds[1]
+                x, y = x / self.downsample, y / self.downsample
                 tissue_id = row.tissue_id
                 text = tissue_id
                 if fmt is not None:
@@ -403,10 +452,18 @@ class SlideViewer:
 
     def add_tissue_id(self, ax=None, fmt=None, **kwargs):
         if ax is None:
-            ax = plt.gca()
+            ax = self.ax
 
         tissue_key = self.tissue_key
-        self._draw_cnt_anno(f"{tissue_key}_contours", ax, **kwargs)
+        self._draw_cnt_anno(f"{tissue_key}_contours", ax, fmt=fmt, **kwargs)
+
+    def add_title(self, title, ax=None):
+        if ax is None:
+            ax = self.ax
+        if title is not None:
+            ax.set_title(title)
+        elif self._title is not None:
+            ax.set_title(self._title)
 
     def save(self, filename, **kwargs):
         kwargs.update(dict(bbox_inches="tight"))
