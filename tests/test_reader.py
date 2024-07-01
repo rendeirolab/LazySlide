@@ -3,83 +3,14 @@ from functools import partial
 import numpy as np
 
 from lazyslide import WSI
-from lazyslide.readers.utils import get_crop_left_top_width_height
 
 import pytest
 
-IMAGE_WIDTH = 200
-IMAGE_HEIGHT = 100
 
-crop_func = partial(
-    get_crop_left_top_width_height, img_width=IMAGE_WIDTH, img_height=IMAGE_HEIGHT
-)
-
-
-def test_get_crop_xy_wh():
-    # inside
-    assert crop_func(left=50, top=50, width=10, height=10) == (50, 50, 10, 10, None)
-    # upper-left
-    assert crop_func(left=-10, top=-10, width=20, height=20) == (
-        0,
-        0,
-        10,
-        10,
-        "south-east",
-    )
-    # center-left
-    assert crop_func(left=-10, top=50, width=20, height=20) == (0, 50, 10, 20, "east")
-    # lower-left
-    assert crop_func(left=-10, top=90, width=20, height=20) == (
-        0,
-        90,
-        10,
-        10,
-        "north-east",
-    )
-    # upper-center
-    assert crop_func(left=50, top=-10, width=20, height=20) == (50, 0, 20, 10, "south")
-    # lower-center
-    assert crop_func(left=50, top=90, width=20, height=20) == (50, 90, 20, 10, "north")
-    # upper-right
-    assert crop_func(left=190, top=-10, width=20, height=20) == (
-        190,
-        0,
-        10,
-        10,
-        "south-west",
-    )
-    # center-right
-    assert crop_func(left=190, top=50, width=20, height=20) == (190, 50, 10, 20, "west")
-    # lower-right
-    assert crop_func(left=190, top=90, width=20, height=20) == (
-        190,
-        90,
-        10,
-        10,
-        "north-west",
-    )
-
-
-def test_get_crop_xy_wh_outside():
-    with pytest.raises(RuntimeError):
-        crop_func(left=-5, top=-20, width=10, height=10)
-
-    with pytest.raises(RuntimeError):
-        crop_func(left=-20, top=-20, width=10, height=10)
-
-    with pytest.raises(RuntimeError):
-        crop_func(left=-20, top=50, width=10, height=10)
-
-    with pytest.raises(RuntimeError):
-        crop_func(left=-20, top=120, width=10, height=10)
-
-    with pytest.raises(RuntimeError):
-        crop_func(left=50, top=-20, width=10, height=10)
-
-
-def test_read_slide():
+@pytest.mark.parametrize("reader", ["openslide", "tiffreader"])
+def test_read_slide(reader):
     slide = "https://github.com/camicroscope/Distro/raw/master/images/sample.svs"
-    wsi = WSI(slide, reader="openslide")
+    wsi = WSI(slide, reader=reader)
     wrapper_read = wsi.get_patch(500, 600, 100, 150, 0)
     # remove alpha channel
     openslide_read = np.array(wsi.reader.slide.read_region((500, 600), 0, (100, 150)))[

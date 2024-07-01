@@ -1,14 +1,17 @@
+import pytest
 import lazyslide as zs
 
 
 class TestIO:
-    def test_local_file(self):
+    @pytest.mark.parametrize("reader", ["openslide", "tiffslide"])
+    def test_local_file(self, reader):
         file = "data/CMU-1-Small-Region.svs"
-        zs.WSI(file)
+        zs.WSI(file, reader=reader)
 
-    def test_remote_file(self):
+    @pytest.mark.parametrize("reader", ["openslide", "tiffslide"])
+    def test_remote_file(self, reader):
         file = "https://github.com/camicroscope/Distro/raw/master/images/sample.svs"
-        zs.WSI(file)
+        zs.WSI(file, reader=reader)
 
     # A test save to pytest temporary file
     def test_save_temp(self, tmp_path):
