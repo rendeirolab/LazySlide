@@ -57,7 +57,7 @@ class FocusLite(ScorerBase):
     name = "focus"
 
     def __init__(self, threshold=3, device="cpu"):
-        from torchvision.transforms import ToTensor
+        from torchvision.transforms import ToTensor, Resize
 
         # threshold should be between 1 and 12
         if not (1 <= threshold <= 12):
@@ -65,14 +65,18 @@ class FocusLite(ScorerBase):
         self.threshold = threshold
         self.model = load_focuslite_model(device)
         self.to_tensor = ToTensor()
+        self.resize = Resize((256, 256), antialias=False)
 
     def get_score(self, patch) -> float:
         """Higher score means the patch is more clean, range from 0 to 1"""
         arr = self.to_tensor(patch)
+        # If the image is not big enough, resize it
+        if arr.shape[1] < 256 or arr.shape[2] < 256:
+            arr = self.resize(arr)
         arr = torch.stack([arr], dim=0)
         score = self.model(arr)
         score = max(0, np.mean(torch.squeeze(score.cpu().data, dim=1).numpy()))
         return score
 
     def filter(self, scores):
-        return scores > self.threshold
+        return scores < self.threshold
