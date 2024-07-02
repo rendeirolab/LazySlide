@@ -40,3 +40,8 @@ def import_windows_modules():
         print(target)
         with os.add_dll_directory(str(target / "openslide" / "bin")):
             import openslide
+
+
+@pytest.fixture(scope="session", autouse=True)
+def test_slide():
+    return Path(__file__).parent / "data" / "CMU-1-Small-Region.svs"

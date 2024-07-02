@@ -4,15 +4,15 @@ import lazyslide as zs
 
 class TestGet:
     @pytest.fixture(autouse=True)
-    def init_wsi(self):
-        self.wsi = zs.WSI("data/CMU-1-Small-Region.svs")
+    def init_wsi(self, test_slide):
+        self.wsi = zs.WSI(test_slide)
         zs.pp.find_tissue(self.wsi)
         zs.pp.tiles(self.wsi, 512)
         zs.tl.feature_extraction(self.wsi, "resnet18", pbar=False)
 
-    @pytest.mark.parametrize("return_type", ["numpy", "shapely"])
-    def test_get_tissue_contour(self, return_type):
-        for _ in zs.get.tissue_contours(self.wsi, return_type=return_type):
+    @pytest.mark.parametrize("as_array", [True, False])
+    def test_get_tissue_contour(self, as_array):
+        for _ in zs.get.tissue_contours(self.wsi, as_array=as_array):
             pass
 
     @pytest.mark.parametrize("color_norm", ["macenko", "reinhard", "reinhard_modified"])
@@ -41,7 +41,7 @@ class TestGet:
         assert zs.get.n_tiles(self.wsi) == 5
 
     def test_get_features_anndata(self, tmp_path):
-        adata = zs.get.tiles_anndata(self.wsi)
-        adata_f = zs.get.tiles_anndata(self.wsi, feature_key="resnet18")
+        adata = zs.get.features_anndata(self.wsi)
+        adata_f = zs.get.features_anndata(self.wsi, feature_key="resnet18")
         adata.write_h5ad(tmp_path / "test.h5ad")
         adata_f.write_h5ad(tmp_path / "test_f.h5ad")
