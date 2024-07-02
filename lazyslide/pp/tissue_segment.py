@@ -40,15 +40,35 @@ def find_tissue(
     # Get optimal level for segmentation
     if level is None:
         metadata = wsi.metadata
+
+        warn = False
         if metadata.mpp is None:
             # Use the middle level
             level = metadata.n_level // 2
-            warnings.warn(
-                f"mpp is not available, " f"use level {level} for segmentation."
-            )
+            warn = True
         else:
             search_space = np.asarray(metadata.level_downsample) * metadata.mpp
             level = np.argmin(np.abs(search_space - TARGET))
+
+        # check if level is beyond the RAM
+        current_shape = metadata.level_shape[level]
+        # The data type in uint8, so each pixel is 1 byte
+        # The size is calculated by width * height * 4 (RGBA)
+        bytes_size = current_shape[0] * current_shape[1] * 4
+        # if the size is beyond 4GB, use a higher level
+        while bytes_size > 4e9:
+            if level != metadata.n_level - 1:
+                level += 1
+                current_shape = metadata.level_shape[level]
+                bytes_size = current_shape[0] * current_shape[1] * 4
+            else:
+                level = metadata.n_level - 1
+                break
+        if warn:
+            warnings.warn(
+                f"mpp is not available, " f"use level {level} for segmentation."
+            )
+
     else:
         level = wsi.reader.translate_level(level)
 
@@ -86,6 +106,6 @@ def find_tissue(
     if len(contours) == 0:
         logging.warning("No tissue is found.")
         return
-    wsi.add_contours(contours, data={"tissue_id": contours_ids}, name=f"{key}_contours")
+    wsi.add_shapes(contours, data={"tissue_id": contours_ids}, name=f"{key}_contours")
     if len(holes) > 0:
-        wsi.add_holes(holes, data={"tissue_id": holes_ids}, name=f"{key}_holes")
+        wsi.add_shapes(holes, data={"tissue_id": holes_ids}, name=f"{key}_holes")
