@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from functools import cached_property
+from pathlib import Path
 from typing import List
 
 import numpy as np
@@ -5,35 +9,28 @@ import pandas as pd
 
 from lazyslide import WSI
 
-try:
-    from torch.utils.data import DataLoader, Dataset
-except ImportError:
-    DataLoader = object
+import lazy_loader as lazy
+
+torch = lazy.load("torch")
 
 
-class TileImagesDataset(Dataset):
+class TileImagesDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         wsi: WSI,
-        transform=None,
-        target_transform=None,
         key: str = "tiles",
         target_key: str = None,
+        transform=None,
+        color_norm=None,
+        target_transform=None,
         shuffle: bool = False,
         seed: int = 0,
     ):
-        # Check if the tile exists
-        if key not in wsi.sdata.points:
-            raise ValueError(f"Tile {key} not found.")
         # Do not assign wsi to self to avoid pickling
-        tiles = wsi.sdata.points[key]
-        get_keys = ["x", "y"]
-        if target_key is not None:
-            get_keys.append(target_key)
-        if hasattr(tiles, "compute"):
-            tiles = tiles[get_keys].compute()
+        tiles = wsi.get_tiles_table(key)
         self.tiles = tiles[["x", "y"]].to_numpy()
         self.spec = wsi.get_tile_spec(key)
+        self.color_norm = color_norm
 
         self.targets = None
         if target_key is not None:
@@ -50,6 +47,19 @@ class TileImagesDataset(Dataset):
         self.reader = wsi.reader
         self.reader.detach_reader()
 
+    @cached_property
+    def cn_func(self):
+        return self.get_cn_func()
+
+    def get_cn_func(self):
+        if self.color_norm is not None:
+            from lazyslide.cv.colornorm import ColorNormalizer
+
+            cn = ColorNormalizer(method=self.color_norm)
+            return lambda x: cn(x)
+        else:
+            return lambda x: x
+
     def __len__(self):
         return len(self.tiles)
 
@@ -59,6 +69,7 @@ class TileImagesDataset(Dataset):
         tile = self.reader.get_region(
             x, y, self.spec.width, self.spec.height, level=self.spec.level
         )
+        self.cn_func(tile)
         if self.transform:
             tile = self.transform(tile)
         if self.targets is not None:
@@ -69,15 +80,29 @@ class TileImagesDataset(Dataset):
         return tile
 
 
-class TileFeatureDataset(Dataset):
+class TileImagesDiskDataset(torch.utils.data.Dataset):
+    def __init__(
+        self,
+        root: str | Path,
+        key="tiles",
+        transform=None,
+        target_transform=None,
+        shuffle: bool = False,
+        seed: int = 0,
+    ):
+        self.tile_dir = Path(root) / "tile_images" / key
+        self.table = pd.read_csv(self.tile_dir / "tiles.csv")
+
+
+class TileFeatureDataset(torch.utils.data.Dataset):
     pass
 
 
-class GraphDataset(Dataset):
+class GraphDataset(torch.utils.data.Dataset):
     pass
 
 
-class WSIListDataset(Dataset):
+class WSIListDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         wsi_list: List[WSI | str],
@@ -93,11 +118,7 @@ class WSIListDataset(Dataset):
             self.targets = targets.to_numpy()
 
 
-class ImageLoader(DataLoader):
-    pass
-
-
-class DirectoryDataset(Dataset):
+class DirectoryDataset(torch.utils.data.Dataset):
     """Load Images/Features/Graph from a directory."""
 
     pass
