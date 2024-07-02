@@ -7,10 +7,11 @@ from lazyslide.wsi import WSI, TileSpec
 
 def anatomical_domain(
     wsi: WSI,
+    feature_key: str,
     tile_key: str = "tiles",
-    feature_key: str = None,
     method: Literal["leiden", "utag"] = "leiden",
     resolution: float = 1.0,
+    key_added: str = "domain",
 ):
     """Return the unsupervised domain of the WSI"""
     try:
@@ -20,13 +21,16 @@ def anatomical_domain(
             "Please install scanpy to use this function, " "try `pip install scanpy`."
         )
 
-    adata = wsi.sdata.tables[f"{tile_key}/{feature_key}"]
-    tile_spec = TileSpec(**wsi.sdata.tables[f"{tile_key}_spec"].uns["tiles_spec"])
+    if f"{tile_key}_{feature_key}" not in wsi.sdata.tables:
+        raise ValueError(f"Feature key {feature_key} not found in the tables.")
+
+    adata = wsi.sdata.tables[f"{tile_key}_{feature_key}"]
+    tile_spec = wsi.get_tile_spec(tile_key)
 
     if method == "utag":
         # Calculate UTAG features
         # The radius is the diagonal of the tile
-        r = np.sqrt(tile_spec.ops_width**2 + tile_spec.ops_height**2)
+        r = np.sqrt(tile_spec.raw_width**2 + tile_spec.raw_height**2)
 
         # Compute the spatial connectivity
         from scipy.spatial import KDTree
@@ -50,7 +54,9 @@ def anatomical_domain(
 
     sc.pp.pca(adata, layer=layer)
     sc.pp.neighbors(adata)
-    sc.tl.leiden(adata, flavor="igraph", key_added="domain", resolution=resolution)
+    sc.tl.leiden(adata, flavor="igraph", key_added=key_added, resolution=resolution)
+    # Add to tile table
+    wsi.add_tiles_data({key_added: adata.obs[key_added].to_numpy()}, tile_key)
 
 
 def domain_props(
