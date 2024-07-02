@@ -245,7 +245,7 @@ def shape_table(wsi, key="tissue_contours"):
 
 def n_tissue(wsi, key="tissue"):
     """Return the number of tissue regions"""
-    cnt = wsi.sdata.shapes[f"{key}_contours"]
+    cnt = wsi.get_shape_table(f"{key}_contours")
     return cnt["tissue_id"].nunique()
 
 
