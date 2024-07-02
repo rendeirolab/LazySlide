@@ -145,18 +145,19 @@ def tiles(
     # Get contours
     if f"{tissue_key}_contours" not in wsi.sdata.shapes:
         raise ValueError(
-            f"Contour {tissue_key}_contours not found. " f"Did you run pp.find_tissue?"
+            f"Contour {tissue_key}_contours not found. Did you run pp.find_tissue?"
         )
-    contours = wsi.sdata.shapes[f"{tissue_key}_contours"]
+    contours = wsi.get_shape_table(f"{tissue_key}_contours")
     if f"{tissue_key}_holes" in wsi.sdata.shapes:
-        holes = wsi.sdata.shapes[f"{tissue_key}_holes"]
+        holes = wsi.get_shape_table(f"{tissue_key}_holes")
     else:
         holes = []
 
     tile_coords = []
     tiles_tissue_id = []
     for _, row in contours.iterrows():
-        tissue_id, cnt = row
+        tissue_id = row["tissue_id"]
+        cnt = row["geometry"]
         minx, miny, maxx, maxy = cnt.bounds
         height, width = (maxy - miny, maxx - minx)
 
@@ -229,8 +230,8 @@ def tiles(
         mpp=mpp,
         height=ops_tile_h,
         width=ops_tile_w,
-        ops_height=ops_tile_h,
-        ops_width=ops_tile_w,
+        raw_height=ops_tile_h,
+        raw_width=ops_tile_w,
         tissue_name=tissue_key,
     )
 
@@ -251,7 +252,13 @@ def tiles(
                 to_use.append(use)
             tile_coords = tile_coords[to_use]
             tiles_tissue_id = tiles_tissue_id[to_use]
-        wsi.add_tiles(tile_coords, key, tile_spec, data={"tissue_id": tiles_tissue_id})
+        wsi.add_tiles(
+            xy=tile_coords, tissue_id=tiles_tissue_id, name=key, spec=tile_spec
+        )
+        wsi.add_tiles_data(
+            data={"id": np.arange(len(tile_coords)), "tissue_id": tiles_tissue_id},
+            name=key,
+        )
 
 
 Scorer = Union[ScorerBase, str]
@@ -261,7 +268,7 @@ def tiles_qc(
     wsi: WSI,
     scorers: Scorer | Sequence[Scorer],
     key: str = "tiles",
-    key_added: str = "tiles",
+    key_added: str = "qc",
 ):
     """
     Score the tiles and filter the tiles based on the score
@@ -290,8 +297,8 @@ def tiles_qc(
 
     if key not in wsi.sdata.points:
         raise ValueError(f"Tile {key} not found.")
-    tiles_tb = wsi.sdata.points[key].compute()
-    spec = TileSpec(**wsi.sdata.tables[f"{key}_spec"].uns["tiles_spec"])
+    tiles_tb = wsi.get_tiles_table(key)
+    spec = wsi.get_tile_spec(key)
 
     scorer_funcs = {}
     for s in scorers:
@@ -313,23 +320,20 @@ def tiles_qc(
     scores = {name: [] for name in scorer_funcs.keys()}
     for tile in tiles:
         x, y = tile
-        img = wsi.get_region(x, y, spec.ops_width, spec.ops_height, level=spec.level)
+        img = wsi.get_region(x, y, spec.raw_width, spec.raw_height, level=spec.level)
         for name, s in scorer_funcs.items():
             score = s.get_score(img)
             scores[name].append(score)
 
     # Filter the tiles
     to_use = np.ones(len(tiles), dtype=bool)
-    for name, scores in scores.items():
+    for name, score in scores.items():
         filter_func = scorer_funcs[name].filter
-        mask = filter_func(np.array(scores))
+        mask = filter_func(np.array(score))
         to_use = to_use & mask
 
-    use_tiles = tiles_tb.loc[to_use, ["x", "y"]].values
-    # Get the tiles table that are not 'x', 'y'
-    columns = [c for c in tiles_tb.columns if c not in ["x", "y"]]
-    data = tiles_tb.loc[to_use, columns]
-    wsi.add_tiles(use_tiles, key, spec, data=data)
+    scores[key_added] = to_use
+    wsi.add_tiles_data(scores, key)
 
 
 @njit

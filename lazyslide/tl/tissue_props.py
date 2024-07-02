@@ -20,10 +20,10 @@ def tissue_props(
         holes = tissue_contour.holes
         _props = contour_props(cnt, holes)
         cnts.append(cnt)
-        _props["tissue_id"] = tissue_contour.id
         props.append(_props)
 
-    wsi.add_contours(cnts, data=pd.DataFrame(props), name=f"{key}_contours")
+    props = pd.DataFrame(props).to_dict(orient="list")
+    wsi.add_shapes_data(props, name=f"{key}_contours")
 
 
 class ContourProps:
