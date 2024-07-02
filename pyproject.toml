@@ -46,7 +46,8 @@ dev = [
     "sphinxawesome-theme",
     "numpydoc",
     "sphinx_design",
-    "sphinx_copybutton",
+    "myst-nb",
+    "pytest",
 ]
 
 # Define entry points
@@ -55,6 +56,7 @@ lazyslide = "lazyslide.__main__:app"
 
 [tool.ruff]
 ignore = ["F401"]
+line-length = 88
 
 [tool.ruff.per-file-ignores]
 "lazyslide/readers/base.py" = ["E731"]
