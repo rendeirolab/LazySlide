@@ -1,0 +1,31 @@
+/*For type annotation in API documentation*/
+span.classifier {
+    margin-left: .5rem;
+}
+
+#left-sidebar a.expandable {
+    justify-content: start;
+}
+
+div.container.cell {
+    margin-top: 1rem;
+}
+
+#content h1 {
+    display: flex;
+    align-items: center;
+}
+
+span > svg {
+    margin-right: 2px !important;
+}
+
+nav[aria-label="breadcrumbs"] > span[aria-current="page"] {
+    display: flex;
+    align-items: center;
+}
+
+div.sd-card-title {
+    display: flex;
+    align-items: center;
+}
