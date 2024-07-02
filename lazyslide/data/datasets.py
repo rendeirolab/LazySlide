@@ -69,7 +69,7 @@ class TileImagesDataset(torch.utils.data.Dataset):
         tile = self.reader.get_region(
             x, y, self.spec.width, self.spec.height, level=self.spec.level
         )
-        self.cn_func(tile)
+        tile = self.cn_func(tile)
         if self.transform:
             tile = self.transform(tile)
         if self.targets is not None:
