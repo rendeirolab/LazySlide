@@ -1,5 +1,4 @@
 from collections import namedtuple
-from typing import Literal
 
 import cv2
 import numpy as np
@@ -232,6 +231,16 @@ def features_anndata(
 ):
     """Convert the WSI to an AnnData object"""
     return wsi.get_features(feature_key, tile_key=tile_key)
+
+
+def tiles_table(wsi, key="tiles"):
+    """Return the tile table"""
+    return wsi.get_tiles_table(key)
+
+
+def shape_table(wsi, key="tissue_contours"):
+    """Return the shape table"""
+    return wsi.get_shape_table(key)
 
 
 def n_tissue(wsi, key="tissue"):
