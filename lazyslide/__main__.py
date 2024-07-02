@@ -4,8 +4,6 @@ from typing import Optional
 from rich import print
 from typer import Typer, Argument, Option
 
-from lazyslide import WSI
-
 warnings.filterwarnings("ignore", category=UserWarning)
 
 app = Typer(pretty_exceptions_show_locals=False)
@@ -25,11 +23,11 @@ def tissue(
     slide: str = SLIDE,
     output: Optional[str] = OUTPUT,
 ):
-    from lazyslide.pp import find_tissue
+    import lazyslide as zs
 
     print(f"Read slide file {slide}")
-    wsi = WSI(slide)
-    find_tissue(wsi)
+    wsi = zs.WSI(slide)
+    zs.pl.find_tissue(wsi)
     wsi.write(output)
     print(f"Write to {wsi.file}")
 
@@ -44,10 +42,43 @@ def tile(
     mpp: float = Option(None, help="The microns per pixel"),
     output: Optional[str] = OUTPUT,
 ):
-    from lazyslide.pp import tiles
+    import lazyslide as zs
 
     print(f"Read slide file {slide}")
-    wsi = WSI(slide)
-    tiles(wsi, tile_px=tile_px, stride_px=stride_px, mpp=mpp)
+    wsi = zs.WSI(slide)
+    zs.tiles(wsi, tile_px=tile_px, stride_px=stride_px, mpp=mpp)
     wsi.write(output)
     print(f"Write to {wsi.file}")
+
+
+@app.command()
+def feature(
+    slide: str = SLIDE,
+    model: str = Argument(..., help="A model name or the path to the model file"),
+    output: Optional[str] = OUTPUT,
+):
+    import lazyslide as zs
+
+    print(f"Read slide file {slide}")
+    wsi = zs.WSI(slide)
+    zs.feature_extraction(wsi, model)
+    wsi.write(output)
+    print(f"Write to {wsi.file}")
+
+
+@app.command()
+def list_models(
+    pattern: str = Option(
+        None, "--pattern", "-p", help="A pattern to filter the list of models"
+    ),
+):
+    """
+    List the available models from timm.
+    """
+    import re
+    import timm
+
+    models = timm.list_models(pattern)
+    # A rich table for the list of models
+    for model in models:
+        print(model)
