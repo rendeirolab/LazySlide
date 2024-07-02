@@ -47,3 +47,8 @@ class CONCH(torch.nn.Module):
 
     def forward(self, image):
         return self.encode_image(image)
+
+
+class CONCHVision(CONCH):
+    def forward(self, image):
+        return self.encode_image(image, normalize=False)
