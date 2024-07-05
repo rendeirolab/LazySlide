@@ -23,8 +23,6 @@ class TileImagesDataset(torch.utils.data.Dataset):
         transform=None,
         color_norm=None,
         target_transform=None,
-        shuffle: bool = False,
-        seed: int = 0,
     ):
         # Do not assign wsi to self to avoid pickling
         tiles = wsi.get_tiles_table(key)
@@ -38,11 +36,6 @@ class TileImagesDataset(torch.utils.data.Dataset):
         self.transform = transform
         self.target_transform = target_transform
 
-        ix = np.arange(len(self.tiles))
-        if shuffle:
-            rng = np.random.default_rng(seed=seed)
-            rng.shuffle(ix)
-        self.ix_mapper = dict(enumerate(ix))
         # Send reader to the worker instead of wsi
         self.reader = wsi.reader
         self.reader.detach_reader()
@@ -64,7 +57,6 @@ class TileImagesDataset(torch.utils.data.Dataset):
         return len(self.tiles)
 
     def __getitem__(self, idx):
-        idx = self.ix_mapper[idx]
         x, y = self.tiles[idx]
         tile = self.reader.get_region(
             x, y, self.spec.width, self.spec.height, level=self.spec.level
@@ -87,15 +79,38 @@ class TileImagesDiskDataset(torch.utils.data.Dataset):
         key="tiles",
         transform=None,
         target_transform=None,
-        shuffle: bool = False,
-        seed: int = 0,
     ):
         self.tile_dir = Path(root) / "tile_images" / key
         self.table = pd.read_csv(self.tile_dir / "tiles.csv")
 
 
 class TileFeatureDataset(torch.utils.data.Dataset):
-    pass
+    def __init__(
+        self,
+        wsi: WSI,
+        feature_key: str,
+        target_key: str = None,
+        target_transform=None,
+    ):
+        tables = wsi.get_features(feature_key)
+        self.X = tables.X
+        self.tables = tables.obs
+        self.targets = None
+        if target_key in self.tables:
+            self.targets = self.tables[target_key].to_numpy()
+        self.target_transform = target_transform
+
+    def __len__(self):
+        return len(self.tables)
+
+    def __getitem__(self, idx):
+        x = self.X[idx]
+        if self.targets is not None:
+            y = self.targets[idx]
+            if self.target_transform is not None:
+                y = self.target_transform(y)
+            return x, y
+        return x
 
 
 class GraphDataset(torch.utils.data.Dataset):
