@@ -288,6 +288,7 @@ class SlideViewer:
         ax=None,
         marker="o",
         size=50,
+        rasterized=True,
         **kwargs,
     ):
         # If there are no tiles, return
@@ -377,6 +378,7 @@ class SlideViewer:
             marker=marker,
             **kwargs,
         )
+        sm.set_rasterized(rasterized)
         if add_colorart:
             colorart(sm, ax=ax)
         if add_cat_legend:

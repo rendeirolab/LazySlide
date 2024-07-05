@@ -44,6 +44,7 @@ def tiles(
     tissue_key="tissue",
     tile_key="tiles",
     title=None,
+    show_tissue=True,
     show_point=True,
     show_grid=False,
     show_contours=True,
@@ -59,6 +60,7 @@ def tiles(
     palette=None,
     size=50,
     ax=None,
+    rasterized=False,
     **kwargs,
 ):
     if ax is None:
@@ -71,7 +73,8 @@ def tiles(
         tissue_id=tissue_id,
         tile_key=tile_key,
     )
-    slide.add_tissue(ax=ax)
+    if show_tissue:
+        slide.add_tissue(ax=ax)
     if show_grid:
         slide.add_tiles(ax=ax)
     if show_origin:
@@ -93,6 +96,7 @@ def tiles(
             size=size,
             marker=marker,
             ax=ax,
+            rasterized=rasterized,
             **kwargs,
         )
     slide.add_title(title, ax=ax)
