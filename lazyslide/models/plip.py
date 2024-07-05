@@ -20,7 +20,10 @@ class PLIP(torch.nn.Module):
         )
 
     def encode_image(self, image, normalize=True):
-        inputs = self.processor(images=image, return_tensors="pt")
+        if not isinstance(image, torch.Tensor):
+            inputs = self.processor(images=image, return_tensors="pt")
+        else:
+            inputs = {"pixel_values": image}
         inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
         image_features = self.model.get_image_features(**inputs)
         if normalize:

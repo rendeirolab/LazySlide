@@ -32,7 +32,10 @@ class CONCH(torch.nn.Module):
         return tokenize(self.tokenizer, text)
 
     def encode_image(self, image, normalize=True):
-        image = self.processor(image).unsqueeze(0)
+        if not isinstance(image, torch.Tensor):
+            image = self.processor(image)
+        if image.dim() == 3:
+            image = image.unsqueeze(0)
         image_feature = self.model.encode_image(
             image, normalize=normalize, proj_contrast=normalize
         )
@@ -40,9 +43,7 @@ class CONCH(torch.nn.Module):
 
     def encode_text(self, text, normalize=True):
         encode_texts = self.tokenize(text)
-        text_feature = self.model.encode_text(
-            encode_texts, normalize=normalize, proj_contrast=normalize
-        )
+        text_feature = self.model.encode_text(encode_texts)
         return text_feature
 
     def forward(self, image):
