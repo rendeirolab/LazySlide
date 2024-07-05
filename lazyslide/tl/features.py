@@ -37,20 +37,21 @@ def get_default_transform():
 
 def load_models(model, repo=None, **kwargs):
     """Load a model with timm or torch.hub.load"""
-    try:
-        import timm
-    except ImportError:
-        # use torch.hub.load
-        import torch
+    import torch
 
-        if repo is None:
-            repo = "pytorch/vision"
-        model = torch.hub.load(repo, model, **kwargs)
+    if repo is not None:
+        return torch.hub.load(repo, model, **kwargs)
+    else:
+        try:
+            import timm
+        except ImportError:
+            # use torch.hub.load instead
+            model = torch.hub.load("pytorch/vision", model, **kwargs)
+            return model
+
+        kwargs = {"pretrained": True, "scriptable": True, **kwargs}
+        model = timm.create_model(model, **kwargs)
         return model
-
-    kwargs = {"pretrained": True, "scriptable": True, **kwargs}
-    model = timm.create_model(model, **kwargs)
-    return model
 
 
 # TODO: Test if it's possible to load model files
@@ -59,7 +60,6 @@ def feature_extraction(
     model: str | Any,
     repo: str = None,
     create_opts: dict = None,
-    model_func: Callable = None,
     transform: Callable = None,
     compile: bool = True,
     compile_opts: dict = None,
@@ -133,11 +133,6 @@ def feature_extraction(
         else:
             feature_key = "features"
 
-    if model_func is None:
-
-        def model_func(model, image):
-            return model(image)
-
     # Create dataloader
     # Auto chunk the wsi tile coordinates to the number of workers'
     tiles_count = len(wsi.sdata.points[tile_key])
@@ -163,9 +158,7 @@ def feature_extraction(
                     chunks = chunker(np.arange(tiles_count), num_workers)
                     dataset = TileImagesDataset(wsi, transform=transform, key=tile_key)
                     futures = [
-                        executor.submit(
-                            _inference, dataset, chunk, model, queue, model_func
-                        )
+                        executor.submit(_inference, dataset, chunk, model, queue)
                         for chunk in chunks
                     ]
                     while any(future.running() for future in futures):
@@ -189,7 +182,7 @@ def feature_extraction(
             with torch.inference_mode():
                 for batch in loader:
                     batch = batch.to(device)
-                    output = model_func(model, batch)
+                    output = model(batch)
                     features.append(output.cpu().numpy())
                     pbar.update(task, advance=len(batch))
             # The progress bar may not reach 100% if exit too early
@@ -215,7 +208,7 @@ def chunker(seq, num_workers):
     return out
 
 
-def _inference(dataset, chunk, model, queue, model_func):
+def _inference(dataset, chunk, model, queue):
     import torch
 
     with torch.inference_mode():
@@ -224,7 +217,7 @@ def _inference(dataset, chunk, model, queue, model_func):
             img = dataset[c]
             # image to 4d
             img = img.unsqueeze(0)
-            output = model_func(model, img)
+            output = model(img)
             X.append(output.cpu().numpy())
             queue.put(1)
     return X
