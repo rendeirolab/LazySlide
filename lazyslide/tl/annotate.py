@@ -9,7 +9,7 @@ from lazyslide.wsi import WSI
 
 def annotate(
     wsi: WSI,
-    texts: List[str],
+    texts: List[str] | "AnnData",  # noqa: F821
     method: Literal["plip", "conch"] = "plip",
     model=None,
     tile_key="tiles",
@@ -23,8 +23,9 @@ def annotate(
     ----------
     wsi : WSI
         The whole slide image object.
-    texts : List[str] | Dict[str, np.ndarray]
-        The list of texts to annotate or pre-computed embeddings features.
+    texts : List[str] | Dict[str, np.ndarray] | AnnData
+        The list of texts to annotate or
+        pre-computed embeddings features in a dictionary or AnnData.
     method : Literal["plip", "conch"], default: "plip"
         The annotation method.
     tile_key : str, default: "tiles"
@@ -56,8 +57,24 @@ def annotate(
         raise ValueError(_run_model_error_msg(feature_key, feature_key))
 
     model.to(device)
-    texts_embeddings = model.encode_text(texts).detach().cpu().numpy()
-    texts_adata = ad.AnnData(X=texts_embeddings, obs=pd.DataFrame(index=texts))
+    if isinstance(texts, list):
+        texts_embeddings = model.encode_text(texts).detach().cpu().numpy()
+        texts_adata = ad.AnnData(X=texts_embeddings, obs=pd.DataFrame(index=texts))
+    elif isinstance(texts, ad.AnnData):
+        texts_adata = texts
+        texts_embeddings = texts.X
+        texts = texts.obs.index
+    elif isinstance(texts, dict):
+        obs_index = []
+        X = []
+        for text, embedding in texts.items():
+            obs_index.append(text)
+            X.append(embedding)
+        texts_embeddings = np.vstack(X)
+        texts_adata = ad.AnnData(X=texts_embeddings, obs=pd.DataFrame(index=obs_index))
+        texts = obs_index
+    else:
+        raise ValueError("Invalid type for texts.")
 
     if tile_key not in wsi.sdata.points:
         raise ValueError(f"Tile key {tile_key} not found.")
