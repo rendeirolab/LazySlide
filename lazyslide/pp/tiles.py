@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import warnings
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import Manager
 from numbers import Integral
 from typing import Sequence, Callable, Union
 
@@ -9,6 +11,7 @@ import numpy as np
 from numba import njit
 
 from lazyslide.cv.scorer.base import ScorerBase
+from lazyslide.utils import default_pbar, chunker
 from lazyslide.wsi import WSI, TileSpec
 
 
@@ -267,6 +270,8 @@ Scorer = Union[ScorerBase, str]
 def tiles_qc(
     wsi: WSI,
     scorers: Scorer | Sequence[Scorer],
+    num_workers: int = 1,
+    pbar: bool = True,
     key: str = "tiles",
     key_added: str = "qc",
 ):
@@ -282,6 +287,10 @@ def tiles_qc(
         You can also pass in a string
         - 'focus': A FocusLite scorer that will score the focus of the image
         - 'contrast': A Contrast scorer that will score the contrast of the image
+    num_workers : int, default: 1
+        The number of workers to use
+    pbar : bool, default: True
+        Whether to show the progress bar
     key : str
         The key of the tiles
     key_added : str
@@ -315,15 +324,43 @@ def tiles_qc(
         else:
             raise TypeError(f"Unknown scorer type {type(s)}")
 
-    # Score the tiles
-    tiles = tiles_tb[["x", "y"]].values
-    scores = {name: [] for name in scorer_funcs.keys()}
-    for tile in tiles:
-        x, y = tile
-        img = wsi.get_region(x, y, spec.raw_width, spec.raw_height, level=spec.level)
-        for name, s in scorer_funcs.items():
-            score = s.get_score(img)
-            scores[name].append(score)
+    with default_pbar(disable=not pbar) as progress_bar:
+        task = progress_bar.add_task("Scoring tiles", total=len(tiles_tb))
+        scores = {name: [] for name in scorer_funcs.keys()}
+        tiles = tiles_tb[["x", "y"]].values
+
+        if num_workers == 1:
+            # Score the tiles
+            for tile in tiles:
+                x, y = tile
+                img = wsi.get_region(
+                    x, y, spec.raw_width, spec.raw_height, level=spec.level
+                )
+                for name, s in scorer_funcs.items():
+                    score = s.get_score(img)
+                    scores[name].append(score)
+                progress_bar.update(task, advance=1)
+        else:
+            with Manager() as manager:
+                queue = manager.Queue()
+                with ProcessPoolExecutor(max_workers=num_workers) as executor:
+                    chunks = chunker(tiles, num_workers)
+                    wsi.reader.detach_reader()
+                    futures = [
+                        executor.submit(
+                            _chunk_scoring, chunk, spec, wsi.reader, scorer_funcs, queue
+                        )
+                        for chunk in chunks
+                    ]
+                    while any(future.running() for future in futures):
+                        if queue.empty():
+                            continue
+                        _ = queue.get()
+                        progress_bar.update(task, advance=1)
+                    for f in futures:
+                        for name, score in f.result().items():
+                            scores[name].extend(score)
+        progress_bar.refresh()
 
     # Filter the tiles
     to_use = np.ones(len(tiles), dtype=bool)
@@ -334,6 +371,18 @@ def tiles_qc(
 
     scores[key_added] = to_use
     wsi.add_tiles_data(scores, key)
+
+
+def _chunk_scoring(tiles, spec, reader, scorer, queue):
+    scores = {name: [] for name in scorer.keys()}
+    for tile in tiles:
+        x, y = tile
+        img = reader.get_region(x, y, spec.raw_width, spec.raw_height)
+        for name, s in scorer.items():
+            score = s.get_score(img)
+            scores[name].append(score)
+        queue.put(1)
+    return scores
 
 
 @njit
