@@ -49,7 +49,7 @@ def load_focuslite_model(device="cpu"):
     )
     model.load_state_dict(ckpt["state_dict"])
     model.eval()
-    model = torch.compile(model)
+    # model = torch.compile(model)
     return model
 
 
