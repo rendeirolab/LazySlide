@@ -26,3 +26,34 @@ def check_feature_key(wsi, feature_key, tile_key=None):
                 )
             return f"{tile_key}_{feature_key}"
         return feature_key
+
+
+def default_pbar(disable=False):
+    """Get the default progress bar"""
+    from rich.progress import Progress
+    from rich.progress import (
+        TextColumn,
+        BarColumn,
+        TaskProgressColumn,
+        TimeRemainingColumn,
+    )
+
+    return Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(bar_width=30),
+        TaskProgressColumn(),
+        TimeRemainingColumn(compact=True, elapsed_when_finished=True),
+        disable=disable,
+    )
+
+
+def chunker(seq, num_workers):
+    avg = len(seq) / num_workers
+    out = []
+    last = 0.0
+
+    while last < len(seq):
+        out.append(seq[int(last) : int(last + avg)])
+        last += avg
+
+    return out

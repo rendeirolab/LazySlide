@@ -7,16 +7,10 @@ from pathlib import Path
 from typing import Callable, Any
 
 import numpy as np
-from rich.progress import (
-    Progress,
-    TextColumn,
-    BarColumn,
-    TaskProgressColumn,
-    TimeRemainingColumn,
-)
 
 from lazyslide import WSI
 from lazyslide.data.datasets import TileImagesDataset
+from lazyslide.utils import default_pbar, chunker
 
 
 def get_default_transform():
@@ -124,14 +118,8 @@ def feature_extraction(
     # Auto chunk the wsi tile coordinates to the number of workers'
     tiles_count = len(wsi.sdata.points[tile_key])
 
-    with Progress(
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(bar_width=30),
-        TaskProgressColumn(),
-        TimeRemainingColumn(compact=True, elapsed_when_finished=True),
-        disable=not pbar,
-    ) as pbar:
-        task = pbar.add_task("Extracting features", total=tiles_count)
+    with default_pbar(disable=not pbar) as progress_bar:
+        task = progress_bar.add_task("Extracting features", total=tiles_count)
 
         if mode == "chunk":
             if num_workers == 0:
@@ -152,7 +140,7 @@ def feature_extraction(
                         if queue.empty():
                             continue
                         _ = queue.get()
-                        pbar.update(task, advance=1)
+                        progress_bar.update(task, advance=1)
 
                     features = []
                     for f in futures:
@@ -171,28 +159,16 @@ def feature_extraction(
                     batch = batch.to(device)
                     output = model(batch)
                     features.append(output.cpu().numpy())
-                    pbar.update(task, advance=len(batch))
+                    progress_bar.update(task, advance=len(batch))
             # The progress bar may not reach 100% if exit too early
             # Force update
-            pbar.refresh()
+            progress_bar.refresh()
             features = np.vstack(features)
 
     # Write features to WSI
     wsi.add_features(features, tile_key, feature_key)
     if return_features:
         return features
-
-
-def chunker(seq, num_workers):
-    avg = len(seq) / num_workers
-    out = []
-    last = 0.0
-
-    while last < len(seq):
-        out.append(seq[int(last) : int(last + avg)])
-        last += avg
-
-    return out
 
 
 def _inference(dataset, chunk, model, queue):
