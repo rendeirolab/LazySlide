@@ -29,36 +29,23 @@ def get_default_transform():
         Resize(size=(224, 224), antialias=False),
         Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
     ]
-    # if color_normalize is not None:
-    #     pre.append(ColorNormalizer(method=color_normalize))
 
     return Compose(transforms)
 
 
-def load_models(model, repo=None, **kwargs):
+def load_models(model, repo="pytorch/vision", **kwargs):
     """Load a model with timm or torch.hub.load"""
     import torch
 
-    if repo is not None:
-        return torch.hub.load(repo, model, **kwargs)
-    else:
-        try:
-            import timm
-        except ImportError:
-            # use torch.hub.load instead
-            model = torch.hub.load("pytorch/vision", model, **kwargs)
-            return model
-
-        kwargs = {"pretrained": True, "scriptable": True, **kwargs}
-        model = timm.create_model(model, **kwargs)
-        return model
+    kwargs = {"weights": "DEFAULT", **kwargs}
+    return torch.hub.load(repo, model, **kwargs)
 
 
 # TODO: Test if it's possible to load model files
 def feature_extraction(
     wsi: WSI,
     model: str | Any,
-    repo: str = None,
+    repo: str = "pytorch/vision",
     create_opts: dict = None,
     transform: Callable = None,
     compile: bool = True,
