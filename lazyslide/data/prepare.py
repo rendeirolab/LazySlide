@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from pathlib import Path
 from typing import List, Literal
 
@@ -39,7 +40,7 @@ class DiskDatasetBuilder:
         metadata_file = slide_dir / "metadata.json"
         if not metadata_file.exists():
             with open(metadata_file, "w") as f:
-                json.dump(self.wsi.metadata.model_dump(), f)
+                json.dump(asdict(self.wsi.metadata), f)
         with open(slide_dir / "annotation.json", "w") as f:
             json.dump(self.wsi.get_slide_annotations(), f)
         return slide_dir
@@ -79,7 +80,7 @@ class DiskDatasetBuilder:
             tile_data.append([tile.x, tile.y, tile.id, tile.tissue_id, tile_name])
         # Export tile spec
         with open(tile_dir / "tile_spec.json", "w") as f:
-            json.dump(self.wsi.get_tile_spec(tile_key).model_dump(), f)
+            json.dump(asdict(self.wsi.get_tile_spec(tile_key)), f)
         # Export tile annotations
         columns = ["x", "y", "id", "tissue_id", "filename"]
         tile_data = pd.DataFrame(tile_data, columns=columns)

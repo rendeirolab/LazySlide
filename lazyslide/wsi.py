@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Optional, Dict, Sequence
+from dataclasses import dataclass, asdict
 
 import lazy_loader as lazy
 import numpy as np
@@ -10,22 +11,22 @@ from fsspec import open
 from fsspec.core import OpenFile, url_to_fs
 from fsspec.implementations.cached import WholeFileCacheFileSystem
 from fsspec.implementations.local import LocalFileSystem
-from pydantic import BaseModel
 
 from .reader import get_reader
 
 ad = lazy.load("anndata")
 
 
-class TileSpec(BaseModel):
-    level: int = 0
-    downsample: float = 1
-    mpp: Optional[float] = None
+@dataclass
+class TileSpec:
     height: int
     width: int
     raw_height: int
     raw_width: int
     tissue_name: str
+    level: int = 0
+    downsample: float = 1
+    mpp: Optional[float] = None
 
 
 class SlideData:
@@ -136,7 +137,7 @@ class SlideData:
         # Parse spec
         if isinstance(spec, dict):
             spec = TileSpec(**spec)
-        spec = spec.model_dump()
+        spec = asdict(spec)
         ref_adata = ad.AnnData(obs=points, uns={"tile_spec": spec})
         ref_adata = TableModel.parse(
             ref_adata,
@@ -153,6 +154,21 @@ class SlideData:
         tiles = self.sdata.tables[table_name]
         for key, value in data.items():
             tiles.obs[key] = value
+
+    def subset_tiles(self, name, indices, new_name):
+        if name not in self.sdata.points:
+            raise ValueError(f"Tile {name} not found.")
+        tiles = self.get_tiles_table(name)[indices]
+        spec = self.get_tile_spec(name)
+        xy = tiles[["x", "y"]].values
+        tissue_id = tiles["tissue_id"].values
+        self.add_tiles(xy, tissue_id, new_name, spec)
+        tiles_data = {
+            key: tiles[key].values
+            for key in tiles.columns
+            if key not in ["x", "y", "tissue_id"]
+        }
+        self.add_tiles_data(tiles_data, new_name)
 
     def get_tiles_table(self, name):
         if name in self.sdata.tables:
@@ -339,7 +355,7 @@ class WSI(SlideData):
         slide_annotations = self.get_slide_annotations()
         adata.uns = {
             "annotations": slide_annotations,
-            "metadata": self.metadata.model_dump(),
+            "metadata": asdict(self.metadata),
         }
         adata.uns.update(tile_adata.uns)
         return adata

@@ -2,23 +2,24 @@ from __future__ import annotations
 
 from functools import singledispatch
 from typing import Optional, List, Mapping
+from dataclasses import dataclass, asdict
 
 import cv2
 import numpy as np
 from PIL import Image
-from pydantic import BaseModel
 
 # Tuple is not serializable for anndata
 SHAPE = List[int]
 
 
-class SlideMetadata(BaseModel):
-    mpp: Optional[float] = None
-    magnification: Optional[float] = None
+@dataclass
+class SlideMetadata:
     shape: SHAPE
     n_level: int
     level_shape: List[SHAPE]
     level_downsample: List[float]
+    mpp: Optional[float] = None
+    magnification: Optional[float] = None
 
     @classmethod
     def from_mapping(self, metadata: Mapping):
@@ -29,7 +30,7 @@ class SlideMetadata(BaseModel):
         return (
             "<h4>Slide Metadata</h4><table><tr><th>Field</th><th>Value</th></tr>"
             + "".join(
-                f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in self.dict().items()
+                f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in asdict(self).items()
             )
             + "</table>"
         )
