@@ -345,7 +345,9 @@ class SlideViewer:
         add_cat_legend = False
         add_colorart = False
 
-        if c is not None:
+        # Edge case: no tile
+        # Need to check the length of c
+        if (c is not None) and (len(c) > 0):
             if not isinstance(c[0], Number):
                 # If value is categorical
                 entries = np.unique(c)
