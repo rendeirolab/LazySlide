@@ -41,7 +41,11 @@ try:
 except ImportError:
 
     class FocusLiteNN:
-        pass
+        def __init__(self, *args, **kwargs):
+            raise ImportError(
+                "FocusLiteNN requires torch. You can install it using `pip install torch`."
+                "Please restart the kernel after installation."
+            )
 
 
 def load_focuslite_model(device="cpu"):
