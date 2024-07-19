@@ -225,18 +225,25 @@ class SlideData:
         return {}
 
     def write(self, file=None, overwrite=True, **kws):
+        from uuid import uuid4
+        import shutil
+
         if file is None:
             file = self.file
+
         # This is only a temporary solution
         # Need to wait for spatialdata to provide
         # a proper write method
+        # 1. First write to a temporary file
+        tmp_file = str(uuid4())
+        self.sdata.write(tmp_file, overwrite=overwrite, **kws)
+        # 2. Try to delete the original file
         try:
-            import shutil
-
             shutil.rmtree(file)
         except FileNotFoundError:
             pass
-        self.sdata.write(file, overwrite=overwrite, **kws)
+        # 3. Move the temporary file to the original file
+        shutil.move(tmp_file, file)
 
     def is_backed(self):
         return self.sdata.is_backed()
