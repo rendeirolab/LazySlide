@@ -11,7 +11,7 @@ import numpy as np
 from numba import njit
 
 from lazyslide.cv.scorer.base import ScorerBase
-from lazyslide.utils import default_pbar, chunker
+from lazyslide.utils import default_pbar, chunker, get_torch_device
 from lazyslide.wsi import WSI, TileSpec
 
 
@@ -300,7 +300,7 @@ def tiles_qc(
     from lazyslide.cv.scorer import FocusLite, Contrast
 
     scorer_mapper = {
-        "focus": FocusLite(),
+        "focus": FocusLite(device=get_torch_device()),
         "contrast": Contrast(),
     }
 
