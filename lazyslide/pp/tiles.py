@@ -78,6 +78,7 @@ def tiles(
 
         >>> import lazyslide as zs
         >>> wsi = zs.WSI("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
+        >>> zs.pp.find_tissue(wsi)
         >>> zs.pp.tiles(wsi, 256, mpp=0.5)
         >>> zs.pl.tiles(wsi, tissue_id=0, show_grid=True, show_point=False)
 
@@ -313,8 +314,10 @@ def tiles_qc(
 
         >>> import lazyslide as zs
         >>> wsi = zs.WSI("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
+        >>> zs.pp.find_tissue(wsi)
+        >>> zs.pp.tiles(wsi, 256, mpp=0.5)
         >>> zs.pp.tiles_qc(wsi, scorers=["contrast"])
-        >>> wsi.get_tiles_table('tiles')
+        >>> wsi.get_tiles_table('tiles').head(n=2)
 
     """
     from lazyslide.cv.scorer import FocusLite, Contrast
