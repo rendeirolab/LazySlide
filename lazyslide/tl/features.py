@@ -10,7 +10,7 @@ import numpy as np
 
 from lazyslide import WSI
 from lazyslide.data.datasets import TileImagesDataset
-from lazyslide.utils import default_pbar, chunker
+from lazyslide.utils import default_pbar, chunker, get_torch_device
 
 
 def get_default_transform():
@@ -44,7 +44,7 @@ def feature_extraction(
     transform: Callable = None,
     compile: bool = True,
     compile_opts: dict = None,
-    device: str = "cpu",
+    device: str = None,
     tile_key: str = "tiles",
     feature_key: str = None,
     batch_size=32,
@@ -69,6 +69,8 @@ def feature_extraction(
         from torch.utils.data import DataLoader
     except ImportError:
         raise ImportError("Feature extraction requires pytorch and timm (optional).")
+
+    device = device or get_torch_device()
 
     if isinstance(model, (str, Path)):
         model_path = Path(model)
