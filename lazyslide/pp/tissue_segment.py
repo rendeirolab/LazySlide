@@ -87,7 +87,7 @@ def find_tissue(
     tissue_instances = seg.apply(image)
     if len(tissue_instances) == 0:
         logging.warning("No tissue is found.")
-        return
+        return False
     if level != 0:
         downsample = wsi.metadata.level_downsample[level]
     else:
@@ -105,7 +105,7 @@ def find_tissue(
 
     if len(contours) == 0:
         logging.warning("No tissue is found.")
-        return
+        return False
     wsi.add_shapes(contours, data={"tissue_id": contours_ids}, name=f"{key}_contours")
     if len(holes) > 0:
         wsi.add_shapes(holes, data={"tissue_id": holes_ids}, name=f"{key}_holes")
