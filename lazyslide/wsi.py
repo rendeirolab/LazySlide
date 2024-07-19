@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import Any, Optional, Dict, Sequence
 from dataclasses import dataclass, asdict
@@ -155,10 +156,17 @@ class SlideData:
         for key, value in data.items():
             tiles.obs[key] = value
 
-    def subset_tiles(self, name, indices, new_name):
+    def subset_tiles(self, name, new_name, indices, overwrite=False):
         if name not in self.sdata.points:
             raise ValueError(f"Tile {name} not found.")
+        if new_name in self.sdata.points and not overwrite:
+            raise ValueError(
+                f"Tile {new_name} already exists, " f"set overwrite=True to continue."
+            )
         tiles = self.get_tiles_table(name)[indices]
+        if len(tiles) == 0:
+            warnings.warn(f"No tiles can be created for {new_name}.")
+            return
         spec = self.get_tile_spec(name)
         xy = tiles[["x", "y"]].values
         tissue_id = tiles["tissue_id"].values
