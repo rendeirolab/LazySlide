@@ -14,18 +14,18 @@ TARGET = 4  # mpp = 0.5 and downsample = 4
 
 
 def find_tissue(
-    wsi: WSI,
-    level: int | None = None,
-    use_saturation: bool = False,
-    blur_ksize: int = 17,
-    threshold: int = 7,
-    morph_n_iter: int = 3,
-    morph_k_size: int = 7,
-    min_tissue_area: float = 1e-3,
-    min_hole_area: float = 1e-5,
-    detect_holes: bool = True,
-    filter_artifacts: bool = True,
-    key: str = "tissue",
+        wsi: WSI,
+        level: int | None = None,
+        use_saturation: bool = False,
+        blur_ksize: int = 17,
+        threshold: int = 7,
+        morph_n_iter: int = 3,
+        morph_k_size: int = 7,
+        min_tissue_area: float = 1e-3,
+        min_hole_area: float = 1e-5,
+        detect_holes: bool = True,
+        filter_artifacts: bool = True,
+        key: str = "tissue",
 ):
     """Find tissue regions in the WSI and add them as contours and holes.
 
@@ -33,8 +33,35 @@ def find_tissue(
     ----------
     wsi : WSI
         Whole-slide image object.
-    level : int, optional
-        The level to use for segmentation, by default None.
+    level : int, optional, default: None
+        The level to use for segmentation.
+    use_saturation : bool, optional, default: False
+        Use saturation channel for segmentation.
+    blur_ksize : int, optional, default: 17
+    threshold : int, optional, default: 7
+    morph_n_iter : int, optional, default: 3
+    morph_k_size : int, optional, default: 7
+    min_tissue_area : float, optional, default: 1e-3
+        The minimum area of tissue.
+    min_hole_area : float, optional, default: 1e-5
+        The minimum area of holes.
+    detect_holes : bool, optional, default: True
+        Detect holes in tissue regions.
+    filter_artifacts : bool, optional, default: True
+        Filter artifacts out.
+    key : str, optional, default: "tissue"
+        The key to store the tissue contours.
+
+    Examples
+    --------
+
+    .. plot::
+        :context: close-figs
+
+        >>> import lazyslide as zs
+        >>> wsi = zs.WSI("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
+        >>> zs.pp.find_tissue(wsi)
+        >>> zs.pl.tissue(wsi)
 
     """
     # Get optimal level for segmentation
