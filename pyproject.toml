@@ -26,6 +26,7 @@ dependencies = [
     "lazy-loader",
     "rich",
     "ipywidgets",
+    "typer",
 ]
 
 [tool.hatch.version]
@@ -34,6 +35,7 @@ path = "lazyslide/__init__.py"
 [project.optional-dependencies]
 all = [
     "scipy",
+    "scanpy",
     "torch",
     "torchvision",  # >0.15
     "torchstain",
