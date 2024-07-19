@@ -74,7 +74,7 @@ def feature_extraction(
 
     if isinstance(model, (str, Path)):
         model_path = Path(model)
-        feature_key = model_path.stem
+        feature_key = feature_key or model_path.stem
         if model_path.exists():
             try:
                 model = torch.load(model)
