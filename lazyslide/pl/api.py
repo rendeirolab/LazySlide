@@ -172,8 +172,7 @@ def tiles(
         >>> wsi = zs.WSI("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
         >>> zs.pp.find_tissue(wsi)
         >>> zs.pp.tiles(wsi, 256, mpp=0.5)
-        >>> zs.tl.feature_extraction(wsi, 'resnet50')
-        >>> zs.pl.tiles(wsi, tissue_id=0, show_grid=True, feature_key='resnet50', color=1)
+        >>> zs.pl.tiles(wsi, tissue_id=0, show_grid=True, color='contrast')
 
     """
     if ax is None:
