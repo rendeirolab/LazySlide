@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import warnings
 from itertools import cycle
 from numbers import Number
@@ -81,11 +83,11 @@ class SlideViewer:
     def __init__(
         self,
         wsi: WSI,
-        level="auto",
-        render_size=1000,
-        tissue_key="tissue",
-        tissue_id=None,
-        tile_key="tiles",
+        level: int | str = "auto",
+        render_size: int = 1000,
+        tissue_key: str = "tissue",
+        tissue_id: int = None,
+        tile_key: str = "tiles",
     ):
         if tissue_id is not None:
             if f"{tissue_key}_contours" not in wsi.sdata.shapes:
@@ -252,6 +254,7 @@ class SlideViewer:
     def add_tiles(
         self,
         alpha=None,
+        rasterized=True,
         ax=None,
     ):
         if self.tile_key is None:
@@ -273,7 +276,9 @@ class SlideViewer:
             rects.append(
                 Rectangle((x, y), w, h, fill=False, ec="black", lw=0.5, alpha=alpha)
             )
-        ax.add_collection(PatchCollection(rects, match_original=True))
+        ax.add_collection(
+            PatchCollection(rects, match_original=True, rasterized=rasterized)
+        )
 
     def add_points(
         self,
@@ -460,6 +465,12 @@ class SlideViewer:
 
         tissue_key = self.tissue_key
         self._draw_cnt_anno(f"{tissue_key}_contours", ax, fmt=fmt, **kwargs)
+
+    def add_shape(self, key, ax=None, color="black", linewidth=1, alpha=None):
+        if ax is None:
+            ax = plt.gca()
+        self._draw_cnt(key, ax, color, linewidth, alpha)
+        self._draw_cnt_anno(key, ax)
 
     def add_title(self, title, ax=None):
         if ax is None:

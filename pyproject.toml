@@ -22,7 +22,7 @@ dependencies = [
     "matplotlib",
     "legendkit",
     "anndata",
-    "spatialdata",
+    "spatialdata>=0.2.2",
     "lazy-loader",
     "rich",
     "ipywidgets",

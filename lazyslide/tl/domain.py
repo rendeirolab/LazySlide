@@ -57,10 +57,3 @@ def anatomical_domain(
     sc.tl.leiden(adata, flavor="igraph", key_added=key_added, resolution=resolution)
     # Add to tile table
     wsi.add_tiles_data({key_added: adata.obs[key_added].to_numpy()}, tile_key)
-
-
-def domain_props(
-    wsi: WSI,
-):
-    """Calculate the geometrical properties of anatomical domains of the WSI"""
-    pass

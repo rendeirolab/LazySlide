@@ -8,6 +8,14 @@ from lazyslide.wsi import WSI
 from lazyslide.get import tissue_contours
 
 
+def point2shape(
+    wsi: WSI,
+    key: str = "tiles",
+    groupby: str = None,
+):
+    pass
+
+
 def tissue_props(
     wsi: WSI,
     key: str = "tissue",

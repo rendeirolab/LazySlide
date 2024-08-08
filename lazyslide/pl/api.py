@@ -76,7 +76,7 @@ def tiles(
     if show_tissue:
         slide.add_tissue(ax=ax)
     if show_grid:
-        slide.add_tiles(ax=ax)
+        slide.add_tiles(rasterized=rasterized, ax=ax)
     if show_origin:
         slide.add_origin(ax=ax)
     if show_id:

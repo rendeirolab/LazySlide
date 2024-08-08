@@ -36,6 +36,7 @@ def annotate(
     """
     import anndata as ad
     import scanpy as sc
+    import torch
 
     if model is None:
         if method == "plip":
@@ -58,7 +59,8 @@ def annotate(
 
     model.to(device)
     if isinstance(texts, list):
-        texts_embeddings = model.encode_text(texts).detach().cpu().numpy()
+        with torch.inference_mode():
+            texts_embeddings = model.encode_text(texts).detach().cpu().numpy()
         texts_adata = ad.AnnData(X=texts_embeddings, obs=pd.DataFrame(index=texts))
     elif isinstance(texts, ad.AnnData):
         texts_adata = texts

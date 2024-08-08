@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import warnings
-from pathlib import Path
-from typing import Any, Optional, Dict, Sequence
 from dataclasses import dataclass, asdict
+from pathlib import Path
+from typing import Any, Optional, Dict, Sequence, Iterable
 
 import lazy_loader as lazy
 import numpy as np
@@ -66,32 +66,39 @@ class SlideData:
             attrs = ad.AnnData(uns=attributes)
             self.sdata.tables[name] = attrs
 
-    def add_shapes(self, shapes, name, data):
+    def add_shapes(
+        self,
+        shapes: Iterable[np.ndarray],
+        name: str,
+        data: Dict[str, Sequence],
+    ):
         import geopandas as gpd
         from shapely.geometry import Polygon
-        from spatialdata.models import ShapesModel, TableModel
+        from spatialdata.models import ShapesModel
 
-        gdf = gpd.GeoDataFrame(geometry=[Polygon(c) for c in shapes])
+        data = pd.DataFrame(data)
+        gdf = gpd.GeoDataFrame(data=data, geometry=[Polygon(c) for c in shapes])
         cs = ShapesModel.parse(gdf)
         self.sdata.shapes[name] = cs
-        data = pd.DataFrame(data)
-        data["id"] = np.arange(data.shape[0])
-        data["shape_key"] = name
-        data["shape_key"] = data["shape_key"].astype("category")
-        data.index = data.index.astype(str)
-        shape_adata = ad.AnnData(obs=data)
-        shape_adata = TableModel.parse(
-            shape_adata, region=[name], region_key="shape_key", instance_key="id"
-        )
-        self.sdata.tables[f"{name}_table"] = shape_adata
+
+        # data["id"] = np.arange(data.shape[0])
+        # data["shape_key"] = name
+        # data["shape_key"] = data["shape_key"].astype("category")
+        # data.index = data.index.astype(str)
+        # shape_adata = ad.AnnData(obs=data)
+        # shape_adata = TableModel.parse(
+        #     shape_adata, region=[name], region_key="shape_key", instance_key="id"
+        # )
+        # self.sdata.tables[f"{name}_table"] = shape_adata
 
     def add_shapes_data(self, data: Dict[str, Sequence], name: str):
-        table_name = f"{name}_table"
-        if table_name not in self.sdata.tables:
-            raise ValueError(f"Shape {table_name} not found.")
-        shapes = self.sdata.tables[table_name]
+        # table_name = f"{name}_table"
+        # if table_name not in self.sdata.tables:
+        #     raise ValueError(f"Shape {table_name} not found.")
+        # shapes = self.sdata.tables[table_name]
+        shapes = self.sdata.shapes[name].compute()
         for key, value in data.items():
-            shapes.obs[key] = value
+            shapes[key] = value
 
     def get_shape_table(self, name):
         # Check if the shape exists
