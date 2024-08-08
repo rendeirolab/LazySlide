@@ -32,43 +32,55 @@ def tiles(
     key: str = "tiles",
 ):
     """
-    Generate tiles from the tissue contours
+    Generate tiles within the tissue contours in the WSI.
 
     Parameters
     ----------
     wsi : WSI
-        The whole slide image object
+        The whole slide image object.
     tile_px : int, (int, int)
-        The size of the tile, if tuple, (W, H)
-    stride_px : int, (int, int)
-        The stride of the tile, if tuple, (W, H)
-    edge : bool
-        Whether to include the edge tiles
-    mpp : float
-        The requested mpp of the tiles, if None, use the slide mpp
-    slide_mpp : float
-        This value will override the slide mpp
-    tolerance : float
-        The tolerance when matching the mpp
-    background_fraction : float
+        The size of the tile, if tuple, (W, H).
+    stride_px : int, (int, int), default None
+        The stride of the tile, if tuple, (W, H).
+    edge : bool, default False
+        Whether to include the edge tiles.
+    mpp : float, default None
+        The requested mpp of the tiles, if None, use the slide mpp.
+    slide_mpp : float, default None
+        This value will override the slide mpp.
+    tolerance : float, default 0.05
+        The tolerance when matching the mpp.
+    background_fraction : float, default 0.3
         For flavor='mask',
-        The fraction of background in the tile, if more than this, discard the tile
+        The fraction of background in the tile, if more than this, discard the tile.
     min_pts : int
         For flavor='polygon-test',
-        The minimum number of points of a rectangle tile that should be inside the tissue
-        should be within [0, 4]
+        The minimum number of points of a rectangle tile that should be inside the tissue.
+        Should be within [0, 4].
     flavor : str, {'polygon-test', 'mask'}
-        The flavor of the tile generation, either 'polygon-test' or 'mask'
-        - 'polygon-test': Use point polygon test to check if the tiles points are inside the contours
-        - 'mask': Transform the contours and holes into binary mask and check the fraction of background
-    filter : Callable
-        A callable that takes in a image and return a boolean value
-    errors : str
-        The error handling strategy, either 'raise' or 'warn'
+        The flavor of the tile generation, either 'polygon-test' or 'mask':
+        - 'polygon-test': Use point polygon test to check if the tiles points are inside the contours.
+        - 'mask': Transform the contours and holes into binary mask and check the fraction of background.
+    filter : Callable, default None
+        A callable that takes in a image and return a boolean value.
+    errors : str, default 'raise'
+        The error handling strategy, either 'raise' or 'warn'.
     tissue_key : str, default 'tissue'
-        The key of the tissue contours
+        The key of the tissue contours.
     key : str, default 'tiles'
-        The key of the tiles
+        The key of the tiles.
+
+    Examples
+    --------
+
+    .. plot::
+        :context: close-figs
+
+        >>> import lazyslide as zs
+        >>> wsi = zs.WSI("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
+        >>> zs.pp.find_tissue(wsi)
+        >>> zs.pp.tiles(wsi, 256, mpp=0.5)
+        >>> zs.pl.tiles(wsi, tissue_id=0, show_grid=True, show_point=False)
 
     """
     # Check if tissue contours are present
@@ -276,25 +288,36 @@ def tiles_qc(
     key_added: str = "qc",
 ):
     """
-    Score the tiles and filter the tiles based on the score
+    Score the tiles and filter the tiles based on their quality scores.
 
     Parameters
     ----------
     wsi : WSI
-        The whole slide image object
+        The whole slide image object.
     scorers : ScorerBase
-        The scorer object or a callable that takes in a image and return a score
-        You can also pass in a string
+        The scorer object or a callable that takes in an image and returns a score.
+        You can also pass in a string:
         - 'focus': A FocusLite scorer that will score the focus of the image
         - 'contrast': A Contrast scorer that will score the contrast of the image
     num_workers : int, default: 1
-        The number of workers to use
+        The number of workers to use.
     pbar : bool, default: True
-        Whether to show the progress bar
+        Whether to show the progress bar or not.
     key : str
-        The key of the tiles
+        The key of the tiles.
     key_added : str
-        The key of the filtered tiles
+        The key of the filtered tiles.
+
+    Examples
+    --------
+    .. code-block:: python
+
+        >>> import lazyslide as zs
+        >>> wsi = zs.WSI("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
+        >>> zs.pp.find_tissue(wsi)
+        >>> zs.pp.tiles(wsi, 256, mpp=0.5)
+        >>> zs.pp.tiles_qc(wsi, scorers=["contrast"])
+        >>> wsi.get_tiles_table('tiles').head(n=2)
 
     """
     from lazyslide.cv.scorer import FocusLite, Contrast
@@ -388,25 +411,25 @@ def _chunk_scoring(tiles, spec, reader, scorer, queue):
 @njit
 def create_tiles(image_shape, tile_w, tile_h, stride_w=None, stride_h=None, edge=True):
     """Create the tiles, return coordination that comprise the tiles
-        and the index of points for each rect
+        and the index of points for each rectangular.
 
     Parameters
     ----------
     image_shape : (int, int)
-        The (H, W) of the image
+        The (H, W) of the image.
     tile_w, tile_h: int
-        The width/height of tile
-    stride_w, stride_h : int
-        The width/height of stride when move to next tile
-    edge : bool
-        Whether to include the edge tiles
+        The width/height of tiles.
+    stride_w, stride_h : int, default None
+        The width/height of stride when moving to the next tile.
+    edge : bool, default True
+        Whether to include the edge tiles.
 
     Returns
     -------
     coordinates : np.ndarray (N, 2)
-        The coordinates of the tiles, N is the number of tiles
+        The coordinates of the tiles, N is the number of tiles.
     indices : np.ndarray (M, 4)
-        The indices of the points for each rect, M is the number of rects
+        The indices of the points for each rect, M is the number of rects.
 
     """
     height, width = image_shape
@@ -449,7 +472,7 @@ def create_tiles(image_shape, tile_w, tile_h, stride_w=None, stride_h=None, edge
 
 @njit
 def filter_tiles(mask, tiles_coords, tile_w, tile_h, filter_bg=0.8):
-    """Return a binary array that indicate which tile should be left
+    """Returns a binary array that indicate which tile should be left.
 
     Parameters
     ----------
