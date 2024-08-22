@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 
-from lazyslide.cv.scorer.base import ScorerBase
+from lazyslide_cv.scorer.base import ScorerBase, ScoreResult
 
 try:
     import torch
@@ -53,7 +53,9 @@ def load_focuslite_model(device="cpu"):
     if not hasattr(model, "forward"):
         raise ModuleNotFoundError("To use Focuslite, you need to install pytorch")
     ckpt = torch.load(
-        Path(__file__).parent / "focuslitenn-2kernel-mse.pt", map_location=device
+        Path(__file__).parent / "focuslitenn-2kernel-mse.pt",
+        map_location=device,
+        weights_only=True,
     )
     model.load_state_dict(ckpt["state_dict"])
     model.eval()
@@ -62,8 +64,7 @@ def load_focuslite_model(device="cpu"):
 
 
 class FocusLite(ScorerBase):
-    name = "focus"
-
+    # The device must be CPU, otherwise this module cannot be serialized
     def __init__(self, threshold=3, device="cpu"):
         from torchvision.transforms import ToTensor, Resize
 
@@ -75,7 +76,7 @@ class FocusLite(ScorerBase):
         self.to_tensor = ToTensor()
         self.resize = Resize((256, 256), antialias=False)
 
-    def get_score(self, patch) -> float:
+    def apply(self, patch, mask=None):
         """Higher score means the patch is more clean, range from 0 to 1"""
         arr = self.to_tensor(patch)
         # If the image is not big enough, resize it
@@ -84,7 +85,4 @@ class FocusLite(ScorerBase):
         arr = torch.stack([arr], dim=0)
         score = self.model(arr)
         score = max(0, np.mean(torch.squeeze(score.cpu().data, dim=1).numpy()))
-        return score
-
-    def filter(self, scores):
-        return scores < self.threshold
+        return ScoreResult(scores={"focus": score}, qc=score < self.threshold)
