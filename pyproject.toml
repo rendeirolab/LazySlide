@@ -30,7 +30,10 @@ dependencies = [
 ]
 
 [tool.hatch.version]
-path = "lazyslide/__init__.py"
+path = "src/lazyslide/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lazyslide", "src/lazyslide_cv", "src/wsi_data"]
 
 [project.optional-dependencies]
 all = [
