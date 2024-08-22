@@ -4,14 +4,12 @@ from typing import Union
 from .base import ReaderBase, convert_image
 
 
-# NOTE: This is a placeholder for the actual implementation
-#      of the CuCIM reader. It's not tested and will not work.
-# TODO: Implement the CuCIM reader on GPU-available machine
-class CuCIMReader(ReaderBase):
+class OpenSlideReader(ReaderBase):
     """
-    Use CuCIM to interface with image files.
+    Use OpenSlide to interface with image files.
 
-    See `CuCIM <https://github.com/rapidsai/cucim>`_ for more information.
+    Depends on `openslide-python <https://openslide.org/api/python/>`_
+    which wraps the `openslide <https://openslide.org/>`_ C library.
 
     Parameters
     ----------
@@ -20,6 +18,8 @@ class CuCIMReader(ReaderBase):
 
     """
 
+    name = "openslide"
+
     def __init__(
         self,
         file: Union[Path, str],
@@ -27,7 +27,7 @@ class CuCIMReader(ReaderBase):
     ):
         self.file = str(file)
         self.create_reader()
-        self.set_metadata(self._reader.metadata)
+        self.set_properties(self._reader.properties)
 
     def get_region(
         self,
@@ -39,11 +39,7 @@ class CuCIMReader(ReaderBase):
         **kwargs,
     ):
         level = self.translate_level(level)
-        img = self.reader.read_region(
-            (x, y),
-            (int(width), int(height)),
-            level=level,
-        )
+        img = self.reader.read_region((x, y), level, (int(width), int(height)))
         return convert_image(img)
 
     def get_level(self, level):
@@ -53,15 +49,28 @@ class CuCIMReader(ReaderBase):
         )
         return convert_image(img)
 
+    def get_thumbnail(self, size, **kwargs):
+        sx, sy = self.properties.shape
+        if size > sx or size > sy:
+            raise ValueError("Requested thumbnail size is larger than the image")
+        # The size is only the maximum size
+        if sx > sy:
+            size = (size, int(size * sy / sx))
+        else:
+            size = (int(size * sx / sy), size)
+
+        img = self.reader.get_thumbnail(size)
+        return convert_image(img)
+
     def detach_reader(self):
         if self._reader is not None:
             self._reader.close()
             self._reader = None
 
     def create_reader(self):
-        from cucim import CuImage
+        from openslide import OpenSlide
 
-        self._reader = CuImage(self.file)
+        self._reader = OpenSlide(self.file)
 
     @property
     def reader(self):

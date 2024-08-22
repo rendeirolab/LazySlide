@@ -3,7 +3,7 @@ from .cucim import CuCIMReader
 from .tiffslide import TiffSlideReader
 
 
-def get_reader(reader: str):
+def get_reader(reader: str = None):
     readers = {"openslide": None, "cucim": None, "tiffslide": None}
     error_stack = {"openslide": None, "cucim": None, "tiffslide": None}
     catch_error = (ModuleNotFoundError, OSError, ImportError)
@@ -30,7 +30,7 @@ def get_reader(reader: str):
         error_stack["cucim"] = e
 
     reader_candidates = ["openslide", "tiffslide", "cucim"]
-    if reader == "auto":
+    if reader is None:
         for i in reader_candidates:
             reader = readers.get(i)
             if reader is not None:

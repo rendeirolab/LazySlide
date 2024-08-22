@@ -4,12 +4,14 @@ from typing import Union
 from .base import ReaderBase, convert_image
 
 
-class OpenSlideReader(ReaderBase):
+# NOTE: This is a placeholder for the actual implementation
+#      of the CuCIM reader. It's not tested and will not work.
+# TODO: Implement the CuCIM reader on GPU-available machine
+class CuCIMReader(ReaderBase):
     """
-    Use OpenSlide to interface with image files.
+    Use CuCIM to interface with image files.
 
-    Depends on `openslide-python <https://openslide.org/api/python/>`_
-    which wraps the `openslide <https://openslide.org/>`_ C library.
+    See `CuCIM <https://github.com/rapidsai/cucim>`_ for more information.
 
     Parameters
     ----------
@@ -18,8 +20,6 @@ class OpenSlideReader(ReaderBase):
 
     """
 
-    name = "openslide"
-
     def __init__(
         self,
         file: Union[Path, str],
@@ -27,7 +27,7 @@ class OpenSlideReader(ReaderBase):
     ):
         self.file = str(file)
         self.create_reader()
-        self.set_metadata(self._reader.properties)
+        self.set_properties(self._reader.properties)
 
     def get_region(
         self,
@@ -39,7 +39,11 @@ class OpenSlideReader(ReaderBase):
         **kwargs,
     ):
         level = self.translate_level(level)
-        img = self.reader.read_region((x, y), level, (int(width), int(height)))
+        img = self.reader.read_region(
+            (x, y),
+            (int(width), int(height)),
+            level=level,
+        )
         return convert_image(img)
 
     def get_level(self, level):
@@ -55,9 +59,9 @@ class OpenSlideReader(ReaderBase):
             self._reader = None
 
     def create_reader(self):
-        from openslide import OpenSlide
+        from cucim import CuImage
 
-        self._reader = OpenSlide(self.file)
+        self._reader = CuImage(self.file)
 
     @property
     def reader(self):

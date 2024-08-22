@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from functools import singledispatch
 from typing import Optional, List, Mapping
 from dataclasses import dataclass, asdict
@@ -8,37 +9,47 @@ import cv2
 import numpy as np
 from PIL import Image
 
-# Tuple is not serializable for anndata
+# AnnData cannot serialize Tuple
 SHAPE = List[int]
 
 
 @dataclass
-class SlideMetadata:
+class SlideProperties:
     shape: SHAPE
     n_level: int
     level_shape: List[SHAPE]
     level_downsample: List[float]
     mpp: Optional[float] = None
     magnification: Optional[float] = None
+    raw: Optional[str] = None
 
     @classmethod
     def from_mapping(self, metadata: Mapping):
         metadata = parse_metadata(metadata)
-        return SlideMetadata(**metadata)
+        return SlideProperties(**metadata)
+
+    def to_dict(self):
+        return asdict(self)
+
+    def to_json(self):
+        return json.dumps(asdict(self))
 
     def _repr_html_(self):
+        rows = []
+        for k, v in self.to_dict().items():
+            if k != "raw":
+                rows.append(f"<tr><td>{k}</td><td>{v}</td></tr>")
+
         return (
-            "<h4>Slide Metadata</h4><table><tr><th>Field</th><th>Value</th></tr>"
-            + "".join(
-                f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in asdict(self).items()
-            )
+            "<h4>Slide Properties</h4><table><tr><th>Field</th><th>Value</th></tr>"
+            + "".join(rows)
             + "</table>"
         )
 
 
 class ReaderBase:
     file: str
-    metadata: SlideMetadata
+    properties: SlideProperties
     name = "base"
     _reader = None
 
@@ -46,7 +57,7 @@ class ReaderBase:
         return f"{self.__class__.__name__}('{self.file}')"
 
     def translate_level(self, level):
-        levels = np.arange(self.metadata.n_level)
+        levels = np.arange(self.properties.n_level)
         if level >= len(levels):
             raise ValueError(f"Request level {level} not exist")
         return levels[level]
@@ -63,15 +74,19 @@ class ReaderBase:
         y -= height / 2
         return self.get_region(x, y, width, height, level=level, **kwargs)
 
+    def get_thumbnail(self, size, **kwargs):
+        """Get a thumbnail of the image"""
+        raise NotImplementedError
+
     def get_level(self, level):
         """Get the image level in numpy array"""
         raise NotImplementedError
 
-    def set_metadata(self, metadata: SlideMetadata | Mapping):
-        if isinstance(metadata, SlideMetadata):
-            self.metadata = metadata
+    def set_properties(self, properties: SlideProperties | Mapping):
+        if isinstance(properties, SlideProperties):
+            self.properties = properties
         else:
-            self.metadata = SlideMetadata.from_mapping(metadata)
+            self.properties = SlideProperties.from_mapping(properties)
 
     def detach_reader(self):
         # The basic fallback implementation to detach reader
@@ -96,6 +111,11 @@ def convert_image(img):
 @convert_image.register(Image.Image)
 def _(img: Image.Image):
     return cv2.cvtColor(np.asarray(img), cv2.COLOR_RGBA2RGB).astype(np.uint8)
+
+
+@convert_image.register(np.ndarray)
+def _(img: np.ndarray):
+    return cv2.cvtColor(img, cv2.COLOR_RGBA2RGB).astype(np.uint8)
 
 
 MAG_KEY = "objective-power"
@@ -172,10 +192,11 @@ def parse_metadata(metadata: Mapping):
     metadata = {
         "mpp": mpp,
         "magnification": mag,
-        "shape": shape,
+        "shape": list(shape),
         "n_level": n_level,
-        "level_shape": level_shape,
+        "level_shape": [list(i) for i in level_shape],
         "level_downsample": level_downsample,
+        "raw": json.dumps(metadata),
     }
 
     return metadata
