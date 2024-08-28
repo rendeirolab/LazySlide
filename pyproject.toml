@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "versioningit"]
 build-backend = "hatchling.build"
 
 [project]
@@ -30,7 +30,7 @@ dependencies = [
 ]
 
 [tool.hatch.version]
-path = "src/lazyslide/__init__.py"
+source = "versioningit"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lazyslide", "src/lazyslide_cv", "src/wsi_data"]
