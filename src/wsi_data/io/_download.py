@@ -14,7 +14,7 @@ class Downloader:
         self.url = url
         self.dest = dest
 
-    def download_pbar(self):
+    def download(self, pbar=True):
         """Download a single file with progress tracking."""
         progress = Progress(
             TextColumn("[bold blue]{task.fields[filename]}", justify="right"),
@@ -26,14 +26,15 @@ class Downloader:
             TransferSpeedColumn(),
             "•",
             TimeRemainingColumn(),
+            disable=not pbar,
         )
         with progress:
             with fsspec.open(self.url, "rb") as fsrc:
                 total_size = fsrc.size  # Retrieve the total file size
                 task_id = progress.add_task(
-                    "Downloading test", filename="test", total=total_size
+                    "Downloading test", filename=self.dest, total=total_size
                 )
-                with fsspec.open(f"{self.dest}/test", "wb") as fdst:
+                with fsspec.open(f"{self.dest}", "wb") as fdst:
                     progress.start_task(task_id)
                     chunk_size = 1024 * 1024  # 1 MB
                     while chunk := fsrc.read(chunk_size):

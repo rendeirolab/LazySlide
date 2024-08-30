@@ -13,12 +13,15 @@ from wsi_data._image import reader_datatree
 from wsi_data.data import WSIData
 from wsi_data.reader import get_reader
 
+from ._download import Downloader
+
 
 def open_wsi(
     wsi,
     backed_file=None,
     reader=None,
     download=True,
+    pbar=True,
     cache_dir=None,
     name=None,
     attach_images=False,
@@ -62,8 +65,14 @@ def open_wsi(
     # Early attempt with reader
     ReaderCls = get_reader(reader)
 
-    # TODO: When reader is not tiffslide and the slide is remote
-    #       we need to download it first
+    if download and fs.protocol != "file":
+        if cache_dir is None:
+            cache_dir = Path("lazyslide_downloads")
+            if not Path(cache_dir).exists():
+                Path(cache_dir).mkdir(parents=True, exist_ok=True)
+        wsi = Path(cache_dir) / name
+        downloader = Downloader(wsi_path, wsi)
+        downloader.download(pbar)
 
     reader_obj = ReaderCls(wsi)
     wsi = Path(wsi)
