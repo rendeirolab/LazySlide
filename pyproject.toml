@@ -30,7 +30,7 @@ dependencies = [
 ]
 
 [tool.hatch.version]
-source = "versioningit"
+path = "src/lazyslide/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lazyslide", "src/lazyslide_cv", "src/wsi_data"]
@@ -52,13 +52,6 @@ dev = [
     "sphinx_design",
     "myst-nb",
     "pytest",
-]
-
-gigapath = [
-    "timm>=1.0.3",
-    "git+https://github.com/prov-gigapath/prov-gigapath.git",
-    "fairscale",
-    "einops",
 ]
 
 # Define entry points
