@@ -1,18 +1,17 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-import zarr
 import numpy as np
-from fsspec.core import url_to_fs
 from anndata import AnnData
+from fsspec.core import url_to_fs
+from rich.progress import track
 from spatialdata import read_zarr, SpatialData
 from spatialdata.models import Image2DModel
 from spatialdata.transformations import Scale
-from rich.progress import track
 
-from ._image import reader_datatree
-from .data import WSIData
-from .reader import get_reader
+from wsi_data._image import reader_datatree
+from wsi_data.data import WSIData
+from wsi_data.reader import get_reader
 
 
 def open_wsi(
@@ -132,33 +131,56 @@ def agg_wsi(
         backed_files = slides_table[wsi_col].apply(
             lambda x: Path(x).with_suffix(".zarr")
         )
+
     key = f"{feature_key}_{tile_key}_slide"
 
     jobs = []
     with ThreadPoolExecutor() as executor:
         for backed_f in backed_files:
-            job = executor.submit(_agg_wsi, backed_f, key)
+            job = executor.submit(_agg_wsi, backed_f, key, error)
             jobs.append(job)
 
     n_slide = len(jobs)
-    results = []
-    for job in track(
+
+    # Just to show the progress bar
+    for _ in track(
         as_completed(jobs),
         total=n_slide,
-        description=f"Aggretation of {n_slide} slides",
+        description=f"Aggregation of {n_slide} slides",
     ):
+        pass
+
+    results = []
+    for job in jobs:
         results.append(job.result())
 
-    X = np.vstack(results)
+    if error != "raise":
+        mask = np.asarray([r is not None for r in results])
+        X = np.vstack(np.asarray(results, dtype=object)[mask])
+        slides_table = slides_table[mask]
+
+    else:
+        X = np.vstack(results)
 
     # Convert index to string
     slides_table.index = slides_table.index.astype(str)
     return AnnData(X, obs=slides_table)
 
 
-def _agg_wsi(f, key):
-    s = read_zarr(f, selection=("labels",))
-    return s.labels[key].values
+def _agg_wsi(f, key, error="raise"):
+    if not Path(f).exists():
+        if error == "raise":
+            raise ValueError(f"File {f} not existed.")
+        else:
+            return None
+    try:
+        s = read_zarr(f, selection=("labels",))
+        return s.labels[key].values
+    except Exception as e:
+        if error == "raise":
+            raise e
+        else:
+            return None
 
 
 class _WSICache:

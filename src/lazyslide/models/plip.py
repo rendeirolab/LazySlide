@@ -4,17 +4,15 @@ import torch
 
 
 class PLIP(torch.nn.Module):
-    def __init__(self, model_path=None, auth_token=None):
+    def __init__(self, model_path=None, token=None):
         from transformers import CLIPModel, CLIPProcessor
 
         super().__init__()
 
         if model_path is None:
             model_path = "vinid/plip"
-        self.model = CLIPModel.from_pretrained(model_path, use_auth_token=auth_token)
-        self.processor = CLIPProcessor.from_pretrained(
-            model_path, use_auth_token=auth_token
-        )
+        self.model = CLIPModel.from_pretrained(model_path, use_auth_token=token)
+        self.processor = CLIPProcessor.from_pretrained(model_path, use_auth_token=token)
 
     def encode_image(self, image, normalize=True):
         if not isinstance(image, torch.Tensor):
@@ -47,7 +45,7 @@ class PLIP(torch.nn.Module):
 
 
 class PLIPVision(torch.nn.Module):
-    def __init__(self, model_path=None, auth_token=None):
+    def __init__(self, model_path=None, token=None):
         from transformers import CLIPVisionModelWithProjection, CLIPProcessor
 
         super().__init__()
@@ -55,11 +53,9 @@ class PLIPVision(torch.nn.Module):
         if model_path is None:
             model_path = "vinid/plip"
         self.model = CLIPVisionModelWithProjection.from_pretrained(
-            model_path, use_auth_token=auth_token
+            model_path, use_auth_token=token
         )
-        self.processor = CLIPProcessor.from_pretrained(
-            model_path, use_auth_token=auth_token
-        )
+        self.processor = CLIPProcessor.from_pretrained(model_path, use_auth_token=token)
 
     def encode_image(self, image, normalize=False):
         inputs = self.processor(images=image, return_tensors="pt")

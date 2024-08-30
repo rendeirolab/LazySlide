@@ -28,12 +28,32 @@ def get_default_transform():
     return Compose(transforms)
 
 
-def load_models(model, repo="pytorch/vision", **kwargs):
+def load_models(
+    model_name: str, repo="pytorch/vision", model_path=None, token=None, **kwargs
+):
     """Load a model with timm or torch.hub.load"""
     import torch
 
-    kwargs = {"weights": "DEFAULT", **kwargs}
-    return torch.hub.load(repo, model, **kwargs)
+    if model_name == "uni":
+        from lazyslide.models import UNI
+
+        model = UNI(model_path=model_path, token=token)
+    elif model_name == "gigapath":
+        from lazyslide.models import GigaPath
+
+        model = GigaPath(model_path=model_path, token=token)
+    elif model_name == "conch":
+        from lazyslide.models import CONCHVision
+
+        model = CONCHVision(model_path=model_path, token=token)
+    elif model_name == "plip":
+        from lazyslide.models import PLIPVision
+
+        model = PLIPVision(model_path=model_path, token=token)
+    else:
+        kwargs = {"weights": "DEFAULT", **kwargs}
+        model = torch.hub.load(repo, model_name, **kwargs)
+    return model, model_name
 
 
 # TODO: Test if it's possible to load model files
@@ -48,7 +68,7 @@ def feature_extraction(
     device: str = None,
     tile_key: str = Key.tiles,
     feature_key: str = None,
-    slide_encoder: str | Callable = None,
+    slide_encoder: str | Callable = "mean",
     batch_size=32,
     num_workers=0,
     mode="batch",  # "batch" or "chunk"
@@ -75,6 +95,7 @@ def feature_extraction(
     device = device or get_torch_device()
 
     if isinstance(model, (str, Path)):
+        # 1. If model is a path
         model_path = Path(model)
         feature_key = feature_key or model_path.stem
         if model_path.exists():
@@ -82,9 +103,10 @@ def feature_extraction(
                 model = torch.load(model)
             except:  # noqa: E722
                 model = torch.jit.load(model)
+        # 2. If model is plain text
         else:
             create_opts = {} if create_opts is None else create_opts
-            model = load_models(model, repo=repo, **create_opts)
+            model, feature_key = load_models(model, repo=repo, **create_opts)
     elif isinstance(model, Callable):
         model = model
     else:
@@ -120,10 +142,11 @@ def feature_extraction(
 
     # Create dataloader
     # Auto chunk the wsi tile coordinates to the number of workers'
-    tiles_count = len(wsi.sdata.shapes[tile_key])
+    tiles_coords = wsi.sdata.shapes[tile_key][["x", "y"]].values
+    n_tiles = len(tiles_coords)
 
     with default_pbar(disable=not pbar) as progress_bar:
-        task = progress_bar.add_task("Extracting features", total=tiles_count)
+        task = progress_bar.add_task("Extracting features", total=n_tiles)
 
         if mode == "chunk":
             if num_workers == 0:
@@ -134,7 +157,7 @@ def feature_extraction(
 
                 with ProcessPoolExecutor(max_workers=num_workers) as executor:
                     wsi.reader.detach_reader()
-                    chunks = chunker(np.arange(tiles_count), num_workers)
+                    chunks = chunker(np.arange(n_tiles), num_workers)
                     dataset = TileImagesDataset(wsi, transform=transform, key=tile_key)
                     futures = [
                         executor.submit(_inference, dataset, chunk, model, queue)
@@ -169,29 +192,10 @@ def feature_extraction(
             progress_bar.refresh()
             features = np.vstack(features)
 
-    # ====== Slide-level encoding ======
-
-    if slide_encoder is not None:
-        if model != "gigapath":
-            slide_encoder = "mean"
-        else:
-            slide_encoder = "gigapath"
-
-    if slide_encoder == "mean":
-        agg_features = np.mean(features, axis=0)
-    elif slide_encoder == "median":
-        agg_features = np.median(features, axis=0)
-    elif slide_encoder == "gigapath":
-        raise NotImplementedError("Gigapath aggregation is not implemented.")
-    elif callable(slide_encoder):
-        agg_features = slide_encoder(features)
-    else:
-        raise ValueError(f"Unknown slide encoding method: {slide_encoder}")
-
-    agg_features = agg_features.reshape(1, -1)
-
-    # Write features to WSI
     wsi.add_features(Key.feature(feature_key, tile_key), features)
+    # ====== Slide-level encoding ======
+    agg_features = _encode_slide(features, slide_encoder, tiles_coords)
+    # Write features to WSI
     wsi.add_features(Key.feature_slide(feature_key, tile_key), agg_features)
     if return_features:
         return features
@@ -210,3 +214,36 @@ def _inference(dataset, chunk, model, queue):
             X.append(output.cpu().numpy())
             queue.put(1)
     return X
+
+
+def encode_slide(
+    wsi: WSIData,
+    encoder: str | Callable,
+    feature_key: str,
+    tile_key: str = Key.tiles,
+):
+    coords = wsi.sdata.shapes[tile_key][["x", "y"]].values
+    feature_key = wsi._check_feature_key(feature_key, tile_key)
+    features = wsi.sdata.labels[feature_key].values
+    agg_features = _encode_slide(features, encoder, coords)
+    wsi.add_features(f"{feature_key}_slide", agg_features)
+
+
+def _encode_slide(features, encoder, coords=None):
+    if encoder == "mean":
+        agg_features = np.mean(features, axis=0)
+    elif encoder == "median":
+        agg_features = np.median(features, axis=0)
+    elif encoder == "gigapath":
+        from lazyslide.models import GigaPathSlideEncoder
+
+        encoder = GigaPathSlideEncoder()
+        agg_features = encoder(features, coords)
+    elif callable(encoder):
+        agg_features = encoder(features)
+    else:
+        raise ValueError(f"Unknown slide encoding method: {encoder}")
+
+    agg_features = agg_features.reshape(1, -1)
+
+    return agg_features

@@ -15,15 +15,15 @@ from wsi_data import WSIData
 ADOBE_SPECTRUM = [
     "#0FB5AE",
     "#F68511",
-    "#4046CA",
-    "#7326D3",
     "#147AF3",
+    "#E8C600",
+    "#DE3D82",
     "#72E06A",
     "#7E84FA",
-    "#DE3D82",
+    "#7326D3",
     "#008F5D",
     "#CB5D00",
-    "#E8C600",
+    "#4046CA",
     "#BCE931",
 ]
 

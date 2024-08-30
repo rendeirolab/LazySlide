@@ -164,3 +164,4 @@ cython_debug/
 .DS_Store
 
 work/
+.nextflow.log*

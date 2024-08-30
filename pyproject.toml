@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "versioningit"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
@@ -52,6 +52,13 @@ dev = [
     "sphinx_design",
     "myst-nb",
     "pytest",
+]
+
+gigapath = [
+    "timm>=1.0.3",
+    "git+https://github.com/prov-gigapath/prov-gigapath.git",
+    "fairscale",
+    "einops",
 ]
 
 # Define entry points

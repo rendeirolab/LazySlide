@@ -131,6 +131,13 @@ class WSIData(object):
         self.sdata.shapes[key] = cs
         self._write_elements.add(key)
 
+    def add_shapes(self, key, shapes, **kws):
+        from spatialdata.models import ShapesModel
+
+        cs = ShapesModel.parse(shapes, **kws)
+        self.sdata.shapes[key] = cs
+        self._write_elements.add(key)
+
     def add_tiles(self, key, xys, tile_spec, tissue_ids, **kws):
         import geopandas as gpd
         from shapely.geometry import Polygon
@@ -175,17 +182,24 @@ class WSIData(object):
             )
         self._write_elements.add(key)
 
-    def add_features(self, key, features, **kws):
+    def add_features(self, key, features, dims=("y", "x"), **kws):
         from spatialdata.models import Labels2DModel
 
-        f_img = Labels2DModel.parse(features, dims=("y", "x"), **kws)
+        f_img = Labels2DModel.parse(features, dims=dims, **kws)
         self.sdata.labels[key] = f_img
+        self._write_elements.add(key)
+
+    def add_table(self, key, table, **kws):
+        from spatialdata.models import TableModel
+
+        table = TableModel.parse(table, **kws)
+        self.sdata.tables[key] = table
         self._write_elements.add(key)
 
     def save(self, consolidate_metadata: bool = True):
         # Create the store first
         store = parse_url(self._backed_file, mode="w").store
-        _ = zarr.group(store=store, overwrite=True)
+        _ = zarr.group(store=store, overwrite=False)
         store.close()
 
         # Assign to SpatialData
@@ -209,10 +223,10 @@ class WSIData(object):
             return feature_key
         else:
             if tile_key is not None:
-                feature_key = f"{tile_key}_{feature_key}"
+                feature_key = f"{feature_key}_{tile_key}"
                 if feature_key in self.sdata:
                     return feature_key
-                msg = f"Neither {feature_key} or {tile_key}_{feature_key} exist"
+                msg = f"Neither {feature_key} or {feature_key}_{tile_key} exist"
 
         raise KeyError(msg)
 
@@ -444,22 +458,41 @@ class SlideDataGetAccessor(object):
             index=pd.RangeIndex(self._obj.properties.n_level, name="level"),
         )
 
-    def features_anndata(self, tile_key, feature_key):
+    def features_anndata(self, feature_key, tile_key="tiles", tile_graph=True):
         import anndata as ad
 
+        sdata = self._obj.sdata
+
         feature_key = self._obj._check_feature_key(feature_key, tile_key)
-        X = self._obj.sdata.labels[feature_key].values
-        tile_table = self._obj.sdata.shapes[tile_key]
+        X = sdata.labels[feature_key].values
+
+        # obs slot
+        tile_table = sdata.shapes[tile_key]
         tile_xy = tile_table[["x", "y"]].values
         obs = tile_table.drop(columns=["geometry"])
         # To suppress anndata warning
         obs.index = obs.index.astype(str)
-        return ad.AnnData(
-            X=X,
-            obs=obs,
-            obsm={"spatial": tile_xy},
-            uns={
-                "tile_spec": self._obj.tile_spec(tile_key),
-                "slide_properties": self._obj.properties.to_dict(),
-            },
-        )
+
+        # obsm slot
+        obsm = {"spatial": tile_xy}
+
+        # obsp slot
+        obsp = {}
+
+        # uns slot
+        uns = {
+            "tile_spec": self._obj.tile_spec(tile_key),
+            "slide_properties": self._obj.properties.to_dict(),
+        }
+
+        if tile_graph:
+            conns_key = "spatial_connectivities"
+            dists_key = "spatial_distances"
+            graph_key = f"{tile_key}_graph"
+            if graph_key in sdata:
+                graph_table = sdata.tables[graph_key]
+                obsp[conns_key] = graph_table.obsp[conns_key]
+                obsp[dists_key] = graph_table.obsp[dists_key]
+                uns["spatial"] = graph_table.uns["spatial"]
+
+        return ad.AnnData(X=X, obs=obs, obsm=obsm, obsp=obsp, uns=uns)

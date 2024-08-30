@@ -2,7 +2,7 @@ import torch
 
 
 class CONCH(torch.nn.Module):
-    def __init__(self, model_path=None, auth_token=None):
+    def __init__(self, model_path=None, token=None):
         try:
             from conch.open_clip_custom import create_model_from_pretrained
             from conch.open_clip_custom import get_tokenizer
@@ -18,7 +18,7 @@ class CONCH(torch.nn.Module):
             model_path = "hf_hub:MahmoodLab/conch"
 
         self.model, self.processor = create_model_from_pretrained(
-            "conch_ViT-B-16", model_path, hf_auth_token=auth_token
+            "conch_ViT-B-16", model_path, hf_auth_token=token
         )
         self.tokenizer = get_tokenizer()
 

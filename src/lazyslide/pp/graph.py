@@ -2,29 +2,30 @@ import warnings
 from itertools import chain
 
 import numpy as np
+import pandas as pd
 from numba import njit
+from anndata import AnnData
 from scipy.sparse import csr_matrix, spmatrix, isspmatrix_csr, SparseEfficiencyWarning
 from scipy.spatial import Delaunay
 from sklearn.metrics import euclidean_distances
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
 
+from wsi_data import WSIData
 from lazyslide._const import Key
-from lazyslide.wsi import WSI
 
 
 def tile_graph(
-    wsi: WSI,
+    wsi: WSIData,
     n_neighs: int = 4,
     n_rings: int = 1,
     delaunay=False,
     transform: str = None,
     set_diag: bool = False,
     tile_key: str = Key.tiles,
+    table_key: str = None,
 ):
-    import anndata as ad
-
-    coords = wsi.get_tiles_table(tile_key, ["x", "y"]).values
+    coords = wsi.sdata[tile_key][["x", "y"]].values
     Adj, Dst = _spatial_neighbor(
         coords, n_neighs, delaunay, n_rings, transform, set_diag
     )
@@ -39,16 +40,22 @@ def tile_graph(
             "transform": transform,
         },
     }
-
-    if f"{tile_key}_graph" in wsi.sdata.tables:
-        table = wsi.sdata.tables[f"{tile_key}_graph"]
+    # TODO: Store in a anndata object
+    if table_key is None:
+        table_key = Key.tile_graph(tile_key)
+    if table_key not in wsi.sdata:
+        table = AnnData(
+            obs=pd.DataFrame(index=np.arange(coords.shape[0], dtype=int).astype(str)),
+            obsp={conns_key: Adj, dists_key: Dst},
+            uns=neighbors_dict,
+        )
     else:
-        table = ad.AnnData()
+        table = wsi.sdata[table_key]
+        table.obsp[conns_key] = Adj
+        table.obsp[dists_key] = Dst
+        table.uns["spatial"] = neighbors_dict
 
-    table.obsp[conns_key] = Adj
-    table.obsp[dists_key] = Dst
-    table.uns["neighbors"] = neighbors_dict
-    wsi.sdata.tables[f"{tile_key}_graph"] = table
+    wsi.add_table(table_key, table)
 
 
 def _spatial_neighbor(
