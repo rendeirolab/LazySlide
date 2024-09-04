@@ -111,7 +111,7 @@ def open_wsi(
 
         if thumbnail is not None:
             sdata.images[thumbnail_key] = Image2DModel.parse(
-                np.asarray(thumbnail).transpose(2, 1, 0),
+                np.asarray(thumbnail).transpose(2, 0, 1),
                 dims=("c", "y", "x"),
                 transformations={"global": Scale([scale_x, scale_y], axes=("x", "y"))},
             )

@@ -5,6 +5,7 @@ import warnings
 from collections import namedtuple
 from dataclasses import dataclass, asdict
 from functools import cached_property
+from pathlib import Path
 from typing import Mapping, Optional, List, Sequence
 
 import cv2
@@ -62,7 +63,7 @@ class WSIData(object):
     def __init__(self, reader: ReaderBase, sdata: SpatialData, backed_file):
         self._reader = reader
         self._sdata = sdata
-        self._backed_file = backed_file
+        self._backed_file = Path(backed_file)
         self._write_elements = set()
 
         if self.SLIDE_PROPERTIES_KEY not in sdata:
@@ -98,6 +99,10 @@ class WSIData(object):
     @property
     def properties(self):
         return self.reader.properties
+
+    @property
+    def backed_file(self):
+        return self._backed_file
 
     def n_tissue(self, key):
         return len(self.sdata.shapes[key])
