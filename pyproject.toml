@@ -19,6 +19,7 @@ dependencies = [
     "opencv-python",
     "openslide-python",
     "tiffslide",
+    "scikit-learn",
     "matplotlib",
     "legendkit",
     "anndata",
