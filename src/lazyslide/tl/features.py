@@ -33,6 +33,7 @@ def load_models(
 ):
     """Load a model with timm or torch.hub.load"""
     import torch
+    from torchvision.models import get_model
 
     if model_name == "uni":
         from lazyslide.models import UNI
@@ -52,7 +53,7 @@ def load_models(
         model = PLIPVision(model_path=model_path, token=token)
     else:
         kwargs = {"weights": "DEFAULT", **kwargs}
-        model = torch.hub.load(repo, model_name, **kwargs)
+        model = get_model(model_name, **kwargs)
     return model, model_name
 
 
