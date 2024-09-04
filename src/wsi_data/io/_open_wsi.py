@@ -105,8 +105,8 @@ def open_wsi(
         thumbnail_shape = thumbnail.shape
         origin_shape = reader_obj.properties.shape
         scale_x, scale_y = (
-            thumbnail_shape[0] / origin_shape[0],
-            thumbnail_shape[1] / origin_shape[1],
+            origin_shape[0] / thumbnail_shape[0],
+            origin_shape[1] / thumbnail_shape[1],
         )
 
         if thumbnail is not None:
