@@ -149,6 +149,7 @@ def tissue_qc(
     scores: Scorer | Sequence[Scorer],
     pbar: bool = True,
     key: str = Key.tissue,
+    qc_key: str = Key.tissue_qc,
 ):
     compose_scorer = get_scorer(scores)
 
@@ -164,5 +165,5 @@ def tissue_qc(
             progress_bar.update(task, advance=1)
         progress_bar.refresh()
 
-    scores = pd.DataFrame(scores).assign(qc=qc).to_dict(orient="series")
+    scores = pd.DataFrame(scores).assign(**{qc_key: qc}).to_dict(orient="series")
     wsi.update_shapes_data(key=key, data=scores)
