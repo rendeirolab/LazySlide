@@ -1,4 +1,6 @@
 class Key:
+    tissue_qc = "qc"
+    tile_qc = "qc"
     tissue: str = "tissues"
     tissue_id: str = "tissue_id"
     tiles = "tiles"

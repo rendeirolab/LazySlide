@@ -282,7 +282,8 @@ def tiles_qc(
     scorers: Scorer | Sequence[Scorer],
     num_workers: int = 1,
     pbar: bool = True,
-    key: str = "tiles",
+    key: str = Key.tiles,
+    qc_key: str = Key.tile_qc,
 ):
     """
     Score the tiles and filter the tiles based on their quality scores.
@@ -370,7 +371,7 @@ def tiles_qc(
                             qc.extend(chunk_qc)
         progress_bar.refresh()
 
-    scores = pd.DataFrame(scores).assign(qc=qc).to_dict(orient="series")
+    scores = pd.DataFrame(scores).assign(**{qc_key: qc}).to_dict(orient="series")
     wsi.update_shapes_data(key, scores)
 
 

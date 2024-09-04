@@ -20,8 +20,17 @@ class SplitRGB(ScorerBase):
 
     """
 
-    def __init__(self, red_threshold: int = 180, method="mean", dim="xyc"):
-        self.threshold = red_threshold
+    def __init__(
+        self,
+        threshold: (int, int, int) = (
+            0,
+            0,
+            0,
+        ),
+        method="mean",
+        dim="xyc",
+    ):
+        self.threshold = np.array(threshold)
         self.method = method
         self.dim = dim
         if dim == "xyc":
@@ -48,7 +57,19 @@ class SplitRGB(ScorerBase):
 
     def apply(self, patch, mask=None):
         scores = self.func(patch, mask)
-        return ScoreResult(scores=scores, qc=scores["red"] > self.threshold)
+        return ScoreResult(scores=scores, qc=scores > self.threshold)
+
+
+class Redness(SplitRGB):
+    def __init__(self, red_threshold=0.5, **kwargs):
+        self.red_threshold = red_threshold
+        super().__init__(**kwargs)
+
+    def apply(self, patch, mask=None):
+        scores = self.func(patch, mask)
+        return ScoreResult(
+            scores={"redness": scores["red"]}, qc=scores["red"] > self.red_threshold
+        )
 
 
 class Brightness(ScorerBase):

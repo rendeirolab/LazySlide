@@ -1,3 +1,3 @@
 from .focuslitenn import FocusLite
-from .module import Contrast, SplitRGB, Brightness
+from .module import Contrast, SplitRGB, Redness, Brightness
 from .base import ScorerBase, ComposeScorer

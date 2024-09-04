@@ -13,13 +13,14 @@ def get_scorer(scorers):
         Contrast,
         Brightness,
         SplitRGB,
+        Redness,
     )
 
     scorer_mapper = {
         "focus": FocusLite,
         "contrast": Contrast,
         "brightness": Brightness,
-        "redness": SplitRGB,
+        "redness": Redness,
     }
 
     scorer_list = []

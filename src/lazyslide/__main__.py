@@ -18,6 +18,28 @@ OUTPUT = Option(
     "-o",
     help="By default will write to a zarr file with the same name as the slide file",
 )
+REPORT_OUTPUT = Option(
+    ".",
+    "--output",
+    "-o",
+    help="By default will write to running directory with the same name as the slide file",
+)
+TISSUE_QC = Option(
+    "brightness,redness",
+    "--tissue-qc",
+    help="The quality control metrics for tissue detection, multiple metrics separated by comma",
+)
+TILE_QC = Option(
+    "focus,contrast",
+    "--tile-qc",
+    help="The quality control metrics for tile detection, multiple metrics separated by comma",
+)
+TILE_PX = Option(512, "--tile-px", help="The size of the tile in pixels")
+STRIDE_PX = Option(
+    None,
+    "--stride-px",
+    help="The stride of the tile in pixels, by default equal to tile_px",
+)
 
 
 @app.command()
@@ -26,20 +48,20 @@ def preprocess(
     min_tissue_area: float = 1e-3,
     min_hole_area: float = 1e-5,
     detect_holes: bool = True,
+    qc: bool = True,
     filter_artifacts: bool = True,
-    tissue_qc: str = "brightness,redness",
+    tissue_qc: str = TISSUE_QC,
     filter_tissue: bool = True,
-    tile_px: int = Argument(..., help="The size of the tile in pixels"),
-    stride_px: int = Option(
-        None, help="The stride of the tile in pixels, by default equal to tile_px"
-    ),
+    tile_px: int = TILE_PX,
+    stride_px: int = STRIDE_PX,
     mpp: float = Option(None, help="The microns per pixel"),
-    tile_qc: str = "focus,contrast",
+    slide_mpp: float = Option(None, help="The microns per pixel of the slide"),
+    tile_qc: str = TILE_QC,
     filter_tiles: bool = True,
-    report: bool = False,
-    output: Optional[str] = OUTPUT,
+    output: Optional[Path] = OUTPUT,
 ):
     import lazyslide as zs
+    from lazyslide._const import Key
 
     print(f"Read slide file {wsi}")
     wsi = zs.open_wsi(wsi, backed_file=output)
@@ -51,30 +73,52 @@ def preprocess(
         filter_artifacts=filter_artifacts,
     )
 
-    # zs.pp.tissue_qc(wsi, tissue_qc.split(","))
-    # if filter_tissue:
-    #     tissue_tb = wsi.sdata["tissues"]
-    #     wsi.sdata["tissues"] = tissue_tb[tissue_tb["qc"]]
+    if qc:
+        if tissue_qc is not None:
+            tissue_metrics = tissue_qc.split(",")
+            zs.pp.tissue_qc(wsi, tissue_metrics)
+            if filter_tissue:
+                tissue_tb = wsi.sdata[Key.tissue]
+                wsi.sdata[Key.tissue] = tissue_tb[tissue_tb[Key.tissue_qc]]
 
-    zs.pp.tiles(wsi, tile_px=tile_px, stride_px=stride_px, mpp=mpp)
+    zs.pp.tiles(wsi, tile_px=tile_px, stride_px=stride_px, mpp=mpp, slide_mpp=slide_mpp)
 
-    # zs.pp.tiles_qc(wsi, tile_qc.split(","))
-    # if filter_tiles:
-    #     tile_tb = wsi.sdata["tiles"]
-    #     wsi.sdata["tiles"] = tile_tb[tile_tb["qc"]]
-    #
-    # if report:
-    #     zs.pl.qc_summary(wsi, ["brightness", "redness"], ["focus", "contrast"])
+    if qc:
+        if tile_qc is not None:
+            tile_metrics = tile_qc.split(",")
+            zs.pp.tiles_qc(wsi, tile_metrics)
+            if filter_tiles:
+                tile_tb = wsi.sdata[Key.tiles]
+                wsi.sdata[Key.tiles] = tile_tb[tile_tb[Key.tile_qc]]
 
     wsi.save()
     print(f"Saved to {wsi.sdata.path}")
 
 
 @app.command()
+def report(
+    slide: str = WSI,
+    tissue_qc: str = TISSUE_QC,
+    tile_qc: str = TILE_QC,
+    output: Optional[Path] = REPORT_OUTPUT,
+):
+    import lazyslide as zs
+
+    wsi = zs.open_wsi(slide)
+    print(f"Read slide file {wsi}")
+    report_fig = zs.pl.qc_summary(wsi, tissue_qc.split(","), tile_qc.split(","))
+    if output.is_dir():
+        output = output / wsi.backed_file.with_suffix(".pdf").name
+    report_fig.savefig(output)
+    print(f"Saved to {output}")
+
+
+@app.command()
 def feature(
     slide: str = WSI,
     model: str = Argument(..., help="A model name or the path to the model file"),
-    slide_encoder: str = None,
+    slide_encoder: str = "mean",
+    device: str = "cpu",
     output: Optional[str] = OUTPUT,
 ):
     import lazyslide as zs
@@ -82,7 +126,7 @@ def feature(
     wsi = zs.open_wsi(slide, backed_file=output)
     print(f"Read slide file {slide}")
     print(f"Extract features using model {model}")
-    zs.tl.feature_extraction(wsi, model, slide_encoder=slide_encoder)
+    zs.tl.feature_extraction(wsi, model, slide_encoder=slide_encoder, device=device)
     wsi.save()
     print(f"Write to {wsi.sdata.path}")
 
