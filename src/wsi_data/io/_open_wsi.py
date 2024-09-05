@@ -13,7 +13,7 @@ from wsi_data._image import reader_datatree
 from wsi_data.data import WSIData
 from wsi_data.reader import get_reader
 
-from ._download import Downloader
+from ._download import CacheDownloader
 
 
 def open_wsi(
@@ -21,9 +21,9 @@ def open_wsi(
     backed_file=None,
     reader=None,
     download=True,
-    pbar=True,
-    cache_dir=None,
     name=None,
+    cache_dir=None,
+    pbar=True,
     attach_images=False,
     image_key="wsi",
     save_images=False,
@@ -59,20 +59,13 @@ def open_wsi(
     fs, wsi_path = url_to_fs(wsi)
     if not fs.exists(wsi_path):
         raise ValueError(f"Slide {wsi} not existed or not accessible.")
-    if name is None:
-        name = Path(wsi_path).name
 
     # Early attempt with reader
     ReaderCls = get_reader(reader)
 
     if download and fs.protocol != "file":
-        if cache_dir is None:
-            cache_dir = Path("lazyslide_downloads")
-            if not Path(cache_dir).exists():
-                Path(cache_dir).mkdir(parents=True, exist_ok=True)
-        wsi = Path(cache_dir) / name
-        downloader = Downloader(wsi_path, wsi)
-        downloader.download(pbar)
+        downloader = CacheDownloader(wsi_path, name=name, cache_dir=cache_dir)
+        wsi = downloader.download(pbar)
 
     reader_obj = ReaderCls(wsi)
     wsi = Path(wsi)
