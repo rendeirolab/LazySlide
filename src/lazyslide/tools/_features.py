@@ -4,14 +4,14 @@ import warnings
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import Manager
 from pathlib import Path
-from typing import Callable, Any
+from typing import Callable, Any, Literal
 
 import numpy as np
 
 from lazyslide._const import Key
-from wsi_data import WSIData
+from wsidata import WSIData
 from lazyslide.data.datasets import TileImagesDataset
-from lazyslide.utils import default_pbar, chunker, get_torch_device
+from lazyslide._utils import default_pbar, chunker, get_torch_device
 
 
 def get_default_transform():
@@ -69,7 +69,8 @@ def feature_extraction(
     device: str = None,
     tile_key: str = Key.tiles,
     feature_key: str = None,
-    slide_encoder: str | Callable = "mean",
+    slide_agg: str | Callable = "mean",
+    agg_key: str = "agg",
     batch_size=32,
     num_workers=0,
     mode="batch",  # "batch" or "chunk"
@@ -150,6 +151,12 @@ def feature_extraction(
         task = progress_bar.add_task("Extracting features", total=n_tiles)
 
         if mode == "chunk":
+            device = torch.device(device)
+            # Check if device is CPU
+            if device.type != "cpu":
+                raise RuntimeError(
+                    "Chunk mode should only used on CPU-based inference."
+                )
             if num_workers == 0:
                 num_workers = 1
 
@@ -159,7 +166,7 @@ def feature_extraction(
                 with ProcessPoolExecutor(max_workers=num_workers) as executor:
                     wsi.reader.detach_reader()
                     chunks = chunker(np.arange(n_tiles), num_workers)
-                    dataset = TileImagesDataset(wsi, transform=transform, key=tile_key)
+                    dataset = wsi.ds.tile_images(tile_key=tile_key, transform=transform)
                     futures = [
                         executor.submit(_inference, dataset, chunk, model, queue)
                         for chunk in chunks
@@ -176,7 +183,7 @@ def feature_extraction(
                     features = np.vstack(features)
 
         else:
-            dataset = TileImagesDataset(wsi, transform=transform, key=tile_key)
+            dataset = wsi.ds.tile_images(tile_key=tile_key, transform=transform)
             loader = DataLoader(
                 dataset, batch_size=batch_size, num_workers=num_workers, **kwargs
             )
@@ -188,16 +195,13 @@ def feature_extraction(
                     output = model(batch)
                     features.append(output.cpu().numpy())
                     progress_bar.update(task, advance=len(batch))
+                    del batch  # Free up memory
             # The progress bar may not reach 100% if exit too early
             # Force update
             progress_bar.refresh()
             features = np.vstack(features)
 
-    wsi.add_features(Key.feature(feature_key, tile_key), features)
-    # ====== Slide-level encoding ======
-    agg_features = _encode_slide(features, slide_encoder, tiles_coords)
-    # Write features to WSI
-    wsi.add_features(Key.feature_slide(feature_key, tile_key), agg_features)
+    wsi.add_features(Key.feature(feature_key, tile_key), tile_key, features)
     if return_features:
         return features
 
@@ -212,22 +216,39 @@ def _inference(dataset, chunk, model, queue):
             # image to 4d
             img = img.unsqueeze(0)
             output = model(img)
-            X.append(output.cpu().numpy())
+            X.append(output.detach().cpu().numpy())
             queue.put(1)
     return X
 
 
-def encode_slide(
+def agg_features(
     wsi: WSIData,
-    encoder: str | Callable,
     feature_key: str,
+    encoder: str | Callable = "mean",
     tile_key: str = Key.tiles,
+    by: Literal["slide", "tissue"] = "slide",
+    agg_key: str = None,
 ):
-    coords = wsi.sdata.shapes[tile_key][["x", "y"]].values
+    if agg_key is None:
+        agg_key = f"agg_{by}"
+
+    tiles_table = wsi.sdata.shapes[tile_key]
+    coords = tiles_table[["x", "y"]]
     feature_key = wsi._check_feature_key(feature_key, tile_key)
-    features = wsi.sdata.labels[feature_key].values
-    agg_features = _encode_slide(features, encoder, coords)
-    wsi.add_features(f"{feature_key}_slide", agg_features)
+    features = wsi.sdata.tables[feature_key].X
+
+    if by == "slide":
+        agg_features = _encode_slide(features, encoder, coords)
+        agg_features = agg_features.reshape(-1, 1)
+    else:
+        agg_features = []
+        for _, x in tiles_table.groupby("tissue_id"):
+            tissue_feature = _encode_slide(
+                features[x.index], encoder, coords.iloc[x.index]
+            )
+            agg_features.append(tissue_feature)
+        agg_features = np.vstack(agg_features).T
+    wsi.add_agg_features(feature_key, agg_key, agg_features)
 
 
 def _encode_slide(features, encoder, coords=None):
@@ -244,7 +265,5 @@ def _encode_slide(features, encoder, coords=None):
         agg_features = encoder(features)
     else:
         raise ValueError(f"Unknown slide encoding method: {encoder}")
-
-    agg_features = agg_features.reshape(1, -1)
 
     return agg_features

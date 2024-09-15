@@ -10,14 +10,11 @@ import cv2
 import numpy as np
 import pandas as pd
 from numba import njit
-from scipy.sparse import csr_matrix
-from scipy.spatial import KDTree
-from sklearn.neighbors import NearestNeighbors
 
-from wsi_data import WSIData, TileSpec
-from lazyslide.utils import default_pbar, chunker
-from lazyslide.pp._utils import get_scorer, Scorer
 from lazyslide._const import Key
+from lazyslide.preprocess._utils import get_scorer, Scorer
+from lazyslide._utils import default_pbar, chunker
+from wsidata import WSIData, TileSpec
 
 
 def tiles(
@@ -83,14 +80,14 @@ def tiles(
 
         >>> import lazyslide as zs
         >>> wsi = zs.open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
-        >>> zs.pp.find_tissue(wsi)
-        >>> zs.pp.tiles(wsi, 256, mpp=0.5)
-        >>> zs.pl.tiles(wsi, tissue_id=0, show_grid=True, show_point=False)
+        >>> zs.preprocess.find_tissue(wsi)
+        >>> zs.preprocess.tiles(wsi, 256, mpp=0.5)
+        >>> zs.plotting.tiles(wsi, tissue_id=0, show_grid=True, show_point=False)
 
     """
     # Check if tissue contours are present
     if tissue_key not in wsi.sdata.shapes:
-        msg = f"Contours for {tissue_key} not found. Run pp.find_tissue first."
+        msg = f"Contours for {tissue_key} not found. Run preprocess.find_tissue first."
         raise ValueError(msg)
 
     if isinstance(tile_px, Integral):
@@ -164,11 +161,6 @@ def tiles(
 
     # Get contours
     contours = wsi.sdata.shapes[tissue_key]
-    holes_key = Key.holes(tissue_key)
-    if holes_key in wsi.sdata.shapes:
-        holes = wsi.sdata.shapes[holes_key]
-    else:
-        holes = []
 
     tile_coords = []
     tiles_tissue_id = []
@@ -187,15 +179,8 @@ def tiles(
             edge=edge,
         )
         # Dtype must be float32 for cv2
-        cnt = np.array(cnt.exterior.coords, dtype=np.float32)
-        if len(holes) > 0:
-            cnt_holes = holes[holes["tissue_id"] == tissue_id]
-            cnt_holes = [
-                np.array(h.exterior.coords, dtype=np.float32)
-                for h in cnt_holes.geometry
-            ]
-        else:
-            cnt_holes = []
+        cnt_holes = [np.asarray(h.coords) for h in cnt.interiors]
+        cnt = np.asarray(cnt.exterior.coords, dtype=np.float32)
 
         # ========= 1. Point in polygon test =========
         if method == "polygon-test":
@@ -312,9 +297,9 @@ def tiles_qc(
 
         >>> import lazyslide as zs
         >>> wsi = zs.open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
-        >>> zs.pp.find_tissue(wsi)
-        >>> zs.pp.tiles(wsi, 256, mpp=0.5)
-        >>> zs.pp.tiles_qc(wsi, scorers=["contrast"])
+        >>> zs.preprocess.find_tissue(wsi)
+        >>> zs.preprocess.tiles(wsi, 256, mpp=0.5)
+        >>> zs.preprocess.tiles_qc(wsi, scorers=["contrast"])
         >>> wsi.sdata['tiles'].head(n=2)
 
     """
@@ -366,12 +351,12 @@ def tiles_qc(
                         _ = queue.get()
                         progress_bar.update(task, advance=1)
                     for f in futures:
-                        for chunk_scores, chunk_qc in f.result():
-                            scores.extend(chunk_scores)
-                            qc.extend(chunk_qc)
+                        chunk_scores, chunk_qc = f.result()
+                        scores.extend(chunk_scores)
+                        qc.extend(chunk_qc)
         progress_bar.refresh()
 
-    scores = pd.DataFrame(scores).assign(**{qc_key: qc}).to_dict(orient="series")
+    scores = pd.DataFrame(scores).assign(**{qc_key: qc})
     wsi.update_shapes_data(key, scores)
 
 

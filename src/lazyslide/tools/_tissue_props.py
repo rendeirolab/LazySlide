@@ -4,7 +4,7 @@ from functools import cached_property
 
 import pandas as pd
 
-from wsi_data import WSIData
+from wsidata import WSIData
 from lazyslide._const import Key
 
 

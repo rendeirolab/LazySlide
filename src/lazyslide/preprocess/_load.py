@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
+from typing import List, Callable
 
 from geopandas import GeoDataFrame
 
 from lazyslide._const import Key
-from wsi_data import WSIData
+from wsidata import WSIData
 
 
 def load_annotations(
     wsi: WSIData,
     annotations: str | Path | GeoDataFrame = None,
+    in_bounds: bool = False,
     join_with: str | List[str] = Key.tiles,
     key_added: str = "annotations",
 ):
@@ -25,6 +26,14 @@ def load_annotations(
         anno_df = annotations
     else:
         raise ValueError(f"Invalid annotations: {annotations}")
+
+    if in_bounds:
+        from functools import partial
+        from shapely.affinity import translate
+
+        xoff, yoff, _, _ = wsi.properties.bounds
+        trans = partial(translate, xoff=xoff, yoff=yoff)
+        anno_df["geometry"] = anno_df["geometry"].apply(lambda x: trans(x))
 
     wsi.add_shapes(key_added, anno_df)
 

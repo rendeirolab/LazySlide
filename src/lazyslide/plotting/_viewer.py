@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from lazyslide._const import Key
-from wsi_data import WSIData
+from lazyslide.preprocess import tile_graph
+from wsidata import WSIData
 
 ADOBE_SPECTRUM = [
     "#0FB5AE",
@@ -311,7 +312,9 @@ class SlideViewer:
         c = None
         add_title = ""
         if feature_key is not None:
-            adata = self.wsi.get.features_anndata(self.tile_key, feature_key)
+            adata = self.wsi.get.features_anndata(
+                feature_key, self.tile_key, tile_graph=False
+            )
             if color is not None:
                 if isinstance(color, str):
                     if color in adata.obs.columns:
@@ -399,7 +402,17 @@ class SlideViewer:
             )
         self.set_title(add_title)
 
-    def add_shapes(self, key, ax, color, linewidth, alpha):
+    def add_shapes(
+        self,
+        key,
+        ax,
+        color,
+        hole_color,
+        linewidth,
+        alpha,
+        show_bbox=False,
+        show_shape=True,
+    ):
         from matplotlib.patches import Rectangle
 
         if key in self.wsi.sdata.shapes:
@@ -408,24 +421,48 @@ class SlideViewer:
                 if "tissue_id" in shapes.columns:
                     shapes = shapes[shapes["tissue_id"] == self.tissue_id]
             for c in shapes.geometry:
-                # Draw bbox of shape
-                # bbox = np.array(c.bounds)
-                # if self.bounds is not None:
-                #     bbox -= np.array(self.bounds[0:2])
-                # minx, miny, maxx, maxy = bbox / self.downsample
-                # ax.add_patch(Rectangle((minx, miny), maxx - minx, maxy - miny, fill=False, ec=color, lw=linewidth))
+                if show_bbox:
+                    # Draw bbox of shape
+                    bbox = np.array(c.bounds)
+                    if self.bounds is not None:
+                        bbox -= np.array(self.bounds[0:2])
+                    minx, miny, maxx, maxy = bbox / self.downsample
+                    ax.add_patch(
+                        Rectangle(
+                            (minx, miny),
+                            maxx - minx,
+                            maxy - miny,
+                            fill=False,
+                            ec=color,
+                            lw=linewidth,
+                        )
+                    )
+                if show_shape:
+                    holes = [np.asarray(h.coords) for h in c.interiors]
+                    c = np.array(c.exterior.coords, dtype=np.float32)
+                    if self.bounds is not None:
+                        c -= np.array(self.bounds[0:2])
+                        for h in holes:
+                            h -= np.array(self.bounds[0:2])
+                    c /= self.downsample
+                    for h in holes:
+                        h /= self.downsample
+                    ax.plot(
+                        c[:, 0],
+                        c[:, 1],
+                        color=color,
+                        alpha=alpha,
+                        lw=linewidth,
+                    )
 
-                c = np.array(c.exterior.coords, dtype=np.float32)
-                if self.bounds is not None:
-                    c -= np.array(self.bounds[0:2])
-                c /= self.downsample
-                ax.plot(
-                    c[:, 0],
-                    c[:, 1],
-                    color=color,
-                    alpha=alpha,
-                    lw=linewidth,
-                )
+                    for h in holes:
+                        ax.plot(
+                            h[:, 0],
+                            h[:, 1],
+                            color=hole_color,
+                            alpha=alpha,
+                            lw=linewidth,
+                        )
 
         return ax
 
@@ -433,6 +470,8 @@ class SlideViewer:
         self,
         contour_color="green",
         hole_color="blue",
+        show_bbox=False,
+        show_shape=True,
         linewidth=1,
         alpha=None,
         ax=None,
@@ -441,8 +480,16 @@ class SlideViewer:
             ax = plt.gca()
 
         tissue_key = self.tissue_key
-        self.add_shapes(tissue_key, ax, contour_color, linewidth, alpha)
-        self.add_shapes(Key.holes(tissue_key), ax, hole_color, linewidth, alpha)
+        self.add_shapes(
+            tissue_key,
+            ax,
+            contour_color,
+            hole_color,
+            linewidth,
+            alpha,
+            show_bbox=show_bbox,
+            show_shape=show_shape,
+        )
 
     def _draw_shapes_anno(self, key, ax, fmt=None, **kwargs):
         default_style = dict(

@@ -11,7 +11,7 @@ from sklearn.metrics import euclidean_distances
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
 
-from wsi_data import WSIData
+from wsidata import WSIData
 from lazyslide._const import Key
 
 

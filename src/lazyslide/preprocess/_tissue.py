@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import logging
 import warnings
+from concurrent.futures import ProcessPoolExecutor
 from typing import Sequence
 
 import numpy as np
 import pandas as pd
+from shapely import Polygon
 
 from lazyslide_cv.transform import TissueDetectionHE
-from wsi_data import WSIData
+from wsidata import WSIData
 
-from lazyslide.pp._utils import get_scorer, Scorer
-from lazyslide.utils import default_pbar
+from lazyslide.preprocess._utils import get_scorer, Scorer
+from lazyslide._utils import default_pbar
 from lazyslide._const import Key
 
 # TODO: Auto-selection of tissue level
@@ -65,9 +67,9 @@ def find_tissue(
         :context: close-figs
 
         >>> import lazyslide as zs
-        >>> wsi = zs.WSI("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
-        >>> zs.pp.find_tissue(wsi)
-        >>> zs.pl.tissue(wsi)
+        >>> wsi = zs.open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
+        >>> zs.preprocess.find_tissue(wsi)
+        >>> zs.plotting.tissue(wsi)
 
     """
     # Get optimal level for segmentation
@@ -126,27 +128,25 @@ def find_tissue(
     else:
         downsample = 1
 
-    contours, holes = [], []
-    contours_ids, holes_ids = [], []
+    tissues, tissues_ids = [], []
 
     for tissue in tissue_instances:
-        contours.append((tissue.contour * downsample))
-        contours_ids.append(tissue.id)
-        for hole in tissue.holes:
-            holes.append((hole * downsample))
-            holes_ids.append(tissue.id)
+        shell = tissue.contour * downsample
+        holes = [hole * downsample for hole in tissue.holes]
+        tissue_poly = Polygon(shell, holes=holes)
+        tissues.append(tissue_poly)
+        tissues_ids.append(tissue.id)
 
-    if len(contours) == 0:
+    if len(tissues) == 0:
         logging.warning("No tissue is found.")
         return False
-    wsi.add_tissues(key=key, tissues=contours, ids=contours_ids)
-    if len(holes) > 0:
-        wsi.add_tissues(key=Key.holes(key), tissues=holes, ids=holes_ids)
+    wsi.add_tissues(key=key, tissues=tissues, ids=tissues_ids)
 
 
 def tissue_qc(
     wsi: WSIData,
     scores: Scorer | Sequence[Scorer],
+    num_workers: int = 1,
     pbar: bool = True,
     key: str = Key.tissue,
     qc_key: str = Key.tissue_qc,
@@ -158,12 +158,27 @@ def tissue_qc(
         scores = []
         qc = []
 
-        for tissue in wsi.iter.tissue_images(key, tissue_mask=True):
-            result = compose_scorer(tissue.image, mask=tissue.mask)
-            scores.append(result.scores)
-            qc.append(result.qc)
-            progress_bar.update(task, advance=1)
+        if num_workers == 1:
+            for tissue in wsi.iter.tissue_images(key, tissue_mask=True):
+                result = compose_scorer(tissue.image, mask=tissue.mask)
+                scores.append(result.scores)
+                qc.append(result.qc)
+                progress_bar.update(task, advance=1)
+        else:
+            with ProcessPoolExecutor(max_workers=num_workers) as executor:
+                # map is used to keep the order of the results
+                jobs = []
+                for tissue in wsi.iter.tissue_images(key, tissue_mask=True):
+                    jobs.append(
+                        executor.submit(compose_scorer, tissue.image, mask=tissue.mask)
+                    )
+
+                for job in jobs:
+                    result = job.result()
+                    scores.append(result.scores)
+                    qc.append(result.qc)
+                    progress_bar.update(task, advance=1)
         progress_bar.refresh()
 
-    scores = pd.DataFrame(scores).assign(**{qc_key: qc}).to_dict(orient="series")
+    scores = pd.DataFrame(scores).assign(**{qc_key: qc})
     wsi.update_shapes_data(key=key, data=scores)

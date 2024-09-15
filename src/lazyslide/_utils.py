@@ -1,3 +1,8 @@
+from rich.console import Console
+
+console = Console()
+
+
 def get_torch_device():
     """Automatically get the torch device"""
     import torch
@@ -27,6 +32,7 @@ def default_pbar(disable=False):
         TaskProgressColumn(),
         TimeRemainingColumn(compact=True, elapsed_when_finished=True),
         disable=disable,
+        console=console,
     )
 
 

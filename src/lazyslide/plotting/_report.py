@@ -1,6 +1,10 @@
-from wsi_data import WSIData
+from itertools import cycle
+
+from wsidata import WSIData
 from lazyslide._const import Key
-from .api import tiles, tissue
+from ._api import tiles, tissue
+
+from ._viewer import ADOBE_SPECTRUM
 
 
 def qc_summary(
@@ -30,9 +34,13 @@ def qc_summary(
     tissue_table = wsi.sdata.shapes[tissue_key]
 
     tissue_ax = None
-    for metric in tissue_metrics:
+    for metric, c in zip(tissue_metrics, cycle(ADOBE_SPECTRUM)):
         ax = pw.Brick(figsize=(1, 1))
-        sns.barplot(data=tissue_table, x="tissue_id", y=metric, ax=ax, width=0.5)
+        if metric in {"brightness", "redness"}:
+            ax.set_ylim(0, 255)
+        sns.barplot(
+            data=tissue_table, x="tissue_id", y=metric, ax=ax, width=0.5, color=c
+        )
         ax.set(xlabel="Tissue ID", ylabel="", title=metric)
         if tissue_ax is None:
             tissue_ax = ax
@@ -52,6 +60,11 @@ def qc_summary(
         )
 
         for metric in tile_metrics:
+            vmin, vmax = None, None
+            if metric == "focus":
+                vmin, vmax = 0, 14
+            elif metric == "contrast":
+                vmin, vmax = 0, 1
             ax = pw.Brick(figsize=(1, 1))
             tiles(
                 wsi,
@@ -60,6 +73,8 @@ def qc_summary(
                 color=metric,
                 ax=ax,
                 show_origin=False,
+                vmin=vmin,
+                vmax=vmax,
             )
             t_ax |= ax
 
@@ -70,13 +85,19 @@ def qc_summary(
 
     tile_stat_ax = None
     tile_table = wsi.sdata.shapes[tile_key][tile_metrics + ["tissue_id"]]
-    for metric in tile_metrics:
+    for metric, c in zip(tile_metrics, cycle(ADOBE_SPECTRUM)):
         ax = pw.Brick(figsize=(2, n_tissue))
-        sns.stripplot(data=tile_table, x="tissue_id", y=metric, ax=ax, size=1)
+        if metric == "focus":
+            ax.axhline(4, color="r", linestyle="--")
+            ax.set_ylim(0, 14)
+        elif metric == "contrast":
+            ax.axhline(0.5, color="r", linestyle="--")
+            ax.set_ylim(0, 1)
+        sns.stripplot(data=tile_table, x="tissue_id", y=metric, ax=ax, size=2, color=c)
         ax.set(xlabel="Tissue ID", ylabel="", title=metric)
         if tile_stat_ax is None:
             tile_stat_ax = ax
         else:
             tile_stat_ax |= ax
 
-    return (slide_ax / tissue_ax) | (tile_ax / tile_stat_ax)
+    return (slide_ax | tile_ax) / (tissue_ax | tile_stat_ax)

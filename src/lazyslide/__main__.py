@@ -126,7 +126,7 @@ def feature(
     wsi = zs.open_wsi(slide, backed_file=output)
     print(f"Read slide file {slide}")
     print(f"Extract features using model {model}")
-    zs.tl.feature_extraction(wsi, model, slide_encoder=slide_encoder, device=device)
+    zs.tl.feature_extraction(wsi, model, slide_agg=slide_encoder, device=device)
     wsi.save()
     print(f"Write to {wsi.sdata.path}")
 
@@ -136,7 +136,7 @@ def agg_wsi(
     slide_table: Path = Argument(..., help="The slide table file"),
     output: Optional[str] = OUTPUT,
 ):
-    from wsi_data import agg_wsi
+    from wsidata import agg_wsi
 
     print(f"Read slide table {slide_table}")
     slides_table = pd.read_csv(slide_table)

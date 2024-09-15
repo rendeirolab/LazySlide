@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from lazyslide._const import Key
-from wsi_data import WSIData
+from wsidata import WSIData
 
 
 def text_embedding(
@@ -52,6 +52,6 @@ def text_annotate(
         feature_key = method
     feature_key = wsi._check_feature_key(feature_key, tile_key)
 
-    feature_X = wsi.sdata.labels[feature_key].values
+    feature_X = wsi.sdata.tables[feature_key].X
     similarity_score = np.dot(texts.values, feature_X.T)
     return similarity_score

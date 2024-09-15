@@ -1,7 +1,7 @@
 from typing import Literal
 
 from lazyslide._const import Key
-from wsi_data import WSIData
+from wsidata import WSIData
 
 
 def spatial_domain(

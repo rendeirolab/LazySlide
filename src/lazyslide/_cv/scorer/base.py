@@ -1,6 +1,6 @@
 from collections import namedtuple
 
-ScoreResult = namedtuple("Score", ["scores", "qc"])
+ScoreResult = namedtuple("ScoreResult", ["scores", "qc"])
 
 
 class ScorerBase:
