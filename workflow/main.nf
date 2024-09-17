@@ -8,6 +8,7 @@ params.models = "resnet50"
 
 process PREPROCESS {
     publishDir params.report_dir, mode: 'move'
+    // conda "${projectDir}/env.yaml"
 
     input:
     tuple val(wsi), val(storage)
@@ -28,6 +29,7 @@ process PREPROCESS {
 }
 
 process FEATURE {
+    // conda "${projectDir}/env.yaml"
 
     input:
     tuple val(wsi), val(storage)
