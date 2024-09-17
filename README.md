@@ -7,7 +7,6 @@ with large WSIs on modest hardware.
 - Wide supported format
 - Remote file support
 - `scanpy`-style API
-- `SpatialData` backed
 - CLI and Nextflow support
 
 
@@ -40,23 +39,10 @@ lazyslide info your.svs
 To run a feature extraction pipeline
 
 ```shell
-lazyslide tissue your.svs
-lazyslide tile your.svs --tile-size 256 --mpp 0.5
+# To preprocess the slide
+lazyslide preprocess your.svs --tile-size 256 --mpp 0.5
+# Generate a qc report for the preprocess step
+lazyslide report your.svs
+# Run the feature extraction pipeline
 lazyslide features your.svs --model resnet50 --batch 16 --color-normalize macenko
-lazyslide anndata your.svs --features resnet50 --output output.h5ad
-```
-
-or run it at once
-
-```shell
-lazyslide feature_pipeline your.svs --tile-size 256 --mpp 0.5 \
-      --model resnet50 --batch 16 --color-normalize macenko --output output.h5ad
-```
-
-
-## Nextflow Usage
-
-```shell
-nextflow run lazyslide --annotations slides.csv --output output --tiles 256 \
---mpp 0.5 --model resnet50 --batch 16 --color_normalize macenko
 ```
