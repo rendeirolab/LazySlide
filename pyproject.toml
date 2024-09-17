@@ -48,9 +48,10 @@ all = [
 dev = [
     "hatchling",
     "sphinx",
-    "sphinxawesome-theme",
+    "pydata-sphinx-theme",
     "numpydoc",
     "sphinx_design",
+    "sphinx_copybutton",
     "myst-nb",
     "pytest",
 ]
@@ -64,6 +65,5 @@ ignore = ["F401"]
 line-length = 88
 
 [tool.ruff.per-file-ignores]
-"lazyslide/readers/base.py" = ["E731"]
 "tests/test_example.py" = ["E402"]
 "tests/test_loader.py" = ["E402"]
