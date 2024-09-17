@@ -1,12 +1,12 @@
 from typing import Union
 
-from lazyslide_cv.scorer import ScorerBase
+from lazyslide._cv.scorer import ScorerBase
 
 Scorer = Union[ScorerBase, str]
 
 
 def get_scorer(scorers):
-    from lazyslide_cv.scorer import (
+    from lazyslide._cv.scorer import (
         ScorerBase,
         ComposeScorer,
         FocusLite,

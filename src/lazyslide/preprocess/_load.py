@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import List, Callable
 
 from geopandas import GeoDataFrame
+from shapely import Polygon
 
 from lazyslide._const import Key
 from wsidata import WSIData
@@ -12,8 +13,11 @@ from wsidata import WSIData
 def load_annotations(
     wsi: WSIData,
     annotations: str | Path | GeoDataFrame = None,
+    explode: bool = True,
     in_bounds: bool = False,
-    join_with: str | List[str] = Key.tiles,
+    join_with: str | List[str] = Key.tissue,
+    join_to: str = None,
+    min_area: float = 1e2,
     key_added: str = "annotations",
 ):
     """Load the geojson file and add it to the WSI data"""
@@ -27,6 +31,18 @@ def load_annotations(
     else:
         raise ValueError(f"Invalid annotations: {annotations}")
 
+    # remove crs
+    anno_df.crs = None
+
+    if explode:
+        anno_df = (
+            anno_df.explode()
+            .assign(**{"__area__": lambda x: x.geometry.area})
+            .query(f"__area__ > {min_area}")
+            .drop(columns=["__area__"], errors="ignore")
+            .reset_index(drop=True)
+        )
+
     if in_bounds:
         from functools import partial
         from shapely.affinity import translate
@@ -35,16 +51,32 @@ def load_annotations(
         trans = partial(translate, xoff=xoff, yoff=yoff)
         anno_df["geometry"] = anno_df["geometry"].apply(lambda x: trans(x))
 
-    wsi.add_shapes(key_added, anno_df)
-
     # get tiles
     if isinstance(join_with, str):
         join_with = [join_with]
 
+    join_anno_df = anno_df.copy()
     for key in join_with:
         if key in wsi.sdata:
-            tile_df = wsi.sdata[key]
+            shapes_df = wsi.sdata[key]
             # join the annotations with the tiles
-            gdf = gpd.sjoin(tile_df[["geometry"]], anno_df, how="left", op="intersects")
-            wsi.update_shapes_data(key, gdf)
-    return wsi
+            join_anno_df = (
+                gpd.sjoin(shapes_df, join_anno_df, how="right", predicate="intersects")
+                .reset_index(drop=True)
+                .drop(columns=["index_left"], errors="ignore")
+            )
+    wsi.add_shapes(key_added, join_anno_df)
+
+    # TODO: still Buggy
+    if join_to is not None:
+        if join_to in wsi.sdata:
+            shapes_df = wsi.sdata[join_to]
+            # join the annotations with the tiles
+            shapes_df = (
+                gpd.sjoin(
+                    shapes_df[["geometry"]], anno_df, how="left", predicate="intersects"
+                )
+                .reset_index(drop=True)
+                .drop(columns=["index_right"], errors="ignore")
+            )
+            wsi.update_shapes_data(join_to, shapes_df)

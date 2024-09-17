@@ -17,7 +17,7 @@ from lazyslide._const import Key
 
 def tile_graph(
     wsi: WSIData,
-    n_neighs: int = 4,
+    n_neighs: int = 6,
     n_rings: int = 1,
     delaunay=False,
     transform: str = None,
@@ -47,15 +47,14 @@ def tile_graph(
         table = AnnData(
             obs=pd.DataFrame(index=np.arange(coords.shape[0], dtype=int).astype(str)),
             obsp={conns_key: Adj, dists_key: Dst},
-            uns=neighbors_dict,
+            uns={"spatial": neighbors_dict},
         )
+        wsi.add_table(table_key, table)
     else:
         table = wsi.sdata[table_key]
         table.obsp[conns_key] = Adj
         table.obsp[dists_key] = Dst
         table.uns["spatial"] = neighbors_dict
-
-    wsi.add_table(table_key, table)
 
 
 def _spatial_neighbor(

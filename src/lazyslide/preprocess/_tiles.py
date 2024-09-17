@@ -22,6 +22,7 @@ def tiles(
     tile_px: int,
     stride_px: int = None,
     edge: bool = False,
+    level: int = 0,
     mpp: float = None,
     slide_mpp: float = None,
     tolerance: float = 0.05,
@@ -80,9 +81,9 @@ def tiles(
 
         >>> import lazyslide as zs
         >>> wsi = zs.open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
-        >>> zs.preprocess.find_tissue(wsi)
-        >>> zs.preprocess.tiles(wsi, 256, mpp=0.5)
-        >>> zs.plotting.tiles(wsi, tissue_id=0, show_grid=True, show_point=False)
+        >>> zs.pp.find_tissue(wsi)
+        >>> zs.pp.tiles(wsi, 256, mpp=0.5)
+        >>> zs.pl.tiles(wsi, tissue_id=0, show_grid=True, show_point=False)
 
     """
     # Check if tissue contours are present

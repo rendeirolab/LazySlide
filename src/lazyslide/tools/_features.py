@@ -7,10 +7,9 @@ from pathlib import Path
 from typing import Callable, Any, Literal
 
 import numpy as np
+from wsidata import WSIData
 
 from lazyslide._const import Key
-from wsidata import WSIData
-from lazyslide.data.datasets import TileImagesDataset
 from lazyslide._utils import default_pbar, chunker, get_torch_device
 
 
@@ -32,7 +31,6 @@ def load_models(
     model_name: str, repo="pytorch/vision", model_path=None, token=None, **kwargs
 ):
     """Load a model with timm or torch.hub.load"""
-    import torch
     from torchvision.models import get_model
 
     if model_name == "uni":
@@ -44,10 +42,19 @@ def load_models(
 
         model = GigaPath(model_path=model_path, token=token)
     elif model_name == "conch":
+        from lazyslide.models import CONCH
+
+        model = CONCH(model_path=model_path, token=token)
+
+    elif model_name == "conch_vision":
         from lazyslide.models import CONCHVision
 
         model = CONCHVision(model_path=model_path, token=token)
     elif model_name == "plip":
+        from lazyslide.models import PLIP
+
+        model = PLIP(model_path=model_path, token=token)
+    elif model_name == "plip_vision":
         from lazyslide.models import PLIPVision
 
         model = PLIPVision(model_path=model_path, token=token)
@@ -238,17 +245,17 @@ def agg_features(
     features = wsi.sdata.tables[feature_key].X
 
     if by == "slide":
-        agg_features = _encode_slide(features, encoder, coords)
-        agg_features = agg_features.reshape(-1, 1)
+        agg_fs = _encode_slide(features, encoder, coords)
+        agg_fs = agg_fs.reshape(-1, 1)
     else:
-        agg_features = []
+        agg_fs = []
         for _, x in tiles_table.groupby("tissue_id"):
             tissue_feature = _encode_slide(
                 features[x.index], encoder, coords.iloc[x.index]
             )
-            agg_features.append(tissue_feature)
-        agg_features = np.vstack(agg_features).T
-    wsi.add_agg_features(feature_key, agg_key, agg_features)
+            agg_fs.append(tissue_feature)
+        agg_fs = np.vstack(agg_fs).T
+    wsi.add_agg_features(feature_key, agg_key, agg_fs)
 
 
 def _encode_slide(features, encoder, coords=None):

@@ -14,7 +14,7 @@ def tissue(
     show_contours=True,
     show_origin=True,
     show_id=True,
-    show_bbox=None,
+    show_bbox=False,
     render_size=1000,
     scale_bar=True,
     ax=None,
@@ -53,8 +53,8 @@ def tissue(
 
         >>> import lazyslide as zs
         >>> wsi = zs.open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
-        >>> zs.preprocess.find_tissue(wsi)
-        >>> zs.plotting.tissue(wsi)
+        >>> zs.pp.find_tissue(wsi)
+        >>> zs.pl.tissue(wsi)
 
     """
     if ax is None:
@@ -72,8 +72,6 @@ def tissue(
         slide.add_origin(ax=ax)
     if show_id:
         slide.add_tissue_id(ax=ax)
-        if show_bbox is None:
-            show_bbox = True
     if show_contours or show_bbox:
         slide.add_contours_holes(ax=ax, show_bbox=show_bbox, show_shape=show_contours)
     slide.add_title(title, ax=ax)
@@ -94,7 +92,7 @@ def tiles(
     show_contours=True,
     show_origin=True,
     show_id=False,
-    show_bbox=None,
+    show_bbox=False,
     render_size=1000,
     alpha=0.9,
     marker="o",
@@ -177,10 +175,10 @@ def tiles(
 
         >>> import lazyslide as zs
         >>> wsi = zs.open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
-        >>> zs.preprocess.find_tissue(wsi)
-        >>> zs.preprocess.tiles(wsi, 256, mpp=0.5)
-        >>> zs.preprocess.tiles_qc(wsi, scorers=["contrast"])
-        >>> zs.plotting.tiles(wsi, tissue_id=0, show_grid=True, color='contrast')
+        >>> zs.pp.find_tissue(wsi)
+        >>> zs.pp.tiles(wsi, 256, mpp=0.5)
+        >>> zs.pp.tiles_qc(wsi, scorers=["contrast"])
+        >>> zs.pl.tiles(wsi, tissue_id=0, show_grid=True, color='contrast')
 
     """
     if ax is None:
@@ -200,8 +198,6 @@ def tiles(
         slide.add_origin(ax=ax)
     if show_id:
         slide.add_tissue_id(ax=ax)
-        if show_bbox is None:
-            show_bbox = True
     if show_contours or show_bbox:
         slide.add_contours_holes(ax=ax, show_bbox=show_bbox, show_shape=show_contours)
     if show_point:

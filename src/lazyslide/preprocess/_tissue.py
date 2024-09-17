@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from shapely import Polygon
 
-from lazyslide_cv.transform import TissueDetectionHE
+from lazyslide._cv.transform import TissueDetectionHE
 from wsidata import WSIData
 
 from lazyslide.preprocess._utils import get_scorer, Scorer
@@ -68,8 +68,8 @@ def find_tissue(
 
         >>> import lazyslide as zs
         >>> wsi = zs.open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
-        >>> zs.preprocess.find_tissue(wsi)
-        >>> zs.plotting.tissue(wsi)
+        >>> zs.pp.find_tissue(wsi)
+        >>> zs.pl.tissue(wsi)
 
     """
     # Get optimal level for segmentation
@@ -132,8 +132,11 @@ def find_tissue(
 
     for tissue in tissue_instances:
         shell = tissue.contour * downsample
-        holes = [hole * downsample for hole in tissue.holes]
-        tissue_poly = Polygon(shell, holes=holes)
+        if len(tissue.holes) == 0:
+            tissue_poly = Polygon(shell)
+        else:
+            holes = [hole * downsample for hole in tissue.holes]
+            tissue_poly = Polygon(shell, holes=holes)
         tissues.append(tissue_poly)
         tissues_ids.append(tissue.id)
 
@@ -154,7 +157,7 @@ def tissue_qc(
     compose_scorer = get_scorer(scores)
 
     with default_pbar(disable=not pbar) as progress_bar:
-        task = progress_bar.add_task("Scoring tissue", total=wsi.n_tissue(key))
+        task = progress_bar.add_task("Scoring tissue", total=wsi.get.n_tissue(key))
         scores = []
         qc = []
 

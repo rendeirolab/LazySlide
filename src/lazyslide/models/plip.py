@@ -5,7 +5,12 @@ import torch
 
 class PLIP(torch.nn.Module):
     def __init__(self, model_path=None, token=None):
-        from transformers import CLIPModel, CLIPProcessor
+        try:
+            from transformers import CLIPModel, CLIPProcessor
+        except ImportError:
+            raise ImportError(
+                "Please install the 'transformers' package to use the PLIP model"
+            )
 
         super().__init__()
 
@@ -46,7 +51,12 @@ class PLIP(torch.nn.Module):
 
 class PLIPVision(torch.nn.Module):
     def __init__(self, model_path=None, token=None):
-        from transformers import CLIPVisionModelWithProjection, CLIPProcessor
+        try:
+            from transformers import CLIPVisionModelWithProjection, CLIPProcessor
+        except ImportError:
+            raise ImportError(
+                "Please install the 'transformers' package to use the PLIP model"
+            )
 
         super().__init__()
 

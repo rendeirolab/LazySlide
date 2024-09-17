@@ -8,10 +8,13 @@ def utag_feature(
     wsi: WSIData,
     feature_key: str,
     tile_key: str = Key.tiles,
+    graph_key: str = None,
 ):
     # Get the spatial connectivity
     try:
-        A = wsi.sdata.tables[f"{tile_key}_graph"].obsp["spatial_connectivities"]
+        if graph_key is None:
+            graph_key = f"{tile_key}_graph"
+        A = wsi.sdata.tables[graph_key].obsp["spatial_connectivities"]
     except KeyError:
         raise ValueError("Please run `tile_graph` before using `utag_feature`")
     A = A + np.eye(A.shape[0])

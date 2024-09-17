@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 
-from lazyslide_cv.scorer.base import ScorerBase, ScoreResult
+from lazyslide._cv.scorer.base import ScorerBase, ScoreResult
 
 try:
     import torch

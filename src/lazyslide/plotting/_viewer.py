@@ -424,6 +424,7 @@ class SlideViewer:
                 if show_bbox:
                     # Draw bbox of shape
                     bbox = np.array(c.bounds)
+                    print(bbox, self.bounds)
                     if self.bounds is not None:
                         bbox -= np.array(self.bounds[0:2])
                     minx, miny, maxx, maxy = bbox / self.downsample

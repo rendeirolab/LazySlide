@@ -48,6 +48,13 @@ class ForegroundDetection(Transform):
 
     def apply(self, mask):
         detect_holes = self.params["detect_holes"]
+        min_tissue_area = self.params["min_tissue_area"]
+        min_hole_area = self.params["min_hole_area"]
+        if min_tissue_area < 1:
+            min_tissue_area = int(min_tissue_area * mask.size)
+        if min_hole_area < 1:
+            min_hole_area = int(min_hole_area * mask.size)
+
         mode = cv2.RETR_CCOMP if detect_holes else cv2.RETR_EXTERNAL
         contours, hierarchy = cv2.findContours(
             mask.copy(), mode=mode, method=cv2.CHAIN_APPROX_NONE
@@ -55,19 +62,21 @@ class ForegroundDetection(Transform):
 
         if hierarchy is None:
             # no contours found --> return empty mask
-            return [], []
+            return []
         elif not detect_holes:
-            return contours, []
+            ti = []
+            tissue_id = 0
+            for i, cnt in enumerate(contours):
+                if cv2.contourArea(cnt) > min_tissue_area:
+                    cnt = np.squeeze(cnt, axis=1)
+                    # A polygon with less than 4 points is not valid
+                    if len(cnt) >= 4:
+                        ti.append(TissueInstance(id=tissue_id, contour=cnt, holes=[]))
+                        tissue_id += 1
+            return ti
         else:
             # separate outside and inside contours (region boundaries vs. holes in regions)
             # find the outside contours by looking for those with no parents (4th column is -1 if no parent)
-            min_tissue_area = self.params["min_tissue_area"]
-            min_hole_area = self.params["min_hole_area"]
-
-            if min_tissue_area < 1:
-                min_tissue_area = int(min_tissue_area * mask.size)
-            if min_hole_area < 1:
-                min_hole_area = int(min_hole_area * mask.size)
 
             # TODO: Handle nested contours
             tissues = []
@@ -163,7 +172,7 @@ class TissueDetectionHE(Transform):
         foreground = ForegroundDetection(
             min_tissue_area=min_tissue_area,
             min_hole_area=min_hole_area,
-            detect_holes=True,
+            detect_holes=detect_holes,
         )
 
         self.pipeline = [
