@@ -17,27 +17,32 @@ extensions = [
     "matplotlib.sphinxext.plot_directive",
     "sphinx.ext.intersphinx",
     "sphinx_design",
+    "sphinx_copybutton",
     "myst_nb",
 ]
 autoclass_content = "class"
 autodoc_docstring_signature = True
 autodoc_default_options = {"members": None, "undoc-members": None}
 autodoc_typehints = "none"
+# setting autosummary
+autosummary_generate = True
+numpydoc_show_class_members = False
+add_module_names = False
 
 templates_path = ["_templates"]
 exclude_patterns = []
 
 
-html_theme = "sphinxawesome_theme"
+html_theme = "pydata_sphinx_theme"
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
 html_permalinks_icon = Icons.permalinks_icon
 html_theme_options = {
-    "main_nav_links": {
-        "Installation": "/installation",
-        "Tutorial": "/tutorial/index",
-        "API": "/api/index",
-    }
+    "github_url": "https://github.com/rendeiro/LazySlide",
+    "navigation_with_keys": True,
 }
 
 jupyter_execute_notebooks = "off"
+
+copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5," r"8}: "
+copybutton_prompt_is_regexp = True

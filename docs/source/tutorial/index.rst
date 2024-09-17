@@ -7,10 +7,16 @@ Here is a list of tutorials that will help you get started with the LazySlide.
     :hidden:
     :maxdepth: 1
 
+    00_intro_Wsi
     01_preprocessing
-    02_anatomical_domains
-    03_plotting
-    04_data_loader
+    02_spatial_domains
+    03_multimodals
+    04_genomics_integration
+    05_training_models
+
+.. card:: Introduction to WSI
+
+    :doc:`00_intro_Wsi`
 
 .. card:: Preprocessing
 
@@ -18,15 +24,19 @@ Here is a list of tutorials that will help you get started with the LazySlide.
 
 .. card:: Anatomical Domains
 
-    :doc:`02_anatomical_domains`
+    :doc:`02_spatial_domains`
 
-.. card:: Plotting
+.. card:: Multimodal Data
 
-    :doc:`03_plotting`
+    :doc:`03_multimodals`
 
-.. card:: Data Loading
+.. card:: Integration with RNA-seq data
 
-    :doc:`04_data_loader`
+    :doc:`04_genomics_integration`
+
+.. card:: Training Models
+
+    :doc:`05_training_models`
 
 
 
