@@ -13,7 +13,7 @@ from numba import njit
 
 from lazyslide._const import Key
 from lazyslide.preprocess._utils import get_scorer, Scorer
-from lazyslide._utils import default_pbar, chunker
+from lazyslide._utils import default_pbar, chunker, find_stack_level
 from wsidata import WSIData, TileSpec
 
 
@@ -65,7 +65,7 @@ def tiles(
         - 'polygon-test': Use point polygon test to check if the tiles points are inside the contours.
         - 'mask': Transform the contours and holes into binary mask and check the fraction of background.
     filter : Callable, default None
-        A callable that takes in a image and return a boolean value.
+        A callable that takes in an image and return a boolean value.
     errors : str, default 'raise'
         The error handling strategy, either 'raise' or 'warn'.
     tissue_key : str, default 'tissue'
@@ -149,7 +149,7 @@ def tiles(
         if errors == "raise":
             raise ValueError(msg)
         else:
-            warnings.warn(msg)
+            warnings.warn(msg, UserWarning, stacklevel=find_stack_level())
 
     if run_downsample:
         ops_tile_w = int(tile_w * downsample)
@@ -180,13 +180,13 @@ def tiles(
             edge=edge,
         )
         # Dtype must be float32 for cv2
-        cnt_holes = [np.asarray(h.coords) for h in cnt.interiors]
+        cnt_holes = [np.asarray(h.coords, dtype=np.float32) for h in cnt.interiors]
         cnt = np.asarray(cnt.exterior.coords, dtype=np.float32)
 
         # ========= 1. Point in polygon test =========
         if method == "polygon-test":
-            points = rect_coords + (minx, miny)
             # Shift the coordinates to the correct position
+            points = rect_coords + (minx, miny)
             in_cnt = [
                 cv2.pointPolygonTest(cnt, (float(x), float(y)), measureDist=False)
                 for x, y in points
@@ -375,7 +375,9 @@ def _chunk_scoring(tiles, spec, reader, scorer, queue):
 
 
 @njit
-def create_tiles(image_shape, tile_w, tile_h, stride_w=None, stride_h=None, edge=True):
+def create_tiles(
+    image_shape, tile_w: int, tile_h: int, stride_w=None, stride_h=None, edge=True
+):
     """Create the tiles, return coordination that comprise the tiles
         and the index of points for each rectangular.
 
@@ -405,35 +407,50 @@ def create_tiles(image_shape, tile_w, tile_h, stride_w=None, stride_h=None, edge
         stride_h = tile_h
 
     # calculate number of expected tiles
+    # If the width/height is divisible by stride
+    # We need to add 1 to include the starting point
+    nw = width // stride_w + 1
+    nh = height // stride_h + 1
+
+    # To include the edge tiles
     if edge and width % stride_w != 0:
-        nw = width // stride_w + 1
-    else:
-        nw = (width - tile_w) // stride_w + 1
+        nw += 1
     if edge and height % stride_h != 0:
-        nh = height // stride_h + 1
-    else:
-        nh = (height - tile_h) // stride_h + 1
-    xs = np.arange(0, nw) * stride_w
-    ys = np.arange(0, nh) * stride_h
+        nh += 1
 
     coordinates = list()
     indices = list()
 
-    track_ix = 0
-    for x in xs:
-        for y in ys:
-            r1 = (x, y)
-            r2 = (x + 2, y)
-            r3 = (x + 2, y + 2)
-            r4 = (x, y + 2)
-            coordinates.append(r1)
-            coordinates.append(r2)
-            coordinates.append(r3)
-            coordinates.append(r4)
-            indices.append([track_ix, track_ix + 1, track_ix + 2, track_ix + 3])
-            track_ix += 4
+    xs = np.arange(nw, dtype=np.uint) * stride_w
+    ys = np.arange(nh, dtype=np.uint) * stride_h
+    xv, yv = meshgrid(xs, ys)
+
+    for i in range(nw):
+        for j in range(nh):
+            coordinates.append([xv[j, i], yv[j, i]])
+
+    n_rect = (nw - 1) * (nh - 1)
+    s1, s2, s3, s4 = 0, 1, nh + 1, nh
+    for i in range(n_rect):
+        indices.append([s1 + i, s2 + i, s3 + i, s4 + i])
 
     return np.array(coordinates, dtype=np.uint), np.array(indices, dtype=np.uint)
+
+
+@njit
+def meshgrid(x, y):
+    nx = x.size
+    ny = y.size
+
+    X = np.zeros((ny, nx), dtype=np.uint)
+    Y = np.zeros((ny, nx), dtype=np.uint)
+
+    for i in range(ny):
+        for j in range(nx):
+            X[i, j] = x[j]
+            Y[i, j] = y[i]
+
+    return X, Y
 
 
 @njit
