@@ -12,11 +12,6 @@ class Key:
         return f"{name}_graph"
 
     @classmethod
-    def holes(cls, name=None):
-        name = name or cls.tissue
-        return f"{name}_holes"
-
-    @classmethod
     def feature(cls, name, tile_key=None):
         tile_key = tile_key or cls.tiles
         return f"{name}_{tile_key}"
