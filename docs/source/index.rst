@@ -3,16 +3,28 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to LazySlide's documentation!
-=====================================
+LazySlide
+=========
 
+.. grid:: 1 2 2 2
 
-LazySlide introduction here.
+   .. grid-item::
+       :columns: 12 4 4 4
 
+       .. image:: _static/logo.svg
+          :align: center
+          :width: 150px
+
+   .. grid-item::
+      :columns: 12 8 8 8
+      :child-align: center
+
+      **LasySlide** is a Python library for processing whole slide images (WSI) analysis.
+      It provides a simple interface to perform robust preprocessing and advanced analysis for WSI.
 
 
 .. toctree::
-    :maxdepth: 3
+    :maxdepth: 1
     :hidden:
 
     installation
@@ -22,28 +34,28 @@ LazySlide introduction here.
     nextflow
 
 
-.. grid :: 1 2 2 2
+.. grid:: 1 2 2 2
    :gutter: 2
 
-   .. grid-item-card :: :octicon:`package;1em;mr-1` Installation
+   .. grid-item-card:: Installation
       :link: installation
       :link-type: doc
 
       How to install LazySlide
 
-   .. grid-item-card :: :octicon:`telescope;1em;mr-1` Tutorial
+   .. grid-item-card:: Tutorial
       :link: tutorial/index
       :link-type: doc
 
       A step-by-step guide to using LazySlide
 
-   .. grid-item-card :: :octicon:`file-directory;1em;mr-1` API
+   .. grid-item-card:: API
       :link: api/index
       :link-type: doc
 
       LazySlide API documentation
 
-   .. grid-item-card :: :octicon:`terminal;1em;mr-1` CLI
+   .. grid-item-card:: CLI
       :link: cli
       :link-type: doc
 

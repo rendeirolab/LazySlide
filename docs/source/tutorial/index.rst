@@ -1,5 +1,5 @@
-:octicon:`telescope;1em;mr-1` Tutorial
-========================================
+Tutorial
+========
 
 Here is a list of tutorials that will help you get started with the LazySlide.
 
@@ -7,7 +7,7 @@ Here is a list of tutorials that will help you get started with the LazySlide.
     :hidden:
     :maxdepth: 1
 
-    00_intro_Wsi
+    00_intro_wsi
     01_preprocessing
     02_spatial_domains
     03_multimodals
@@ -16,7 +16,7 @@ Here is a list of tutorials that will help you get started with the LazySlide.
 
 .. card:: Introduction to WSI
 
-    :doc:`00_intro_Wsi`
+    :doc:`00_intro_wsi`
 
 .. card:: Preprocessing
 

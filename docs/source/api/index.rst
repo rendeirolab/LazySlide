@@ -1,64 +1,38 @@
-:octicon:`file-directory;1em;mr-1` API Reference
-================================================
+API Reference
+=============
 
+.. toctree::
+    :maxdepth: 1
+    :hidden:
 
-pp
---
+    preprocess
+    tools
+    plotting
+    models
 
-.. currentmodule:: lazyslide.preprocess
-.. autosummary::
-    :toctree: _autogen
+.. grid:: 1 2 2 2
+   :gutter: 2
 
-    find_tissue
-    tissue_qc
-    tiles
-    tiles_qc
-    tile_graph
-    load_annotations
+   .. grid-item-card:: Preprocessing
+      :link: preprocess
+      :link-type: doc
 
+      Preprocessing functions for WSI
 
-tl
---
+   .. grid-item-card:: Tools
+      :link: tools
+      :link-type: doc
 
-.. currentmodule:: lazyslide.tools
-.. autosummary::
-    :toctree: _autogen
+      Tools for WSI analysis
 
-    feature_extraction
-    agg_features
-    utag_features
-    tissue_props
-    spatial_domain
-    text_embedding
-    text_annotate
-    signatures
-    score
-    associate
+   .. grid-item-card:: Plotting
+      :link: plotting
+      :link-type: doc
 
+      Plotting functions for WSI
 
-pl
---
+   .. grid-item-card:: Models
+      :link: models
+      :link-type: doc
 
-.. currentmodule:: lazyslide.plotting
-.. autosummary::
-    :toctree: _autogen
-
-    tissue
-    tiles
-
-
-models
-------
-
-.. currentmodule:: lazyslide.models
-.. autosummary::
-    :toctree: _autogen
-
-    UNI
-    GigaPath
-    PLIP
-    PLIPVision
-    CONCH
-    CONCHVision
-
-
+      Models for WSI analysis

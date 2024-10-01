@@ -14,8 +14,8 @@ help:
 
 .PHONY: help Makefile
 
-deepclean:
-	@$(SPHINXBUILD) -M clean "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+clean:
+	rm -rf "$(BUILDDIR)"
 	rm -rf $(SOURCEDIR)/api/_autogen/*
 
 # Catch-all target: route all unknown targets to Sphinx using the new

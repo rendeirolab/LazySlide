@@ -1,10 +1,12 @@
-# Configuration file for the Sphinx documentation builder.
-from sphinxawesome_theme.postprocess import Icons
+from datetime import datetime
+
+import lazyslide
+
 
 project = "LazySlide"
-copyright = "2024, Yimin Zheng, Ernesto Abila, André F. Rendeiro"
+copyright = f"{datetime.now().year}, Rendeiro Lab"
 author = "LazySlide Contributors"
-release = "0.1.0"
+release = lazyslide.__version__
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -18,6 +20,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx_design",
     "sphinx_copybutton",
+    "sphinx_click",
     "myst_nb",
 ]
 autoclass_content = "class"
@@ -35,14 +38,31 @@ exclude_patterns = []
 
 html_theme = "pydata_sphinx_theme"
 html_static_path = ["_static"]
+html_logo = "_static/logo.svg"
 html_css_files = ["custom.css"]
-html_permalinks_icon = Icons.permalinks_icon
 html_theme_options = {
-    "github_url": "https://github.com/rendeiro/LazySlide",
+    "github_url": "https://github.com/rendeirolab/LazySlide",
     "navigation_with_keys": True,
+    "show_prev_next": False,
 }
+html_sidebars = {"installation": [], "cli": []}
 
-jupyter_execute_notebooks = "off"
+nb_execution_mode = "off"
+myst_enable_extensions = [
+    "colon_fence",
+    "html_image",
+]
 
 copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5," r"8}: "
 copybutton_prompt_is_regexp = True
+
+# Plot directive
+plot_include_source = True
+plot_html_show_source_link = False
+plot_html_show_formats = False
+plot_formats = [("png", 200)]
+
+intersphinx_mapping = {
+    "wsidata": ("https://wsidata.readthedocs.io/en/latest", None),
+    "torch": ("https://pytorch.org/docs/stable/", None),
+}
