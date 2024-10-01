@@ -24,9 +24,7 @@ dependencies = [
     "legendkit",
     "anndata",
     "spatialdata>=0.2.2",
-    "lazy-loader",
     "rich",
-    "ipywidgets",
     "typer",
 ]
 
@@ -34,7 +32,7 @@ dependencies = [
 path = "src/lazyslide/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/lazyslide", "src/lazyslide_cv", "src/wsi_data"]
+packages = ["src/lazyslide"]
 
 [project.optional-dependencies]
 all = [
@@ -52,6 +50,7 @@ dev = [
     "numpydoc",
     "sphinx_design",
     "sphinx_copybutton",
+    "sphinx-click",
     "myst-nb",
     "pytest",
 ]
