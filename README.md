@@ -2,7 +2,7 @@
 
 <p align="center">
     <picture align="center">
-    <img src="https://raw.githubusercontent.com/rendeirolab/wsidata/main/assets/logo.svg" width="100px">
+    <img src="https://raw.githubusercontent.com/rendeirolab/lazyslide/main/assets/logo.svg" width="100px">
     </picture>
 </p>
 <p align="center">
