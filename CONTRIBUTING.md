@@ -52,8 +52,7 @@ Instead, create a new branch for your changes and submit a pull request.
 
     ```bash
     cd docs
-    make deepclean
-    make html
+    make clean html
     # Launch a local server to view the documentation
     python -m http.server -d build/html
     ```
