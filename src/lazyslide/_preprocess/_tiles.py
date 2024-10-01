@@ -4,32 +4,29 @@ import warnings
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import Manager
 from numbers import Integral
-from typing import Sequence, Callable
+from typing import Sequence
 
 import cv2
 import numpy as np
 import pandas as pd
-from numba import njit
-
 from lazyslide._const import Key
-from lazyslide.preprocess._utils import get_scorer, Scorer
+from lazyslide._preprocess._utils import get_scorer, Scorer
 from lazyslide._utils import default_pbar, chunker, find_stack_level
+from numba import njit, prange
 from wsidata import WSIData, TileSpec
 
 
-def tiles(
+def tile_tissues(
     wsi: WSIData,
-    tile_px: int,
-    stride_px: int = None,
+    tile_px: int | (int, int),
+    stride_px: int | (int, int) = None,
     edge: bool = False,
-    level: int = 0,
     mpp: float = None,
     slide_mpp: float = None,
     tolerance: float = 0.05,
+    method: str = "mask",
     background_fraction: float = 0.3,
     min_pts: int = 3,
-    method: str = "mask",
-    filter: Callable = None,
     errors: str = "raise",
     tissue_key: str = Key.tissue,
     key_added: str = Key.tiles,
@@ -39,34 +36,34 @@ def tiles(
 
     Parameters
     ----------
-    wsi : WSI
-        The whole slide image object.
+    wsi : {wsi}
     tile_px : int, (int, int)
         The size of the tile, if tuple, (W, H).
-    stride_px : int, (int, int), default None
+    stride_px : int, (int, int), default: None
         The stride of the tile, if tuple, (W, H).
-    edge : bool, default False
+        If None, use the tile size.
+    edge : bool, default: False
         Whether to include the edge tiles.
-    mpp : float, default None
+    mpp : float, default: None
         The requested mpp of the tiles, if None, use the slide mpp.
-    slide_mpp : float, default None
+    slide_mpp : float, default: None
         This value will override the slide mpp.
-    tolerance : float, default 0.05
-        The tolerance when matching the mpp.
-    background_fraction : float, default 0.3
-        For flavor='mask',
-        The fraction of background in the tile, if more than this, discard the tile.
-    min_pts : int
-        For flavor='polygon-test',
-        The minimum number of points of a rectangle tile that should be inside the tissue.
-        Should be within [0, 4].
+    tolerance : float, default: 0.05
+        The tolerable deviation when matching the mpp.
+        If requested mpp does not match the naive mpp,
+        resize operation is needed when generating the tiles.
     method : str, {'polygon-test', 'mask'}
         The flavor of the tile generation, either 'polygon-test' or 'mask':
         - 'polygon-test': Use point polygon test to check if the tiles points are inside the contours.
         - 'mask': Transform the contours and holes into binary mask and check the fraction of background.
-    filter : Callable, default None
-        A callable that takes in an image and return a boolean value.
-    errors : str, default 'raise'
+    background_fraction : float, default: 0.3
+        For :code:`method='mask'`,
+        The fraction of background in the tile, if more than this, discard the tile.
+    min_pts : int, default: 3
+        For :code:`method='polygon-test'`,
+        The minimum number of points of a rectangle tile that should be inside the tissue.
+        Should be within :code:`[0, 4]`.
+    errors : {'raise', 'warn'}, default: 'raise'
         The error handling strategy, either 'raise' or 'warn'.
     tissue_key : str, default 'tissue'
         The key of the tissue contours.
@@ -79,16 +76,17 @@ def tiles(
     .. plot::
         :context: close-figs
 
+        >>> from wsidata import open_wsi
         >>> import lazyslide as zs
-        >>> wsi = zs.open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
-        >>> zs.pp.find_tissue(wsi)
-        >>> zs.pp.tiles(wsi, 256, mpp=0.5)
+        >>> wsi = open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
+        >>> zs.pp.find_tissues(wsi)
+        >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
         >>> zs.pl.tiles(wsi, tissue_id=0, show_grid=True, show_point=False)
 
     """
     # Check if tissue contours are present
     if tissue_key not in wsi.sdata.shapes:
-        msg = f"Contours for {tissue_key} not found. Run preprocess.find_tissue first."
+        msg = f"Contours for {tissue_key} not found. Run pp.find_tissue first."
         raise ValueError(msg)
 
     if isinstance(tile_px, Integral):
@@ -102,11 +100,11 @@ def tiles(
         )
 
     if stride_px is None:
-        stride_h, stride_w = tile_h, tile_w
+        stride_w, stride_h = tile_w, tile_h
     elif isinstance(stride_px, Integral):
-        stride_h, stride_w = (stride_px, stride_px)
+        stride_w, stride_h = (stride_px, stride_px)
     elif isinstance(stride_px, Sequence):
-        stride_h, stride_w = (stride_px[0], stride_px[1])
+        stride_w, stride_h = (stride_px[0], stride_px[1])
     else:
         raise TypeError(
             f"input stride {stride_px} invalid. " f"Either (W, H), or a single integer."
@@ -231,8 +229,8 @@ def tiles(
         level=ops_level,
         downsample=downsample,
         mpp=mpp,
-        height=ops_tile_h,
-        width=ops_tile_w,
+        height=tile_h,
+        width=tile_w,
         raw_height=ops_tile_h,
         raw_width=ops_tile_w,
         tissue_name=tissue_key,
@@ -240,21 +238,13 @@ def tiles(
 
     if len(tile_coords) == 0:
         warnings.warn(
-            "No tiles are found. " "Did you set a tile size that is too large?"
+            "No tiles are found. Did you set a tile size that is too large?",
+            UserWarning,
+            stacklevel=find_stack_level(),
         )
     else:
         tile_coords = np.array(tile_coords).astype(np.uint)
         tiles_tissue_id = np.array(tiles_tissue_id)
-        if filter is not None:
-            to_use = []
-            for t in tile_coords:
-                img = wsi.read_region(
-                    t[0], t[1], ops_tile_w, ops_tile_h, level=ops_level
-                )
-                use = filter(img)
-                to_use.append(use)
-            tile_coords = tile_coords[to_use]
-            tiles_tissue_id = tiles_tissue_id[to_use]
         wsi.add_tiles(
             key=key_added,
             xys=tile_coords,
@@ -265,10 +255,10 @@ def tiles(
 
 def tiles_qc(
     wsi: WSIData,
-    scorers: Scorer | Sequence[Scorer],
+    scorers: Scorer | Sequence[Scorer] = None,
     num_workers: int = 1,
     pbar: bool = True,
-    key: str = Key.tiles,
+    tile_key: str = Key.tiles,
     qc_key: str = Key.tile_qc,
 ):
     """
@@ -278,7 +268,7 @@ def tiles_qc(
     ----------
     wsi : WSI
         The whole slide image object.
-    scorers : ScorerBase
+    scorers : Scorer
         The scorer object or a callable that takes in an image and returns a score.
         You can also pass in a string:
         - 'focus': A FocusLite scorer that will score the focus of the image
@@ -289,28 +279,35 @@ def tiles_qc(
         The number of workers to use.
     pbar : bool, default: True
         Whether to show the progress bar or not.
-    key : str
-        The key of the tiles.
+    tile_key : str, default: 'tiles'
+        The key of the tiles in the :bdg-danger:`shapes` slot.
+    qc_key : str, default: 'qc'
+        The key in the tiles dataframe indicates if a tile passed qc.
+
+    Returns
+    -------
+    The columns with scores and the key added to the spatial data object.
 
     Examples
     --------
     .. code-block:: python
 
+        >>> from wsidata import open_wsi
         >>> import lazyslide as zs
-        >>> wsi = zs.open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
-        >>> zs.preprocess.find_tissue(wsi)
-        >>> zs.preprocess.tiles(wsi, 256, mpp=0.5)
-        >>> zs.preprocess.tiles_qc(wsi, scorers=["contrast"])
+        >>> wsi = open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
+        >>> zs.pp.find_tissues(wsi)
+        >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
+        >>> zs.pp.tiles_qc(wsi, scorers=["focus", "contrast"])
         >>> wsi.sdata['tiles'].head(n=2)
 
     """
 
     compose_scorer = get_scorer(scorers)
 
-    if key not in wsi.sdata:
-        raise ValueError(f"Tile {key} not found.")
-    tiles_tb = wsi.sdata[key]
-    spec = wsi.tile_spec(key)
+    if tile_key not in wsi.sdata:
+        raise ValueError(f"Tiles with key {tile_key} not found.")
+    tiles_tb = wsi.sdata[tile_key]
+    spec = wsi.tile_spec(tile_key)
 
     with default_pbar(disable=not pbar) as progress_bar:
         task = progress_bar.add_task("Scoring tiles", total=len(tiles_tb))
@@ -358,7 +355,7 @@ def tiles_qc(
         progress_bar.refresh()
 
     scores = pd.DataFrame(scores).assign(**{qc_key: qc})
-    wsi.update_shapes_data(key, scores)
+    wsi.update_shapes_data(tile_key, scores)
 
 
 def _chunk_scoring(tiles, spec, reader, scorer, queue):
@@ -380,6 +377,9 @@ def create_tiles(
 ):
     """Create the tiles, return coordination that comprise the tiles
         and the index of points for each rectangular.
+
+    Tips: The number of tiles has nothing to do with the tile size,
+    it's decided by stride size.
 
     Parameters
     ----------
@@ -468,11 +468,20 @@ def filter_tiles(mask, tiles_coords, tile_w, tile_h, filter_bg=0.8):
     -------
 
     """
-    use = []
+    n = len(tiles_coords)
+    use = np.zeros(n, dtype=np.bool_)
     mask_h, mask_w = mask.shape
-    for w, h in tiles_coords:
+    for i in prange(n):
+        w, h = tiles_coords[i]
         h_end, w_end = min(h + tile_h, mask_h), min(w + tile_w, mask_w)
-        mask_region = mask[h:h_end, w:w_end]
+        sub_mask = mask[h:h_end, w:w_end]
+        if sub_mask.shape != (tile_h, tile_w):
+            # Padding with 0
+            mask_region = np.zeros((tile_h, tile_w), dtype=np.uint8)
+            mask_region[: h_end - h, : w_end - w] = sub_mask
+        else:
+            mask_region = sub_mask
+        # Both 0 and 255 are considered as background
         bg_ratio = np.sum(mask_region == 0) / mask_region.size
-        use.append(bg_ratio < filter_bg)
-    return np.array(use, dtype=np.bool_)
+        use[i] = bg_ratio < filter_bg
+    return use

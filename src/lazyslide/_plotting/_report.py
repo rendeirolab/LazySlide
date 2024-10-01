@@ -22,7 +22,7 @@ def qc_summary(
             "Please install patchworklib with `pip install patchworklib`."
         )
 
-    n_tissue = wsi.n_tissue(tissue_key)
+    n_tissue = wsi.get.n_tissue(tissue_key)
     # Slide overview
     h, w = wsi.properties.shape
     slide_ax = pw.Brick(figsize=(h / w, 1))
@@ -30,7 +30,7 @@ def qc_summary(
     slide_ax.set_title(wsi.reader.file)
 
     # Plot tissue
-    n_tis = wsi.n_tissue(tissue_key)
+    n_tis = wsi.get.n_tissue(tissue_key)
     tissue_table = wsi.sdata.shapes[tissue_key]
 
     tissue_ax = None

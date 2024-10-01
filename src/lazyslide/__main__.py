@@ -2,9 +2,10 @@ import warnings
 from pathlib import Path
 from typing import Optional
 
-import pandas as pd
-from rich import print
+import typer
 from typer import Typer, Argument, Option
+from rich import print
+
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -43,6 +44,38 @@ STRIDE_PX = Option(
 
 
 @app.command()
+def info(slide: str = WSI):
+    """Quick inspect the properties of a slide"""
+    from wsidata import open_wsi
+    from rich.console import Console
+    from rich.table import Table
+
+    wsi = open_wsi(slide)
+
+    c = Console()
+
+    c.print(f"Slide file: [italic red]{slide}[/italic red]")
+    c.print(f"Reader: [bold purple]{wsi.reader.name}[/bold purple]")
+    c.print(
+        f"Physical pixel size (Microns per pixels): [bold cyan]{wsi.properties.mpp}[/bold cyan] µm/px"
+    )
+    c.print(
+        f"Magnification: [bold cyan]{int(wsi.properties.magnification)}X[/bold cyan]"
+    )
+
+    t = Table(title="Pyramids")
+    t.add_column("Level", style="cyan")
+    t.add_column("Height", style="magenta")
+    t.add_column("Width", style="green")
+    t.add_column("Downsample", style="yellow")
+
+    for i, (h, w, d) in enumerate(wsi.get.pyramids().values):
+        t.add_row(str(i), str(int(h)), str(int(w)), str(d))
+
+    c.print(t)
+
+
+@app.command()
 def preprocess(
     wsi: str = WSI,
     min_tissue_area: float = 1e-3,
@@ -65,7 +98,7 @@ def preprocess(
 
     print(f"Read slide file {wsi}")
     wsi = zs.open_wsi(wsi, backed_file=output)
-    zs.pp.find_tissue(
+    zs.pp.find_tissues(
         wsi,
         min_tissue_area=min_tissue_area,
         min_hole_area=min_hole_area,
@@ -76,12 +109,14 @@ def preprocess(
     if qc:
         if tissue_qc is not None:
             tissue_metrics = tissue_qc.split(",")
-            zs.pp.tissue_qc(wsi, tissue_metrics)
+            zs.pp.tissues_qc(wsi, tissue_metrics)
             if filter_tissue:
                 tissue_tb = wsi.sdata[Key.tissue]
                 wsi.sdata[Key.tissue] = tissue_tb[tissue_tb[Key.tissue_qc]]
 
-    zs.pp.tiles(wsi, tile_px=tile_px, stride_px=stride_px, mpp=mpp, slide_mpp=slide_mpp)
+    zs.pp.tile_tissues(
+        wsi, tile_px=tile_px, stride_px=stride_px, mpp=mpp, slide_mpp=slide_mpp
+    )
 
     if qc:
         if tile_qc is not None:
@@ -102,9 +137,10 @@ def report(
     tile_qc: str = TILE_QC,
     output: Optional[Path] = REPORT_OUTPUT,
 ):
+    from wsidata import open_wsi
     import lazyslide as zs
 
-    wsi = zs.open_wsi(slide)
+    wsi = open_wsi(slide)
     print(f"Read slide file {wsi}")
     report_fig = zs.pl.qc_summary(wsi, tissue_qc.split(","), tile_qc.split(","))
     if output.is_dir():
@@ -137,8 +173,12 @@ def agg_wsi(
     output: Optional[str] = OUTPUT,
 ):
     from wsidata import agg_wsi
+    import pandas as pd
 
     print(f"Read slide table {slide_table}")
     slides_table = pd.read_csv(slide_table)
     data = agg_wsi(slides_table, "features")
     data.write_zarr(output)
+
+
+typer_click_object = typer.main.get_command(app)

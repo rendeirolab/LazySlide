@@ -2,7 +2,7 @@ import torch
 
 
 class UNI(torch.nn.Module):
-    def __init__(self, model_path=None, auth_token=None):
+    def __init__(self, model_path=None, token=None):
         try:
             import timm
         except ImportError:
@@ -24,7 +24,7 @@ class UNI(torch.nn.Module):
             )
             model.load_state_dict(torch.load(model_path), map_location="cpu")
         else:
-            model = timm.create_model("hf-hub:MahmoodLab/uni", hf_auth_token=auth_token)
+            model = timm.create_model("hf-hub:MahmoodLab/uni", hf_auth_token=token)
         self.model = model
 
     def forward(self, image):

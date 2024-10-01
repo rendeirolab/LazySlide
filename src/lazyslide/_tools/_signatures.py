@@ -44,7 +44,10 @@ def score(
         weights[low["names"].astype(int)] = low["scores"]
 
     # Score cells
-    scores = adata.X @ weights
+    if method == "dot_product":
+        scores = adata.X @ weights
+    else:
+        raise NotImplementedError(f"Method {method} is not implemented.")
     adata.obs[f"{group}_score"] = scores
 
 
@@ -52,7 +55,9 @@ def associate(
     associate_matrix: AnnData,
     score_key: str = None,
     var_key: str = None,
-    method: Literal["pearson", "spearman", "kendall", "linear_reg"] = "pearson",
+    method: Literal[
+        "pearson", "spearman", "kendall", "linear_reg", "logreg"
+    ] = "pearson",
     key_added: str = "correlation",
 ):
     """
@@ -67,5 +72,13 @@ def associate(
         from scipy.stats import linregress
 
         corr = associate_df.apply(lambda x: linregress(x, scores).rvalue)
+    elif method == "logreg":
+        from sklearn.linear_model import LogisticRegression
 
-    associate_matrix.var[key_added] = corr.values
+        clf = LogisticRegression()
+        clf.fit(associate_df, scores)
+        corr = clf.coef_
+    else:
+        raise NotImplementedError(f"Method {method} is not implemented.")
+
+    associate_matrix.var[key_added] = np.asarray(corr)

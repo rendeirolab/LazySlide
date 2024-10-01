@@ -8,20 +8,19 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 from shapely import Polygon
-
-from lazyslide._cv.transform import TissueDetectionHE
 from wsidata import WSIData
 
-from lazyslide.preprocess._utils import get_scorer, Scorer
-from lazyslide._utils import default_pbar
-from lazyslide._const import Key
+from ._utils import get_scorer, Scorer
+from .._const import Key
+from .._cv.transform import TissueDetectionHE
+from .._utils import default_pbar
 
 # TODO: Auto-selection of tissue level
 #  should be decided by the RAM size
 TARGET = 4  # mpp = 0.5 and downsample = 4
 
 
-def find_tissue(
+def find_tissues(
     wsi: WSIData,
     level: int | None = None,
     use_saturation: bool = False,
@@ -33,32 +32,43 @@ def find_tissue(
     min_hole_area: float = 1e-5,
     detect_holes: bool = True,
     filter_artifacts: bool = True,
-    key: str = Key.tissue,
+    key_added: str = Key.tissue,
 ):
     """Find tissue regions in the WSI and add them as contours and holes.
 
     Parameters
     ----------
-    wsi : WSIData
-        Whole-slide image data object.
-    level : int, optional, default: None
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The WSIData object to work on.
+    level : int, default: None
         The level to use for segmentation.
-    use_saturation : bool, optional, default: False
-        Use saturation channel for segmentation.
-    blur_ksize : int, optional, default: 17
-    threshold : int, optional, default: 7
-    morph_n_iter : int, optional, default: 3
-    morph_k_size : int, optional, default: 7
-    min_tissue_area : float, optional, default: 1e-3
+    use_saturation : bool, default: False
+        The tissue image will be converted from RGB to HSV space,
+        the saturation channel (color purity) will be used for tissue detection.
+    blur_ksize : int, default: 17
+        The kernel size used to apply median blurring.
+    threshold : int, default: 7
+        The threshold for binary thresholding.
+    morph_n_iter : int, default: 3
+        The number of iterations of morphological opening and closing to apply.
+    morph_k_size : int, default: 7
+        The kernel size for morphological opening and closing.
+    min_tissue_area : float, default: 1e-3
         The minimum area of tissue.
-    min_hole_area : float, optional, default: 1e-5
+    min_hole_area : float, default: 1e-5
         The minimum area of holes.
-    detect_holes : bool, optional, default: True
+    detect_holes : bool, default: True
         Detect holes in tissue regions.
-    filter_artifacts : bool, optional, default: True
-        Filter artifacts out.
-    key : str, optional, default: "tissue"
-        The key to store the tissue contours.
+    filter_artifacts : bool, default: True
+        Filter artifacts out. Artifacts that are non-redish are removed.
+    key_added : str, default: 'tissues'
+        The key to save the result in the WSIData object.
+
+    Returns
+    -------
+    - A :class:`GeoDataFrame <geopandas.GeoDataFrame>` with columns of 'tissue_id' and 'geometry'.
+      added to the :bdg-danger:`shapes` slot of the SpatialData object.
+
 
     Examples
     --------
@@ -66,9 +76,10 @@ def find_tissue(
     .. plot::
         :context: close-figs
 
+        >>> from wsidata import open_wsi
         >>> import lazyslide as zs
-        >>> wsi = zs.open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
-        >>> zs.pp.find_tissue(wsi)
+        >>> wsi = open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
+        >>> zs.pp.find_tissues(wsi)
         >>> zs.pl.tissue(wsi)
 
     """
@@ -143,26 +154,65 @@ def find_tissue(
     if len(tissues) == 0:
         logging.warning("No tissue is found.")
         return False
-    wsi.add_tissues(key=key, tissues=tissues, ids=tissues_ids)
+    wsi.add_tissues(key=key_added, tissues=tissues, ids=tissues_ids)
 
 
-def tissue_qc(
+def tissues_qc(
     wsi: WSIData,
-    scores: Scorer | Sequence[Scorer],
+    scores: Scorer | Sequence[Scorer] = None,
     num_workers: int = 1,
-    pbar: bool = True,
-    key: str = Key.tissue,
+    pbar: bool = False,
+    tissue_key: str = Key.tissue,
     qc_key: str = Key.tissue_qc,
 ):
+    """Score tissue regions in the WSI for QC
+
+    This is useful to filter out artifacts or non-tissue regions.
+
+    Parameters
+    ----------
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The WSIData object to work on.
+    scores : :class:`Scorer` or array of :class`Scorer`
+        :class:`Scorer` to use for scoring tissue regions.
+        - 'redness': The redness of the tissue.
+        - 'brightness': The brightness of the tissue.
+    num_workers : int, optional, default: 1
+        Number of workers to use for scoring.
+    pbar : bool, optional, default: False
+        Show progress bar.
+    tissue_key : str, optional, default: 'tissue'
+        Key of the tissue data in the :bdg-danger:`shapes` slot.
+    qc_key : str, optional, default: 'qc'
+        The key in the tissue dataframe indicates if a tissue passed qc.
+
+    Examples
+    --------
+
+    .. code::
+
+        >>> from wsidata import open_wsi
+        >>> import lazyslide as zs
+        >>> wsi = open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
+        >>> zs.pp.find_tissues(wsi)
+        >>> zs.pp.tissues_qc(wsi, ["redness", "brightness"])
+        >>> wsi.sdata["tissues"]
+
+
+    """
+    if scores is None:
+        scores = ["redness", "brightness"]
     compose_scorer = get_scorer(scores)
 
     with default_pbar(disable=not pbar) as progress_bar:
-        task = progress_bar.add_task("Scoring tissue", total=wsi.get.n_tissue(key))
+        task = progress_bar.add_task(
+            "Scoring tissue", total=wsi.get.n_tissue(tissue_key)
+        )
         scores = []
         qc = []
 
         if num_workers == 1:
-            for tissue in wsi.iter.tissue_images(key, tissue_mask=True):
+            for tissue in wsi.iter.tissue_images(tissue_key, tissue_mask=True):
                 result = compose_scorer(tissue.image, mask=tissue.mask)
                 scores.append(result.scores)
                 qc.append(result.qc)
@@ -171,7 +221,7 @@ def tissue_qc(
             with ProcessPoolExecutor(max_workers=num_workers) as executor:
                 # map is used to keep the order of the results
                 jobs = []
-                for tissue in wsi.iter.tissue_images(key, tissue_mask=True):
+                for tissue in wsi.iter.tissue_images(tissue_key, tissue_mask=True):
                     jobs.append(
                         executor.submit(compose_scorer, tissue.image, mask=tissue.mask)
                     )
@@ -184,4 +234,4 @@ def tissue_qc(
         progress_bar.refresh()
 
     scores = pd.DataFrame(scores).assign(**{qc_key: qc})
-    wsi.update_shapes_data(key=key, data=scores)
+    wsi.update_shapes_data(key=tissue_key, data=scores)

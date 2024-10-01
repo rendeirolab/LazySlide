@@ -8,9 +8,6 @@ from typing import Iterable
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-
-from lazyslide._const import Key
-from lazyslide.preprocess import tile_graph
 from wsidata import WSIData
 
 ADOBE_SPECTRUM = [
@@ -324,12 +321,16 @@ class SlideViewer:
                         c = adata[:, color].X.flatten()
                         add_title = f"{feature_key} feature {color}"
                     else:
-                        raise KeyError(f"The requested color `{color}` not found.")
+                        raise KeyError(
+                            f"The requested color `{color}` not found in {feature_key}."
+                        )
                 elif isinstance(color, int):
                     c = adata[:, color].X.flatten()
                     add_title = f"{feature_key} feature {adata.var.index[color]}"
                 else:
-                    raise ValueError(f"The requested color `{color}` is invalid.")
+                    raise ValueError(
+                        f"The requested color `{color}` is invalid in {feature_key}."
+                    )
         else:
             if color is not None:
                 if color not in self.tile_table:

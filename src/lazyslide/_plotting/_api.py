@@ -7,7 +7,6 @@ from .._const import Key
 
 def tissue(
     wsi: WSIData,
-    level="auto",
     tissue_id=None,
     tissue_key=Key.tissue,
     title=None,
@@ -26,8 +25,6 @@ def tissue(
     ----------
     wsi : WSI
         The whole-slide image object.
-    level : int or str, default: "auto"
-        The level to extract the tissue image from.
     tissue_id : int, default: None
         The tissue id (piece) to extract.
     tissue_key : str, default: "tissue"
@@ -42,6 +39,7 @@ def tissue(
         Show the tissue id.
     render_size : int, default: 1000
         The size of the rendered image.
+        Increase this value for better image quality.
     ax : matplotlib.axes.Axes, default: None
         The axes to plot on.
 
@@ -53,7 +51,7 @@ def tissue(
 
         >>> import lazyslide as zs
         >>> wsi = zs.open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
-        >>> zs.pp.find_tissue(wsi)
+        >>> zs.pp.find_tissues(wsi)
         >>> zs.pl.tissue(wsi)
 
     """
@@ -81,7 +79,6 @@ def tiles(
     wsi: WSIData,
     feature_key=None,
     color=None,
-    level="auto",
     tissue_id=None,
     tissue_key=Key.tissue,
     tile_key=Key.tiles,
@@ -118,8 +115,6 @@ def tiles(
     color : str, default: None
         The column/ feature name that should be visualized from feature_key.
         If feature_key is None, this is the column name from the tiles table.
-    level : int or str, default: "auto"
-        The level to extract the tissue image from.
     tissue_id : int, default: None
         The tissue id (piece) to plot.
         If None, all will be plotted.
@@ -165,7 +160,7 @@ def tiles(
     rasterized : bool, default: False
         Rasterize the points.
     kwargs : dict
-        Additional keyword arguments for plotting.
+        Additional keyword arguments for _plotting.
 
     Examples
     --------
@@ -175,8 +170,8 @@ def tiles(
 
         >>> import lazyslide as zs
         >>> wsi = zs.open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
-        >>> zs.pp.find_tissue(wsi)
-        >>> zs.pp.tiles(wsi, 256, mpp=0.5)
+        >>> zs.pp.find_tissues(wsi)
+        >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
         >>> zs.pp.tiles_qc(wsi, scorers=["contrast"])
         >>> zs.pl.tiles(wsi, tissue_id=0, show_grid=True, color='contrast')
 
