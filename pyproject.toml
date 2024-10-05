@@ -16,16 +16,12 @@ dependencies = [
     "numpy",
     "pandas",
     "numba",
-    "opencv-python",
-    "openslide-python",
-    "tiffslide",
     "scikit-learn",
     "matplotlib",
     "legendkit",
-    "anndata",
-    "spatialdata>=0.2.2",
     "rich",
     "typer",
+    "wsidata",
 ]
 
 [tool.hatch.version]
@@ -33,6 +29,9 @@ path = "src/lazyslide/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lazyslide"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [project.optional-dependencies]
 all = [
