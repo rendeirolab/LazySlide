@@ -1,10 +1,12 @@
+from collections import namedtuple
+
 import cv2
 import numpy as np
-from collections import namedtuple
+from shapely import Polygon
 
 from .base import Transform
 from .blur import MedianBlur
-from .morph import MorphClose
+from .morph import MorphClose, MorphOpen
 from .threshold import ArtifactFilterThreshold, BinaryThreshold
 
 TissueInstance = namedtuple("TissueInstance", ["id", "contour", "holes"])
@@ -178,7 +180,7 @@ class TissueDetectionHE(Transform):
         self.pipeline = [
             MedianBlur(kernel_size=blur_ksize),
             thresholder,
-            # MorphOpen(kernel_size=self.morph_k_size, n_iterations=self.morph_n_iter),
+            # MorphOpen(kernel_size=morph_k_size, n_iterations=morph_n_iter),
             MorphClose(kernel_size=morph_k_size, n_iterations=morph_n_iter),
             foreground,
         ]
@@ -196,3 +198,60 @@ class TissueDetectionHE(Transform):
         for p in self.pipeline:
             image = p.apply(image)
         return image
+
+
+class Mask2Polygon(Transform):
+    """
+    Convert binary mask to polygon.
+
+    Parameters
+    ----------
+    min_area : int
+        Minimum area of detected regions to be included in the polygon.
+    """
+
+    def __init__(
+        self,
+        min_area=0,
+        morph_k_size=7,
+        morph_n_iter=3,
+        min_tissue_area=0.01,
+        min_hole_area=0.0001,
+        detect_holes=True,
+    ):
+        self.set_params(min_area=min_area)
+
+        self.pipeline = [
+            MorphOpen(kernel_size=morph_k_size, n_iterations=morph_n_iter),
+            MorphClose(kernel_size=morph_k_size, n_iterations=morph_n_iter),
+            ForegroundDetection(
+                min_tissue_area=min_tissue_area,
+                min_hole_area=min_hole_area,
+                detect_holes=detect_holes,
+            ),
+        ]
+
+    def apply(self, mask):
+        min_area = self.params["min_area"]
+
+        for p in self.pipeline:
+            try:
+                mask = p.apply(mask)
+            except Exception as e:
+                print(self.__class__.__name__, e)
+
+        tissue_instances = mask
+        polygons = []
+        if len(tissue_instances) == 0:
+            return []
+        for tissue in tissue_instances:
+            shell = tissue.contour
+            if len(tissue.holes) == 0:
+                tissue_poly = Polygon(shell)
+            else:
+                holes = [hole for hole in tissue.holes]
+                tissue_poly = Polygon(shell, holes=holes)
+            if tissue_poly.area < min_area:
+                continue
+            polygons.append(tissue_poly)
+        return polygons
