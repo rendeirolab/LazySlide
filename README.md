@@ -6,7 +6,7 @@
     </picture>
 </p>
 <p align="center">
-  <i>Modularized and scalable Whole Slide Image Analysis</i>
+  <i>Modularized and scalable whole slide image analysis</i>
 </p>
 
 LazySlide is a Python package for whole-slide image (WSI) processing. 
