@@ -36,7 +36,8 @@ def tile_tissues(
 
     Parameters
     ----------
-    wsi : {wsi}
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The WSIData object to work on.
     tile_px : int, (int, int)
         The size of the tile, if tuple, (W, H).
     stride_px : int, (int, int), default: None
@@ -229,10 +230,14 @@ def tile_tissues(
         level=ops_level,
         downsample=downsample,
         mpp=mpp,
-        height=tile_h,
-        width=tile_w,
-        raw_height=ops_tile_h,
-        raw_width=ops_tile_w,
+        height=int(tile_h),
+        width=int(tile_w),
+        stride_height=int(stride_h),
+        stride_width=int(stride_w),
+        raw_height=int(ops_tile_h),
+        raw_width=int(ops_tile_w),
+        raw_stride_height=int(ops_stride_h),
+        raw_stride_width=int(ops_stride_w),
         tissue_name=tissue_key,
     )
 
@@ -266,8 +271,8 @@ def tiles_qc(
 
     Parameters
     ----------
-    wsi : WSI
-        The whole slide image object.
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The WSIData object to work on.
     scorers : Scorer
         The scorer object or a callable that takes in an image and returns a score.
         You can also pass in a string:

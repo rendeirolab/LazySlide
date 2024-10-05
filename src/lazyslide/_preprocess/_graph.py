@@ -25,6 +25,28 @@ def tile_graph(
     tile_key: str = Key.tiles,
     table_key: str = None,
 ):
+    """
+    Compute the spatial graph of the tiles.
+
+    Parameters
+    ----------
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The WSIData object to work on.
+    n_neighs : int, default: 6
+        The number of neighbors to consider.
+    n_rings : int, default: 1
+        The number of rings to consider.
+    delaunay : bool, default: False
+        Whether to use Delaunay triangulation.
+    transform : str, default: None
+        The transformation to apply to the graph.
+    set_diag : bool, default: False
+        Whether to set the diagonal to 1.
+    tile_key : str, default: 'tiles'
+        The tile key.
+    table_key : str, default: None
+        The table key to store the graph.
+    """
     coords = wsi.sdata[tile_key][["x", "y"]].values
     Adj, Dst = _spatial_neighbor(
         coords, n_neighs, delaunay, n_rings, transform, set_diag

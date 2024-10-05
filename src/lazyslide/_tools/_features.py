@@ -266,10 +266,10 @@ def feature_extraction(
             features = []
             with torch.inference_mode():
                 for batch in loader:
-                    batch = batch.to(device)
-                    output = model(batch)
+                    image = batch["image"].to(device)
+                    output = model(image)
                     features.append(output.cpu().numpy())
-                    progress_bar.update(task, advance=len(batch))
+                    progress_bar.update(task, advance=len(image))
                     del batch  # Free up memory
             # The progress bar may not reach 100% if exit too early
             # Force update
@@ -287,7 +287,7 @@ def _inference(dataset, chunk, model, queue):
     with torch.inference_mode():
         X = []
         for c in chunk:
-            img = dataset[c]
+            img = dataset[c]["image"]
             # image to 4d
             img = img.unsqueeze(0)
             output = model(img)

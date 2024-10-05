@@ -20,7 +20,28 @@ def load_annotations(
     min_area: float = 1e2,
     key_added: str = "annotations",
 ):
-    """Load the geojson file and add it to the WSI data"""
+    """Load the annotation file and add it to the WSIData
+
+    Parameters
+    ----------
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The WSIData object to work on.
+    annotations : str, Path, GeoDataFrame
+        The path to the annotation file or the GeoDataFrame.
+    explode : bool, default: True
+        Whether to explode the annotations.
+    in_bounds : bool, default: False
+        Whether to move the annotations to the slide bounds.
+    join_with : str, List[str], default: 'tissues'
+        The key to join the annotations with.
+    join_to : str, default: None
+        The key to join the annotations to.
+    min_area : float, default: 1e2
+        The minimum area of the annotation.
+    key_added : str, default: 'annotations'
+        The key to store the annotations.
+
+    """
     import geopandas as gpd
 
     if isinstance(annotations, (str, Path)):
