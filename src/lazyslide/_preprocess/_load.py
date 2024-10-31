@@ -8,6 +8,7 @@ from shapely import Polygon
 
 from lazyslide._const import Key
 from wsidata import WSIData
+from wsidata.io import update_shapes_data, add_shapes
 
 
 def load_annotations(
@@ -78,20 +79,20 @@ def load_annotations(
 
     join_anno_df = anno_df.copy()
     for key in join_with:
-        if key in wsi.sdata:
-            shapes_df = wsi.sdata[key]
+        if key in wsi:
+            shapes_df = wsi[key]
             # join the annotations with the tiles
             join_anno_df = (
                 gpd.sjoin(shapes_df, join_anno_df, how="right", predicate="intersects")
                 .reset_index(drop=True)
                 .drop(columns=["index_left"], errors="ignore")
             )
-    wsi.add_shapes(key_added, join_anno_df)
+    add_shapes(wsi, key_added, join_anno_df)
 
     # TODO: still Buggy
     if join_to is not None:
-        if join_to in wsi.sdata:
-            shapes_df = wsi.sdata[join_to]
+        if join_to in wsi:
+            shapes_df = wsi[join_to]
             # join the annotations with the tiles
             shapes_df = (
                 gpd.sjoin(
@@ -100,4 +101,4 @@ def load_annotations(
                 .reset_index(drop=True)
                 .drop(columns=["index_right"], errors="ignore")
             )
-            wsi.update_shapes_data(join_to, shapes_df)
+            update_shapes_data(wsi, join_to, shapes_df)

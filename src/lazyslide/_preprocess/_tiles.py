@@ -14,6 +14,7 @@ from lazyslide._preprocess._utils import get_scorer, Scorer
 from lazyslide._utils import default_pbar, chunker, find_stack_level
 from numba import njit, prange
 from wsidata import WSIData, TileSpec
+from wsidata.io import add_tiles, update_shapes_data
 
 
 def tile_tissues(
@@ -86,7 +87,7 @@ def tile_tissues(
 
     """
     # Check if tissue contours are present
-    if tissue_key not in wsi.sdata.shapes:
+    if tissue_key not in wsi.shapes:
         msg = f"Contours for {tissue_key} not found. Run pp.find_tissue first."
         raise ValueError(msg)
 
@@ -160,7 +161,7 @@ def tile_tissues(
         ops_stride_w, ops_stride_h = stride_w, stride_h
 
     # Get contours
-    contours = wsi.sdata.shapes[tissue_key]
+    contours = wsi.shapes[tissue_key]
 
     tile_coords = []
     tiles_tissue_id = []
@@ -250,7 +251,8 @@ def tile_tissues(
     else:
         tile_coords = np.array(tile_coords).astype(np.uint)
         tiles_tissue_id = np.array(tiles_tissue_id)
-        wsi.add_tiles(
+        add_tiles(
+            wsi,
             key=key_added,
             xys=tile_coords,
             tile_spec=tile_spec,
@@ -303,15 +305,15 @@ def tiles_qc(
         >>> zs.pp.find_tissues(wsi)
         >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
         >>> zs.pp.tiles_qc(wsi, scorers=["focus", "contrast"])
-        >>> wsi.sdata['tiles'].head(n=2)
+        >>> wsi['tiles'].head(n=2)
 
     """
 
     compose_scorer = get_scorer(scorers)
 
-    if tile_key not in wsi.sdata:
+    if tile_key not in wsi:
         raise ValueError(f"Tiles with key {tile_key} not found.")
-    tiles_tb = wsi.sdata[tile_key]
+    tiles_tb = wsi[tile_key]
     spec = wsi.tile_spec(tile_key)
 
     with default_pbar(disable=not pbar) as progress_bar:
@@ -360,7 +362,7 @@ def tiles_qc(
         progress_bar.refresh()
 
     scores = pd.DataFrame(scores).assign(**{qc_key: qc})
-    wsi.update_shapes_data(tile_key, scores)
+    update_shapes_data(wsi, key=tile_key, data=scores)
 
 
 def _chunk_scoring(tiles, spec, reader, scorer, queue):

@@ -15,6 +15,7 @@ from sklearn.neighbors import NearestNeighbors
 
 from wsidata import WSIData
 from lazyslide._const import Key
+from wsidata.io import add_table
 
 
 def tile_graph(
@@ -49,7 +50,7 @@ def tile_graph(
     table_key : str, default: None
         The table key to store the graph.
     """
-    coords = wsi.sdata[tile_key][["x", "y"]].values
+    coords = wsi[tile_key][["x", "y"]].values
     Adj, Dst = _spatial_neighbor(
         coords, n_neighs, delaunay, n_rings, transform, set_diag
     )
@@ -67,15 +68,15 @@ def tile_graph(
     # TODO: Store in a anndata object
     if table_key is None:
         table_key = Key.tile_graph(tile_key)
-    if table_key not in wsi.sdata:
+    if table_key not in wsi:
         table = AnnData(
             obs=pd.DataFrame(index=np.arange(coords.shape[0], dtype=int).astype(str)),
             obsp={conns_key: Adj, dists_key: Dst},
             uns={"spatial": neighbors_dict},
         )
-        wsi.add_table(table_key, table)
+        add_table(wsi, table_key, table)
     else:
-        table = wsi.sdata[table_key]
+        table = wsi[table_key]
         table.obsp[conns_key] = Adj
         table.obsp[dists_key] = Dst
         table.uns["spatial"] = neighbors_dict

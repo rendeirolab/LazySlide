@@ -69,7 +69,7 @@ def info(slide: str = WSI):
     t.add_column("Width", style="green")
     t.add_column("Downsample", style="yellow")
 
-    for i, (h, w, d) in enumerate(wsi.get.pyramids().values):
+    for i, (h, w, d) in enumerate(wsi.fetch.pyramids().values):
         t.add_row(str(i), str(int(h)), str(int(w)), str(d))
 
     c.print(t)
@@ -111,8 +111,8 @@ def preprocess(
             tissue_metrics = tissue_qc.split(",")
             zs.pp.tissues_qc(wsi, tissue_metrics)
             if filter_tissue:
-                tissue_tb = wsi.sdata[Key.tissue]
-                wsi.sdata[Key.tissue] = tissue_tb[tissue_tb[Key.tissue_qc]]
+                tissue_tb = wsi[Key.tissue]
+                wsi[Key.tissue] = tissue_tb[tissue_tb[Key.tissue_qc]]
 
     zs.pp.tile_tissues(
         wsi, tile_px=tile_px, stride_px=stride_px, mpp=mpp, slide_mpp=slide_mpp
@@ -123,11 +123,11 @@ def preprocess(
             tile_metrics = tile_qc.split(",")
             zs.pp.tiles_qc(wsi, tile_metrics)
             if filter_tiles:
-                tile_tb = wsi.sdata[Key.tiles]
-                wsi.sdata[Key.tiles] = tile_tb[tile_tb[Key.tile_qc]]
+                tile_tb = wsi[Key.tiles]
+                wsi[Key.tiles] = tile_tb[tile_tb[Key.tile_qc]]
 
     wsi.save()
-    print(f"Saved to {wsi.sdata.path}")
+    print(f"Saved to {wsi.path}")
 
 
 @app.command()
@@ -164,7 +164,7 @@ def feature(
     print(f"Extract features using model {model}")
     zs.tl.feature_extraction(wsi, model, slide_agg=slide_encoder, device=device)
     wsi.save()
-    print(f"Write to {wsi.sdata.path}")
+    print(f"Write to {wsi.path}")
 
 
 @app.command()

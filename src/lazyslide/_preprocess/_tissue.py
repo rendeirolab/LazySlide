@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from shapely import Polygon
 from wsidata import WSIData
+from wsidata.io import add_tissues, update_shapes_data
 
 from ._utils import get_scorer, Scorer
 from .._const import Key
@@ -18,6 +19,10 @@ from .._utils import default_pbar
 # TODO: Auto-selection of tissue level
 #  should be decided by the RAM size
 TARGET = 4  # mpp = 0.5 and downsample = 4
+
+# TODO: TO have a better hole detection
+# We can first identify the tissue regions at the least resolution level
+# Then we get the bbox of the tissue regions, and then we can go to higher resolution levels
 
 
 def find_tissues(
@@ -154,7 +159,7 @@ def find_tissues(
     if len(tissues) == 0:
         logging.warning("No tissue is found.")
         return False
-    wsi.add_tissues(key=key_added, tissues=tissues, ids=tissues_ids)
+    add_tissues(wsi, key=key_added, tissues=tissues, ids=tissues_ids)
 
 
 def tissues_qc(
@@ -196,7 +201,7 @@ def tissues_qc(
         >>> wsi = open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
         >>> zs.pp.find_tissues(wsi)
         >>> zs.pp.tissues_qc(wsi, ["redness", "brightness"])
-        >>> wsi.sdata["tissues"]
+        >>> wsi["tissues"]
 
 
     """
@@ -206,7 +211,7 @@ def tissues_qc(
 
     with default_pbar(disable=not pbar) as progress_bar:
         task = progress_bar.add_task(
-            "Scoring tissue", total=wsi.get.n_tissue(tissue_key)
+            "Scoring tissue", total=wsi.fetch.n_tissue(tissue_key)
         )
         scores = []
         qc = []
@@ -234,4 +239,4 @@ def tissues_qc(
         progress_bar.refresh()
 
     scores = pd.DataFrame(scores).assign(**{qc_key: qc})
-    wsi.update_shapes_data(key=tissue_key, data=scores)
+    update_shapes_data(wsi, key=tissue_key, data=scores)

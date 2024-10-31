@@ -6,6 +6,7 @@ import pandas as pd
 
 from wsidata import WSIData
 from lazyslide._const import Key
+from wsidata.io import update_shapes_data
 
 
 def point2shape(
@@ -31,7 +32,7 @@ def tissue_props(
         props.append(_props)
 
     props = pd.DataFrame(props).to_dict(orient="list")
-    wsi.update_shapes_data(key, props)
+    update_shapes_data(wsi, key, props)
 
 
 class ContourProps:

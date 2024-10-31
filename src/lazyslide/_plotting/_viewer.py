@@ -92,20 +92,22 @@ class SlideViewer:
         wsi: WSIData,
         tissue_key=None,
         tile_key=None,
-        render_size: int = 1000,
+        render_size: int | None = None,
         tissue_id: int = None,
     ):
         if tissue_id is not None:
-            if tissue_key not in wsi.sdata.shapes:
+            if tissue_key not in wsi.shapes:
                 tissue_id = None
 
         if tissue_id is None:
+            if render_size is None:
+                render_size = 1000
             level = _get_best_level(wsi, *wsi.properties.shape, render_size)
             slide_img = wsi.reader.get_level(level)
             level_downsample = wsi.properties.level_downsample[level]
             bounds = None
         else:
-            gdf = wsi.sdata.shapes[tissue_key]
+            gdf = wsi.shapes[tissue_key]
             gdf = gdf[gdf["tissue_id"] == tissue_id]
             minx, miny, maxx, maxy = gdf.bounds.iloc[0]
 
@@ -115,6 +117,8 @@ class SlideViewer:
             h = int(maxy - miny)
 
             # Now the best level is calculated based on the region size
+            if render_size is None:
+                render_size = max(w * 0.3, h * 0.3, 10000)
             level = _get_best_level(wsi, w, h, render_size)
             level_downsample = wsi.properties.level_downsample[level]
             slide_img = wsi.read_region(
@@ -137,9 +141,9 @@ class SlideViewer:
         else:
             self.bounds = None
 
-        if tile_key in wsi.sdata.shapes:
+        if tile_key in wsi.shapes:
             self.tile_spec = wsi.tile_spec(tile_key)
-            self.tile_table = wsi.sdata.shapes[tile_key]
+            self.tile_table = wsi.shapes[tile_key]
             if self.tissue_id is not None:
                 self.tile_table = self.tile_table[
                     self.tile_table["tissue_id"] == self.tissue_id
@@ -309,7 +313,7 @@ class SlideViewer:
         c = None
         add_title = ""
         if feature_key is not None:
-            adata = self.wsi.get.features_anndata(
+            adata = self.wsi.fetch.features_anndata(
                 feature_key, self.tile_key, tile_graph=False
             )
             if color is not None:
@@ -388,6 +392,8 @@ class SlideViewer:
             norm=norm,
             alpha=alpha,
             marker=marker,
+            edgecolor="none",
+            linewidth=0,
             **kwargs,
         )
         sm.set_rasterized(rasterized)
@@ -416,8 +422,8 @@ class SlideViewer:
     ):
         from matplotlib.patches import Rectangle
 
-        if key in self.wsi.sdata.shapes:
-            shapes = self.wsi.sdata.shapes[key]
+        if key in self.wsi.shapes:
+            shapes = self.wsi.shapes[key]
             if self.tissue_id is not None:
                 if "tissue_id" in shapes.columns:
                     shapes = shapes[shapes["tissue_id"] == self.tissue_id]
@@ -425,7 +431,6 @@ class SlideViewer:
                 if show_bbox:
                     # Draw bbox of shape
                     bbox = np.array(c.bounds)
-                    print(bbox, self.bounds)
                     if self.bounds is not None:
                         bbox -= np.array(self.bounds[0:2])
                     minx, miny, maxx, maxy = bbox / self.downsample
@@ -470,11 +475,11 @@ class SlideViewer:
 
     def add_contours_holes(
         self,
-        contour_color="green",
-        hole_color="blue",
+        contour_color="#117554",
+        hole_color="#4379F2",
         show_bbox=False,
         show_shape=True,
-        linewidth=1,
+        linewidth=2,
         alpha=None,
         ax=None,
     ):
@@ -502,8 +507,8 @@ class SlideViewer:
             bbox=dict(facecolor="white", pad=2, lw=1),
         )
         kwargs = {**default_style, **kwargs}
-        if key in self.wsi.sdata.shapes:
-            shapes = self.wsi.sdata.shapes[key]
+        if key in self.wsi.shapes:
+            shapes = self.wsi.shapes[key]
             if self.tissue_id is not None:
                 shapes = shapes[shapes["tissue_id"] == self.tissue_id]
             for _, row in shapes.iterrows():
@@ -518,7 +523,18 @@ class SlideViewer:
                 text = tissue_id
                 if fmt is not None:
                     text = fmt.format(tissue_id)
-                ax.text(x, y, text, **kwargs)
+                _ = ax.text(x, y, text, **kwargs)
+
+                # calculate the bbox
+                # renderer = ax.figure.canvas.get_renderer()
+                # bbox = t.get_bbox_patch().get_tightbbox(renderer)
+                # display_y = ax.transData.transform((0, y))[1]
+                # print(display_y, bbox.y0)
+                # offset_px = bbox.y0 - display_y + renderer.points_to_pixels(3)
+                # offset_y = ax.transAxes.inverted().transform((0, offset_px))
+                # print(offset_y, t.get_position())
+                # t.set_position((x, y + offset_y[1]))
+                # print(t.get_position())
 
     def add_tissue_id(self, ax=None, fmt=None, **kwargs):
         if ax is None:

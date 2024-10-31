@@ -14,7 +14,7 @@ def tissue(
     show_origin=True,
     show_id=True,
     show_bbox=False,
-    render_size=1000,
+    render_size=None,
     scale_bar=True,
     ax=None,
 ):
@@ -37,7 +37,7 @@ def tissue(
         Show the origin.
     show_id : bool, default: True
         Show the tissue id.
-    render_size : int, default: 1000
+    render_size : int, default: None
         The size of the rendered image.
         Increase this value for better image quality.
     ax : matplotlib.axes.Axes, default: None
@@ -90,7 +90,7 @@ def tiles(
     show_origin=True,
     show_id=False,
     show_bbox=False,
-    render_size=1000,
+    render_size=None,
     alpha=0.9,
     marker="o",
     vmin=None,
@@ -187,14 +187,14 @@ def tiles(
     )
     if show_tissue:
         slide.add_tissue(ax=ax)
-    if show_grid:
-        slide.add_tiles(rasterized=rasterized, ax=ax)
     if show_origin:
         slide.add_origin(ax=ax)
     if show_id:
         slide.add_tissue_id(ax=ax)
     if show_contours or show_bbox:
         slide.add_contours_holes(ax=ax, show_bbox=show_bbox, show_shape=show_contours)
+    if show_grid:
+        slide.add_tiles(rasterized=rasterized, ax=ax)
     if show_point:
         slide.add_points(
             feature_key=feature_key,

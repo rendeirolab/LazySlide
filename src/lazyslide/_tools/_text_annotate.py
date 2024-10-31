@@ -5,6 +5,7 @@ import pandas as pd
 
 from lazyslide._const import Key
 from wsidata import WSIData
+from wsidata.io import add_features
 
 
 def text_embedding(
@@ -81,10 +82,11 @@ def text_image_similarity(
     feature_key = wsi._check_feature_key(feature_key, tile_key)
     key_added = f"{feature_key}_text_similarity" or key_added
 
-    feature_X = wsi.sdata.tables[feature_key].X
+    feature_X = wsi.tables[feature_key].X
     similarity_score = np.dot(text_embeddings.values, feature_X.T).T
 
-    wsi.add_features(
+    add_features(
+        wsi,
         key_added,
         tile_key,
         similarity_score,

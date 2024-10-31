@@ -22,7 +22,7 @@ def qc_summary(
             "Please install patchworklib with `pip install patchworklib`."
         )
 
-    n_tissue = wsi.get.n_tissue(tissue_key)
+    n_tissue = wsi.fetch.n_tissue(tissue_key)
     # Slide overview
     h, w = wsi.properties.shape
     slide_ax = pw.Brick(figsize=(h / w, 1))
@@ -30,8 +30,8 @@ def qc_summary(
     slide_ax.set_title(wsi.reader.file)
 
     # Plot tissue
-    n_tis = wsi.get.n_tissue(tissue_key)
-    tissue_table = wsi.sdata.shapes[tissue_key]
+    n_tis = wsi.fetch.n_tissue(tissue_key)
+    tissue_table = wsi.shapes[tissue_key]
 
     tissue_ax = None
     for metric, c in zip(tissue_metrics, cycle(ADOBE_SPECTRUM)):
@@ -84,7 +84,7 @@ def qc_summary(
             tile_ax /= t_ax
 
     tile_stat_ax = None
-    tile_table = wsi.sdata.shapes[tile_key][tile_metrics + ["tissue_id"]]
+    tile_table = wsi.shapes[tile_key][tile_metrics + ["tissue_id"]]
     for metric, c in zip(tile_metrics, cycle(ADOBE_SPECTRUM)):
         ax = pw.Brick(figsize=(2, n_tissue))
         if metric == "focus":

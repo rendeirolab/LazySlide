@@ -29,7 +29,7 @@ def feature_utag(
     try:
         if graph_key is None:
             graph_key = f"{tile_key}_graph"
-        A = wsi.sdata.tables[graph_key].obsp["spatial_connectivities"]
+        A = wsi.tables[graph_key].obsp["spatial_connectivities"]
     except KeyError:
         raise ValueError(
             "The tile graph is needed to transform feature with UTAG, Please run `pp.tile_graph` first."
@@ -41,8 +41,7 @@ def feature_utag(
     A_norm = A / norms
 
     feature_key = wsi._check_feature_key(feature_key, tile_key)
-    feature_X = wsi.sdata.tables[feature_key].X
+    feature_X = wsi.tables[feature_key].X
     A_spatial = np.transpose(feature_X) @ A_norm
     A_spatial = np.transpose(A_spatial)
-    wsi.sdata.tables[feature_key].layers["utag"] = np.asarray(A_spatial)
-    wsi.add_write_elements(feature_key)
+    wsi.tables[feature_key].layers["utag"] = np.asarray(A_spatial)

@@ -4,13 +4,13 @@ import warnings
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import Manager
 from pathlib import Path
-from typing import Callable, Any, Literal
+from typing import Callable
 
 import numpy as np
-from wsidata import WSIData
-
 from lazyslide._const import Key
 from lazyslide._utils import default_pbar, chunker, get_torch_device, find_stack_level
+from wsidata import WSIData
+from wsidata.io import add_features, add_agg_features
 
 
 def get_default_transform():
@@ -219,7 +219,7 @@ def feature_extraction(
 
     # Create dataloader
     # Auto chunk the wsi tile coordinates to the number of workers'
-    tiles_coords = wsi.sdata.shapes[tile_key][["x", "y"]].values
+    tiles_coords = wsi.shapes[tile_key][["x", "y"]].values
     n_tiles = len(tiles_coords)
 
     with default_pbar(disable=not pbar) as progress_bar:
@@ -276,7 +276,7 @@ def feature_extraction(
             progress_bar.refresh()
             features = np.vstack(features)
 
-    wsi.add_features(key_added, tile_key, features)
+    add_features(wsi, key=key_added, tile_key=tile_key, features=features)
     if return_features:
         return features
 
@@ -337,13 +337,13 @@ def feature_aggregation(
     if agg_key is None:
         agg_key = f"agg_{by}"
 
-    tiles_table = wsi.sdata.shapes[tile_key]
+    tiles_table = wsi.shapes[tile_key]
     coords = tiles_table[["x", "y"]]
     feature_key = wsi._check_feature_key(feature_key, tile_key)
     if layer_key is None:
-        features = wsi.sdata.tables[feature_key].X
+        features = wsi.tables[feature_key].X
     else:
-        features = wsi.sdata.tables[feature_key].layers[layer_key]
+        features = wsi.tables[feature_key].layers[layer_key]
 
     if by == "slide":
         agg_fs = _encode_slide(features, encoder, coords)
@@ -358,7 +358,7 @@ def feature_aggregation(
         agg_fs = np.vstack(agg_fs).T
         # The columns of by will also be added to the obs slot
     by_data = tiles_table[by] if by != "slide" else None
-    wsi.add_agg_features(feature_key, agg_key, agg_fs, by_key=by, by_data=by_data)
+    add_agg_features(wsi, feature_key, agg_key, agg_fs, by_key=by, by_data=by_data)
 
 
 def _encode_slide(features, encoder, coords=None):

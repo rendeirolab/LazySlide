@@ -222,7 +222,7 @@ class Mask2Polygon(Transform):
         self.set_params(min_area=min_area)
 
         self.pipeline = [
-            MorphOpen(kernel_size=morph_k_size, n_iterations=morph_n_iter),
+            # MorphOpen(kernel_size=morph_k_size, n_iterations=morph_n_iter),
             MorphClose(kernel_size=morph_k_size, n_iterations=morph_n_iter),
             ForegroundDetection(
                 min_tissue_area=min_tissue_area,
