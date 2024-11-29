@@ -101,6 +101,8 @@ def tile_tissues(
             f"Either (W, H), or a single integer for square tiles."
         )
 
+    assert tile_w > 0 and tile_h > 0, "Tile size must be positive."
+
     if stride_px is None:
         stride_w, stride_h = tile_w, tile_h
     elif isinstance(stride_px, Integral):
@@ -111,6 +113,8 @@ def tile_tissues(
         raise TypeError(
             f"input stride {stride_px} invalid. " f"Either (W, H), or a single integer."
         )
+
+    assert stride_w > 0 and stride_h > 0, "Stride size must be positive."
 
     ops_level = 0
     downsample = 1
@@ -408,6 +412,7 @@ def create_tiles(
 
     """
     height, width = image_shape
+
     if stride_w is None:
         stride_w = tile_w
     if stride_h is None:
@@ -430,13 +435,24 @@ def create_tiles(
 
     xs = np.arange(nw, dtype=np.uint) * stride_w
     ys = np.arange(nh, dtype=np.uint) * stride_h
+
+    # Filter out the tiles that are out of the image
+    xs = xs[xs < width]
+    ys = ys[ys < height]
+    # Update the number of tiles
+    nw = len(xs)
+    nh = len(ys)
+
     xv, yv = meshgrid(xs, ys)
 
     for i in range(nw):
         for j in range(nh):
             coordinates.append([xv[j, i], yv[j, i]])
 
-    n_rect = (nw - 1) * (nh - 1)
+    if nw == 1 and nh == 1:
+        n_rect = 1
+    else:
+        n_rect = (nw - 1) * (nh - 1)
     s1, s2, s3, s4 = 0, 1, nh + 1, nh
     for i in range(n_rect):
         indices.append([s1 + i, s2 + i, s3 + i, s4 + i])
