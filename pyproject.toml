@@ -23,6 +23,7 @@ dependencies = [
     "rich",
     "typer",
     "wsidata",
+    "psutil",
 ]
 
 [tool.hatch.version]
