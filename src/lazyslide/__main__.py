@@ -175,6 +175,7 @@ def feature(
     model: str,
     slide_agg: str = "mean",
     device: str = None,
+    num_workers: int | str = "auto",
     output: Optional[str] = None,
 ):
     """
@@ -190,6 +191,8 @@ def feature(
         The slide aggregation method
     device : str
         The device to run the model
+    num_workers : int
+        The number of workers to use
     output : str
         The output path to save the processed slide
 
@@ -207,7 +210,9 @@ def feature(
 
     key_added = f"{model_name}"
 
-    zs.tl.feature_extraction(wsi, model, device=device, key_added=key_added)
+    zs.tl.feature_extraction(
+        wsi, model, device=device, num_workers=num_workers, key_added=key_added
+    )
     zs.tl.feature_aggregation(wsi, feature_key=key_added, encoder=slide_agg)
     wsi.write_element(key_added, overwrite=True)
     print(f"Write to {wsi.path}")
