@@ -7,27 +7,22 @@ from typing import Sequence
 
 import numpy as np
 import pandas as pd
-from shapely import Polygon
+import psutil
+from shapely import Polygon, MultiPolygon
+from shapely.affinity import translate
 from wsidata import WSIData
 from wsidata.io import add_tissues, update_shapes_data
 
 from ._utils import get_scorer, Scorer
 from .._const import Key
 from .._cv.transform import TissueDetectionHE
-from .._utils import default_pbar
-
-# TODO: Auto-selection of tissue level
-#  should be decided by the RAM size
-TARGET = 4  # mpp = 0.5 and downsample = 4
-
-# TODO: TO have a better hole detection
-# We can first identify the tissue regions at the least resolution level
-# Then we get the bbox of the tissue regions, and then we can go to higher resolution levels
+from .._utils import default_pbar, find_stack_level
 
 
 def find_tissues(
     wsi: WSIData,
-    level: int | None = None,
+    level: int | str = "auto",
+    refine_level: int | str | None = None,
     use_saturation: bool = False,
     blur_ksize: int = 17,
     threshold: int = 7,
@@ -41,12 +36,18 @@ def find_tissues(
 ):
     """Find tissue regions in the WSI and add them as contours and holes.
 
+    .. note::
+        The results may not be deterministic between runs,
+        as the segmentation level is automatically decided by the available memory.
+
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object to work on.
-    level : int, default: None
+    level : int, default: 'auto'
         The level to use for segmentation.
+    refine_level : int or 'auto', default: None
+        The level to refine the tissue polygons.
     use_saturation : bool, default: False
         The tissue image will be converted from RGB to HSV space,
         the saturation channel (color purity) will be used for tissue detection.
@@ -88,42 +89,18 @@ def find_tissues(
         >>> zs.pl.tissue(wsi)
 
     """
-    # Get optimal level for segmentation
-    if level is None:
-        metadata = wsi.properties
-
-        warn = False
-        if metadata.mpp is None:
-            # Use the middle level
-            level = metadata.n_level // 2
-            warn = True
-        else:
-            search_space = np.asarray(metadata.level_downsample) * metadata.mpp
-            level = np.argmin(np.abs(search_space - TARGET))
-
-        # check if level is beyond the RAM
-        current_shape = metadata.level_shape[level]
-        # The data type in uint8, so each pixel is 1 byte
-        # The size is calculated by width * height * 4 (RGBA)
-        bytes_size = current_shape[0] * current_shape[1] * 4
-        # if the size is beyond 4GB, use a higher level
-        while bytes_size > 4e9:
-            if level != metadata.n_level - 1:
-                level += 1
-                current_shape = metadata.level_shape[level]
-                bytes_size = current_shape[0] * current_shape[1] * 4
-            else:
-                level = metadata.n_level - 1
-                break
-        if warn:
-            warnings.warn(
-                f"mpp is not available, " f"use level {level} for segmentation."
-            )
-
+    detect_holes_1 = detect_holes
+    if refine_level is None:
+        # If not refine, we can use a higher proportion of the memory
+        proportion = 0.8
     else:
-        level = wsi.reader.translate_level(level)
+        # If we refine, we will do a quick search to the bounding box of the tissue regions
+        proportion = 0.4
+        detect_holes_1 = False
 
-    seg = TissueDetectionHE(
+    level = _decide_level(wsi, level, proportion)
+    # Set the segmentation options
+    seg_options = dict(
         use_saturation=use_saturation,
         blur_ksize=blur_ksize,
         threshold=threshold,
@@ -131,35 +108,61 @@ def find_tissues(
         morph_k_size=morph_k_size,
         min_tissue_area=min_tissue_area,
         min_hole_area=min_hole_area,
-        detect_holes=detect_holes,
         filter_artifacts=filter_artifacts,
     )
+
+    # Run the first segmentation
+    seg = TissueDetectionHE(detect_holes=detect_holes_1, **seg_options)
     image = wsi.reader.get_level(level)
     tissue_instances = seg.apply(image)
     if len(tissue_instances) == 0:
         logging.warning("No tissue is found.")
         return False
-    if level != 0:
-        downsample = wsi.properties.level_downsample[level]
+
+    downsample = _get_downsample(wsi, level)
+
+    tissues = []
+    if refine_level is None:
+        # Do not refine the tissue polygons
+        for tissue in tissue_instances:
+            tissues.append(_tissue_instance2poly(tissue, downsample))
     else:
-        downsample = 1
+        # Refine the tissue polygons at a higher resolution level
+        if len(tissue_instances) == 0:
+            logging.warning("No tissue is found.", stacklevel=find_stack_level())
+            return False
 
-    tissues, tissues_ids = [], []
+        seg = TissueDetectionHE(detect_holes=detect_holes, **seg_options)
+        for tissue in tissue_instances:
+            # Tissue polygon at the highest resolution level
+            tissue_poly = Polygon(tissue.contour * downsample)
+            bbox = tissue_poly.bounds
+            xmin, ymin, xmax, ymax = bbox
+            width, height = xmax - xmin, ymax - ymin
 
-    for tissue in tissue_instances:
-        shell = tissue.contour * downsample
-        if len(tissue.holes) == 0:
-            tissue_poly = Polygon(shell)
-        else:
-            holes = [hole * downsample for hole in tissue.holes]
-            tissue_poly = Polygon(shell, holes=holes)
-        tissues.append(tissue_poly)
-        tissues_ids.append(tissue.id)
+            level = _decide_level(wsi, refine_level)
+            refine_downsample = _get_downsample(wsi, level)
 
-    if len(tissues) == 0:
-        logging.warning("No tissue is found.")
-        return False
-    add_tissues(wsi, key=key_added, tissues=tissues, ids=tissues_ids)
+            image = wsi.reader.get_region(xmin, ymin, width, height, level=level)
+            refine_tissue_instances = seg.apply(image)
+            for refine_tissue in refine_tissue_instances:
+                refine_poly = _tissue_instance2poly(
+                    refine_tissue, refine_downsample, xoff=xmin, yoff=ymin
+                )
+
+                if not refine_poly.is_valid:
+                    refine_poly = refine_poly.buffer(0)
+                if isinstance(refine_poly, MultiPolygon):
+                    geoms = refine_poly.geoms
+                    areas = [geom.area for geom in geoms]
+                    refine_poly = geoms[np.argmax(areas)]
+
+                if refine_poly.is_valid:
+                    # Check if the refined tissue region intersects with the original tissue region
+                    if refine_poly.intersects(tissue_poly):
+                        tissues.append(refine_poly)
+
+    add_tissues(wsi, key=key_added, tissues=tissues)
 
 
 def tissues_qc(
@@ -240,3 +243,57 @@ def tissues_qc(
 
     scores = pd.DataFrame(scores).assign(**{qc_key: qc})
     update_shapes_data(wsi, key=tissue_key, data=scores)
+
+
+def _get_optimal_level(metadata, in_bounds=True, proportion=0.8):
+    # Get optimal level for segmentation
+    # Current available memory
+    available_memory = psutil.virtual_memory().available * proportion  # in bytes
+
+    warn = False
+    if metadata.mpp is None:
+        # Use the middle level
+        level = metadata.n_level // 2
+        warn = True
+    else:
+        search_space = np.asarray(metadata.level_downsample) * metadata.mpp
+        level = np.argmin(np.abs(search_space - 4))
+
+    # check if level is beyond the RAM
+    current_shape = metadata.level_shape[level]
+    # The data type in uint8, so each pixel is 1 byte
+    # The size is calculated by width * height * 4 (RGBA)
+    bytes_size = current_shape[0] * current_shape[1] * 4
+    # if the size is beyond 4GB, use a higher level
+    while bytes_size > available_memory:
+        if level != metadata.n_level - 1:
+            level += 1
+            current_shape = metadata.level_shape[level]
+            bytes_size = current_shape[0] * current_shape[1] * 4
+        else:
+            level = metadata.n_level - 1
+            break
+    if warn:
+        warnings.warn(f"mpp is not available, use level {level} for segmentation.")
+    return level
+
+
+def _decide_level(wsi, level, proportion=0.8):
+    if level == "auto":
+        return _get_optimal_level(wsi.properties, proportion)
+    else:
+        return wsi.reader.translate_level(level)
+
+
+def _tissue_instance2poly(tissue, downsample, xoff=0, yoff=0):
+    shell = tissue.contour * downsample
+    holes = [hole * downsample for hole in tissue.holes]
+    tissue_poly = Polygon(shell, holes=holes)
+    return translate(tissue_poly, xoff=xoff, yoff=yoff)
+
+
+def _get_downsample(wsi, level):
+    if level == 0:
+        return 1
+    else:
+        return wsi.properties.level_downsample[level]
