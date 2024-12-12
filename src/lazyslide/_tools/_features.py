@@ -56,10 +56,13 @@ def load_models(model_name: str, model_path=None, token=None, **kwargs):
 
         model = PLIPVision(model_path=model_path, token=token)
     else:
-        from torchvision.models import get_model
+        from timm import create_model
 
-        kwargs = {"weights": "DEFAULT", **kwargs}
-        model = get_model(model_name, **kwargs)
+        default_kwargs = dict(pretrained=True, num_classes=0)
+        kwargs = {**default_kwargs, **kwargs}
+
+        model = create_model(model_name, **kwargs)
+
     return model, model_name
 
 
@@ -68,6 +71,7 @@ def feature_extraction(
     wsi: WSIData,
     model: str | Callable = None,
     model_path: str | Path = None,
+    model_name: str = None,
     token: str = None,
     load_kws: dict = None,
     transform: Callable = None,
@@ -111,6 +115,9 @@ def feature_extraction(
         The path to the model file. Either model or model_path must be provided.
         If you don't have internet access, you can download the model file and load it from the local path.
         You can also load custom models from local files.
+    model_name : str, optional
+        If you provide your own model, you can specify the model name for the key_added.
+        Or you can override the model name by providing a new model name.
     token : str, optional
         The token for downloading the model from Hugging Face Hub for foundation models.
     load_kws : dict, optional
@@ -160,18 +167,17 @@ def feature_extraction(
 
     device = device or get_torch_device()
 
-    # If key_added is provided by the user
-    user_key = key_added is not None
     load_kws = {} if load_kws is None else load_kws
 
     if model is not None:
         if isinstance(model, Callable):
             model = model
         elif isinstance(model, str):
-            model, model_name = load_models(
+            model, default_model_name = load_models(
                 model_name=model, model_path=model_path, token=token, **load_kws
             )
-            key_added = key_added or model_name
+            if model_name is None:
+                model_name = default_model_name
         else:
             raise ValueError("Model must be a model name or a model object.")
     else:
@@ -188,13 +194,14 @@ def feature_extraction(
 
     # Deal with key_added
     if key_added is None:
-        if hasattr(model, "__class__"):
+        if model_name is not None:
+            key_added = model_name
+        elif hasattr(model, "__class__"):
             key_added = model.__class__.__name__
         elif hasattr(model, "__name__"):
             key_added = model.__name__
         else:
             key_added = "features"
-    if not user_key:
         key_added = Key.feature(key_added, tile_key)
 
     if compile:
