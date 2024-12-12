@@ -1,8 +1,38 @@
-import matplotlib.pyplot as plt
+from typing import Literal, Iterable
 
+import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
 from wsidata import WSIData
-from ._viewer import SlideViewer
+
+from ._wsi_viewer import WSIViewer
 from .._const import Key
+
+
+def thumbnail(wsi: WSIData, ax=None):
+    """
+    Display the thumbnail.
+
+    Parameters
+    ----------
+    wsi : WSI
+        The whole-slide image object.
+    ax : matplotlib.axes.Axes, default: None
+        The axes to plot on.
+
+    Examples
+    --------
+
+    .. plot::
+        :context: close-figs
+
+        >>> import lazyslide as zs
+        >>> wsi = zs.open_wsi("")
+
+
+    """
+    viewer = WSIViewer(wsi)
+    viewer.add_image()
+    viewer.show(ax=ax, axis="off")
 
 
 def tissue(
@@ -11,11 +41,11 @@ def tissue(
     tissue_key=Key.tissue,
     title=None,
     show_contours=True,
-    show_origin=True,
     show_id=True,
-    show_bbox=False,
-    render_size=None,
-    scale_bar=True,
+    mark_origin=True,
+    scalebar=True,
+    in_bounds=True,
+    img_bytes_limit=4e9,
     ax=None,
 ):
     """
@@ -33,13 +63,16 @@ def tissue(
         The title of the plot.
     show_contours : bool, default: True
         Show the tissue contours.
-    show_origin : bool, default: True
+    mark_origin : bool, default: True
         Show the origin.
     show_id : bool, default: True
         Show the tissue id.
-    render_size : int, default: None
-        The size of the rendered image.
-        Increase this value for better image quality.
+    scalebar : bool, default: True
+        Show the scalebar.
+    in_bounds : bool, default: True
+        Show the tissue in bounds.
+    img_bytes_limit : int, default: 4e9
+        The image bytes limits.
     ax : matplotlib.axes.Axes, default: None
         The axes to plot on.
 
@@ -57,22 +90,28 @@ def tissue(
     """
     if ax is None:
         _, ax = plt.subplots()
-    slide = SlideViewer(
+    viewer = WSIViewer(
         wsi,
-        render_size=render_size,
-        tissue_key=tissue_key,
-        tissue_id=tissue_id,
+        in_bounds=in_bounds,
+        img_bytes_limit=img_bytes_limit,
     )
-    slide.add_tissue(ax=ax)
-    if scale_bar:
-        slide.add_scale_bar(ax=ax)
-    if show_origin:
-        slide.add_origin(ax=ax)
-    if show_id:
-        slide.add_tissue_id(ax=ax)
-    if show_contours or show_bbox:
-        slide.add_contours_holes(ax=ax, show_bbox=show_bbox, show_shape=show_contours)
-    slide.add_title(title, ax=ax)
+    viewer.add_image()
+
+    if tissue_key is not None:
+        if show_contours:
+            viewer.add_contours(
+                key=tissue_key,
+                label_by="tissue_id" if show_id else None,
+            )
+        if tissue_id is not None:
+            viewer.set_tissue_id(tissue_id)
+
+    if scalebar:
+        viewer.add_scalebar()
+    if mark_origin:
+        viewer.mark_origin()
+    viewer.title = title
+    viewer.show(ax=ax)
 
 
 def tiles(
@@ -83,14 +122,12 @@ def tiles(
     tissue_key=Key.tissue,
     tile_key=Key.tiles,
     title=None,
-    show_tissue=True,
-    show_point=True,
-    show_grid=False,
+    style: Literal["scatter", "heatmap"] = "heatmap",
+    show_image=True,
     show_contours=True,
-    show_origin=True,
     show_id=False,
-    show_bbox=False,
-    render_size=None,
+    mark_origin=True,
+    scalebar=True,
     alpha=0.9,
     marker="o",
     vmin=None,
@@ -99,8 +136,14 @@ def tiles(
     norm=None,
     palette=None,
     size=None,
+    gridcolor="k",
+    linewidth=0.1,
     ax=None,
-    rasterized=False,
+    figure=None,
+    rasterized=True,
+    ncols=4,
+    wspace=0.5,
+    hspace=0.5,
     **kwargs,
 ):
     """
@@ -124,21 +167,16 @@ def tiles(
         The tile key.
     title : str, default: None
         The title of the plot.
-    show_tissue :  bool, default: True
+    style : {"heatmap", "scatter"}, default: "heatmap"
+        The style of the plot.
+    show_image :  bool, default: True
         Show the tissue image.
-    show_point : bool, default: True
-        Show the points.
-        By default, the points are black.
-    show_grid : bool, default: False
-        Show the tiles grid.
     show_contours : bool, default: True
         Show the tissue contours.
-    show_origin : bool, default: True
+    mark_origin : bool, default: True
         Show the origin.
     show_id : bool, default: False
         Show the tissue (piece) id.
-    render_size : int, default: 1000
-        The size of the rendered image.
     alpha : float, default: 0.9
         The transparency of the points.
     marker : str, default: "o"
@@ -157,6 +195,8 @@ def tiles(
         The size of the points.
     ax : matplotlib.axes.Axes, default: None
         The axes to plot on.
+    figure : matplotlib.figure.Figure, default: None
+        The figure to plot on.
     rasterized : bool, default: False
         Rasterize the points.
     kwargs : dict
@@ -173,42 +213,81 @@ def tiles(
         >>> zs.pp.find_tissues(wsi)
         >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
         >>> zs.pp.tiles_qc(wsi, scorers=["contrast"])
-        >>> zs.pl.tiles(wsi, tissue_id=0, show_grid=True, color='contrast')
+        >>> zs.pl.tiles(wsi, tissue_id=0, color='contrast')
 
     """
-    if ax is None:
-        _, ax = plt.subplots()
-    slide = SlideViewer(
-        wsi,
-        render_size=render_size,
-        tissue_key=tissue_key,
-        tissue_id=tissue_id,
-        tile_key=tile_key,
+
+    viewer = WSIViewer(wsi)
+    if show_image:
+        viewer.add_image()
+
+    viewer.title = title
+    if tissue_key in wsi:
+        if show_contours:
+            viewer.add_contours(
+                key=tissue_key,
+                label_by="tissue_id" if show_id else None,
+            )
+        if tissue_id is not None:
+            viewer.set_tissue_id(tissue_id)
+    if mark_origin:
+        viewer.mark_origin()
+    if scalebar:
+        viewer.add_scalebar()
+
+    if color is not None:
+        if isinstance(color, str):
+            color = [color]
+        elif isinstance(color, Iterable):
+            color = list(color)
+        else:
+            color = [color]
+
+    options = dict(
+        style=style,
+        alpha=alpha,
+        marker=marker,
+        vmin=vmin,
+        vmax=vmax,
+        cmap=cmap,
+        norm=norm,
+        palette=palette,
+        size=size,
+        rasterized=rasterized,
+        gridcolor=gridcolor,
+        linewidth=linewidth,
+        **kwargs,
     )
-    if show_tissue:
-        slide.add_tissue(ax=ax)
-    if show_origin:
-        slide.add_origin(ax=ax)
-    if show_id:
-        slide.add_tissue_id(ax=ax)
-    if show_contours or show_bbox:
-        slide.add_contours_holes(ax=ax, show_bbox=show_bbox, show_shape=show_contours)
-    if show_grid:
-        slide.add_tiles(rasterized=rasterized, ax=ax)
-    if show_point:
-        slide.add_points(
+
+    if len(color) > 1:
+        nrows = len(color) // int(ncols) + 1
+        if figure is None:
+            figure = plt.figure(figsize=(ncols * 4, nrows * 4))
+        gs = GridSpec(nrows, ncols, wspace=wspace, hspace=hspace)
+        for i, c in enumerate(color):
+            ax = figure.add_subplot(gs[i])
+            viewer.add_tiles(
+                key=tile_key,
+                feature_key=feature_key,
+                color_by=c,
+                cache=False,
+                **options,
+            )
+            viewer.show(ax=ax)
+
+    else:
+        viewer.add_tiles(
+            key=tile_key,
+            color_by=color[0],
             feature_key=feature_key,
-            color=color,
-            alpha=alpha,
-            vmin=vmin,
-            vmax=vmax,
-            cmap=cmap,
-            norm=norm,
-            palette=palette,
-            size=size,
-            marker=marker,
-            ax=ax,
-            rasterized=rasterized,
-            **kwargs,
+            **options,
         )
-    slide.add_title(title, ax=ax)
+        viewer.show(ax=ax)
+
+
+def annotations(
+    wsi: WSIData,
+    key: str,
+    ax=None,
+):
+    pass
