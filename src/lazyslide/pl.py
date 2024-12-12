@@ -1,1 +1,1 @@
-from ._plotting import tiles, tissue
+from ._plotting import tiles, tissue, WSIViewer
