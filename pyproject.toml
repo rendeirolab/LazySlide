@@ -24,6 +24,8 @@ dependencies = [
     "typer",
     "wsidata",
     "psutil",
+    "cyclopts",
+    "timm",
 ]
 
 [tool.hatch.version]
