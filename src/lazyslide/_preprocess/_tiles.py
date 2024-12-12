@@ -4,7 +4,7 @@ import warnings
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import Manager
 from numbers import Integral
-from typing import Sequence
+from typing import Sequence, Literal
 
 import cv2
 import numpy as np
@@ -15,6 +15,7 @@ from lazyslide._utils import default_pbar, chunker, find_stack_level
 from numba import njit, prange
 from wsidata import WSIData, TileSpec
 from wsidata.io import add_tiles, update_shapes_data
+from wsidata.reader import ReaderBase
 
 
 def tile_tissues(
@@ -24,11 +25,10 @@ def tile_tissues(
     edge: bool = False,
     mpp: float = None,
     slide_mpp: float = None,
-    tolerance: float = 0.05,
-    method: str = "mask",
+    ops_level: int = None,
+    method: Literal["mask", "polygon-test"] = "mask",
     background_fraction: float = 0.3,
     min_pts: int = 3,
-    errors: str = "raise",
     tissue_key: str = Key.tissue,
     key_added: str = Key.tiles,
 ):
@@ -91,78 +91,16 @@ def tile_tissues(
         msg = f"Contours for {tissue_key} not found. Run pp.find_tissue first."
         raise ValueError(msg)
 
-    if isinstance(tile_px, Integral):
-        tile_w, tile_h = (tile_px, tile_px)
-    elif isinstance(tile_px, Sequence):
-        tile_w, tile_h = (tile_px[0], tile_px[1])
-    else:
-        raise TypeError(
-            f"input tile_px {tile_px} invalid. "
-            f"Either (W, H), or a single integer for square tiles."
-        )
-
-    assert tile_w > 0 and tile_h > 0, "Tile size must be positive."
-
-    if stride_px is None:
-        stride_w, stride_h = tile_w, tile_h
-    elif isinstance(stride_px, Integral):
-        stride_w, stride_h = (stride_px, stride_px)
-    elif isinstance(stride_px, Sequence):
-        stride_w, stride_h = (stride_px[0], stride_px[1])
-    else:
-        raise TypeError(
-            f"input stride {stride_px} invalid. " f"Either (W, H), or a single integer."
-        )
-
-    assert stride_w > 0 and stride_h > 0, "Stride size must be positive."
-
-    ops_level = 0
-    downsample = 1
-    run_downsample = False
-    if mpp is None:
-        mpp = wsi.properties.mpp
-    if slide_mpp is None:
-        slide_mpp = wsi.properties.mpp
-
-    if slide_mpp is not None:
-        downsample = mpp / slide_mpp
-
-        lower_ds = downsample - tolerance
-        upper_ds = downsample + tolerance
-        if lower_ds < 1 < upper_ds:
-            downsample = 1
-
-        if downsample < 1:
-            raise ValueError(
-                f"Cannot perform resize operation "
-                f"with reqeust mpp={mpp} on image"
-                f"mpp={slide_mpp}, this will"
-                f"require up-scaling of image."
-            )
-        elif downsample == 1:
-            ops_level = 0
-        else:
-            for ix, level_downsample in enumerate(wsi.properties.level_downsample):
-                if lower_ds < level_downsample < upper_ds:
-                    downsample = level_downsample
-                    ops_level = ix
-            else:
-                run_downsample = True
-    else:
-        msg = f"{wsi.reader.file} does not contain MPP."
-        if errors == "raise":
-            raise ValueError(msg)
-        else:
-            warnings.warn(msg, UserWarning, stacklevel=find_stack_level())
-
-    if run_downsample:
-        ops_tile_w = int(tile_w * downsample)
-        ops_tile_h = int(tile_h * downsample)
-        ops_stride_w = int(stride_w * downsample)
-        ops_stride_h = int(stride_h * downsample)
-    else:
-        ops_tile_w, ops_tile_h = tile_w, tile_h
-        ops_stride_w, ops_stride_h = stride_w, stride_h
+    # Create the tile spec
+    tile_spec = TileSpec.from_wsidata(
+        wsi,
+        tile_px=tile_px,
+        stride_px=stride_px,
+        mpp=mpp,
+        ops_level=ops_level,
+        slide_mpp=slide_mpp,
+        tissue_name=tissue_key,
+    )
 
     # Get contours
     contours = wsi.shapes[tissue_key]
@@ -177,10 +115,10 @@ def tile_tissues(
 
         rect_coords, rect_indices = create_tiles(
             (height, width),
-            ops_tile_w,
-            ops_tile_h,
-            ops_stride_w,
-            ops_stride_h,
+            tile_spec.ops_width,
+            tile_spec.ops_height,
+            tile_spec.ops_stride_width,
+            tile_spec.ops_stride_height,
             edge=edge,
         )
         # Dtype must be float32 for cv2
@@ -221,7 +159,11 @@ def tile_tissues(
                 h = (h - (minx, miny)).astype(np.int32)
                 cv2.fillPoly(mask, [h], 0)
             good_tiles = filter_tiles(
-                mask, rect_coords, ops_tile_w, ops_tile_h, background_fraction
+                mask,
+                rect_coords,
+                tile_spec.ops_width,
+                tile_spec.ops_height,
+                background_fraction,
             )
             coords = rect_coords[good_tiles].copy().astype(np.float32)
         else:
@@ -230,21 +172,6 @@ def tile_tissues(
 
         tile_coords.extend(coords + (minx, miny))
         tiles_tissue_id.extend([tissue_id] * len(coords))
-
-    tile_spec = TileSpec(
-        level=ops_level,
-        downsample=downsample,
-        mpp=mpp,
-        height=int(tile_h),
-        width=int(tile_w),
-        stride_height=int(stride_h),
-        stride_width=int(stride_w),
-        raw_height=int(ops_tile_h),
-        raw_width=int(ops_tile_w),
-        raw_stride_height=int(ops_stride_h),
-        raw_stride_width=int(ops_stride_w),
-        tissue_name=tissue_key,
-    )
 
     if len(tile_coords) == 0:
         warnings.warn(
@@ -331,7 +258,7 @@ def tiles_qc(
             for tile in tiles:
                 x, y = tile
                 img = wsi.read_region(
-                    x, y, spec.raw_width, spec.raw_height, level=spec.level
+                    x, y, spec.ops_width, spec.ops_height, level=spec.ops_level
                 )
                 result = compose_scorer(img)
                 scores.append(result.scores)
@@ -369,12 +296,14 @@ def tiles_qc(
     update_shapes_data(wsi, key=tile_key, data=scores)
 
 
-def _chunk_scoring(tiles, spec, reader, scorer, queue):
+def _chunk_scoring(tiles, spec: TileSpec, reader: ReaderBase, scorer, queue):
     scores = []
     qc = []
     for tile in tiles:
         x, y = tile
-        img = reader.get_region(x, y, spec.raw_width, spec.raw_height)
+        img = reader.get_region(
+            x, y, spec.ops_width, spec.ops_height, level=spec.ops_level
+        )
         result = scorer(img)
         scores.append(result.scores)
         qc.append(result.qc)
