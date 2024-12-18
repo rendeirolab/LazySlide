@@ -206,17 +206,24 @@ class TileDataSource(DataSource):
 
     @property
     def tiles_center(self):
+        """Return the center of the tiles at level 0."""
         tiles = self._render_tiles.copy()
-        tile_width, tile_height = self.tile_shape
+        tile_width, tile_height = self.tile_shape_base
         tiles[:, 0] = tiles[:, 0] + int(tile_width // 2)
         tiles[:, 1] = tiles[:, 1] + int(tile_height // 2)
         return tiles
 
     @property
     def tile_shape(self) -> tuple[int, int]:
+        """The W, H of the tile in the viewport, after downsample."""
         width = int(self.tile_spec.base_width // self.viewport.downsample)
         height = int(self.tile_spec.base_height // self.viewport.downsample)
         return width, height
+
+    @property
+    def tile_shape_base(self) -> tuple[int, int]:
+        """The W, H of the tile at level 0."""
+        return self.tile_spec.base_width, self.tile_spec.base_height
 
 
 class PolygonDataSource(DataSource):
@@ -472,7 +479,7 @@ class GridTilesRenderPlan(RenderPlan):
         self.linewidth = linewidth
 
     def render(self, ax):
-        width, height = self.datasource.tile_shape
+        width, height = self.datasource.tile_shape_base
         patches = []
         for x, y in self.datasource.tiles:
             patches.append(Rectangle(xy=(x, y), width=width, height=height))
@@ -663,7 +670,7 @@ class ZoomRenderPlan(ZoomMixin, RenderPlan):
 
     def __init__(
         self,
-        image_datasource: ImageDataSource,
+        image_datasource: ImageDataSource,  # Which image to subscribe to
         x_range: tuple[int, int],
         y_range: tuple[int, int],
         anchor: tuple[float, float] = (1.2, 0),
@@ -690,6 +697,7 @@ class ZoomRenderPlan(ZoomMixin, RenderPlan):
 
         if all([0 <= x <= 1 for x in [xmin, xmax, ymin, ymax]]):
             w, h = self.image_datasource.get_image_size()
+            print(w, h)
             x_start, y_start = (
                 self.image_datasource.viewport.x,
                 self.image_datasource.viewport.y,
@@ -742,17 +750,19 @@ class WSIViewer:
         self.bytes_limit = img_bytes_limit
         self._render_plans = []
         self._temp_render_plans = []
+        self._image_render_plan = None
+        self._zoom_image_render_plan = None
         self._zoom_plan = None
+        self._is_zoom_cached = True
 
-        self.image_source: ImageDataSource = ImageDataSource(
-            self.wsi.reader
-        )  # There is only one image source
-        self.tile_source: Dict[
-            str, TileDataSource
-        ] = {}  # There can be multiple tile sources
-        self.polygon_source: Dict[
-            str, PolygonDataSource
-        ] = {}  # There can be multiple polygon sources
+        # There is only one image source
+        self.image_source: ImageDataSource = ImageDataSource(self.wsi.reader)
+        # There is only one zoom image source
+        self.zoom_image_source: ImageDataSource | None = None
+        # There can be multiple tile sources
+        self.tile_source: Dict[str, TileDataSource] = {}
+        # There can be multiple polygon sources
+        self.polygon_source: Dict[str, PolygonDataSource] = {}
         self._has_image = False
         self.title = None
 
@@ -778,10 +788,27 @@ class WSIViewer:
         xmin, ymin, xmax, ymax = tissue_geo.bounds
         self.set_viewport(xmin, ymin, xmax - xmin, ymax - ymin)
 
+    def get_render_plans(self, in_zoom=False):
+        plans = []
+        if not in_zoom:
+            if self._image_render_plan is not None:
+                plans.append(self._image_render_plan)
+        else:
+            if self._zoom_image_render_plan is not None:
+                plans.append(self._zoom_image_render_plan)
+        plans.extend(self._render_plans)
+        plans.extend(self._temp_render_plans)
+        return plans
+
+    def reset_render_plans(self):
+        self._temp_render_plans = []
+        if self._is_zoom_cached:
+            self._zoom_image_render_plan = None
+
     def add_image(self, in_zoom=True):
         plan = SlideImageRenderPlan(self.image_source)
         plan.zoom_view_visible = in_zoom
-        self._render_plans.append(plan)
+        self._image_render_plan = plan
         self._has_image = True
         return self
 
@@ -1224,6 +1251,7 @@ class WSIViewer:
         alpha=0.5,
         axis="on",
         xaxis="top",
+        cache: bool = True,
     ):
         """Add a zoom window to the plot.
 
@@ -1245,11 +1273,22 @@ class WSIViewer:
         if not any([xmin, xmax, ymin, ymax]):
             if tissue_id is None:
                 raise ValueError(
-                    "At least one of xmin, xmax, ymin, ymax must be provided."
+                    "Either (xmin, xmax, ymin, ymax) or tissue_id must be provided."
                 )
             tissues = self.wsi[tissue_key]
             tissue_geo = tissues[tissues["tissue_id"] == tissue_id].geometry.iloc[0]
             xmin, ymin, xmax, ymax = tissue_geo.bounds
+        else:
+            if tissue_id is not None:
+                warnings.warn(
+                    "Both (xmin, xmax, ymin, ymax) and tissue_id are also provided. "
+                    "tissue_id will be ignored.",
+                    stacklevel=find_stack_level(),
+                )
+
+        viewport = self._get_viewport(xmin, ymin, xmax - xmin, ymax - ymin)
+        self.zoom_image_source = ImageDataSource(self.wsi.reader)
+        self.zoom_image_source.set_viewport(viewport)
 
         self._zoom_plan = ZoomRenderPlan(
             self.image_source,
@@ -1262,27 +1301,22 @@ class WSIViewer:
             edgecolor=edgecolor,
             alpha=alpha,
         )
+        self._zoom_image_render_plan = SlideImageRenderPlan(self.zoom_image_source)
+
+        if not cache:
+            self._is_zoom_cached = False
 
     def show(self, ax=None, axis="on", xaxis="top"):
         if ax is None:
             ax = plt.gca()
 
         legends = []
-        for plan in self._render_plans:
+        for plan in self.get_render_plans():
             plan.render(ax)
             if plan.legend_visible:
                 legend = plan.get_legend()
                 if legend is not None:
                     legends.append(legend)
-
-        for plan in self._temp_render_plans:
-            plan.render(ax)
-            if plan.legend_visible:
-                legend = plan.get_legend()
-                if legend is not None:
-                    legends.append(legend)
-        # remove temp render plans
-        self._temp_render_plans = []
 
         # Set the viewport for axes when no image present
         if not self._has_image:
@@ -1300,7 +1334,10 @@ class WSIViewer:
             loc="center left", bbox_transform=ax.transAxes, bbox_to_anchor=(1.1, 0.5)
         )
         if self._zoom_plan is not None:
-            self._zoom_plan.render(ax, self._render_plans)
+            self._zoom_plan.render(ax, self.get_render_plans(in_zoom=True))
+            if not self._is_zoom_cached:
+                # If not cached, remove the zoom plan
+                self._zoom_plan = None
             legend_placement.update(loc="center right", bbox_to_anchor=(-0.1, 0.5))
 
         if len(legends) > 0:
@@ -1310,6 +1347,9 @@ class WSIViewer:
         if self.title is not None:
             ax.set_title(self.title)
 
+        # remove temp render plans
+        self._temp_render_plans = []
+
         return ax
 
     def _get_viewport(self, x, y, w, h):
@@ -1318,15 +1358,19 @@ class WSIViewer:
         target_level = 0
         downsample = 1
 
-        dh, dw = self.wsi.properties.shape
-        while n_bytes > self.bytes_limit:
-            target_level += 1
-            downsample = self.wsi.properties.level_downsample[target_level]
-            dw = w // downsample
-            dh = h // downsample
-            n_bytes = dw * dh * 8 * 3
-            if target_level >= self.wsi.properties.n_level:
-                break
+        if n_bytes > self.bytes_limit:
+            dh, dw = self.wsi.properties.shape
+            while n_bytes > self.bytes_limit:
+                target_level += 1
+                downsample = self.wsi.properties.level_downsample[target_level]
+                dw = w // downsample
+                dh = h // downsample
+                n_bytes = dw * dh * 8 * 3
+                if target_level >= self.wsi.properties.n_level:
+                    break
+        else:
+            dw = w
+            dh = h
 
         return Viewport(int(x), int(y), int(dw), int(dh), target_level, downsample)
 
