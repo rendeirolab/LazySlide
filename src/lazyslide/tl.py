@@ -6,7 +6,5 @@ from ._tools import (
     tissue_props,
     text_embedding,
     text_image_similarity,
-    signatures,
-    score,
-    associate,
+    MultimodalLinker,
 )
