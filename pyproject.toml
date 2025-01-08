@@ -9,7 +9,7 @@ readme = "README.md"
 classifiers = [
     "License :: OSI Approved :: MIT License",
 ]
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 description = "Modularized and scalable whole slide image analysis"
 dynamic = ["version"]
 
@@ -19,7 +19,7 @@ dependencies = [
     "numba",
     "scikit-learn",
     "matplotlib",
-    "matplolib-scalebar",
+    "matplotlib-scalebar",
     "legendkit",
     "rich",
     "typer",
@@ -70,3 +70,6 @@ line-length = 88
 [tool.ruff.per-file-ignores]
 "tests/test_example.py" = ["E402"]
 "tests/test_loader.py" = ["E402"]
+
+[tool.mypy]
+ignore_missing_imports = true
