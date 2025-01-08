@@ -259,26 +259,33 @@ def tiles(
         **kwargs,
     )
 
-    if len(color) > 1:
-        nrows = len(color) // int(ncols) + 1
-        if figure is None:
-            figure = plt.figure(figsize=(ncols * 4, nrows * 4))
-        gs = GridSpec(nrows, ncols, wspace=wspace, hspace=hspace)
-        for i, c in enumerate(color):
-            ax = figure.add_subplot(gs[i])
+    if color is not None:
+        if len(color) > 1:
+            nrows = len(color) // int(ncols) + 1
+            if figure is None:
+                figure = plt.figure(figsize=(ncols * 4, nrows * 4))
+            gs = GridSpec(nrows, ncols, wspace=wspace, hspace=hspace)
+            for i, c in enumerate(color):
+                ax = figure.add_subplot(gs[i])
+                viewer.add_tiles(
+                    key=tile_key,
+                    feature_key=feature_key,
+                    color_by=c,
+                    cache=False,
+                    **options,
+                )
+                viewer.show(ax=ax)
+        else:
             viewer.add_tiles(
                 key=tile_key,
+                color_by=color[0],
                 feature_key=feature_key,
-                color_by=c,
-                cache=False,
                 **options,
             )
             viewer.show(ax=ax)
-
     else:
         viewer.add_tiles(
             key=tile_key,
-            color_by=color[0],
             feature_key=feature_key,
             **options,
         )
