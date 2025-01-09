@@ -161,8 +161,8 @@ def tile_tissues(
             good_tiles = filter_tiles(
                 mask,
                 rect_coords,
-                tile_spec.ops_width,
-                tile_spec.ops_height,
+                tile_spec.base_width,
+                tile_spec.base_height,
                 background_fraction,
             )
             coords = rect_coords[good_tiles].copy().astype(np.float32)
