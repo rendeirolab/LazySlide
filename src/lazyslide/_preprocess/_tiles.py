@@ -83,7 +83,7 @@ def tile_tissues(
         >>> wsi = open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
         >>> zs.pp.find_tissues(wsi)
         >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
-        >>> zs.pl.tiles(wsi, tissue_id=0, show_grid=True, show_point=False)
+        >>> zs.pl.tiles(wsi, tissue_id=0)
 
     """
     # Check if tissue contours are present
@@ -115,10 +115,10 @@ def tile_tissues(
 
         rect_coords, rect_indices = create_tiles(
             (height, width),
-            tile_spec.ops_width,
-            tile_spec.ops_height,
-            tile_spec.ops_stride_width,
-            tile_spec.ops_stride_height,
+            tile_spec.base_width,
+            tile_spec.base_height,
+            tile_spec.base_stride_width,
+            tile_spec.base_stride_height,
             edge=edge,
         )
         # Dtype must be float32 for cv2
