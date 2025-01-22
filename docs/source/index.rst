@@ -42,12 +42,6 @@ LazySlide
 
       How to install LazySlide
 
-   .. grid-item-card:: Tutorial
-      :link: tutorial/index
-      :link-type: doc
-
-      A step-by-step guide to using LazySlide
-
    .. grid-item-card:: API
       :link: api/index
       :link-type: doc
