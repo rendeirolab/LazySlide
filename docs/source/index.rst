@@ -28,7 +28,6 @@ LazySlide
     :hidden:
 
     installation
-    tutorial/index
     api/index
     cli
     nextflow
