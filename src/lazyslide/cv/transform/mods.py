@@ -41,6 +41,18 @@ class Transform:
             setattr(self, k, v)
 
 
+class Compose(Transform):
+    """Compose multiple transforms together."""
+
+    def __init__(self, transforms):
+        self.pipeline = transforms
+
+    def apply(self, image):
+        for p in self.pipeline:
+            image = p(image)
+        return image
+
+
 # ================= Blurry Modules =================
 
 
