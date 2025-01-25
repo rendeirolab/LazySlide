@@ -28,7 +28,6 @@ LazySlide
     :hidden:
 
     installation
-    tutorial/index
     api/index
     cli
     nextflow
@@ -42,12 +41,6 @@ LazySlide
       :link-type: doc
 
       How to install LazySlide
-
-   .. grid-item-card:: Tutorial
-      :link: tutorial/index
-      :link-type: doc
-
-      A step-by-step guide to using LazySlide
 
    .. grid-item-card:: API
       :link: api/index
