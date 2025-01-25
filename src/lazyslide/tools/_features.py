@@ -7,8 +7,10 @@ from pathlib import Path
 from typing import Callable
 
 import numpy as np
+import torch
 from lazyslide._const import Key
 from lazyslide._utils import default_pbar, chunker, get_torch_device, find_stack_level
+from lazyslide.models import ImageModel
 from wsidata import WSIData
 from wsidata.io import add_features, add_agg_features
 
@@ -31,58 +33,57 @@ def load_models(model_name: str, model_path=None, token=None, **kwargs):
     """Load a model with timm or torch.hub.load"""
 
     if model_name == "uni":
-        from lazyslide.models import UNI
+        from lazyslide.models.vision import UNI
 
         model = UNI(model_path=model_path, token=token)
+    elif model_name == "uni2":
+        from lazyslide.models.vision import UNI2
+
+        model = UNI2(model_path=model_path, token=token)
     elif model_name == "gigapath":
-        from lazyslide.models import GigaPath
+        from lazyslide.models.vision import GigaPath
 
         model = GigaPath(model_path=model_path, token=token)
     elif model_name == "conch":
-        from lazyslide.models import CONCH
+        from lazyslide.models.multimodal import CONCH
 
         model = CONCH(model_path=model_path, token=token)
 
     elif model_name == "conch_vision":
-        from lazyslide.models import CONCHVision
+        from lazyslide.models.vision import CONCHVision
 
         model = CONCHVision(model_path=model_path, token=token)
     elif model_name == "plip":
-        from lazyslide.models import PLIP
+        from lazyslide.models.multimodal import PLIP
 
         model = PLIP(model_path=model_path, token=token)
     elif model_name == "plip_vision":
-        from lazyslide.models import PLIPVision
+        from lazyslide.models.vision import PLIPVision
 
         model = PLIPVision(model_path=model_path, token=token)
     else:
-        from timm import create_model
+        from lazyslide.models import TimmModel
 
-        default_kwargs = dict(pretrained=True, num_classes=0)
-        kwargs = {**default_kwargs, **kwargs}
-
-        model = create_model(model_name, **kwargs)
+        model = TimmModel(model_name, token=token, **kwargs)
 
     return model, model_name
 
 
 # TODO: Test if it's possible to load model files
+# TODO: Add color normalization
 def feature_extraction(
     wsi: WSIData,
-    model: str | Callable = None,
+    model: str | Callable | ImageModel = None,
     model_path: str | Path = None,
     model_name: str = None,
     token: str = None,
     load_kws: dict = None,
     transform: Callable = None,
-    compile: bool = True,
-    compile_kws: dict = None,
     device: str = None,
     tile_key: str = Key.tiles,
     key_added: str = None,
     batch_size: int = 32,
     num_workers: int = 0,
-    mode: str = "batch",  # "batch" or "chunk"
     pbar: bool = True,
     return_features: bool = False,
     **kwargs,
@@ -98,7 +99,7 @@ def feature_extraction(
         The model used for image feature extraction.
         Built-in foundation models include:
 
-        - 'uni': UNI model from Mahmood Lab.
+        - 'uni'/'uni2': UNI model from Mahmood Lab.
         - 'conch': CONCH model from Mahmood Lab for text-image co-embedding.
         - 'conch_vision': CONCH model for only vision task.
         - 'gigapath': GigaPath model from Microsoft.
@@ -125,10 +126,6 @@ def feature_extraction(
     transform : callable, optional
         The transform function for the input image.
         If not provided, a default ImageNet transform function will be used.
-    compile : bool, default: True
-        Whether to compile the model for faster inference.
-    compile_kws : dict, optional
-        Options to pass to the :class:`torch.compile` function.
     device : str, optional
         The device to use for inference. If not provided, the device will be automatically selected.
     tile_key : str, default: 'tiles'
@@ -140,9 +137,6 @@ def feature_extraction(
     num_workers : int, optional
         - mode='batch', The number of workers for data loading.
         - mode='chunk', The number of workers for parallel inference.
-    mode : {'batch', 'chunk'}, default: 'batch'
-        - 'batch': The data loader will load the data in batches. Only one model instance is launched.
-        - 'chunk': Multiple model instances are launched for parallel inference. This mode is only available for CPU.
     pbar : bool, default: True
         Whether to show progress bar.
     return_features : bool, default: False
@@ -178,6 +172,9 @@ def feature_extraction(
             )
             if model_name is None:
                 model_name = default_model_name
+        elif isinstance(model, ImageModel):
+            model = model
+            model_name = model.name
         else:
             raise ValueError("Model must be a model name or a model object.")
     else:
@@ -196,6 +193,8 @@ def feature_extraction(
     if key_added is None:
         if model_name is not None:
             key_added = model_name
+        elif isinstance(model, ImageModel):
+            key_added = model.name
         elif hasattr(model, "__class__"):
             key_added = model.__class__.__name__
         elif hasattr(model, "__name__"):
@@ -204,20 +203,8 @@ def feature_extraction(
             key_added = "features"
         key_added = Key.feature(key_added, tile_key)
 
-    if compile:
-        try:
-            compile_kws = {} if compile_kws is None else compile_kws
-            torch.compile(model, **compile_kws)
-        except Exception as _:  # noqa: E722
-            warnings.warn(
-                "Failed to compile the model.",
-                RuntimeWarning,
-                stacklevel=find_stack_level(),
-            )
-
     try:
         model = model.to(device)
-        model.eval()
     except:  # noqa: E722
         pass
 
@@ -232,75 +219,32 @@ def feature_extraction(
     with default_pbar(disable=not pbar) as progress_bar:
         task = progress_bar.add_task("Extracting features", total=n_tiles)
 
-        if mode == "chunk":
-            device = torch.device(device)
-            # Check if device is CPU
-            if device.type != "cpu":
-                raise RuntimeError(
-                    "Chunk mode should only used on CPU-based inference."
-                )
-            if num_workers == 0:
-                num_workers = 1
-
-            with Manager() as manager:
-                queue = manager.Queue()
-
-                with ProcessPoolExecutor(max_workers=num_workers) as executor:
-                    wsi.reader.detach_reader()
-                    chunks = chunker(np.arange(n_tiles), num_workers)
-                    dataset = wsi.ds.tile_images(tile_key=tile_key, transform=transform)
-                    futures = [
-                        executor.submit(_inference, dataset, chunk, model, queue)
-                        for chunk in chunks
-                    ]
-                    while any(future.running() for future in futures):
-                        if queue.empty():
-                            continue
-                        _ = queue.get()
-                        progress_bar.update(task, advance=1)
-
-                    features = []
-                    for f in futures:
-                        features += f.result()
-                    features = np.vstack(features)
-
-        else:
-            dataset = wsi.ds.tile_images(tile_key=tile_key, transform=transform)
-            loader = DataLoader(
-                dataset, batch_size=batch_size, num_workers=num_workers, **kwargs
-            )
-            # Extract features
-            features = []
-            with torch.inference_mode():
-                for batch in loader:
-                    image = batch["image"].to(device)
+        dataset = wsi.ds.tile_images(tile_key=tile_key, transform=transform)
+        loader = DataLoader(
+            dataset, batch_size=batch_size, num_workers=num_workers, **kwargs
+        )
+        # Extract features
+        features = []
+        with torch.inference_mode():
+            for batch in loader:
+                image = batch["image"].to(device)
+                if isinstance(model, ImageModel):
+                    output = model.encode_image(image)
+                else:
                     output = model(image)
-                    features.append(output.cpu().numpy())
-                    progress_bar.update(task, advance=len(image))
-                    del batch  # Free up memory
-            # The progress bar may not reach 100% if exit too early
-            # Force update
-            progress_bar.refresh()
-            features = np.vstack(features)
+                if not isinstance(output, np.ndarray):
+                    output = output.cpu().numpy()
+                features.append(output)
+                progress_bar.update(task, advance=len(image))
+                del batch  # Free up memory
+        # The progress bar may not reach 100% if exit too early
+        # Force update
+        progress_bar.refresh()
+        features = np.vstack(features)
 
     add_features(wsi, key=key_added, tile_key=tile_key, features=features)
     if return_features:
         return features
-
-
-def _inference(dataset, chunk, model, queue):
-    import torch
-
-    with torch.inference_mode():
-        X = []
-        for c in chunk:
-            img = dataset[c]["image"]
-            # image to 4d
-            img = img.unsqueeze(0)
-            output = model(img)
-            X.append(output.detach().cpu().numpy())
-            queue.put(1)
-    return X
 
 
 def feature_aggregation(
@@ -374,10 +318,12 @@ def _encode_slide(features, encoder, coords=None):
     elif encoder == "median":
         agg_features = np.median(features, axis=0)
     elif encoder == "gigapath":
-        from lazyslide.models import GigaPathSlideEncoder
+        from lazyslide.models.vision import GigaPathSlideEncoder
 
         encoder = GigaPathSlideEncoder()
-        agg_features = encoder(features, coords)
+        fs = torch.tensor(features).unsqueeze(0)
+        cs = torch.tensor(coords.values).unsqueeze(0)
+        agg_features = encoder.encode_slide(fs, cs)
     elif callable(encoder):
         agg_features = encoder(features)
     else:

@@ -16,7 +16,7 @@ def test_pp_find_tissues(wsi, detect_holes, key_added):
 
 class TestPPTileTissues:
     def test_create_tiles(self):
-        from lazyslide._preprocess._tiles import create_tiles
+        from lazyslide.preprocess._tiles import create_tiles
 
         image_shape = (1000, 1050)
 

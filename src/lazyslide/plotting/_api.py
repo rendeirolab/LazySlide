@@ -97,7 +97,7 @@ def tissue(
     )
     viewer.add_image()
 
-    if tissue_key is not None:
+    if tissue_key in wsi:
         if show_contours:
             viewer.add_contours(
                 key=tissue_key,
@@ -200,7 +200,7 @@ def tiles(
     rasterized : bool, default: False
         Rasterize the points.
     kwargs : dict
-        Additional keyword arguments for _plotting.
+        Additional keyword arguments for plotting.
 
     Examples
     --------

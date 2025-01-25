@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 import pandas as pd
 from lazyslide._const import Key
-from lazyslide._preprocess._utils import get_scorer, Scorer
+from lazyslide.preprocess._utils import get_scorer, Scorer
 from lazyslide._utils import default_pbar, chunker, find_stack_level
 from numba import njit, prange
 from wsidata import WSIData, TileSpec
@@ -191,13 +191,12 @@ def tile_tissues(
         )
 
 
-def tiles_qc(
+def score_tiles(
     wsi: WSIData,
     scorers: Scorer | Sequence[Scorer] = None,
     num_workers: int = 1,
     pbar: bool = True,
     tile_key: str = Key.tiles,
-    qc_key: str = Key.tile_qc,
 ):
     """
     Score the tiles and filter the tiles based on their quality scores.
@@ -219,8 +218,6 @@ def tiles_qc(
         Whether to show the progress bar or not.
     tile_key : str, default: 'tiles'
         The key of the tiles in the :bdg-danger:`shapes` slot.
-    qc_key : str, default: 'qc'
-        The key in the tiles dataframe indicates if a tile passed qc.
 
     Returns
     -------
@@ -235,7 +232,7 @@ def tiles_qc(
         >>> wsi = open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
         >>> zs.pp.find_tissues(wsi)
         >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
-        >>> zs.pp.tiles_qc(wsi, scorers=["focus", "contrast"])
+        >>> zs.pp.score_tiles(wsi, scorers=["focus", "contrast"])
         >>> wsi['tiles'].head(n=2)
 
     """
@@ -292,7 +289,7 @@ def tiles_qc(
                         qc.extend(chunk_qc)
         progress_bar.refresh()
 
-    scores = pd.DataFrame(scores).assign(**{qc_key: qc})
+    scores = pd.DataFrame(scores)  # .assign(**{qc_key: qc})
     update_shapes_data(wsi, key=tile_key, data=scores)
 
 

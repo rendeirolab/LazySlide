@@ -5,29 +5,73 @@ import warnings
 from concurrent.futures import ProcessPoolExecutor
 from typing import Sequence
 
+import cv2
 import numpy as np
 import pandas as pd
 import psutil
-from shapely import Polygon, MultiPolygon
-from shapely.affinity import translate
+from lazyslide.cv.mask import BinaryMask
+from lazyslide.cv.transform import (
+    ArtifactFilterThreshold,
+    BinaryThreshold,
+    MedianBlur,
+    MorphClose,
+    Compose,
+)
+from shapely import Polygon
+from shapely.affinity import translate, scale
 from wsidata import WSIData
 from wsidata.io import add_tissues, update_shapes_data
 
 from ._utils import get_scorer, Scorer
 from .._const import Key
-from .._cv.transform import TissueDetectionHE
 from .._utils import default_pbar, find_stack_level
+
+
+def _tissue_mask(
+    image,
+    to_hsv,
+    filter_artifacts: bool = True,
+    blur_ksize: int = 17,
+    threshold: int = 7,
+    morph_ksize: int = 7,
+    morph_n_iter: int = 3,
+):
+    # Process image
+    if not filter_artifacts:
+        if to_hsv:
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)[:, :, 1]
+        else:
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+
+    # Decider the thresher
+    if filter_artifacts:
+        thresher = ArtifactFilterThreshold(threshold=threshold)
+    else:
+        if threshold is None:
+            thresher = BinaryThreshold(use_otsu=True)
+        else:
+            thresher = BinaryThreshold(use_otsu=False, threshold=threshold)
+
+    c = Compose(
+        [
+            MedianBlur(kernel_size=blur_ksize),
+            thresher,
+            # MorphOpen(kernel_size=morph_ksize, n_iterations=morph_n_iter),
+            MorphClose(kernel_size=morph_ksize, n_iterations=morph_n_iter),
+        ]
+    )
+    return c.apply(image)
 
 
 def find_tissues(
     wsi: WSIData,
     level: int | str = "auto",
     refine_level: int | str | None = None,
-    use_saturation: bool = False,
+    to_hsv: bool = False,
     blur_ksize: int = 17,
     threshold: int = 7,
     morph_n_iter: int = 3,
-    morph_k_size: int = 7,
+    morph_ksize: int = 7,
     min_tissue_area: float = 1e-3,
     min_hole_area: float = 1e-5,
     detect_holes: bool = True,
@@ -100,78 +144,91 @@ def find_tissues(
 
     level = _decide_level(wsi, level, proportion)
     # Set the segmentation options
-    seg_options = dict(
-        use_saturation=use_saturation,
-        blur_ksize=blur_ksize,
-        threshold=threshold,
-        morph_n_iter=morph_n_iter,
-        morph_k_size=morph_k_size,
-        min_tissue_area=min_tissue_area,
-        min_hole_area=min_hole_area,
-        filter_artifacts=filter_artifacts,
-    )
 
     # Run the first segmentation
-    seg = TissueDetectionHE(detect_holes=detect_holes_1, **seg_options)
-    image = wsi.reader.get_level(level)
-    tissue_instances = seg.apply(image)
-    if len(tissue_instances) == 0:
-        logging.warning("No tissue is found.")
+    mask_option = dict(
+        to_hsv=to_hsv,
+        filter_artifacts=filter_artifacts,
+        blur_ksize=blur_ksize,
+        threshold=threshold,
+        morph_ksize=morph_ksize,
+        morph_n_iter=morph_n_iter,
+    )
+    to_poly_option = dict(
+        min_area=min_tissue_area,
+        min_hole_area=min_hole_area,
+    )
+    tissue_image = wsi.reader.get_level(level)
+    tissue_mask = _tissue_mask(tissue_image, **mask_option)
+    tissue_polys = BinaryMask(tissue_mask).to_polygons(
+        **to_poly_option, detect_holes=detect_holes_1
+    )
+
+    if len(tissue_polys) == 0:
+        logging.warning("No tissue is found.", stacklevel=find_stack_level())
         return False
 
-    downsample = _get_downsample(wsi, level)
-
     tissues = []
-    if refine_level is None:
-        # Do not refine the tissue polygons
-        for tissue in tissue_instances:
-            tissues.append(_tissue_instance2poly(tissue, downsample))
-    else:
-        # Refine the tissue polygons at a higher resolution level
-        if len(tissue_instances) == 0:
-            logging.warning("No tissue is found.", stacklevel=find_stack_level())
-            return False
+    downsample = _get_downsample(wsi, level)
+    for tissue in tissue_polys:
+        # Scale it back to level 0
+        tissue = scale(tissue, xfact=downsample, yfact=downsample, origin=(0, 0))
+        tissues.append(tissue)
 
-        seg = TissueDetectionHE(detect_holes=detect_holes, **seg_options)
-        for tissue in tissue_instances:
+    if refine_level:
+        # Refine the tissue polygons at a higher resolution level
+        refine_tissues = []
+        for tissue_poly in tissues:
             # Tissue polygon at the highest resolution level
-            tissue_poly = Polygon(tissue.contour * downsample)
-            bbox = tissue_poly.bounds
-            xmin, ymin, xmax, ymax = bbox
+            xmin, ymin, xmax, ymax = tissue_poly.buffer(10).bounds
             width, height = xmax - xmin, ymax - ymin
 
             level = _decide_level(wsi, refine_level)
             refine_downsample = _get_downsample(wsi, level)
 
             image = wsi.reader.get_region(xmin, ymin, width, height, level=level)
-            refine_tissue_instances = seg.apply(image)
-            for refine_tissue in refine_tissue_instances:
-                refine_poly = _tissue_instance2poly(
-                    refine_tissue, refine_downsample, xoff=xmin, yoff=ymin
+            tissue_mask = _tissue_mask(image, **mask_option)
+            tissue_polys = BinaryMask(tissue_mask).to_polygons(
+                **to_poly_option, detect_holes=detect_holes
+            )
+
+            for tissue in tissue_polys:
+                tissue = scale(
+                    tissue,
+                    xfact=refine_downsample,
+                    yfact=refine_downsample,
+                    origin=(0, 0),
                 )
-
-                if not refine_poly.is_valid:
-                    refine_poly = refine_poly.buffer(0)
-                if isinstance(refine_poly, MultiPolygon):
-                    geoms = refine_poly.geoms
-                    areas = [geom.area for geom in geoms]
-                    refine_poly = geoms[np.argmax(areas)]
-
-                if refine_poly.is_valid:
-                    # Check if the refined tissue region intersects with the original tissue region
-                    if refine_poly.intersects(tissue_poly):
-                        tissues.append(refine_poly)
+                tissue = translate(tissue, xoff=xmin, yoff=ymin)
+                refine_tissues.append(tissue)
+            # refine_tissue_instances = seg.apply(image)
+            # for refine_tissue in refine_tissue_instances:
+            #     refine_poly = _tissue_instance2poly(
+            #         refine_tissue, refine_downsample, xoff=xmin, yoff=ymin
+            #     )
+            #
+            #     if not refine_poly.is_valid:
+            #         refine_poly = refine_poly.buffer(0)
+            #     if isinstance(refine_poly, MultiPolygon):
+            #         geoms = refine_poly.geoms
+            #         areas = [geom.area for geom in geoms]
+            #         refine_poly = geoms[np.argmax(areas)]
+            #
+            #     if refine_poly.is_valid:
+            #         # Check if the refined tissue region intersects with the original tissue region
+            #         if refine_poly.intersects(tissue_poly):
+            #             tissues.append(refine_poly)
+        tissues = refine_tissues
 
     add_tissues(wsi, key=key_added, tissues=tissues)
 
 
-def tissues_qc(
+def score_tissues(
     wsi: WSIData,
     scores: Scorer | Sequence[Scorer] = None,
     num_workers: int = 1,
     pbar: bool = False,
     tissue_key: str = Key.tissue,
-    qc_key: str = Key.tissue_qc,
 ):
     """Score tissue regions in the WSI for QC
 
@@ -191,8 +248,6 @@ def tissues_qc(
         Show progress bar.
     tissue_key : str, optional, default: 'tissue'
         Key of the tissue data in the :bdg-danger:`shapes` slot.
-    qc_key : str, optional, default: 'qc'
-        The key in the tissue dataframe indicates if a tissue passed qc.
 
     Examples
     --------
@@ -203,7 +258,7 @@ def tissues_qc(
         >>> import lazyslide as zs
         >>> wsi = open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
         >>> zs.pp.find_tissues(wsi)
-        >>> zs.pp.tissues_qc(wsi, ["redness", "brightness"])
+        >>> zs.pp.score_tiles(wsi, ["redness", "brightness"])
         >>> wsi["tissues"]
 
 
@@ -241,7 +296,7 @@ def tissues_qc(
                     progress_bar.update(task, advance=1)
         progress_bar.refresh()
 
-    scores = pd.DataFrame(scores).assign(**{qc_key: qc})
+    scores = pd.DataFrame(scores)  # .assign(**{qc_key: qc})
     update_shapes_data(wsi, key=tissue_key, data=scores)
 
 
