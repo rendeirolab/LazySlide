@@ -1,15 +1,12 @@
-import time
-from concurrent.futures import ProcessPoolExecutor
-
-import numpy as np
 import geopandas as gpd
-from lazyslide.models.base import SegmentationModel
+import numpy as np
 from shapely.affinity import scale, translate
 from torch.utils.data import DataLoader
 from wsidata import WSIData
 from wsidata.io import add_shapes
 
 from lazyslide.cv import PolygonMerger
+from lazyslide.models.base import SegmentationModel
 
 
 def semantic_segmentation(
