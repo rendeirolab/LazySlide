@@ -24,47 +24,53 @@ Instead, create a new branch for your changes and submit a pull request.
     git checkout -b my-new-branch
     ```
 
-3. Create a new environment and install the dependencies
+3. We use [uv](https://docs.astral.sh/uv/) to manage our development environment.
 
     ```bash
-    mamba create -n lazyslide python==3.11
-    conda activate lazyslide
-    mamba install -c conda-forage openslide-python
-    pip install -e '.[dev,all]'
+    uv lock
+    uv run pre-commit install
     ```
    
     We use [pre-commit](https://pre-commit.com/) to run code formatting and linting checks before each commit.
 
-    ```bash
-    pip install pre-commit
-    pre-commit install
-    ```
-
-4. Make your changes
-
-5. (If needed) Add a test case and then run the tests
+4. Start a IPython/Jupyter session
 
     ```bash
-    pytest tests
-    ```
+   uv run --with ipython ipython
+   # or
+   uv run --with jupyter jupyter lab
+   ```
 
-6. (If needed) Update the documentation
+5. Make your changes
+
+6. (If needed) Add a test case and then run the tests
 
     ```bash
-    cd docs
-    make clean html
-    # Launch a local server to view the documentation
-    python -m http.server -d build/html
+    uv run task test
     ```
-    
-    Open your browser and navigate to `http://localhost:8000`
+
+7. (If needed) Update the documentation
+
+   To build the documentation, use:
    
-7. Commit your changes and push them to your fork
+   ```bash
+   # Build doc with cache
+   uv run task doc-build
+   # Fresh build
+   uv run task doc-clean-build
+   ```
+   
+   To serve the documentation, use:
+   
+   ```bash
+   uv run task doc-serve
+   ```
+   
+   This will start a local server at [http://localhost:8000](http://localhost:8000).
 
-8. Submit a pull request
+8. Commit your changes and push them to your fork
 
-
-## How to contribute
+9. Submit a pull request
 
 
 ## How to report bugs

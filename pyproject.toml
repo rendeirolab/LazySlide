@@ -4,64 +4,81 @@ build-backend = "hatchling.build"
 
 [project]
 name = "lazyslide"
-authors = []
-readme = "README.md"
-classifiers = [
-    "License :: OSI Approved :: MIT License",
-]
-requires-python = ">=3.10"
 description = "Modularized and scalable whole slide image analysis"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    {name = "Yimin Zheng", email = "yzheng@cemm.at"},
+    {name = "Ernesto Abila", email = "eabila@cemm.at"},
+    {name = "André F. Rendeiro", email = "arendeiro@cemm.at"},
+]
+keywords = ["histopathology", "whole slide image", "image analysis", "segmentation", "deep learning"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: File Formats",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+Documentation = "https://lazyslide.readthedocs.io"
+repository = "https://github.com/rendeirolab/lazyslide"
 dynamic = ["version"]
-
 dependencies = [
-    "numpy",
-    "pandas",
-    "numba",
+    "wsidata",
+    "numba>=0.61.0",
     "scikit-learn",
     "matplotlib",
     "matplotlib-scalebar",
     "legendkit",
     "rich",
-    "typer",
-    "wsidata",
     "psutil",
-    "cyclopts",
+    "cyclopts>=3.0.0",
     "timm",
+    "torch>=2.0.0",
 ]
-
-[tool.hatch.version]
-path = "src/lazyslide/__init__.py"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/lazyslide"]
-
-[tool.hatch.metadata]
-allow-direct-references = true
 
 [project.optional-dependencies]
 all = [
     "scipy",
     "scanpy",
-    "torch",
     "torchvision",  # >0.15
     "torchstain",
-]
-
-dev = [
-    "hatchling",
-    "sphinx",
-    "pydata-sphinx-theme",
-    "numpydoc",
-    "sphinx_design",
-    "sphinx_copybutton",
-    "sphinx-click",
-    "myst-nb",
-    "pytest",
 ]
 
 # Define entry points
 [project.scripts]
 lazyslide = "lazyslide.__main__:app"
+
+[tool.hatch.version]
+path = "src/lazyslide/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "docs",
+    "data",
+    "assets",
+    "tests",
+    "scripts",
+    ".readthedocs.yaml",
+    ".github",
+    ".gitignore",
+]
+include = [
+    "README.md",
+    "LICENSE",
+    "pyproject.toml",
+    "src/lazyslide",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lazyslide", "README.md", "LICENSE", "pyproject.toml"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.ruff]
 ignore = ["F401"]
@@ -73,3 +90,48 @@ line-length = 88
 
 [tool.mypy]
 ignore_missing_imports = true
+
+[tool.taskipy.tasks]
+hello = "echo Hello, World!"
+test = "pytest tests"
+doc-build = "sphinx-build -b html docs/source docs/build"
+doc-clean-build = "python docs/clean_up.py && sphinx-build -b html docs/source docs/build"
+doc-serve = "python -m http.server -d docs/build"
+fmt = "ruff format docs/source wsidata tests"
+
+[tool.uv]
+default-groups = ["dev", "docs"]
+
+[dependency-groups]
+dev = [
+    "jupyterlab>=4.3.5",
+    "pre-commit>=4.1.0",
+    "pytest>=8.3.4",
+    "ruff>=0.9.4",
+    "taskipy>=1.14.1",
+    "pytest-cov>=6.0.0",
+    "torchvision>=0.21.0",
+    "torchstain>=1.4.1",
+    "pyright>=1.1.393",
+    "matplotlib>=3.10.0",
+    "matplotlib-scalebar>=0.9.0",
+    "scikit-learn>=1.6.1",
+    "scanpy>=1.10.4",
+    "scipy>=1.15.1",
+    "segmentation-models-pytorch>=0.4.0",
+    "albumentations>=2.0.3",
+]
+docs = [
+    "sphinx>=8.1.3",
+    "sphinx-copybutton>=0.5.2",
+    "sphinx-design>=0.6.1",
+    "myst-nb>=1.1.2",
+    "numpydoc>=1.8.0",
+    "pydata-sphinx-theme>=0.16.1",
+    "sphinx>=8.1.3",
+    "sphinx-copybutton>=0.5.2",
+    "sphinx-design>=0.6.1",
+]
+
+[tool.uv.sources]
+wsidata = { git = "https://github.com/rendeirolab/wsidata" }
