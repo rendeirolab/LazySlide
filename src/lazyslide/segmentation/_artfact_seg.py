@@ -1,9 +1,10 @@
 from typing import Literal
 
 import torch
+from wsidata import WSIData
+
 from lazyslide._const import Key
 from lazyslide.models.segmentation import SMPBase
-from wsidata import WSIData
 
 
 class GrandQCArtifactSegmentation(SMPBase):
@@ -14,7 +15,7 @@ class GrandQCArtifactSegmentation(SMPBase):
             "10x": "GrandQC_MPP1.pth",
         }
         weights = self.load_weights(
-            f"https://zenodo.org/records/" f"14041538/files/{weights_map[model]}"
+            f"https://zenodo.org/records/14041538/files/{weights_map[model]}"
         )
 
         super().__init__(

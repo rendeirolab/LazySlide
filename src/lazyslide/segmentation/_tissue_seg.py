@@ -1,20 +1,18 @@
-from typing import Callable
-
 import cv2
 import numpy as np
 import torch
+from wsidata import WSIData
+from wsidata.io import add_tissues
+
 from lazyslide._const import Key
 from lazyslide.cv import BinaryMask
 from lazyslide.models.segmentation import SMPBase
-from lazyslide.models.segmentation.postprocess import semanticseg_postprocess
-from wsidata import WSIData
-from wsidata.io import add_shapes, add_tissues
 
 
 class GrandQCTissueSegmentation(SMPBase):
     def __init__(self):
         weights = self.load_weights(
-            "https://zenodo.org/records/" "14507273/files/Tissue_Detection_MPP10.pth"
+            "https://zenodo.org/records/14507273/files/Tissue_Detection_MPP10.pth"
         )
 
         super().__init__(
@@ -35,7 +33,7 @@ class GrandQCTissueSegmentation(SMPBase):
             return self.model.predict(image)
 
 
-def tissue_segmentation(
+def tissue(
     wsi: WSIData,
     level: int = None,
     chunk: bool = None,
