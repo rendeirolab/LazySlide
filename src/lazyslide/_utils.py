@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import inspect
 import os
-from types import FrameType
 from functools import wraps
+from types import FrameType
 
 from rich.console import Console
 
@@ -40,6 +40,7 @@ def default_pbar(disable=False):
         TimeRemainingColumn(compact=True, elapsed_when_finished=True),
         disable=disable,
         console=console,
+        transient=True,
     )
 
 

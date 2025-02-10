@@ -26,7 +26,7 @@ def thumbnail(wsi: WSIData, ax=None):
         :context: close-figs
 
         >>> import lazyslide as zs
-        >>> wsi = zs.open_wsi("")
+        >>> wsi = zs.open_wsi("sample.svs")
 
 
     """
@@ -83,8 +83,7 @@ def tissue(
         :context: close-figs
 
         >>> import lazyslide as zs
-        >>> wsi = zs.open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
-        >>> zs.pp.find_tissues(wsi)
+        >>> wsi = zs.open_wsi("sample.svs")
         >>> zs.pl.tissue(wsi)
 
     """
@@ -209,10 +208,10 @@ def tiles(
         :context: close-figs
 
         >>> import lazyslide as zs
-        >>> wsi = zs.open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
+        >>> wsi = zs.open_wsi("sample.svs")
         >>> zs.pp.find_tissues(wsi)
         >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
-        >>> zs.pp.tiles_qc(wsi, scorers=["contrast"])
+        >>> zs.pp.score_tiles(wsi, scorers=["contrast"])
         >>> zs.pl.tiles(wsi, tissue_id=0, color='contrast')
 
     """

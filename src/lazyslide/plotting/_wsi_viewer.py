@@ -510,6 +510,15 @@ class PolygonMixin(RenderPlan):
             bbox=dict(facecolor=box_color, pad=2, lw=1),
         )
         options.update(kwargs)
+        # Check if patch is inside the axis limits
+        xrange = np.sort(ax.get_xlim())
+        yrange = np.sort(ax.get_ylim())
+        extent = patch.get_extents()
+        extent = patch.get_transform().inverted().transform_bbox(extent)
+        in_x = extent.x0 >= xrange[0] and extent.x1 <= xrange[1]
+        in_y = extent.y0 >= yrange[0] and extent.y1 <= yrange[1]
+        if not in_x or not in_y:
+            return
         ax.annotate(name, (0.5, 1 + pad), xycoords=patch, **options)
 
     @staticmethod
@@ -1285,7 +1294,7 @@ class WSIViewer:
                     "tissue_id will be ignored.",
                     stacklevel=find_stack_level(),
                 )
-
+        # TODO: Support (0-1) range
         viewport = self._get_viewport(xmin, ymin, xmax - xmin, ymax - ymin)
         self.zoom_image_source = ImageDataSource(self.wsi.reader)
         self.zoom_image_source.set_viewport(viewport)

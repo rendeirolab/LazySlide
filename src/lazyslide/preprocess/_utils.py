@@ -12,7 +12,6 @@ def get_scorer(scorers):
         FocusLite,
         Contrast,
         Brightness,
-        SplitRGB,
         Redness,
     )
 

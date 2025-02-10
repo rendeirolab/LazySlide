@@ -1,4 +1,3 @@
-import torch
 from lazyslide.models import ImageModel
 
 

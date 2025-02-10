@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Callable
+from typing import List
 
 from geopandas import GeoDataFrame
-from shapely import Polygon
-
-from lazyslide._const import Key
 from wsidata import WSIData
 from wsidata.io import update_shapes_data, add_shapes
+
+from lazyslide._const import Key
 
 
 def load_annotations(

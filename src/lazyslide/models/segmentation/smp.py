@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Callable
 
 import torch
+
 from lazyslide.models import SegmentationModel
 from lazyslide.models.segmentation.postprocess import semanticseg_postprocess
 
@@ -39,7 +40,6 @@ class SMPBase(SegmentationModel):
         )
 
     def get_transform(self):
-        import segmentation_models_pytorch as smp
         from torchvision.transforms.v2 import Compose, ToImage, ToDtype, Normalize
 
         # default_fn = smp.encoders.get_preprocessing_fn(
@@ -55,5 +55,29 @@ class SMPBase(SegmentationModel):
             ]
         )
 
-    def get_postprocess_fn(self) -> Callable:
+    def get_postprocess(self) -> Callable:
         return semanticseg_postprocess
+
+
+class GrandQCTissueSegmentation(SMPBase):
+    def __init__(self):
+        weights = self.load_weights(
+            "https://zenodo.org/records/14507273/files/Tissue_Detection_MPP10.pth"
+        )
+
+        super().__init__(
+            arch="unetplusplus",
+            encoder_name="timm-efficientnet-b0",
+            encoder_weights="imagenet",
+            in_channels=3,
+            classes=2,
+            activation=None,
+        )
+        self.model.load_state_dict(
+            torch.load(weights, map_location=torch.device("cpu"))
+        )
+        self.model.eval()
+
+    def segment(self, image):
+        with torch.inference_mode():
+            return self.model.predict(image)

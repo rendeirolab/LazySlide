@@ -1,11 +1,8 @@
-from typing import Literal
-
 import numpy as np
-import pandas as pd
-from lazyslide._const import Key
-from rich.progress import track
 from wsidata import WSIData
 from wsidata.io import update_shapes_data, add_shapes
+
+from lazyslide._const import Key
 
 
 def spatial_domain(
@@ -21,7 +18,7 @@ def spatial_domain(
         import scanpy as sc
     except ImportError:
         raise ImportError(
-            "Please install scanpy to use this function, " "try `pip install scanpy`."
+            "Please install scanpy to use this function, try `pip install scanpy`."
         )
     feature_key = wsi._check_feature_key(feature_key, tile_key)
     adata = wsi.fetch.features_anndata(feature_key, tile_key, tile_graph=False)
@@ -32,10 +29,10 @@ def spatial_domain(
     update_shapes_data(wsi, tile_key, {key_added: adata.obs[key_added].to_numpy()})
 
 
-def domain_to_shapes(
+def tile_shaper(
     wsi: WSIData,
+    name_key: str = "domain",
     tile_key: str = Key.tiles,
-    domain_key: str = "domain",
     key_added: str = "domain_shapes",
 ):
     import geopandas as gpd
@@ -50,7 +47,7 @@ def domain_to_shapes(
 
     # To avoid large memory allocation of mask, get domain in each tissue
     for _, tissue_group in tile_table.groupby("tissue_id"):
-        for name, group in tissue_group.groupby(domain_key):
+        for name, group in tissue_group.groupby(name_key):
             bounds = (group.bounds / spec.base_height).astype(int)
             minx, miny, maxx, maxy = (
                 bounds["minx"].min(),
@@ -80,6 +77,6 @@ def domain_to_shapes(
             for poly in polys:
                 result.append([name, poly])
 
-    domain_shapes = gpd.GeoDataFrame(data=result, columns=[domain_key, "geometry"])
+    domain_shapes = gpd.GeoDataFrame(data=result, columns=[name_key, "geometry"])
     add_shapes(wsi, key_added, domain_shapes)
     return domain_shapes

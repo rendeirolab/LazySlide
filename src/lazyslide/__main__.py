@@ -8,6 +8,7 @@ from cyclopts import App, Parameter, validators
 from rich import print
 
 warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 app = App(
     name="lazyslide",

@@ -1,7 +1,7 @@
 import numpy as np
+from wsidata import WSIData
 
 from lazyslide._const import Key
-from wsidata import WSIData
 
 
 def feature_utag(

@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import zipfile
 from typing import Callable
-from urllib.request import urlretrieve
 
 import numpy as np
 import pandas as pd
 import torch
+
 from lazyslide.models.base import SegmentationModel
 from .postprocess import cellseg_postprocess
-from platformdirs import user_cache_path
 
 
 def instanseg_preprocess(image: np.ndarray) -> torch.Tensor:
@@ -58,5 +57,5 @@ class Instanseg(SegmentationModel):
             out = self.model(image)
         return out.cpu().numpy().astype(np.int32)
 
-    def get_postprocess_fn(self) -> Callable | None:
+    def get_postprocess(self) -> Callable | None:
         return cellseg_postprocess

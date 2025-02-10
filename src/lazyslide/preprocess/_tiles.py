@@ -3,19 +3,19 @@ from __future__ import annotations
 import warnings
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import Manager
-from numbers import Integral
 from typing import Sequence, Literal
 
 import cv2
 import numpy as np
 import pandas as pd
-from lazyslide._const import Key
-from lazyslide.preprocess._utils import get_scorer, Scorer
-from lazyslide._utils import default_pbar, chunker, find_stack_level
 from numba import njit, prange
 from wsidata import WSIData, TileSpec
 from wsidata.io import add_tiles, update_shapes_data
 from wsidata.reader import ReaderBase
+
+from lazyslide._const import Key
+from lazyslide._utils import default_pbar, chunker, find_stack_level
+from lazyslide.preprocess._utils import get_scorer, Scorer
 
 
 def tile_tissues(
@@ -80,7 +80,7 @@ def tile_tissues(
 
         >>> from wsidata import open_wsi
         >>> import lazyslide as zs
-        >>> wsi = open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
+        >>> wsi = open_wsi("sample.svs")
         >>> zs.pp.find_tissues(wsi)
         >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
         >>> zs.pl.tiles(wsi, tissue_id=0)

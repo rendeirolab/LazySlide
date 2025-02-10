@@ -1,9 +1,9 @@
 from itertools import cycle
 
 from wsidata import WSIData
+
 from lazyslide._const import Key
 from ._api import tiles, tissue
-
 from ._viewer import ADOBE_SPECTRUM
 
 

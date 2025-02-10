@@ -1,3 +1,5 @@
+import cv2
+import geopandas as gpd
 import numpy as np
 
 
@@ -52,28 +54,42 @@ def cellseg_postprocess(
 
         cells.append(cell)
 
-    container = {"polygons": cells}
+    container = {"geometry": cells}
     if len(names) > 0:
         container["names"] = names
     if len(features) > 0:
         container["features"] = np.vstack(features)
 
-    return container
+    return gpd.GeoDataFrame(container)
 
 
 def semanticseg_postprocess(
-    mask: np.ndarray,
+    prob_mask: np.ndarray,
+    threshold: float = 0.5,
     skip_bg: bool = True,
+    min_area: int = 5,
 ):
     from lazyslide.cv import MultiClassMask
 
+    mask = (prob_mask > threshold).astype(np.uint8)
     mask = MultiClassMask(mask)
-    polys = mask.to_polygons()
+    polys = mask.to_polygons(min_area=5)
     domains = []
     names = []
+    probs = []
     for k, vs in polys.items():
         for v in vs:
             domains.append(v)
             names.append(k)
+            empty_mask = np.zeros_like(prob_mask[0])
+            cv2.drawContours(
+                empty_mask,
+                [np.array(v.exterior.coords).astype(np.int32)],
+                -1,
+                1,
+                thickness=cv2.FILLED,
+            )
+            prob = prob_mask[k][empty_mask == 1].mean()
+            probs.append(prob)
 
-    return {"polygons": domains, "names": names}
+    return gpd.GeoDataFrame({"geometry": domains, "name": names, "prob": probs})

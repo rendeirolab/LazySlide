@@ -9,6 +9,11 @@ import cv2
 import numpy as np
 import pandas as pd
 import psutil
+from shapely import Polygon
+from shapely.affinity import translate, scale
+from wsidata import WSIData
+from wsidata.io import add_tissues, update_shapes_data
+
 from lazyslide.cv.mask import BinaryMask
 from lazyslide.cv.transform import (
     ArtifactFilterThreshold,
@@ -17,11 +22,6 @@ from lazyslide.cv.transform import (
     MorphClose,
     Compose,
 )
-from shapely import Polygon
-from shapely.affinity import translate, scale
-from wsidata import WSIData
-from wsidata.io import add_tissues, update_shapes_data
-
 from ._utils import get_scorer, Scorer
 from .._const import Key
 from .._utils import default_pbar, find_stack_level
@@ -128,7 +128,7 @@ def find_tissues(
 
         >>> from wsidata import open_wsi
         >>> import lazyslide as zs
-        >>> wsi = open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
+        >>> wsi = open_wsi("sample.svs")
         >>> zs.pp.find_tissues(wsi)
         >>> zs.pl.tissue(wsi)
 

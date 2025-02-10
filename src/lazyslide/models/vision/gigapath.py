@@ -1,11 +1,8 @@
-import os
-import warnings
-
-import torch
 import timm
-from huggingface_hub import login, hf_hub_download
-from lazyslide.models.base import SlideEncoderModel, TimmModel
+from huggingface_hub import login
 from platformdirs import user_cache_path
+
+from lazyslide.models.base import SlideEncoderModel, TimmModel
 
 
 class GigaPath(TimmModel):

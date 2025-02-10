@@ -5,17 +5,17 @@ from itertools import chain
 
 import numpy as np
 import pandas as pd
-from numba import njit
 from anndata import AnnData
+from numba import njit
 from scipy.sparse import csr_matrix, spmatrix, isspmatrix_csr, SparseEfficiencyWarning
 from scipy.spatial import Delaunay
 from sklearn.metrics import euclidean_distances
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
-
 from wsidata import WSIData
-from lazyslide._const import Key
 from wsidata.io import add_table
+
+from lazyslide._const import Key
 
 
 def tile_graph(

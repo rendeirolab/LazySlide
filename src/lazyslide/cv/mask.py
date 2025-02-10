@@ -1,4 +1,4 @@
-from typing import Sequence, NamedTuple, Self, Dict, Literal
+from typing import Sequence, Dict
 
 import cv2
 import numpy as np
@@ -30,7 +30,7 @@ class Mask:
         raise NotImplementedError()
 
     @classmethod
-    def from_array(cls, mask) -> Self:
+    def from_array(cls, mask):
         mask = np.asarray(mask)
         format = cls._detect_format(mask)
         if format == "binary":

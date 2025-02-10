@@ -1,5 +1,6 @@
 import timm
 import torch
+
 from lazyslide.models.base import TimmModel
 
 

@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-import warnings
-from concurrent.futures import ProcessPoolExecutor
-from multiprocessing import Manager
 from pathlib import Path
 from typing import Callable
 
 import numpy as np
 import torch
-from lazyslide._const import Key
-from lazyslide._utils import default_pbar, chunker, get_torch_device, find_stack_level
-from lazyslide.models import ImageModel
 from wsidata import WSIData
 from wsidata.io import add_features, add_agg_features
+
+from lazyslide._const import Key
+from lazyslide._utils import default_pbar, get_torch_device
+from lazyslide.models import ImageModel
 
 
 def get_default_transform():

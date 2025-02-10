@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Callable, Mapping
+from pathlib import Path
+from typing import Callable
 
 import numpy as np
 import timm
@@ -23,7 +24,7 @@ class ModelBase:
 
     @staticmethod
     def load_weights(url, progress=True):
-        return download_cached_file(url, progress=progress)
+        return Path(download_cached_file(url, progress=progress))
 
 
 class ImageModel(ModelBase):
@@ -111,5 +112,5 @@ class SegmentationModel(ModelBase):
     def segment(self, image):
         raise NotImplementedError
 
-    def get_postprocess_fn(self) -> Callable | None:
+    def get_postprocess(self) -> Callable | None:
         return None

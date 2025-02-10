@@ -2,10 +2,10 @@ from typing import List, Literal
 
 import numpy as np
 import pandas as pd
-
-from lazyslide._const import Key
 from wsidata import WSIData
 from wsidata.io import add_features
+
+from lazyslide._const import Key
 
 
 def text_embedding(

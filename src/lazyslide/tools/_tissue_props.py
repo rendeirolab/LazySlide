@@ -1,12 +1,12 @@
-import cv2
-import numpy as np
 from functools import cached_property
 
+import cv2
+import numpy as np
 import pandas as pd
-
 from wsidata import WSIData
-from lazyslide._const import Key
 from wsidata.io import update_shapes_data
+
+from lazyslide._const import Key
 
 
 def point2shape(
