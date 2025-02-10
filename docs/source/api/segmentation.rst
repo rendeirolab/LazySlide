@@ -1,5 +1,5 @@
-Plotting: :code:`pl`
---------------------
+Segmentation
+------------
 
 .. currentmodule:: lazyslide
 
@@ -7,6 +7,6 @@ Plotting: :code:`pl`
     :toctree: _autogen
     :nosignatures:
 
-    pl.tissue
-    pl.tiles
-    pl.WSIViewer
+    seg.cells
+    seg.semantic
+    seg.tissue

@@ -1,4 +1,4 @@
 Nextflow Usage
 ==============
 
-How to run lazyslide in a nextflow pipeline.
+Please see `LazySlide-nextflow <https://github.com/rendeirolab/LazySlide-nextflow>_`

@@ -50,17 +50,3 @@ Multi-Modal Analysis
 
     tl.text_embedding
     tl.text_image_similarity
-
-
-Integration of Omics Data
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. currentmodule:: lazyslide
-
-.. autosummary::
-    :toctree: _autogen
-    :nosignatures:
-
-    tl.signatures
-    tl.score
-    tl.associate

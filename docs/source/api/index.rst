@@ -8,7 +8,10 @@ API Reference
     preprocess
     tools
     plotting
+    segmentation
     models
+    cv
+    io
 
 .. grid:: 1 2 2 2
    :gutter: 2
@@ -31,8 +34,26 @@ API Reference
 
       Plotting functions for WSI
 
+   .. grid-item-card:: Segmentation
+      :link: segmentation
+      :link-type: doc
+
+      Segmentation tasks on WSI
+
    .. grid-item-card:: Models
       :link: models
       :link-type: doc
 
       Models for WSI analysis
+
+   .. grid-item-card:: Computer Vision
+      :link: cv
+      :link-type: doc
+
+      Computer Vision utilities for WSI
+
+   .. grid-item-card:: IO
+      :link: io
+      :link-type: doc
+
+      IO for annotations

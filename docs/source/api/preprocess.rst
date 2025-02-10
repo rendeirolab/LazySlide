@@ -8,8 +8,7 @@ Preprocessing: :code:`pp`
     :nosignatures:
 
     pp.find_tissues
-    pp.tissues_qc
+    pp.score_tissues
     pp.tile_tissues
-    pp.tiles_qc
+    pp.score_tiles
     pp.tile_graph
-    pp.load_annotations

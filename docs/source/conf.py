@@ -2,7 +2,6 @@ from datetime import datetime
 
 import lazyslide
 
-
 project = "LazySlide"
 copyright = f"{datetime.now().year}, Rendeiro Lab"
 author = "LazySlide Contributors"
@@ -20,12 +19,18 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx_design",
     "sphinx_copybutton",
-    "sphinx_click",
     "myst_nb",
 ]
 autoclass_content = "class"
 autodoc_docstring_signature = True
-autodoc_default_options = {"members": None, "undoc-members": None}
+autodoc_default_options = {
+    "members": True,
+    "show-inheritance": True,
+    "no-undoc-members": True,
+    "special-members": "__call__",
+    "exclude-members": "__init__, __weakref__",
+    "class-doc-from": "class",
+}
 autodoc_typehints = "none"
 # setting autosummary
 autosummary_generate = True

@@ -1,5 +1,5 @@
-Plotting: :code:`pl`
---------------------
+IO
+--
 
 .. currentmodule:: lazyslide
 
@@ -7,6 +7,5 @@ Plotting: :code:`pl`
     :toctree: _autogen
     :nosignatures:
 
-    pl.tissue
-    pl.tiles
-    pl.WSIViewer
+    io.load_annotations
+    io.export_annotations
