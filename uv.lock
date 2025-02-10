@@ -1871,7 +1871,7 @@ requires-dist = [
     { name = "torch", specifier = ">=2.0.0" },
     { name = "torchstain", marker = "extra == 'all'", specifier = ">=1.4.1" },
     { name = "torchvision", marker = "extra == 'all'", specifier = ">=0.15" },
-    { name = "wsidata", git = "https://github.com/rendeirolab/wsidata" },
+    { name = "wsidata", specifier = ">=0.3.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -5192,7 +5192,7 @@ wheels = [
 [[package]]
 name = "wsidata"
 version = "0.3.0"
-source = { git = "https://github.com/rendeirolab/wsidata#fcb99a5df85453dd1dc6d4b8a1a55c4ad6cf20bc" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numba" },
     { name = "opencv-python-headless" },
@@ -5202,6 +5202,10 @@ dependencies = [
     { name = "spatialdata" },
     { name = "tiffslide" },
     { name = "torch" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/eb/a1/91a7ab7315c4184949931dc092a418ae88f30944622aa073fd00e5fa0291/wsidata-0.3.0.tar.gz", hash = "sha256:1814a811e01b30c9624d9ccc2047d49b722b541844d3a7066221d2abb6ac489c", size = 31589 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dc/32/38daffbeb4f94efc8fd38fc479e0df65083f0a7b9de881651ca70685e265/wsidata-0.3.0-py3-none-any.whl", hash = "sha256:5ccc8d3821e16453d263cd619c97ce3a3238d8a14ba976c268f67fd69012379f", size = 41554 },
 ]
 
 [[package]]
