@@ -4,13 +4,13 @@ on:
   push:
     paths:
       - '.github/**'
-      - 'lazyslide/**'
+      - 'src/lazyslide/**'
       - 'tests/**'
       - 'pyproject.toml'
   pull_request:
     paths:
       - '.github/**'
-      - 'lazyslide/**'
+      - 'src/lazyslide/**'
       - 'tests/**'
       - 'pyproject.toml'
 
@@ -25,50 +25,39 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install Project dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install .[all,dev]
-      - name: Test with pytest
-        run: |
-          pytest tests/
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install project
+        run: uv sync --dev
+      - name: Tests
+        run: uv run task test
 
   Upload_to_pypi:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
         with:
           python-version: '3.12'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install .
-
-      - name: Install Hatch
-        uses: pypa/hatch@install
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       - name: Publish to test pypi
         env:
-          HATCH_INDEX_REPO: https://test.pypi.org/legacy/
-          HATCH_INDEX_USER: __token__
-          HATCH_INDEX_AUTH: ${{ secrets.PYPI_TEST_TOKEN }}
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TEST_TOKEN }}
         run: |
-          hatch build
-          hatch publish || exit 0
+          uv build
+          uv publish --publish-url https://test.pypi.org/legacy/ || exit 0
 
       - name: Publish to pypi
         if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
         env:
-          HATCH_INDEX_REPO: https://upload.pypi.org/legacy/
-          HATCH_INDEX_USER: __token__
-          HATCH_INDEX_AUTH: ${{ secrets.PYPI_TOKEN }}
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
         run: |
-          hatch build
-          hatch publish
+          uv build
+          uv publish
