@@ -102,3 +102,21 @@ def load_annotations(
                 .drop(columns=["index_right"], errors="ignore")
             )
             update_shapes_data(wsi, join_to, shapes_df)
+
+
+def export_annotations(
+    wsi: WSIData,
+    key: str = "annotations",
+    in_bounds: bool = False,
+    file: str | Path = None,
+):
+    gdf = wsi.shapes[key].copy()
+    if in_bounds:
+        from functools import partial
+        from shapely.affinity import translate
+
+        xoff, yoff, _, _ = wsi.properties.bounds
+        trans = partial(translate, xoff=-xoff, yoff=-yoff)
+        gdf["geometry"] = gdf["geometry"].apply(lambda x: trans(x))
+
+    gdf.to_file(file)
