@@ -358,15 +358,15 @@ wheels = [
 
 [[package]]
 name = "beautifulsoup4"
-version = "4.13.0"
+version = "4.13.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "soupsieve" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4b/d3/6f4047d1de55b7a290ef8d4b4ebf59dcc24742920ebbed0909f823424205/beautifulsoup4-4.13.0.tar.gz", hash = "sha256:b6e5afb3a2b1472c8db751a92eabf7834e5c7099f990c5e4b35f1f16b60bae64", size = 558514 }
+sdist = { url = "https://files.pythonhosted.org/packages/f0/3c/adaf39ce1fb4afdd21b611e3d530b183bb7759c9b673d60db0e347fd4439/beautifulsoup4-4.13.3.tar.gz", hash = "sha256:1bd32405dacc920b42b83ba01644747ed77456a65760e285fbc47633ceddaf8b", size = 619516 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6e/74/d53cf0c527b20fc87351e6fd9d51aac9b5d1e32ec5a3a32b84671806ab40/beautifulsoup4-4.13.0-py3-none-any.whl", hash = "sha256:9c4c3dfa67aba55f6cd03769c441b21e6a369797fd6766e4b4c6b3399aae2735", size = 184993 },
+    { url = "https://files.pythonhosted.org/packages/f9/49/6abb616eb3cbab6a7cca303dc02fdf3836de2e0b834bf966a7f5271a34d8/beautifulsoup4-4.13.3-py3-none-any.whl", hash = "sha256:99045d7d3f08f91f0d656bc9b7efbae189426cd913d830294a15eefa0ea4df16", size = 186015 },
 ]
 
 [[package]]
@@ -1858,19 +1858,19 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "cyclopts", specifier = ">=3.0.0" },
-    { name = "legendkit" },
-    { name = "matplotlib" },
-    { name = "matplotlib-scalebar" },
+    { name = "legendkit", specifier = ">=0.3.4" },
+    { name = "matplotlib", specifier = ">=3.9.0" },
+    { name = "matplotlib-scalebar", specifier = ">=0.9.0" },
     { name = "numba", specifier = ">=0.61.0" },
-    { name = "psutil" },
-    { name = "rich" },
-    { name = "scanpy", marker = "extra == 'all'" },
-    { name = "scikit-learn" },
-    { name = "scipy", marker = "extra == 'all'" },
-    { name = "timm" },
+    { name = "psutil", specifier = ">=5.8.0" },
+    { name = "rich", specifier = ">=13.0.0" },
+    { name = "scanpy", marker = "extra == 'all'", specifier = ">=1.10.4" },
+    { name = "scikit-learn", specifier = ">=1.0" },
+    { name = "scipy", marker = "extra == 'all'", specifier = ">=1.15.1" },
+    { name = "timm", specifier = ">=1.0.3" },
     { name = "torch", specifier = ">=2.0.0" },
-    { name = "torchstain", marker = "extra == 'all'" },
-    { name = "torchvision", marker = "extra == 'all'" },
+    { name = "torchstain", marker = "extra == 'all'", specifier = ">=1.4.1" },
+    { name = "torchvision", marker = "extra == 'all'", specifier = ">=0.15" },
     { name = "wsidata", git = "https://github.com/rendeirolab/wsidata" },
 ]
 
@@ -5192,7 +5192,7 @@ wheels = [
 [[package]]
 name = "wsidata"
 version = "0.3.0"
-source = { git = "https://github.com/rendeirolab/wsidata#abd7134f9e3a2913938277574484aeca1966ea9a" }
+source = { git = "https://github.com/rendeirolab/wsidata#fcb99a5df85453dd1dc6d4b8a1a55c4ad6cf20bc" }
 dependencies = [
     { name = "numba" },
     { name = "opencv-python-headless" },

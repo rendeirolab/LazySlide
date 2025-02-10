@@ -28,30 +28,31 @@ Documentation = "https://lazyslide.readthedocs.io"
 repository = "https://github.com/rendeirolab/lazyslide"
 dynamic = ["version"]
 dependencies = [
-    "wsidata",
+    "wsidata>=0.3.0",
     "numba>=0.61.0",
-    "scikit-learn",
-    "matplotlib",
-    "matplotlib-scalebar",
-    "legendkit",
-    "rich",
-    "psutil",
+    "scikit-learn>=1.0",
+    "matplotlib>=3.9.0",
+    "matplotlib-scalebar>=0.9.0",
+    "legendkit>=0.3.4",
+    "rich>=13.0.0",
+    "psutil>=5.8.0",
     "cyclopts>=3.0.0",
-    "timm",
+    "timm>=1.0.3",
     "torch>=2.0.0",
 ]
 
 [project.optional-dependencies]
 all = [
-    "scipy",
-    "scanpy",
-    "torchvision",  # >0.15
-    "torchstain",
+    "scipy>=1.15.1",
+    "scanpy>=1.10.4",
+    "torchvision>=0.15",  # >0.15
+    "torchstain>=1.4.1",
 ]
 
 # Define entry points
 [project.scripts]
 lazyslide = "lazyslide.__main__:app"
+zs = "lazyslide.__main__:app"
 
 [tool.hatch.version]
 path = "src/lazyslide/__init__.py"
@@ -81,10 +82,10 @@ packages = ["src/lazyslide", "README.md", "LICENSE", "pyproject.toml"]
 allow-direct-references = true
 
 [tool.ruff]
-ignore = ["F401"]
+lint.ignore = ["F401"]
 line-length = 88
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/test_example.py" = ["E402"]
 "tests/test_loader.py" = ["E402"]
 
@@ -97,7 +98,7 @@ test = "pytest tests"
 doc-build = "sphinx-build -b html docs/source docs/build"
 doc-clean-build = "python docs/clean_up.py && sphinx-build -b html docs/source docs/build"
 doc-serve = "python -m http.server -d docs/build"
-fmt = "ruff format docs/source wsidata tests"
+fmt = "ruff format docs/source src/lazyslide tests"
 
 [tool.uv]
 default-groups = ["dev", "docs"]
