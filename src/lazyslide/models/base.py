@@ -28,6 +28,8 @@ class ModelBase:
 
 
 class ImageModel(ModelBase):
+    # TODO: Add a config that specify the recommended input tile size and mpp
+
     def get_transform(self):
         import torch
         from torchvision.transforms.v2 import (

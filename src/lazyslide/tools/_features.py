@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Callable
 
@@ -78,6 +79,8 @@ def feature_extraction(
     load_kws: dict = None,
     transform: Callable = None,
     device: str = None,
+    amp: bool = False,
+    autocase_dtype: torch.dtype = torch.float16,
     tile_key: str = Key.tiles,
     key_added: str = None,
     batch_size: int = 32,
@@ -126,6 +129,10 @@ def feature_extraction(
         If not provided, a default ImageNet transform function will be used.
     device : str, optional
         The device to use for inference. If not provided, the device will be automatically selected.
+    amp : bool, default: False
+        Whether to use automatic mixed precision.
+    autocase_dtype : torch.dtype, default: torch.float16
+        The dtype for automatic mixed precision.
     tile_key : str, default: 'tiles'
         The key of the tiles dataframe in the spatial data object.
     key_added : str, optional
@@ -223,7 +230,10 @@ def feature_extraction(
         )
         # Extract features
         features = []
-        with torch.inference_mode():
+        amp_ctx = (
+            torch.cuda.amp.autocast(device, autocase_dtype) if amp else nullcontext()
+        )
+        with amp_ctx, torch.inference_mode():
             for batch in loader:
                 image = batch["image"].to(device)
                 if isinstance(model, ImageModel):
