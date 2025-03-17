@@ -20,6 +20,9 @@ class PLIP(ImageTextModel):
         self.model = CLIPModel.from_pretrained(model_path, use_auth_token=token)
         self.processor = CLIPProcessor.from_pretrained(model_path, use_auth_token=token)
 
+    def get_transform(self):
+        return None
+
     def encode_image(self, image):
         inputs = self.processor(images=image, return_tensors="pt")
         inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
