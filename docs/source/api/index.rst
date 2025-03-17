@@ -9,9 +9,10 @@ API Reference
     tools
     plotting
     segmentation
+    io
     models
     cv
-    io
+
 
 .. grid:: 1 2 2 2
    :gutter: 2

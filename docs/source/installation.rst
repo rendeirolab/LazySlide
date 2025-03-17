@@ -13,6 +13,11 @@ You can install :code:`lazyslide` with different package manager you prefer.
 
             pip install lazyslide
 
+    .. tab-item:: uv
+
+        .. code-block:: bash
+
+            uv add lazyslide
 
     .. tab-item:: Conda
 

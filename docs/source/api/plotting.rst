@@ -9,4 +9,5 @@ Plotting: :code:`pl`
 
     pl.tissue
     pl.tiles
+    pl.annotations
     pl.WSIViewer

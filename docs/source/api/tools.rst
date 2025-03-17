@@ -37,6 +37,7 @@ Tissue Spatial Domain
     :nosignatures:
 
     tl.spatial_domain
+    tl.tile_shaper
 
 
 Multi-Modal Analysis

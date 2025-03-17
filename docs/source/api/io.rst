@@ -1,5 +1,5 @@
-IO
---
+IO :code:`io`
+-------------
 
 .. currentmodule:: lazyslide
 

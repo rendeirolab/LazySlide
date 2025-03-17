@@ -1,5 +1,5 @@
-Segmentation
-------------
+Segmentation :code:`seg`
+-------------------------
 
 .. currentmodule:: lazyslide
 

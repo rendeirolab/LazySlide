@@ -9,10 +9,9 @@ Here is a list of tutorials that will help you get started with the LazySlide.
 
     00_intro_wsi
     01_preprocessing
-    02_spatial_domains
-    03_multimodals
-    04_genomics_integration
-    05_training_models
+    02_feature_extraction
+    cell-segmentation
+    visualization
 
 .. card:: Introduction to WSI
 
@@ -22,21 +21,15 @@ Here is a list of tutorials that will help you get started with the LazySlide.
 
     :doc:`01_preprocessing`
 
-.. card:: Anatomical Domains
+.. card:: Feature extraction and spatial analysis
 
-    :doc:`02_spatial_domains`
+    :doc:`02_feature_extraction`
 
-.. card:: Multimodal Data
+.. card:: Cell segmentation
 
-    :doc:`03_multimodals`
+    :doc:`cell-segmentation`
 
-.. card:: Integration with RNA-seq data
+.. card:: WSI visualization in LazySlide
 
-    :doc:`04_genomics_integration`
-
-.. card:: Training Models
-
-    :doc:`05_training_models`
-
-
+    :doc:`visualization`
 

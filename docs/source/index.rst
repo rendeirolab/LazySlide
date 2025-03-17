@@ -3,15 +3,15 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-LazySlide
-=========
+LazySlide: Modular and scalable whole slide image analysis
+==========================================================
 
 .. grid:: 1 2 2 2
 
    .. grid-item::
        :columns: 12 4 4 4
 
-       .. image:: _static/logo.svg
+       .. image:: _static/logo@3x.png
           :align: center
           :width: 150px
 
@@ -29,6 +29,7 @@ LazySlide
 
     installation
     api/index
+    tutorial/index
     cli
     nextflow
 
@@ -41,6 +42,12 @@ LazySlide
       :link-type: doc
 
       How to install LazySlide
+
+   .. grid-item-card:: Tutorial
+      :link: tutorial/index
+      :link-type: doc
+
+      Get started with LazySlide
 
    .. grid-item-card:: API
       :link: api/index
