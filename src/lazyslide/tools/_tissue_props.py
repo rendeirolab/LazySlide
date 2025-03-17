@@ -24,10 +24,16 @@ def tissue_props(
     """Extract tissue properties from the WSI."""
     props = []
     cnts = []
-    for tissue_contour in wsi.iter.tissue_contours(key, as_array=True, dtype=np.int32):
+    for tissue_contour in wsi.iter.tissue_contours(key):
         cnt = tissue_contour.contour
         holes = tissue_contour.holes
-        _props = contour_props(cnt, holes)
+
+        cnt_array = np.asarray(cnt.exterior.coords.xy, dtype=np.int32).T
+        holes_array = [
+            np.asarray(h.exterior.coords.xy, dtype=np.int32).T for h in holes
+        ]
+
+        _props = contour_props(cnt_array, holes_array)
         cnts.append(cnt)
         props.append(_props)
 

@@ -30,11 +30,11 @@ def text_embedding(
     import torch
 
     if model == "plip":
-        from lazyslide.models import PLIP
+        from lazyslide.models.multimodal import PLIP
 
         model_ins = PLIP()
     elif model == "conch":
-        from lazyslide.models import CONCH
+        from lazyslide.models.multimodal import CONCH
 
         model_ins = CONCH()
     else:

@@ -15,7 +15,7 @@ def feature_utag(
 
     Parameters
     ----------
-    wsi: WSIData
+    wsi: :class:`WSIData <wsidata.WSIData>`
         The WSIData object.
     feature_key: str
         The feature key.

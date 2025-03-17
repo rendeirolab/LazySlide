@@ -94,7 +94,7 @@ def feature_extraction(
 
     Parameters
     ----------
-    wsi : WSI
+    wsi : :class:`WSIData <wsidata.WSIData>`
         The whole-slide image object.
     model : str or model object
         The model used for image feature extraction.
@@ -214,7 +214,8 @@ def feature_extraction(
         pass
 
     if transform is None:
-        transform = get_default_transform()
+        if isinstance(model, ImageModel):
+            transform = model.get_transform()
 
     # Create dataloader
     # Auto chunk the wsi tile coordinates to the number of workers'

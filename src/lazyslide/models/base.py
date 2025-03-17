@@ -70,11 +70,11 @@ class TimmModel(ImageModel):
                 compile_kws = {}
             self.compiled_model = torch.compile(self.model, **compile_kws)
 
-    def get_transform(self):
-        if hasattr(self.model, "pretrained_cfg"):
-            return create_transform(**resolve_data_config(self.model.pretrained_cfg))
-        else:
-            return super().get_transform()
+    # def get_transform(self):
+    #     if hasattr(self.model, "pretrained_cfg"):
+    #         return create_transform(**resolve_data_config(self.model.pretrained_cfg))
+    #     else:
+    #         return super().get_transform()
 
     def encode_image(self, image):
         with torch.inference_mode():

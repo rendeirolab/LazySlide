@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from wsidata import WSIData
 from wsidata.io import add_tissues
+from shapely.affinity import scale
 
 from lazyslide._const import Key
 from lazyslide.cv import BinaryMask
@@ -73,6 +74,7 @@ def tissue(
     model.to(device)
 
     if chunk:
+        raise NotImplementedError("Chunked segmentation is not implemented yet.")
         tile_size = 512
         stride_size = int(tile_size * (1 - overlap))
         # Create grid
@@ -88,6 +90,7 @@ def tissue(
         new_height = (height + 31) // 32 * 32
         new_width = (width + 31) // 32 * 32
         img = wsi.reader.get_region(0, 0, width, height, level=level)
+        downsample = props.level_downsample[level]
 
         # We cannot read the image directly from the reader.
         # The padding from image reader will introduce padding at only two sides
@@ -129,4 +132,8 @@ def tissue(
             min_hole_area=1e-5,
             detect_holes=True,
         )
+        polygons = [
+            scale(p, xfact=downsample, yfact=downsample, origin=(0, 0))
+            for p in polygons
+        ]
         add_tissues(wsi, key_added, polygons)
