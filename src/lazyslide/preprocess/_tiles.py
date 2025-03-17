@@ -22,6 +22,7 @@ def tile_tissues(
     wsi: WSIData,
     tile_px: int | (int, int),
     stride_px: int | (int, int) = None,
+    overlap: float = None,
     edge: bool = False,
     mpp: float = None,
     slide_mpp: float = None,
@@ -44,16 +45,16 @@ def tile_tissues(
     stride_px : int, (int, int), default: None
         The stride of the tile, if tuple, (W, H).
         If None, use the tile size.
+    overlap : float, default: None
+        The overlap of the tiles, exclusive with stride_px.
+        If in (0, 1), it's the overlap ratio.
+        If > 1, it's the overlap in pixels.
     edge : bool, default: False
         Whether to include the edge tiles.
     mpp : float, default: None
         The requested mpp of the tiles, if None, use the slide mpp.
     slide_mpp : float, default: None
         This value will override the slide mpp.
-    tolerance : float, default: 0.05
-        The tolerable deviation when matching the mpp.
-        If requested mpp does not match the naive mpp,
-        resize operation is needed when generating the tiles.
     method : str, {'polygon-test', 'mask'}
         The flavor of the tile generation, either 'polygon-test' or 'mask':
         - 'polygon-test': Use point polygon test to check if the tiles points are inside the contours.
@@ -96,6 +97,7 @@ def tile_tissues(
         wsi,
         tile_px=tile_px,
         stride_px=stride_px,
+        overlap=overlap,
         mpp=mpp,
         ops_level=ops_level,
         slide_mpp=slide_mpp,
