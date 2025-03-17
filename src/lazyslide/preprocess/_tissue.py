@@ -275,7 +275,7 @@ def score_tissues(
         qc = []
 
         if num_workers == 1:
-            for tissue in wsi.iter.tissue_images(tissue_key, tissue_mask=True):
+            for tissue in wsi.iter.tissue_images(tissue_key, mask_bg=True):
                 result = compose_scorer(tissue.image, mask=tissue.mask)
                 scores.append(result.scores)
                 qc.append(result.qc)
@@ -284,7 +284,7 @@ def score_tissues(
             with ProcessPoolExecutor(max_workers=num_workers) as executor:
                 # map is used to keep the order of the results
                 jobs = []
-                for tissue in wsi.iter.tissue_images(tissue_key, tissue_mask=True):
+                for tissue in wsi.iter.tissue_images(tissue_key, mask_bg=True):
                     jobs.append(
                         executor.submit(compose_scorer, tissue.image, mask=tissue.mask)
                     )
