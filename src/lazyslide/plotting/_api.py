@@ -14,7 +14,7 @@ def thumbnail(wsi: WSIData, ax=None):
 
     Parameters
     ----------
-    wsi : WSI
+    wsi : :class:`WSIData <wsidata.WSIData>`
         The whole-slide image object.
     ax : matplotlib.axes.Axes, default: None
         The axes to plot on.
@@ -45,6 +45,7 @@ def tissue(
     mark_origin=True,
     scalebar=True,
     in_bounds=True,
+    zoom=None,
     img_bytes_limit=4e9,
     ax=None,
 ):
@@ -53,7 +54,7 @@ def tissue(
 
     Parameters
     ----------
-    wsi : WSI
+    wsi : :class:`WSIData <wsidata.WSIData>`
         The whole-slide image object.
     tissue_id : int, default: None
         The tissue id (piece) to extract.
@@ -71,6 +72,10 @@ def tissue(
         Show the scalebar.
     in_bounds : bool, default: True
         Show the tissue in bounds.
+    zoom : (xmin, xmax, ymin, ymax), default: None
+        A zoom view for the current viewport.
+        If in range [0, 1], will be interpreted as a fraction of the image size.
+        If > 1, will be interpreted as the absolute size in pixels.
     img_bytes_limit : int, default: 4e9
         The image bytes limits.
     ax : matplotlib.axes.Axes, default: None
@@ -104,11 +109,13 @@ def tissue(
             )
         if tissue_id is not None:
             viewer.set_tissue_id(tissue_id)
-
     if scalebar:
         viewer.add_scalebar()
     if mark_origin:
         viewer.mark_origin()
+
+    if zoom is not None:
+        viewer.add_zoom(*zoom)
     viewer.title = title
     viewer.show(ax=ax)
 
@@ -127,6 +134,9 @@ def tiles(
     show_id=False,
     mark_origin=True,
     scalebar=True,
+    in_bounds=True,
+    img_bytes_limit=4e9,
+    zoom=None,
     alpha=0.9,
     marker="o",
     vmin=None,
@@ -150,7 +160,7 @@ def tiles(
 
     Parameters
     ----------
-    wsi : WSI
+    wsi : :class:`WSIData <wsidata.WSIData>`
         The whole-slide image object.
     feature_key : str, default: None
         The feature key assigned when generating the numeric tile features.
@@ -174,6 +184,12 @@ def tiles(
         Show the tissue contours.
     mark_origin : bool, default: True
         Show the origin.
+    scalebar : bool, default: True
+        Show the scalebar.
+    zoom : (xmin, xmax, ymin, ymax), default: None
+        A zoom view for the current viewport.
+        If in range [0, 1], will be interpreted as a fraction of the image size.
+        If > 1, will be interpreted as the absolute size in pixels.
     show_id : bool, default: False
         Show the tissue (piece) id.
     alpha : float, default: 0.9
@@ -216,7 +232,7 @@ def tiles(
 
     """
 
-    viewer = WSIViewer(wsi)
+    viewer = WSIViewer(wsi, in_bounds=in_bounds, img_bytes_limit=img_bytes_limit)
     if show_image:
         viewer.add_image()
 
@@ -233,6 +249,9 @@ def tiles(
         viewer.mark_origin()
     if scalebar:
         viewer.add_scalebar()
+
+    if zoom is not None:
+        viewer.add_zoom(*zoom)
 
     if color is not None:
         if isinstance(color, str):
@@ -294,6 +313,66 @@ def tiles(
 def annotations(
     wsi: WSIData,
     key: str,
+    color=None,
+    label=None,
+    show_image=True,
+    mark_origin=True,
+    scalebar=True,
+    in_bounds=True,
+    img_bytes_limit=4e9,
+    tissue_id=None,
+    zoom=None,
+    fill=True,
+    palette=None,
+    alpha=0.5,
+    legend_kws=None,
+    legend=True,
     ax=None,
 ):
-    pass
+    """
+    Display the annotations.
+
+    Parameters
+    ----------
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The whole-slide image object.
+    key : str
+        The annotation key.
+
+    """
+    if ax is None:
+        _, ax = plt.subplots()
+
+    viewer = WSIViewer(wsi, in_bounds=in_bounds, img_bytes_limit=img_bytes_limit)
+    if show_image:
+        viewer.add_image()
+    if mark_origin:
+        viewer.mark_origin()
+    if scalebar:
+        viewer.add_scalebar()
+    if tissue_id is not None:
+        viewer.set_tissue_id(tissue_id)
+    if fill:
+        viewer.add_polygons(
+            key,
+            color_by=color,
+            label_by=label,
+            palette=palette,
+            alpha=alpha,
+            legend=legend,
+            legend_kws=legend_kws,
+        )
+    else:
+        viewer.add_contours(
+            key,
+            color_by=color,
+            label_by=label,
+            palette=palette,
+            legend=legend,
+            legend_kws=legend_kws,
+        )
+
+    if zoom is not None:
+        viewer.add_zoom(*zoom)
+
+    viewer.show(ax=ax)

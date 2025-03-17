@@ -376,7 +376,7 @@ class HeatmapTilesRenderPlan(RenderPlan):
         sm = ScalarMappable(norm=self.norm, cmap=cmap)
         sm.set_clim(self.vmin, self.vmax)
         sm.set_array(tile_image)
-        sm.autoscale()
+        # sm.autoscale()
 
         A = sm.to_rgba(tile_image, bytes=True, alpha=self.alpha)
         self._A = A
@@ -626,6 +626,7 @@ class FilledPolygonRenderPlan(PolygonMixin):
         labels: Sequence = None,
         colors: Sequence = None,
         palette: Dict = None,
+        color="#FFE31A",
         alpha=0.3,
         legend_kws=None,
         **kwargs,
@@ -638,9 +639,7 @@ class FilledPolygonRenderPlan(PolygonMixin):
         super().__init__(polygons, labels=labels, colors=colors)
 
         self.legend_kws = legend_kws or {}
-        self.kwargs = dict(
-            facecolor=to_rgba("#FFE31A", alpha), edgecolor="#FFE31A", lw=1
-        )
+        self.kwargs = dict(facecolor=to_rgba(color, alpha), edgecolor=color, lw=1)
         if kwargs is not None:
             self.kwargs.update(kwargs)
 
@@ -1042,6 +1041,7 @@ class WSIViewer:
         color_by: str = None,
         palette: PaletteType = None,
         alpha: float = 0.3,
+        color: ColorType = "#FFE31A",
         legend_kws: Dict = None,
         legend: bool = True,
         in_zoom: bool = True,
@@ -1086,6 +1086,7 @@ class WSIViewer:
             colors=colors,
             palette=palette,
             alpha=alpha,
+            color=color,
             legend_kws=legend_kws,
             **kwargs,
         )
@@ -1113,9 +1114,8 @@ class WSIViewer:
         # If visualize feature
         if color_by is not None:
             if feature_key is not None:
-                adata = self.wsi.fetch.features_anndata(
-                    feature_key, key, tile_graph=False
-                )
+                feature_key = self.wsi._check_feature_key(feature_key, key)
+                adata = self.wsi[feature_key]
                 if color_by is not None:
                     if color_by in adata.obs.columns:
                         values = adata.obs[color_by].values
@@ -1294,7 +1294,20 @@ class WSIViewer:
                     "tissue_id will be ignored.",
                     stacklevel=find_stack_level(),
                 )
-        # TODO: Support (0-1) range
+
+        if all([0 <= x <= 1 for x in [xmin, xmax, ymin, ymax]]):
+            current_viewport = self._viewport
+            xmin = current_viewport.x + xmin * current_viewport.w
+            xmax = current_viewport.x + xmax * current_viewport.w
+            ymin = current_viewport.y + ymin * current_viewport.h
+            ymax = current_viewport.y + ymax * current_viewport.h
+        elif all([x > 1 for x in [xmin, xmax, ymin, ymax]]):
+            pass
+        else:
+            raise ValueError(
+                "xmin, xmax, ymin, ymax must be either all in (0-1) range or all > 1."
+            )
+
         viewport = self._get_viewport(xmin, ymin, xmax - xmin, ymax - ymin)
         self.zoom_image_source = ImageDataSource(self.wsi.reader)
         self.zoom_image_source.set_viewport(viewport)
