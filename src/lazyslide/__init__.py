@@ -15,6 +15,7 @@ from . import plotting as pl
 from . import preprocess as pp
 from . import segmentation as seg
 from . import tools as tl
+from . import datasets
 
 # Inject the aliases into the current module
 sys.modules.update({f"{__name__}.{m}": globals()[m] for m in ["tl", "pp", "pl", "seg"]})
