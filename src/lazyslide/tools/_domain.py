@@ -31,7 +31,7 @@ def spatial_domain(
 
 def tile_shaper(
     wsi: WSIData,
-    name_key: str = "domain",
+    groupby: str = "domain",
     tile_key: str = Key.tiles,
     key_added: str = "domain_shapes",
 ):
@@ -47,7 +47,7 @@ def tile_shaper(
 
     # To avoid large memory allocation of mask, get domain in each tissue
     for _, tissue_group in tile_table.groupby("tissue_id"):
-        for name, group in tissue_group.groupby(name_key):
+        for name, group in tissue_group.groupby(groupby):
             bounds = (group.bounds / spec.base_height).astype(int)
             minx, miny, maxx, maxy = (
                 bounds["minx"].min(),
@@ -77,6 +77,6 @@ def tile_shaper(
             for poly in polys:
                 result.append([name, poly])
 
-    domain_shapes = gpd.GeoDataFrame(data=result, columns=[name_key, "geometry"])
+    domain_shapes = gpd.GeoDataFrame(data=result, columns=[groupby, "geometry"])
     add_shapes(wsi, key_added, domain_shapes)
-    return domain_shapes
+    # return domain_shapes
