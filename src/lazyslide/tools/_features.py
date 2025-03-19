@@ -219,8 +219,7 @@ def feature_extraction(
 
     # Create dataloader
     # Auto chunk the wsi tile coordinates to the number of workers'
-    tiles_coords = wsi.shapes[tile_key][["x", "y"]].values
-    n_tiles = len(tiles_coords)
+    n_tiles = len(wsi.shapes[tile_key])
 
     with default_pbar(disable=not pbar) as progress_bar:
         task = progress_bar.add_task("Extracting features", total=n_tiles)
