@@ -370,7 +370,7 @@ class HeatmapTilesRenderPlan(RenderPlan):
         vs = self.datasource.get_data("values")
 
         for (x, y), v in zip(tiles, vs):
-            tile_image[y : y + tile_height, x : x + tile_width] = v
+            tile_image[y : y + tile_height + 1, x : x + tile_width + 1] = v
 
         cmap = get_cmap(self.cmap)
         sm = ScalarMappable(norm=self.norm, cmap=cmap)
