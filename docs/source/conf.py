@@ -43,7 +43,7 @@ exclude_patterns = []
 
 html_theme = "pydata_sphinx_theme"
 html_static_path = ["_static"]
-html_logo = "_static/logo.svg"
+html_logo = "_static/logo@3x.png"
 html_css_files = ["custom.css"]
 html_theme_options = {
     "github_url": "https://github.com/rendeirolab/LazySlide",
