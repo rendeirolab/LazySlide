@@ -52,7 +52,9 @@ html_theme_options = {
 }
 html_sidebars = {"installation": [], "cli": []}
 
+nb_output_stderr = "remove"
 nb_execution_mode = "off"
+nb_merge_streams = True
 myst_enable_extensions = [
     "colon_fence",
     "html_image",
