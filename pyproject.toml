@@ -148,8 +148,8 @@ docs = [
 ]
 
 [tool.uv.sources]
-# wsidata = { git = "https://github.com/rendeirolab/wsidata", branch = "main" }
-wsidata = { path = "../wsidata", editable = true }
+wsidata = { git = "https://github.com/rendeirolab/wsidata", branch = "main" }
+# wsidata = { path = "../wsidata", editable = true }
 conch = { git = "https://github.com/mahmoodlab/CONCH.git" }
 
 [tool.uv.workspace]
