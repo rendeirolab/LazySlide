@@ -14,6 +14,9 @@ class CONCH(ImageTextModel):
                 "`pip install git+https://github.com/mahmoodlab/CONCH.git`."
             )
 
+        if model_path is None:
+            model_path = "hf_hub:MahmoodLab/conch"
+
         self.model, self.processor = create_model_from_pretrained(
             "conch_ViT-B-16", model_path, hf_auth_token=token
         )
