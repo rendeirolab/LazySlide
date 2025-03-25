@@ -1967,6 +1967,7 @@ dev = [
     { name = "muon" },
     { name = "parse" },
     { name = "pre-commit" },
+    { name = "pypalettes" },
     { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -2027,6 +2028,7 @@ dev = [
     { name = "muon", specifier = ">=0.1.7" },
     { name = "parse", specifier = ">=1.20.2" },
     { name = "pre-commit", specifier = ">=4.1.0" },
+    { name = "pypalettes", specifier = ">=0.1.5" },
     { name = "pyright", specifier = ">=1.1.393" },
     { name = "pytest", specifier = ">=8.3.4" },
     { name = "pytest-cov", specifier = ">=6.0.0" },
@@ -3838,6 +3840,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/25/ac/ca483bec408b59c54f7129b0244cc9de21d8461aefe89ece7bd74ad33807/pyogrio-0.10.0-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:cea0187fcc2d574e52af8cfab041fa0a7ad71d5ef6b94b49a3f3d2a04534a27e", size = 23048830 },
     { url = "https://files.pythonhosted.org/packages/d7/3e/c35f2d8dad95b24e568c468f09ff60fb61945065465e0ec7868400596566/pyogrio-0.10.0-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:7c02b207ea8cf09c501ea3e95d29152781a00d3c32267286bc36fa457c332205", size = 23996873 },
     { url = "https://files.pythonhosted.org/packages/27/5d/0deb16d228362a097ee3258d0a887c9c0add4b9678bb4847b08a241e124d/pyogrio-0.10.0-cp313-cp313-win_amd64.whl", hash = "sha256:02e54bcfb305af75f829044b0045f74de31b77c2d6546f7aaf96822066147848", size = 16158260 },
+]
+
+[[package]]
+name = "pypalettes"
+version = "0.1.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "matplotlib" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/80/ab/6b854ce0aebbb0b170c3bb3d77e745516bb338f03917e7d87d5de90cae14/pypalettes-0.1.5.tar.gz", hash = "sha256:fb114a0b8bf92125d3e9068d69fa8b6509fba84b758faae7d8303f475a8b7e31", size = 368579 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/79/cb/b09d7d1766b5890369cb9fb775a7b121288513c1422a9e2102576fed7a7a/pypalettes-0.1.5-py3-none-any.whl", hash = "sha256:4d4c3d0bb87a5f8c14bfe16cf8c56198894ada4786441ac27c6b0dc9c0262f13", size = 366000 },
 ]
 
 [[package]]
