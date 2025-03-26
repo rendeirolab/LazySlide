@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import zipfile
 from typing import Callable
 
 import numpy as np
 import pandas as pd
 import torch
 
+from huggingface_hub import hf_hub_download
 from lazyslide.models.base import SegmentationModel
 from .postprocess import cellseg_postprocess
 
@@ -28,26 +28,13 @@ class Instanseg(SegmentationModel):
     """Apply the InstaSeg model to the input image."""
 
     _base_mpp = 0.5
-    _fallback_url = "https://github.com/alanocallaghan/instanseg/releases/download/v0.1.0/brightfield_nuclei.zip"
-    _source_url = "https://raw.githubusercontent.com/instanseg/instanseg/refs/heads/main/instanseg/bioimageio_models/model-index.json"
 
     def __init__(self, model_file=None):
-        if model_file is None:
-            model_url = self._get_wight_url()
-            model_file = self.load_weights(model_url)
-            with zipfile.ZipFile(model_file, "r") as zip_ref:
-                zip_ref.extractall(model_file.parent)
-            model_file = model_file.parent / "instanseg.pt"
+        model_file = hf_hub_download(
+            "RendeiroLab/LazySlide-models", "instanseg/instanseg_v0_0_1.pt"
+        )
 
         self.model = torch.jit.load(model_file)
-
-    def _get_wight_url(self):
-        try:
-            sources = pd.read_json(self._source_url)
-            model_url = sources[sources["name"] == "brightfield_nuclei"].url.values[0]
-        except Exception:
-            model_url = self._fallback_url
-        return model_url
 
     def get_transform(self):
         return instanseg_preprocess
