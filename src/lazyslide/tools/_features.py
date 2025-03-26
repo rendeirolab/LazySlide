@@ -297,7 +297,7 @@ def feature_aggregation(
         agg_key = f"agg_{by}"
 
     tiles_table = wsi.shapes[tile_key]
-    coords = tiles_table[["x", "y"]]
+    coords = tiles_table.bounds[["minx", "miny"]].values
     feature_key = wsi._check_feature_key(feature_key, tile_key)
     if layer_key is None:
         features = wsi.tables[feature_key].X
@@ -316,7 +316,7 @@ def feature_aggregation(
             agg_fs.append(tissue_feature)
         agg_fs = np.vstack(agg_fs).T
         # The columns of by will also be added to the obs slot
-    by_data = tiles_table[by] if by != "slide" else None
+    by_data = tiles_table[by].values if by != "slide" else None
     add_agg_features(wsi, feature_key, agg_key, agg_fs, by_key=by, by_data=by_data)
 
 
