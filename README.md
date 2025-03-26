@@ -25,3 +25,21 @@ with large WSIs on modest hardware.
 - `scanpy`-style API
 - CLI and Nextflow support
 
+## Quick start
+
+With few lines of code, you can quickly run preprocessing and feature extraction with LazySlide:
+
+```python
+import lazyslide as zs
+
+wsi = zs.datasets.sample()
+
+# Pipeline
+zs.pp.find_tissues(wsi)
+zs.pp.tile_tissues(wsi, tile_px=256, mpp=0.5)
+zs.tl.feature_extraction(wsi, model='resnet50')
+
+# Access the features
+features = wsi['resnet50_tiles']
+
+```
