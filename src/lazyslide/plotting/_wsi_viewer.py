@@ -1103,7 +1103,7 @@ class WSIViewer:
         self, key, color_by=None, feature_key=None, cmap="coolwarm", palette=None
     ):
         tiles = self.wsi[key]
-        tiles_xy = tiles[["x", "y"]].to_numpy()
+        tiles_xy = tiles.bounds[["minx", "miny"]].to_numpy()
         spec = self.wsi.tile_spec(key)
 
         if self.tile_source.get(key) is None:

@@ -50,7 +50,7 @@ def tile_graph(
     table_key : str, default: None
         The table key to store the graph.
     """
-    coords = wsi[tile_key][["x", "y"]].values
+    coords = wsi[tile_key].bounds[["minx", "miny"]].values
     Adj, Dst = _spatial_neighbor(
         coords, n_neighs, delaunay, n_rings, transform, set_diag
     )
