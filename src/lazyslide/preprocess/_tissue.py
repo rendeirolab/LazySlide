@@ -258,7 +258,7 @@ def score_tissues(
         >>> import lazyslide as zs
         >>> wsi = open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
         >>> zs.pp.find_tissues(wsi)
-        >>> zs.pp.score_tiles(wsi, ["redness", "brightness"])
+        >>> zs.pp.score_tissues(wsi, ["redness", "brightness"])
         >>> wsi["tissues"]
 
 
