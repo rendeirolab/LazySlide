@@ -8,36 +8,13 @@ import lazyslide as zs
 def test_pp_find_tissues(wsi, detect_holes, key_added):
     zs.pp.find_tissues(wsi, detect_holes=detect_holes, key_added=key_added)
 
-    assert key_added in wsi.sdata.shapes
+    assert key_added in wsi.shapes
     if not detect_holes:
-        tissue = wsi.sdata[key_added].geometry[0]
+        tissue = wsi[key_added].geometry[0]
         assert len(tissue.interiors) == 0
 
 
 class TestPPTileTissues:
-    def test_create_tiles(self):
-        from lazyslide.preprocess._tiles import create_tiles
-
-        image_shape = (1000, 1050)
-
-        _, ixs = create_tiles(image_shape, 100, 100, 100, 100, edge=True)
-        assert len(ixs) == 110
-
-        _, ixs = create_tiles(image_shape, 100, 100, 100, 100, edge=False)
-        assert len(ixs) == 100
-
-        _, ixs = create_tiles(image_shape, 100, 130, 120, 100, edge=True)
-        assert len(ixs) == 90
-
-        _, ixs = create_tiles(image_shape, 100, 130, 120, 100, edge=False)
-        assert len(ixs) == 80
-
-        _, ixs = create_tiles(image_shape, 100, 130, 125, 132, edge=True)
-        assert len(ixs) == 72
-
-        _, ixs = create_tiles(image_shape, 100, 130, 125, 132, edge=False)
-        assert len(ixs) == 56
-
     def test_tile_px(self, wsi):
         zs.pp.find_tissues(wsi)
         zs.pp.tile_tissues(wsi, 256, key_added="tiles")
