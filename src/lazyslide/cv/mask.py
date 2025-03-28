@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Sequence, Dict
 
 import cv2
@@ -47,6 +49,7 @@ class Mask:
         min_area: float = 0,
         min_hole_area: float = 0,
         detect_holes: bool = True,
+        ignore_index: int | Sequence[int] | None = None,
     ) -> Sequence[Polygon]:
         raise NotImplementedError()
 
@@ -72,7 +75,11 @@ class BinaryMask(Mask):
         super().__init__(mask)
 
     def to_polygons(
-        self, min_area: float = 0, min_hole_area: float = 0, detect_holes: bool = True
+        self,
+        min_area: float = 0,
+        min_hole_area: float = 0,
+        detect_holes: bool = True,
+        ignore_index: int | Sequence[int] | None = None,  # noqa
     ) -> Sequence[Polygon]:
         return _binary2polygons(
             self.mask,
@@ -105,9 +112,19 @@ class MultiLabelMask(Mask):
         min_area=0,
         min_hole_area=0,
         detect_holes: bool = True,
+        ignore_index: int | Sequence[int] | None = None,
     ) -> Dict[int, Sequence[Polygon]]:
+        if ignore_index is not None:
+            if isinstance(ignore_index, int):
+                ignore_index = {ignore_index}
+            ignore_index = set(ignore_index)
+        else:
+            ignore_index = set()
+
         polys = {}
         for c in self.classes:
+            if c in ignore_index:
+                continue
             mask = np.asarray(self.mask == c, dtype=np.uint8)
             polys[c] = _binary2polygons(
                 mask,
@@ -147,10 +164,23 @@ class MultiClassMask(Mask):
             self.classes = np.arange(1, self.n_classes + 1)
 
     def to_polygons(
-        self, min_area=0, min_hole_area: int = 0, detect_holes: bool = True
+        self,
+        min_area=0,
+        min_hole_area: int = 0,
+        detect_holes: bool = True,
+        ignore_index: int | Sequence[int] | None = None,
     ) -> Dict[int, Sequence[Polygon]]:
+        if ignore_index is not None:
+            if isinstance(ignore_index, int):
+                ignore_index = {ignore_index}
+            ignore_index = set(ignore_index)
+        else:
+            ignore_index = set()
+
         polys = {}
         for c in self.classes:
+            if c in ignore_index:
+                continue
             polys[c] = _binary2polygons(
                 self.mask[c],
                 min_area=min_area,
