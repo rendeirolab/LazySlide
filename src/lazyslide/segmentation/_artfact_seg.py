@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from typing import Literal
 
-import numpy as np
 import geopandas as gpd
+import numpy as np
 import torch
+from huggingface_hub import hf_hub_download
 from shapely.affinity import scale, translate
 from wsidata import WSIData
-from huggingface_hub import hf_hub_download
-from wsidata import TileSpec
 from wsidata.io import add_shapes
 
 from lazyslide._const import Key
@@ -50,6 +49,18 @@ class GrandQCArtifactSegmentation(SegmentationModel):
     def segment(self, image):
         with torch.inference_mode():
             return self.model(image)
+
+
+# Define class mapping
+CLASS_MAPPING = {
+    1: "Normal Tissue",
+    2: "Fold",
+    3: "Darkspot & Foreign Object",
+    4: "PenMarking",
+    5: "Edge & Air Bubble",
+    6: "OOF",  # Out of Focus
+    7: "Background",
+}
 
 
 def artifact(
@@ -109,13 +120,12 @@ def artifact(
 
         mmask = MultiLabelMask(mask)
         # ignore index 0, 1, 7
-        polys = mmask.to_polygons()
+        polys = mmask.to_polygons(ignore_index=[0, 1, 6, 7])
         for i, ps in polys.items():
-            if i not in {0, 1, 6, 7}:
-                for p in ps:
-                    p = scale(p, xfact=downsample, yfact=downsample, origin=(0, 0))
-                    p = translate(p, xoff=it.x, yoff=it.y)
-                    artifacts.append([CLASS_MAPPING[i], p])
+            for p in ps:
+                p = scale(p, xfact=downsample, yfact=downsample, origin=(0, 0))
+                p = translate(p, xoff=it.x, yoff=it.y)
+                artifacts.append([CLASS_MAPPING[i], p])
 
     artifacts = gpd.GeoDataFrame(artifacts, columns=["label", "geometry"])
 
@@ -124,23 +134,3 @@ def artifact(
 
     add_shapes(wsi, key_added, final_arts)
     return final_arts
-
-
-# Define class mapping
-CLASS_MAPPING = {
-    1: "Normal Tissue",
-    2: "Fold",
-    3: "Darkspot & Foreign Object",
-    4: "PenMarking",
-    5: "Edge & Air Bubble",
-    6: "OOF",  # Out of Focus
-    7: "Background",
-}
-
-
-def offset_artifacts(
-    wsi: WSIData,
-    artifacts_key: str = "artifacts",
-    key_added: str = "offset_artifacts",
-):
-    pass
