@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 import torch
 
@@ -9,19 +7,14 @@ class MockNet(torch.nn.Module):
         super().__init__()
 
     def forward(self, x):
-        return torch.zeros(1000)
+        return torch.zeros(x.shape[0], 1000)
 
 
 @pytest.fixture(scope="session", autouse=True)
-def test_slide():
-    return Path(__file__).parent / "data" / "CMU-1-Small-Region.svs"
+def wsi():
+    import lazyslide as zs
 
-
-@pytest.fixture(scope="session", autouse=True)
-def wsi(test_slide):
-    from wsidata import open_wsi
-
-    return open_wsi(test_slide)
+    return zs.datasets.gtex_artery()
 
 
 @pytest.fixture(scope="session")

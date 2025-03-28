@@ -155,3 +155,8 @@ conch = { git = "https://github.com/mahmoodlab/CONCH.git" }
 
 [tool.uv.workspace]
 members = ["scripts/grandqc/artifacts_detection"]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::UserWarning"
+]

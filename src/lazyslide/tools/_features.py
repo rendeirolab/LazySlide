@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Sequence
 
 import numpy as np
+import pandas as pd
 import torch
 from wsidata import WSIData
 from wsidata.io import add_features, add_agg_features
@@ -75,6 +76,7 @@ def feature_extraction(
     model: str | Callable | ImageModel = None,
     model_path: str | Path = None,
     model_name: str = None,
+    jit: bool = False,
     token: str = None,
     load_kws: dict = None,
     transform: Callable = None,
@@ -120,6 +122,8 @@ def feature_extraction(
     model_name : str, optional
         If you provide your own model, you can specify the model name for the key_added.
         Or you can override the model name by providing a new model name.
+    jit : bool, default: False
+        Whether the model is a JIT model. If True, use torch.jit.load to load the model.
     token : str, optional
         The token for downloading the model from Hugging Face Hub for foundation models.
     load_kws : dict, optional
@@ -187,10 +191,9 @@ def feature_extraction(
             raise ValueError("Either model or model_path must be provided.")
         model_path = Path(model_path)
         if model_path.exists():
-            try:
-                model = torch.load(model_path, **load_kws)
-            except:  # noqa: E722
-                model = torch.jit.load(model_path, **load_kws)
+            load_kws.setdefault("weights_only", False)
+            load_func = torch.load if not jit else torch.jit.load
+            model = load_func(model_path, **load_kws)
         else:
             raise FileNotFoundError(f"Model file not found: {model_path}")
 
@@ -261,7 +264,7 @@ def feature_aggregation(
     layer_key: str = None,
     encoder: str | Callable = "mean",
     tile_key: str = Key.tiles,
-    by: str = "slide",
+    by: str | Sequence[str] | None = None,
     agg_key: str = None,
 ):
     """Feature aggregation on different levels.
@@ -279,9 +282,9 @@ def feature_aggregation(
         - 'gigapath': GigaPath slide encoder. The feature must be extracted by GigaPath model.
     tile_key : str, default: 'tiles'
         The key of the tiles dataframe in the spatial data object.
-    by : str, default: 'slide'
+    by : str or array of str, default: None
         The level to aggregate the features.
-        - 'slide': Aggregate the features from all tiles in the slide.
+        - By default will aggregate the features from all tiles in the slide.
         - Column name in tile dataframe: Aggregate the features by specific column.
           For example, to aggregate by tissue pieces, set by='tissue_id'.
     agg_key : str, optional
@@ -293,31 +296,52 @@ def feature_aggregation(
     The aggregation operation will be recorded in the :bdg-danger:`uns` slot.
 
     """
-    if agg_key is None:
-        agg_key = f"agg_{by}"
-
     tiles_table = wsi.shapes[tile_key]
-    coords = tiles_table.bounds[["minx", "miny"]].values
+    coords = tiles_table.bounds[["minx", "miny"]]
     feature_key = wsi._check_feature_key(feature_key, tile_key)
     if layer_key is None:
         features = wsi.tables[feature_key].X
     else:
         features = wsi.tables[feature_key].layers[layer_key]
 
-    if by == "slide":
+    if by is None:
+        if agg_key is None:
+            agg_key = "agg_slide"
         agg_fs = _encode_slide(features, encoder, coords)
         agg_fs = agg_fs.reshape(-1, 1)
+        agg_annos = {}
     else:
+        if isinstance(by, str):
+            by = [by]
+        if agg_key is None:
+            agg_key = f"agg_{'_'.join(by)}"
         agg_fs = []
-        for _, x in tiles_table.groupby(by):
+        agg_annos = []
+        for annos, x in tiles_table.groupby(by):
             tissue_feature = _encode_slide(
-                features[x.index], encoder, coords.iloc[x.index]
+                features[x.index], encoder, coords.loc[x.index]
             )
             agg_fs.append(tissue_feature)
+            agg_annos.append(list(annos))
         agg_fs = np.vstack(agg_fs).T
+        agg_annos = {
+            "keys": by,
+            "values": agg_annos,
+        }
+        # return agg_fs, agg_annos
+
         # The columns of by will also be added to the obs slot
-    by_data = tiles_table[by].values if by != "slide" else None
-    add_agg_features(wsi, feature_key, agg_key, agg_fs, by_key=by, by_data=by_data)
+    # by_data = tiles_table[by].values if by != "slide" else None
+    # add_agg_features(wsi, feature_key, agg_key, agg_fs, by_key=by, by_data=by_data)
+
+    # Add the aggregated features to varm slot of the feature table
+    feature_table = wsi.tables[feature_key]
+    feature_table.varm[agg_key] = agg_fs
+
+    # Add the aggregation operation to the uns slot
+    agg_ops = feature_table.uns.get("agg_ops", {})
+    agg_ops[agg_key] = agg_annos
+    feature_table.uns["agg_ops"] = agg_ops
 
 
 def _encode_slide(features, encoder, coords=None):

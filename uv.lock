@@ -5788,8 +5788,8 @@ wheels = [
 
 [[package]]
 name = "wsidata"
-version = "0.3.0"
-source = { git = "https://github.com/rendeirolab/wsidata?branch=main#0e605984e42d3511d50d0bb1f0fac4eaf71bdf17" }
+version = "0.4.0"
+source = { git = "https://github.com/rendeirolab/wsidata?branch=main#830233248e11c1ce5f9f5bea7950e4b3a6adea03" }
 dependencies = [
     { name = "numba" },
     { name = "opencv-python-headless" },

@@ -27,8 +27,8 @@ class TestPPTileTissues:
         zs.pp.tile_tissues(wsi, 256, slide_mpp=1, key_added="tiles2")
 
     def test_assert(self, wsi):
-        s0 = len(wsi.sdata["tiles"])
-        s1 = len(wsi.sdata["tiles1"])
+        s0 = len(wsi["tiles"])
+        s1 = len(wsi["tiles1"])
 
         assert s0 > 0
         assert s1 < s0
