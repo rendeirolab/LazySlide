@@ -225,7 +225,7 @@ def find_tissues(
 
 def score_tissues(
     wsi: WSIData,
-    scores: Scorer | Sequence[Scorer] = None,
+    scorers: Scorer | Sequence[Scorer] = None,
     num_workers: int = 1,
     pbar: bool = False,
     tissue_key: str = Key.tissue,
@@ -238,7 +238,7 @@ def score_tissues(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object to work on.
-    scores : :class:`Scorer` or array of :class`Scorer`
+    scorers : :class:`Scorer` or array of :class`Scorer`
         :class:`Scorer` to use for scoring tissue regions.
         - 'redness': The redness of the tissue.
         - 'brightness': The brightness of the tissue.
@@ -263,9 +263,9 @@ def score_tissues(
 
 
     """
-    if scores is None:
-        scores = ["redness", "brightness"]
-    compose_scorer = get_scorer(scores)
+    if scorers is None:
+        scorers = ["redness", "brightness"]
+    compose_scorer = get_scorer(scorers)
 
     with default_pbar(disable=not pbar) as progress_bar:
         task = progress_bar.add_task(
