@@ -30,8 +30,6 @@ LazySlide: Modular and scalable whole slide image analysis
     installation
     api/index
     tutorial/index
-    cli
-    nextflow
 
 
 .. grid:: 1 2 2 2
@@ -54,9 +52,3 @@ LazySlide: Modular and scalable whole slide image analysis
       :link-type: doc
 
       LazySlide API documentation
-
-   .. grid-item-card:: CLI
-      :link: cli
-      :link-type: doc
-
-      LazySlide command line interface
