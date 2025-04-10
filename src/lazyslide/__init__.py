@@ -1,6 +1,6 @@
 """Efficient and Scalable Whole Slide Image (WSI) processing library."""
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 
 import sys
@@ -16,6 +16,7 @@ from . import preprocess as pp
 from . import segmentation as seg
 from . import tools as tl
 from . import datasets
+from . import metrics
 
 # Inject the aliases into the current module
 sys.modules.update({f"{__name__}.{m}": globals()[m] for m in ["tl", "pp", "pl", "seg"]})
