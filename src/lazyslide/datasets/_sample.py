@@ -6,11 +6,11 @@ ENTRY = pooch.create(
     base_url="https://lazyslide.blob.core.windows.net/lazyslide-data",
     registry={
         "sample.svs": "sha256:ed92d5a9f2e86df67640d6f92ce3e231419ce127131697fbbce42ad5e002c8a7",
-        "sample.zarr.zip": "sha256:04f4c28510e393a49aaec767f480f264638a167e8b755225ab90a54c6b2a7cd8",
+        "sample.zarr.zip": "sha256:075a3ab61e6958673d79612cc29796a92cf875ad049fc1fe5780587968635378",
         "GTEX-1117F-0526.svs": "sha256:222ab7f2bb42dcd0bcfaccd910cb13be452b453499e6117ab553aa6cd60a135e",
-        "GTEX-1117F-0526.zarr.zip": "sha256:ef5f7e16599253c4bd7024b16730a48d80479181cb5d5135caef928c5e69b601",
+        "GTEX-1117F-0526.zarr.zip": "sha256:2323b656322d2dcc7e9d18aaf586b39a88bf8f2a3959f642f109eb54268f3732",
         "lung_carcinoma.ndpi": "sha256:3297b0a564f22940208c61caaca56d97ba81c9b6b7816ebc4042a087e557f85e",
-        "lung_carcinoma.zarr.zip": "sha256:5c58ba32ca72bfc51c2fd25282edccabdf5c2fcfcf7026db77ca2efa7988c17b",
+        "lung_carcinoma.zarr.zip": "sha256:0a8ccfc608f55624b473c6711b55739c3279d3b6fc5b654395dfc23b010bf866",
     },
 )
 
