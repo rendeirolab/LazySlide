@@ -22,6 +22,7 @@ def spatial_domain(
         )
     feature_key = wsi._check_feature_key(feature_key, tile_key)
     adata = wsi.fetch.features_anndata(feature_key, tile_key, tile_graph=False)
+    sc.pp.scale(adata, layer=layer)
     sc.pp.pca(adata, layer=layer)
     sc.pp.neighbors(adata)
     sc.tl.leiden(adata, flavor="igraph", key_added=key_added, resolution=resolution)
