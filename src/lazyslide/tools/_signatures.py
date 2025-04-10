@@ -9,8 +9,7 @@ from anndata import AnnData
 from matplotlib import pyplot as plt
 
 
-# TODO: Think of a better name
-class MultimodalLinker:
+class RNALinker:
     """
     Link the aggregated WSI features with other omics data.
 
@@ -144,6 +143,7 @@ class MultimodalLinker:
         method: Literal[
             "pearson", "spearman", "kendall", "linear_reg", "lasso"
         ] = "linear_reg",
+        score_key: str = None,
         key_added: str = "association_score",
     ):
         """
@@ -162,7 +162,7 @@ class MultimodalLinker:
 
         omics_df = pd.DataFrame(omics_matrix.X)
         scores = pd.Series(
-            self.agg_features.obs[self.score_key].to_numpy(), index=omics_df.index
+            self.agg_features.obs[score_key].to_numpy(), index=omics_df.index
         )
 
         if method in {"pearson", "spearman", "kendall"}:
@@ -189,24 +189,30 @@ class MultimodalLinker:
 
         omics_matrix.var[key_added] = np.asarray(coef)
 
-    def _get_associated_genes(self):
+    def _get_associated_genes(self, gene_name: str | None = None):
         omics_matrix = self.others
         if self.association_score_key not in omics_matrix.var:
             raise ValueError("Please run .associate() first.")
 
-        if self.gene_name is not None:
-            index = omics_matrix.var[self.gene_name]
+        if gene_name is not None:
+            index = omics_matrix.var[gene_name]
         else:
             index = omics_matrix.var.index
 
         scores_df = pd.DataFrame(
-            omics_matrix.var[self.association_score_key], index=index
+            {
+                self.association_score_key: omics_matrix.var[
+                    self.association_score_key
+                ].values
+            },
+            index=index,
         )
         return scores_df.sort_values(self.association_score_key, ascending=False)
 
     def plot_rank(
         self,
         n_genes=5,
+        gene_name: str | None = None,
     ):
         """
         Plot the rank of the association score.
@@ -217,7 +223,7 @@ class MultimodalLinker:
 
         # Plot a rank plot where x is the association score and y is the rank
         # sort the data
-        scores_df = self._get_associated_genes()
+        scores_df = self._get_associated_genes(gene_name)
         scores_df["rank"] = np.arange(len(scores_df))
 
         _, ax = plt.subplots()
@@ -254,9 +260,13 @@ class MultimodalLinker:
             ylabel="WSI Association Score",
         )
 
-    def associated_genes(self, n_genes=5):
+    def associated_genes(
+        self,
+        n_genes=5,
+        gene_name: str | None = None,
+    ):
         """
         Get the top and bottom associated genes.
         """
-        scores_df = self._get_associated_genes()
+        scores_df = self._get_associated_genes(gene_name)
         return {"top": scores_df.head(n_genes), "bottom": scores_df.tail(n_genes)}
