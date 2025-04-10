@@ -135,6 +135,10 @@ dev = [
     "muon>=0.1.7",
     "mofapy2>=0.7.2",
     "pypalettes>=0.1.5",
+    "bokeh>=3.7.2",
+    "napari-spatialdata>=0.5.5",
+    "spatialdata-plot>=0.2.9",
+    "napari[all]>=0.5.6",
 ]
 docs = [
     "sphinx>=8.1.3",
