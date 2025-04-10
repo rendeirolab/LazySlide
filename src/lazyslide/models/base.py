@@ -7,7 +7,6 @@ import numpy as np
 import timm
 import torch
 from huggingface_hub import login
-from timm.data import create_transform, resolve_data_config
 from timm.models.hub import download_cached_file
 
 
