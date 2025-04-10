@@ -2,18 +2,16 @@ from __future__ import annotations
 
 from typing import Literal
 
-import geopandas as gpd
-import numpy as np
 import torch
 from huggingface_hub import hf_hub_download
-from shapely.affinity import scale, translate
 from wsidata import WSIData
 from wsidata.io import add_shapes
 
 from lazyslide._const import Key
 from lazyslide._utils import get_torch_device
-from lazyslide.cv import MultiLabelMask, merge_polygons
 from lazyslide.models.base import SegmentationModel
+from lazyslide.models.segmentation.postprocess import semanticseg_postprocess
+from ._seg_runner import SegmentationRunner
 
 
 class GrandQCArtifactSegmentation(SegmentationModel):
@@ -48,7 +46,11 @@ class GrandQCArtifactSegmentation(SegmentationModel):
 
     def segment(self, image):
         with torch.inference_mode():
-            return self.model(image)
+            out = self.model(image)
+        return out.detach().cpu().numpy()
+
+    def get_postprocess(self):
+        return semanticseg_postprocess
 
 
 # Define class mapping
@@ -58,7 +60,7 @@ CLASS_MAPPING = {
     3: "Darkspot & Foreign Object",
     4: "PenMarking",
     5: "Edge & Air Bubble",
-    6: "OOF",  # Out of Focus
+    6: "Out of Focus",
     7: "Background",
 }
 
@@ -66,8 +68,10 @@ CLASS_MAPPING = {
 def artifact(
     wsi: WSIData,
     tile_key: str,
-    model: Literal["grandqc_5x", "grandqc_7x", "grandqc_10x"] = "grandqc_7x",
+    variants: Literal["grandqc_5x", "grandqc_7x", "grandqc_10x"] = "grandqc_7x",
     tissue_key: str = Key.tissue,
+    batch_size: int = 16,
+    n_workers: int = 0,
     device: str | None = None,
     key_added: str = "artifacts",
 ):
@@ -86,9 +90,7 @@ def artifact(
         "grandqc_10x": 1,
     }
 
-    mpp = model_mpp[model]
-    # calculate downsample to base mpp
-    downsample = mpp / wsi.properties.mpp
+    mpp = model_mpp[variants]
 
     if tile_key is not None:
         # Check if the tile spec is compatible with the model
@@ -103,34 +105,21 @@ def artifact(
         if spec.width != 512 or spec.height != 512:
             raise ValueError("Tile should be 512x512.")
 
-    model = GrandQCArtifactSegmentation(model=model.lstrip("grandqc_"))
-    transform = model.get_transform()
+    model = GrandQCArtifactSegmentation(model=variants.lstrip("grandqc_"))
 
-    model.to(device)
-
-    artifacts = []
-    for it in wsi.iter.tile_images(tile_key):
-        tile = it.image
-        img_t = transform(tile).unsqueeze(0)
-        img_t = img_t.to(device)
-        pred = model.segment(img_t)
-
-        pred = pred.squeeze().detach().cpu().numpy()
-        mask = np.argmax(pred, axis=0).astype(np.uint8)
-
-        mmask = MultiLabelMask(mask)
-        # ignore index 0, 1, 7
-        polys = mmask.to_polygons(ignore_index=[0, 1, 6, 7])
-        for i, ps in polys.items():
-            for p in ps:
-                p = scale(p, xfact=downsample, yfact=downsample, origin=(0, 0))
-                p = translate(p, xoff=it.x, yoff=it.y)
-                artifacts.append([CLASS_MAPPING[i], p])
-
-    artifacts = gpd.GeoDataFrame(artifacts, columns=["label", "geometry"])
-
-    final_arts = merge_polygons(artifacts, names="label")
-    final_arts = final_arts.reset_index(drop=True)
-
-    add_shapes(wsi, key_added, final_arts)
-    return final_arts
+    runner = SegmentationRunner(
+        wsi,
+        model,
+        tile_key,
+        transform=None,
+        batch_size=batch_size,
+        n_workers=n_workers,
+        device=device,
+        class_col="class",
+        postprocess_kws={
+            "ignore_index": [0, 1, 7],  # Ignore background, normal tissue
+            "mapping": CLASS_MAPPING,
+        },
+    )
+    arts = runner.run()
+    add_shapes(wsi, key=key_added, shapes=arts)

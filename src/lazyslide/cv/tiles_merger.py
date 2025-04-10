@@ -20,16 +20,12 @@ class PolygonMerger:
     ----------
     gdf : `GeoDataFrame <geopandas.GeoDataFrame>`
         The GeoDataFrame containing the polygons.
-    names : str, default: 'names'
+    class_col : str, default: None
         The column that specify the names of the polygons.
-    probs : str, default: 'probs'
+    prob_col : str, default: None
         The column that specify the probabilities of the polygons.
     buffer_px : float, default: 0
         The buffer size for the polygons to test the intersection.
-    task : {'multilabel', 'multiclass'}, default: 'multilabel'
-        The task type of the segmentation.
-        If 'multiclass', the same pixel can be assigned to multiple polygons.
-        There will be overlapping polygons.
     drop_overlap : float, default: 0.9
         The ratio to drop the overlapping polygons.
 
@@ -38,21 +34,19 @@ class PolygonMerger:
     def __init__(
         self,
         gdf: gpd.GeoDataFrame,
-        name: str = "name",
-        prob: str = "prob",
+        class_col: str = None,
+        prob_col: str = None,
         buffer_px: float = 0,
-        task: str = "multilabel",
         drop_overlap: float = 0.9,
     ):
         self.gdf = gdf
-        self.name = name
-        self.prob = prob
+        self.class_col = class_col
+        self.prob_col = prob_col
         self.buffer_px = buffer_px
-        self.task = task
         self.drop_overlap = drop_overlap
 
-        self._has_name = name in gdf.columns
-        self._has_prob = prob in gdf.columns
+        self._has_class = class_col in gdf.columns if class_col else False
+        self._has_prob = prob_col in gdf.columns if prob_col else False
         self._preprocessed_polygons = self._preprocess_polys()
         self._merged_polygons = None
 
@@ -63,6 +57,14 @@ class PolygonMerger:
             new_gdf["geometry"] = self.gdf["geometry"].buffer(self.buffer_px)
         # Filter out invalid and empty geometries efficiently
         return new_gdf[new_gdf["geometry"].is_valid & ~new_gdf["geometry"].is_empty]
+
+    def _merge_overlap(self, gdf: gpd.GeoDataFrame):
+        """
+        Merge the overlapping polygons recursively.
+
+        This function has no assumptions about the class or probability
+        """
+        pass
 
     def _tree_merge(self, gdf: gpd.GeoDataFrame):
         polygons = gdf["geometry"].tolist()
@@ -105,37 +107,44 @@ class PolygonMerger:
                 merged_geoms.append((m_geoms, ix, groups_ix))
             else:
                 m_geoms = [polygons[g] for g in groups_ix]
-                if self._has_name and self.task == "multilabel":
+                if self._has_class:
                     ref_df = gpd.GeoDataFrame(
                         {
-                            "names": [gdf[self.name].values[g] for g in groups_ix],
+                            "names": [gdf[self.class_col].values[g] for g in groups_ix],
                             "index": groups_ix,
                             "geometry": m_geoms,
                         }
                     )
 
+                    # {class_name: polygon}
                     named_polys = (
                         ref_df[["names", "geometry"]]
                         .groupby("names")
                         .apply(unary_union)
                         .to_dict()
                     )
-                    # If the merged polygons are overlapping
-                    # with more than 90% of the area
-                    # The smaller polygons are removed
-                    while len(named_polys) > 1:
-                        names = list(named_polys.keys())
-                        combs = combinations(names, 2)
-                        for n1, n2 in combs:
-                            p1, p2 = named_polys[n1], named_polys[n2]
-                            area, drop = (
-                                (p1.area, n1) if p1.area < p2.area else (p2.area, n2)
-                            )
-                            union = p1.union(p2).area
-                            overlap_ratio = union / area
-                            if overlap_ratio > self.drop_overlap:
-                                del named_polys[drop]
-                                break
+
+                    if self.drop_overlap > 0:
+                        # If the two classes instances are more than 90% overlapping
+                        # The smaller one is removed
+                        while len(named_polys) > 1:
+                            names = list(named_polys.keys())
+                            combs = combinations(names, 2)
+                            for n1, n2 in combs:
+                                if n1 in named_polys and n2 in named_polys:
+                                    p1, p2 = named_polys[n1], named_polys[n2]
+                                    if p1.intersection(p2).is_empty:
+                                        continue
+                                    area, drop = (
+                                        (p1.area, n1)
+                                        if p1.area < p2.area
+                                        else (p2.area, n2)
+                                    )
+                                    union = p1.union(p2).area
+                                    overlap_ratio = union / area
+                                    if overlap_ratio > self.drop_overlap:
+                                        del named_polys[drop]
+                            break
                     for n, p in named_polys.items():
                         gs = ref_df[ref_df["names"] == n]["index"].tolist()
                         merged_geoms.append((p, gs[0], gs))
@@ -151,8 +160,8 @@ class PolygonMerger:
                     m_data["geometry"] = m_geom
                     if self._has_prob:
                         gs_gdf = gdf.iloc[gs_ix]
-                        m_data[self.prob] = np.average(
-                            gs_gdf[self.prob], weights=gs_gdf["geometry"].area
+                        m_data[self.prob_col] = np.average(
+                            gs_gdf[self.prob_col], weights=gs_gdf["geometry"].area
                         )
                     merged.append(m_data)
             for g in groups_ix:
@@ -170,13 +179,12 @@ class PolygonMerger:
 
 def merge_polygons(
     gdf: gpd.GeoDataFrame,
-    names: str = "names",
-    probs: str = "probs",
+    class_col: str = None,
+    prob_col: str = None,
     buffer_px: float = 0,
-    task: str = "multilabel",
     drop_overlap: float = 0.9,
 ):
-    merger = PolygonMerger(gdf, names, probs, buffer_px, task, drop_overlap)
+    merger = PolygonMerger(gdf, class_col, prob_col, buffer_px, drop_overlap)
     merger.merge()
     return merger.merged_polygons
 

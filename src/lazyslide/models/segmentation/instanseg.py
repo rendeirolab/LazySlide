@@ -3,12 +3,11 @@ from __future__ import annotations
 from typing import Callable
 
 import numpy as np
-import pandas as pd
 import torch
-
 from huggingface_hub import hf_hub_download
+
 from lazyslide.models.base import SegmentationModel
-from .postprocess import cellseg_postprocess
+from .postprocess import instanseg_postprocess
 
 
 def instanseg_preprocess(image: np.ndarray) -> torch.Tensor:
@@ -42,7 +41,7 @@ class Instanseg(SegmentationModel):
     def segment(self, image):
         with torch.inference_mode():
             out = self.model(image)
-        return out.cpu().numpy().astype(np.int32)
+        return out.squeeze().cpu().numpy().astype(np.uint16)
 
     def get_postprocess(self) -> Callable | None:
-        return cellseg_postprocess
+        return instanseg_postprocess

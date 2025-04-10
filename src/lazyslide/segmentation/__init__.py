@@ -1,3 +1,4 @@
-from ._run_seg import cells, semantic
-from ._tissue_seg import tissue
-from ._artfact_seg import artifact
+from ._seg_runner import SegmentationRunner
+from ._cell import cells, nulite
+from ._artifact import artifact
+from ._tissue import tissue
