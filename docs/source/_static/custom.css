@@ -14,3 +14,7 @@ html[data-theme="dark"] {
 html[data-theme="light"] .highlight .hll {
     background-color: #fcf427;
 }
+
+.cell_output img {
+    height: auto !important;
+}
