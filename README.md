@@ -6,7 +6,7 @@
     </picture>
 </p>
 <p align="center">
-  <i>Modularized and scalable whole slide image analysis</i>
+  <i>Accessible and interoperable whole slide image analysis</i>
 </p>
 
 [![Documentation Status](https://readthedocs.org/projects/lazyslide/badge/?version=stable&style=flat-square)](https://lazyslide.readthedocs.io/en/stable)
