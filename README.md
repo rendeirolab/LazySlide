@@ -27,6 +27,9 @@ By adopting standardized data structures and APIs familiar to the single-cell an
 - **Foundation model support**: Native integration with state-of-the-art models (e.g., UNI, CONCH, Gigapath, Virchow) for tasks like zero-shot classification and captioning.
 - **Deep learning ready**: Provides PyTorch dataloaders for seamless integration into machine learning pipelines.​
 
+
+![figure](assets/Figure.png)
+
 ## Documentation
 
 Comprehensive documentation is available at [https://lazyslide.readthedocs.io](https://lazyslide.readthedocs.io). It includes tutorials, API references, and guides to help you get started.​
