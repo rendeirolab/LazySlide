@@ -59,7 +59,7 @@ features = wsi['resnet50_tiles']
 
 ## Contributing
 
-We welcome contributions from the community. Please refer to our [CONTRIBUTING.md](contributing guide) for guidelines on how to contribute.
+We welcome contributions from the community. Please refer to our [contributing guide](CONTRIBUTING.md) for guidelines on how to contribute.
 
 ## Licence
 
