@@ -8,7 +8,7 @@ from torchvision.transforms.v2 import ToImage, ToDtype, Normalize, Compose
 from huggingface_hub import hf_hub_download
 
 from lazyslide.cv import Mask
-from lazyslide.models import SegmentationModel
+from lazyslide.models.base import SegmentationModel
 
 from .model import NuLite as NuLiteModel
 

@@ -4,7 +4,7 @@ from typing import Callable
 
 import torch
 
-from lazyslide.models import SegmentationModel
+from lazyslide.models.base import SegmentationModel
 from lazyslide.models.segmentation.postprocess import semanticseg_postprocess
 
 
