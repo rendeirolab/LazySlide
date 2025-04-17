@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import warnings
 from functools import partial
-from typing import Literal, Callable, Dict, Mapping
+from typing import Literal, Callable, Mapping
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-import geopandas as gpd
 import torch
 from shapely.affinity import scale, translate
 from torch.utils.data import DataLoader
@@ -16,7 +15,6 @@ from wsidata.io import add_shapes
 from lazyslide._utils import default_pbar, get_torch_device
 from lazyslide.cv import merge_polygons
 from lazyslide.models.base import SegmentationModel
-from lazyslide.models.segmentation import Instanseg
 
 
 def semantic(

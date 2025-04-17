@@ -1,6 +1,6 @@
 import torch
 
-from lazyslide.models import ImageTextModel
+from ..base import ImageTextModel
 
 
 class CONCH(ImageTextModel):

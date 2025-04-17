@@ -51,3 +51,16 @@ Multi-Modal Analysis
 
     tl.text_embedding
     tl.text_image_similarity
+
+
+Zero-shot Learning
+~~~~~~~~~~~~~~~~~~
+
+.. currentmodule:: lazyslide
+
+.. autosummary::
+    :toctree: _autogen
+    :nosignatures:
+
+    tl.zero_shot_score
+    tl.slide_caption

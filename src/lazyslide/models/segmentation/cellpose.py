@@ -1,4 +1,4 @@
-from lazyslide.models import SegmentationModel
+from lazyslide.models.base import SegmentationModel
 
 
 class Cellpose(SegmentationModel):

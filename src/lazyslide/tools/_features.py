@@ -5,14 +5,13 @@ from pathlib import Path
 from typing import Callable, Sequence
 
 import numpy as np
-import pandas as pd
 import torch
 from wsidata import WSIData
-from wsidata.io import add_features, add_agg_features
+from wsidata.io import add_features
 
 from lazyslide._const import Key
 from lazyslide._utils import default_pbar, get_torch_device
-from lazyslide.models import ImageModel
+from lazyslide.models import ImageModel, VISION_MODEL_REGISTRY
 
 
 def get_default_transform():
@@ -32,35 +31,10 @@ def get_default_transform():
 def load_models(model_name: str, model_path=None, token=None, **kwargs):
     """Load a model with timm or torch.hub.load"""
 
-    if model_name == "uni":
-        from lazyslide.models.vision import UNI
-
-        model = UNI(model_path=model_path, token=token)
-    elif model_name == "uni2":
-        from lazyslide.models.vision import UNI2
-
-        model = UNI2(model_path=model_path, token=token)
-    elif model_name == "gigapath":
-        from lazyslide.models.vision import GigaPath
-
-        model = GigaPath(model_path=model_path, token=token)
-    elif model_name == "conch":
-        from lazyslide.models.multimodal import CONCH
-
-        model = CONCH(model_path=model_path, token=token)
-
-    elif model_name == "conch_vision":
-        from lazyslide.models.vision import CONCHVision
-
-        model = CONCHVision(model_path=model_path, token=token)
-    elif model_name == "plip":
-        from lazyslide.models.multimodal import PLIP
-
-        model = PLIP(model_path=model_path, token=token)
-    elif model_name == "plip_vision":
-        from lazyslide.models.vision import PLIPVision
-
-        model = PLIPVision(model_path=model_path, token=token)
+    if model_name in VISION_MODEL_REGISTRY:
+        model = VISION_MODEL_REGISTRY[model_name](
+            model_path=model_path, token=token, **kwargs
+        )
     else:
         from lazyslide.models import TimmModel
 
@@ -82,7 +56,7 @@ def feature_extraction(
     transform: Callable = None,
     device: str = None,
     amp: bool = False,
-    autocase_dtype: torch.dtype = torch.float16,
+    autocast_dtype: torch.dtype = torch.float16,
     tile_key: str = Key.tiles,
     key_added: str = None,
     batch_size: int = 32,
@@ -135,7 +109,7 @@ def feature_extraction(
         The device to use for inference. If not provided, the device will be automatically selected.
     amp : bool, default: False
         Whether to use automatic mixed precision.
-    autocase_dtype : torch.dtype, default: torch.float16
+    autocast_dtype : torch.dtype, default: torch.float16
         The dtype for automatic mixed precision.
     tile_key : str, default: 'tiles'
         The key of the tiles dataframe in the spatial data object.
@@ -196,7 +170,6 @@ def feature_extraction(
             model = load_func(model_path, **load_kws)
         else:
             raise FileNotFoundError(f"Model file not found: {model_path}")
-
     # Deal with key_added
     if key_added is None:
         if model_name is not None:
@@ -210,16 +183,14 @@ def feature_extraction(
         else:
             key_added = "features"
         key_added = Key.feature(key_added, tile_key)
-
     try:
-        model = model.to(device)
+        model.to(device)
     except:  # noqa: E722
         pass
 
     if transform is None:
         if isinstance(model, ImageModel):
             transform = model.get_transform()
-
     # Create dataloader
     # Auto chunk the wsi tile coordinates to the number of workers'
     n_tiles = len(wsi.shapes[tile_key])
@@ -233,9 +204,7 @@ def feature_extraction(
         )
         # Extract features
         features = []
-        amp_ctx = (
-            torch.cuda.amp.autocast(device, autocase_dtype) if amp else nullcontext()
-        )
+        amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()
         with amp_ctx, torch.inference_mode():
             for batch in loader:
                 image = batch["image"].to(device)
@@ -266,6 +235,7 @@ def feature_aggregation(
     tile_key: str = Key.tiles,
     by: str | Sequence[str] | None = None,
     agg_key: str = None,
+    device: str = None,
 ):
     """Feature aggregation on different levels.
 
@@ -289,6 +259,8 @@ def feature_aggregation(
           For example, to aggregate by tissue pieces, set by='tissue_id'.
     agg_key : str, optional
         The key to store the aggregated features. If not provided, the key will be 'agg_{by}'.
+    device : str, optional
+        The device to use for inference. If not provided, the device will be automatically selected.
 
     Returns
     -------
@@ -296,7 +268,11 @@ def feature_aggregation(
     The aggregation operation will be recorded in the :bdg-danger:`uns` slot.
 
     """
+    if device is None:
+        device = get_torch_device()
+
     tiles_table = wsi.shapes[tile_key]
+    tile_spec = wsi.tile_spec(tile_key)
     coords = tiles_table.bounds[["minx", "miny"]]
     feature_key = wsi._check_feature_key(feature_key, tile_key)
     if layer_key is None:
@@ -304,61 +280,101 @@ def feature_aggregation(
     else:
         features = wsi.tables[feature_key].layers[layer_key]
 
+    agg_info = {}
+
     if by is None:
         if agg_key is None:
             agg_key = "agg_slide"
-        agg_fs = _encode_slide(features, encoder, coords)
-        agg_fs = agg_fs.reshape(-1, 1)
-        agg_annos = {}
+        slide_reprs = _encode_slide(
+            features, encoder, coords, device=device, tile_spec=tile_spec
+        )
+        agg_fs = slide_reprs["features"]
+        for k, v in slide_reprs.items():
+            if k != "features":
+                agg_info[k] = v
     else:
         if isinstance(by, str):
             by = [by]
         if agg_key is None:
             agg_key = f"agg_{'_'.join(by)}"
         agg_fs = []
+        agg_latents = []
         agg_annos = []
         for annos, x in tiles_table.groupby(by):
-            tissue_feature = _encode_slide(
-                features[x.index], encoder, coords.loc[x.index]
+            slide_reprs = _encode_slide(
+                features[x.index],
+                encoder,
+                coords.loc[x.index],
+                device=device,
+                tile_spec=tile_spec,
             )
-            agg_fs.append(tissue_feature)
+            agg_fs.append(slide_reprs["features"])
+            if "latents" in slide_reprs:
+                agg_latents.append(slide_reprs["latents"])
             agg_annos.append(list(annos))
-        agg_fs = np.vstack(agg_fs).T
-        agg_annos = {
-            "keys": by,
-            "values": agg_annos,
-        }
+        agg_fs = np.vstack(agg_fs)
+
+        agg_info["keys"] = by
+        agg_info["values"] = agg_annos
+        if len(agg_latents) > 0:
+            agg_latents = np.vstack(agg_latents)
+            agg_info["latents"] = agg_latents
         # return agg_fs, agg_annos
 
-        # The columns of by will also be added to the obs slot
-    # by_data = tiles_table[by].values if by != "slide" else None
-    # add_agg_features(wsi, feature_key, agg_key, agg_fs, by_key=by, by_data=by_data)
-
-    # Add the aggregated features to varm slot of the feature table
+    # The aggregated features should have the same number of columns as the original features
+    # Otherwise, we have to write it to uns
     feature_table = wsi.tables[feature_key]
-    feature_table.varm[agg_key] = agg_fs
+    agg_info["features"] = agg_fs
+    if agg_fs.shape[1] == features.shape[1]:
+        # Add the aggregated features to varm slot of the feature table
+        feature_table.varm[agg_key] = agg_fs.T
 
     # Add the aggregation operation to the uns slot
     agg_ops = feature_table.uns.get("agg_ops", {})
-    agg_ops[agg_key] = agg_annos
+    agg_ops[agg_key] = agg_info
     feature_table.uns["agg_ops"] = agg_ops
 
 
-def _encode_slide(features, encoder, coords=None):
+def _encode_slide(features, encoder, coords=None, device=None, tile_spec=None):
+    result_dict = {
+        "features": None,
+    }
     if encoder == "mean":
         agg_features = np.mean(features, axis=0)
     elif encoder == "median":
         agg_features = np.median(features, axis=0)
-    elif encoder == "gigapath":
-        from lazyslide.models.vision import GigaPathSlideEncoder
-
-        encoder = GigaPathSlideEncoder()
-        fs = torch.tensor(features).unsqueeze(0)
-        cs = torch.tensor(coords.values).unsqueeze(0)
-        agg_features = encoder.encode_slide(fs, cs)
-    elif callable(encoder):
-        agg_features = encoder(features)
+    # elif encoder == "gigapath":
+    #     from lazyslide.models.vision import GigaPathSlideEncoder
+    #
+    #     encoder = GigaPathSlideEncoder()
+    #     fs = torch.tensor(features).unsqueeze(0)
+    #     cs = torch.tensor(coords.values).unsqueeze(0)
+    #     agg_features = encoder.encode_slide(fs, cs)
     else:
-        raise ValueError(f"Unknown slide encoding method: {encoder}")
+        fs = torch.tensor(features, dtype=torch.float32).unsqueeze(0).to(device)
+        cs = torch.tensor(coords.values, dtype=torch.int64).unsqueeze(0).to(device)
+        if encoder == "prism":
+            from lazyslide.models.vision import Prism
 
-    return agg_features
+            encoder = Prism()
+            encoder.to(device)
+
+            slide_reprs = encoder.encode_slide(fs, cs)
+            agg_features = slide_reprs["image_embedding"].cpu().detach().numpy()
+            img_latents = slide_reprs["image_latents"].cpu().detach().numpy()
+            result_dict["latents"] = img_latents
+        elif encoder == "titan":
+            from lazyslide.models.vision import Titan
+
+            encoder = Titan()
+            encoder.to(device)
+            agg_features = encoder.encode_slide(fs, cs, tile_spec.base_width)
+        else:
+            raise ValueError(f"Unknown slide encoding method: {encoder}")
+
+    if agg_features.ndim == 1:
+        agg_features = agg_features.reshape(1, -1)
+
+    result_dict["features"] = agg_features
+
+    return result_dict
