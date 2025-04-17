@@ -149,12 +149,30 @@ def tile_tissues(
             edge=edge,
         )
         query_tissue = gpd.GeoDataFrame({"geometry": [cnt]})
-        overlap_tiles = gpd.sjoin(
-            tiles, query_tissue, predicate="intersects", how="inner"
+
+        # first check for tiles that are intersecting with the tissue
+        intersect = gpd.sjoin(tiles, query_tissue, how="inner", predicate="intersects")
+
+        # then check for tiles that are within the tissue
+        within = gpd.sjoin(
+            intersect.drop(columns="index_right", errors="ignore"),
+            query_tissue,
+            how="inner",
+            predicate="within",
         )
-        ov_ratio = overlap_tiles.intersection(cnt).area / overlap_tiles.area
+
+        # To apply filtering based on the background fraction
+        # We only need to check the tiles that are on the border
+        border_tiles = intersect[~intersect.index.isin(within.index)]
+        ov_ratio = border_tiles.intersection(cnt).area / border_tiles.area
         ov_ratio = ov_ratio[ov_ratio > (1 - background_fraction)]
-        overlap_tiles = overlap_tiles.loc[ov_ratio.index].copy()
+
+        # The tiles that are used will be the ones that are within the tissue
+        # and the ones that are on the border but pass filtering
+        final_ixs = ov_ratio.index.tolist() + within.index.tolist()
+        overlap_tiles = tiles.loc[final_ixs].copy()
+
+        # Add to the final collection and match the tissue id
         tiles_collections.append(overlap_tiles)
         tiles_tissue_id.extend([tissue_id] * len(overlap_tiles))
 
@@ -225,9 +243,8 @@ def score_tiles(
     --------
     .. code-block:: python
 
-        >>> from wsidata import open_wsi
         >>> import lazyslide as zs
-        >>> wsi = open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
+        >>> wsi = zs.datasets.sample()
         >>> zs.pp.find_tissues(wsi)
         >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
         >>> zs.pp.score_tiles(wsi, scorers=["focus", "contrast"])
