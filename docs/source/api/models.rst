@@ -15,10 +15,17 @@ Vision Models
     GigaPath
     PLIPVision
     CONCHVision
+    Virchow
+    Virchow2
+    Phikon
+    PhikonV2
+    HOptimus0
+    HOptimus1
+    H0Mini
 
 
-Image-Text Contrastive Models
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Image-Text Models
+~~~~~~~~~~~~~~~~~~~
 
 .. currentmodule:: lazyslide.models.multimodal
 
@@ -28,6 +35,8 @@ Image-Text Contrastive Models
 
     PLIP
     CONCH
+    Titan
+    Prism
 
 
 Segmentation Models
@@ -40,6 +49,7 @@ Segmentation Models
     :nosignatures:
 
     Instanseg
+    NuLite
     SMPBase
 
 Base Models
