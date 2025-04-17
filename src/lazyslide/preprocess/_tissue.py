@@ -6,10 +6,10 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import Sequence
 
 import cv2
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import psutil
-from shapely import Polygon
 from shapely.affinity import translate, scale
 from wsidata import WSIData
 from wsidata.io import add_tissues, update_shapes_data
@@ -25,6 +25,7 @@ from lazyslide.cv.transform import (
 from ._utils import get_scorer, Scorer
 from .._const import Key
 from .._utils import default_pbar, find_stack_level
+from ..cv import merge_polygons
 
 
 def _tissue_mask(
@@ -92,7 +93,7 @@ def find_tissues(
         The level to use for segmentation.
     refine_level : int or 'auto', default: None
         The level to refine the tissue polygons.
-    use_saturation : bool, default: False
+    to_hsv : bool, default: False
         The tissue image will be converted from RGB to HSV space,
         the saturation channel (color purity) will be used for tissue detection.
     blur_ksize : int, default: 17
@@ -101,7 +102,7 @@ def find_tissues(
         The threshold for binary thresholding.
     morph_n_iter : int, default: 3
         The number of iterations of morphological opening and closing to apply.
-    morph_k_size : int, default: 7
+    morph_ksize : int, default: 7
         The kernel size for morphological opening and closing.
     min_tissue_area : float, default: 1e-3
         The minimum area of tissue.
@@ -126,9 +127,8 @@ def find_tissues(
     .. plot::
         :context: close-figs
 
-        >>> from wsidata import open_wsi
         >>> import lazyslide as zs
-        >>> wsi = open_wsi("sample.svs")
+        >>> wsi = zs.datasets.sample(with_data=False)
         >>> zs.pp.find_tissues(wsi)
         >>> zs.pl.tissue(wsi)
 
@@ -142,7 +142,7 @@ def find_tissues(
         proportion = 0.4
         detect_holes_1 = False
 
-    level = _decide_level(wsi, level, proportion)
+    ops_level = _decide_level(wsi, level, proportion)
     # Set the segmentation options
 
     # Run the first segmentation
@@ -158,7 +158,7 @@ def find_tissues(
         min_area=min_tissue_area,
         min_hole_area=min_hole_area,
     )
-    tissue_image = wsi.reader.get_level(level)
+    tissue_image = wsi.reader.get_level(ops_level)
     tissue_mask = _tissue_mask(tissue_image, **mask_option)
     tissue_polys = BinaryMask(tissue_mask).to_polygons(
         **to_poly_option, detect_holes=detect_holes_1
@@ -169,24 +169,36 @@ def find_tissues(
         return False
 
     tissues = []
-    downsample = _get_downsample(wsi, level)
+    downsample = _get_downsample(wsi, ops_level)
     for tissue in tissue_polys:
         # Scale it back to level 0
         tissue = scale(tissue, xfact=downsample, yfact=downsample, origin=(0, 0))
         tissues.append(tissue)
 
-    if refine_level:
+    if refine_level is not None:
         # Refine the tissue polygons at a higher resolution level
         refine_tissues = []
         for tissue_poly in tissues:
             # Tissue polygon at the highest resolution level
-            xmin, ymin, xmax, ymax = tissue_poly.buffer(10).bounds
+            xmin, ymin, xmax, ymax = tissue_poly.bounds
+            # Enlarge the bounding box by 10%
             width, height = xmax - xmin, ymax - ymin
 
-            level = _decide_level(wsi, refine_level)
-            refine_downsample = _get_downsample(wsi, level)
+            if refine_level == "auto":
+                current_refine_level = _decide_level(wsi, refine_level, proportion)
+                if current_refine_level == ops_level:
+                    current_refine_level -= 1
+                if current_refine_level < 0:
+                    current_refine_level = 0
 
-            image = wsi.reader.get_region(xmin, ymin, width, height, level=level)
+            else:
+                current_refine_level = refine_level
+
+            refine_downsample = _get_downsample(wsi, current_refine_level)
+
+            image = wsi.reader.get_region(
+                xmin, ymin, width, height, level=current_refine_level
+            )
             tissue_mask = _tissue_mask(image, **mask_option)
             tissue_polys = BinaryMask(tissue_mask).to_polygons(
                 **to_poly_option, detect_holes=detect_holes
@@ -200,25 +212,12 @@ def find_tissues(
                     origin=(0, 0),
                 )
                 tissue = translate(tissue, xoff=xmin, yoff=ymin)
-                refine_tissues.append(tissue)
-            # refine_tissue_instances = seg.apply(image)
-            # for refine_tissue in refine_tissue_instances:
-            #     refine_poly = _tissue_instance2poly(
-            #         refine_tissue, refine_downsample, xoff=xmin, yoff=ymin
-            #     )
-            #
-            #     if not refine_poly.is_valid:
-            #         refine_poly = refine_poly.buffer(0)
-            #     if isinstance(refine_poly, MultiPolygon):
-            #         geoms = refine_poly.geoms
-            #         areas = [geom.area for geom in geoms]
-            #         refine_poly = geoms[np.argmax(areas)]
-            #
-            #     if refine_poly.is_valid:
-            #         # Check if the refined tissue region intersects with the original tissue region
-            #         if refine_poly.intersects(tissue_poly):
-            #             tissues.append(refine_poly)
-        tissues = refine_tissues
+                refine_tissues.append(tissue.buffer(0))
+        tissues_gdf = gpd.GeoDataFrame(
+            data={"geometry": refine_tissues},
+        )
+        merged_tissue = merge_polygons(tissues_gdf)
+        tissues = merged_tissue["geometry"]
 
     add_tissues(wsi, key=key_added, tissues=tissues)
 
@@ -254,9 +253,8 @@ def score_tissues(
 
     .. code::
 
-        >>> from wsidata import open_wsi
         >>> import lazyslide as zs
-        >>> wsi = open_wsi("https://github.com/camicroscope/Distro/raw/master/images/sample.svs")
+        >>> wsi = zs.datasets.sample(with_data=False)
         >>> zs.pp.find_tissues(wsi)
         >>> zs.pp.score_tiles(wsi, ["redness", "brightness"])
         >>> wsi["tissues"]
@@ -338,13 +336,6 @@ def _decide_level(wsi, level, proportion=0.8):
         return _get_optimal_level(wsi.properties, proportion)
     else:
         return wsi.reader.translate_level(level)
-
-
-def _tissue_instance2poly(tissue, downsample, xoff=0, yoff=0):
-    shell = tissue.contour * downsample
-    holes = [hole * downsample for hole in tissue.holes]
-    tissue_poly = Polygon(shell, holes=holes)
-    return translate(tissue_poly, xoff=xoff, yoff=yoff)
 
 
 def _get_downsample(wsi, level):
