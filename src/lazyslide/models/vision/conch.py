@@ -1,6 +1,6 @@
 import torch
 
-from lazyslide.models import ImageModel
+from lazyslide.models.base import ImageModel
 
 
 class CONCHVision(ImageModel):

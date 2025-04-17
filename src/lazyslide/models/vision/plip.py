@@ -1,4 +1,4 @@
-from lazyslide.models import ImageModel
+from lazyslide.models.base import ImageModel
 
 
 class PLIPVision(ImageModel):
