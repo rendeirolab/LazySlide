@@ -136,9 +136,7 @@ dev = [
     "mofapy2>=0.7.2",
     "pypalettes>=0.1.5",
     "bokeh>=3.7.2",
-    "napari-spatialdata>=0.5.5",
     "spatialdata-plot>=0.2.9",
-    "napari[all]>=0.5.6",
 ]
 docs = [
     "sphinx>=8.1.3",
@@ -151,6 +149,18 @@ docs = [
     "sphinx-copybutton>=0.5.2",
     "sphinx-design>=0.6.1",
 ]
+napari = [
+    "napari[all]>=0.5.6",
+    "napari-spatialdata>=0.5.5",
+    "spatialdata-plot>=0.2.9",
+]
+caption = [
+    "einops>=0.8.1",
+    "einops-exts>=0.0.4",
+    "environs>=14.1.1",
+    "sacremoses>=0.1.1",
+]
+
 
 [tool.uv.sources]
 wsidata = { git = "https://github.com/rendeirolab/wsidata", branch = "main" }
