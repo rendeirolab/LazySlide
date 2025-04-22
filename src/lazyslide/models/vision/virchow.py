@@ -16,13 +16,13 @@ class Virchow(TimmModel):
             token=token,
         )
 
+    @torch.inference_mode()
     def encode_image(self, img):
-        with torch.inference_mode():
-            output = self.model(img)
-            # CLS token features (1, 768):
-            cls_features = output[:, 0]
-            # Patch token features (1, 256, 768):
-            patch_features = output[:, self.model.num_prefix_tokens :]
+        output = self.model(img)
+        # CLS token features (1, 768):
+        cls_features = output[:, 0]
+        # Patch token features (1, 256, 768):
+        patch_features = output[:, self.model.num_prefix_tokens :]
         return torch.cat((cls_features, patch_features.mean(1)), dim=-1)
 
 

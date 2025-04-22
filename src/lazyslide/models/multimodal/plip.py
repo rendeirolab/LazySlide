@@ -27,6 +27,7 @@ class PLIP(ImageTextModel):
     def get_transform(self):
         return None
 
+    @torch.inference_mode()
     def encode_image(self, image):
         inputs = self.processor(images=image, return_tensors="pt")
         inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
@@ -34,6 +35,7 @@ class PLIP(ImageTextModel):
         image_features = torch.nn.functional.normalize(image_features, p=2, dim=-1)
         return image_features
 
+    @torch.inference_mode()
     def encode_text(self, text):
         inputs = self.processor(
             text=text,

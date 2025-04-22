@@ -82,12 +82,13 @@ class Titan(ImageModel):
         )
         return slide_embeddings.detach().cpu().numpy()
 
+    @torch.inference_mode()
     def score(
         self, slide_embeddings, prompts: list[str], template: str = None, **kwargs
     ):
         if template is None:
             template = self.TEMPLATES
-        with torch.inference_mode():
-            classifier = self.model.zero_shot_classifier(prompts, template)
-            scores = self.model.zero_shot(slide_embeddings, classifier)
-            return scores.squeeze(0).detach().cpu().numpy()
+
+        classifier = self.model.zero_shot_classifier(prompts, template)
+        scores = self.model.zero_shot(slide_embeddings, classifier)
+        return scores.squeeze(0).detach().cpu().numpy()

@@ -72,21 +72,21 @@ class Prism(ModelBase):
         probs = torch.cat(class_probs, dim=-1)
         return probs.detach().cpu().numpy()
 
+    @torch.inference_mode()
     def caption(
         self,
         img_latents,
         prompt: list[str],
         max_length: int = 100,
     ):
-        with torch.inference_mode():
-            genned_ids = self.model.generate(
-                self.model.tokenize(prompt).to(self.model.device),
-                key_value_states=img_latents,
-                do_sample=False,
-                num_beams=5,
-                num_beam_groups=1,
-                max_length=max_length,
-            )
-            genned_caption = self.model.untokenize(genned_ids)
+        genned_ids = self.model.generate(
+            self.model.tokenize(prompt).to(self.model.device),
+            key_value_states=img_latents,
+            do_sample=False,
+            num_beams=5,
+            num_beam_groups=1,
+            max_length=max_length,
+        )
+        genned_caption = self.model.untokenize(genned_ids)
 
         return genned_caption

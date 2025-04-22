@@ -24,6 +24,7 @@ class CONCH(ImageTextModel):
             )
             self.tokenizer = get_tokenizer()
 
+    @torch.inference_mode()
     def encode_image(self, image):
         if not isinstance(image, torch.Tensor):
             image = self.processor(image)
@@ -40,6 +41,7 @@ class CONCH(ImageTextModel):
 
         return tokenize(self.tokenizer, text)
 
+    @torch.inference_mode()
     def encode_text(self, text):
         encode_texts = self.tokenize(text)
         text_feature = self.model.encode_text(encode_texts)
