@@ -1,5 +1,6 @@
 import torch
 
+from .._utils import hf_access
 from ..base import ImageModel
 
 
@@ -35,13 +36,14 @@ class Titan(ImageModel):
     def __init__(self, model_path=None, token=None):
         from transformers import AutoModel
 
-        self.model = AutoModel.from_pretrained(
-            "MahmoodLab/TITAN",
-            add_pooling_layer=False,
-            use_auth_token=token,
-            trust_remote_code=True,
-        )
-        self.conch, self.conch_transform = self.model.return_conch()
+        with hf_access(model_path):
+            self.model = AutoModel.from_pretrained(
+                "MahmoodLab/TITAN",
+                add_pooling_layer=False,
+                use_auth_token=token,
+                trust_remote_code=True,
+            )
+            self.conch, self.conch_transform = self.model.return_conch()
 
     def to(self, device):
         super().to(device)
@@ -80,12 +82,13 @@ class Titan(ImageModel):
         )
         return slide_embeddings.detach().cpu().numpy()
 
+    @torch.inference_mode()
     def score(
         self, slide_embeddings, prompts: list[str], template: str = None, **kwargs
     ):
         if template is None:
             template = self.TEMPLATES
-        with torch.inference_mode():
-            classifier = self.model.zero_shot_classifier(prompts, template)
-            scores = self.model.zero_shot(slide_embeddings, classifier)
-            return scores.squeeze(0).detach().cpu().numpy()
+
+        classifier = self.model.zero_shot_classifier(prompts, template)
+        scores = self.model.zero_shot(slide_embeddings, classifier)
+        return scores.squeeze(0).detach().cpu().numpy()

@@ -41,9 +41,9 @@ class NuLite(SegmentationModel):
             ]
         )
 
+    @torch.inference_mode()
     def segment(self, image):
-        with torch.inference_mode():
-            return self.model.forward(image, retrieve_tokens=True)
+        return self.model.forward(image, retrieve_tokens=True)
 
     def get_postprocess(self):
         return nulite_preprocess

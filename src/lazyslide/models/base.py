@@ -9,10 +9,13 @@ import torch
 from huggingface_hub import login
 from timm.models.hub import download_cached_file
 
+from lazyslide.models._utils import hf_access, get_default_transform
+
 
 class ModelBase:
     model: torch.nn.Module
     name: str = "ModelBase"
+    is_restricted: bool = False
 
     def get_transform(self):
         return None
@@ -63,18 +66,18 @@ class TimmModel(ImageModel):
         default_kws = {"pretrained": True, "num_classes": 0}
         default_kws.update(kwargs)
 
-        self.model = timm.create_model(name, **default_kws)
+        with hf_access(name):
+            self.model = timm.create_model(name, **default_kws)
+
         if compile:
             if compile_kws is None:
                 compile_kws = {}
             self.compiled_model = torch.compile(self.model, **compile_kws)
 
-    # def get_transform(self):
-    #     if hasattr(self.model, "pretrained_cfg"):
-    #         return create_transform(**resolve_data_config(self.model.pretrained_cfg))
-    #     else:
-    #         return super().get_transform()
+    def get_transform(self):
+        return get_default_transform()
 
+    @torch.inference_mode()
     def encode_image(self, image):
         with torch.inference_mode():
             return self.model(image).cpu().detach().numpy()
@@ -98,6 +101,8 @@ class ImageTextModel(ImageModel):
 
 
 class SegmentationModel(ModelBase):
+    CLASS_MAPPING = None
+
     def get_transform(self):
         import torch
         from torchvision.transforms.v2 import Compose, ToImage, ToDtype, Normalize

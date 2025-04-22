@@ -1,6 +1,15 @@
 Models
 ------
 
+.. currentmodule:: lazyslide.models
+
+.. autosummary::
+    :toctree: _autogen
+    :nosignatures:
+
+    list_models
+
+
 Vision Models
 ~~~~~~~~~~~~~
 
@@ -50,6 +59,8 @@ Segmentation Models
 
     Instanseg
     NuLite
+    GrandQCTissue
+    GrandQCArtifact
     SMPBase
 
 Base Models

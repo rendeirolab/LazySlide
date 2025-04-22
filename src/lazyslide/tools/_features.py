@@ -11,28 +11,14 @@ from wsidata.io import add_features
 
 from lazyslide._const import Key
 from lazyslide._utils import default_pbar, get_torch_device
-from lazyslide.models import ImageModel, VISION_MODEL_REGISTRY
-
-
-def get_default_transform():
-    import torch
-    from torchvision.transforms.v2 import Compose, Normalize, ToImage, ToDtype, Resize
-
-    transforms = [
-        ToImage(),
-        ToDtype(dtype=torch.float32, scale=True),
-        Resize(size=(224, 224), antialias=False),
-        Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-    ]
-
-    return Compose(transforms)
+from lazyslide.models import ImageModel, MODEL_REGISTRY
 
 
 def load_models(model_name: str, model_path=None, token=None, **kwargs):
     """Load a model with timm or torch.hub.load"""
 
-    if model_name in VISION_MODEL_REGISTRY:
-        model = VISION_MODEL_REGISTRY[model_name](
+    if model_name in MODEL_REGISTRY:
+        model = MODEL_REGISTRY[model_name].module(
             model_path=model_path, token=token, **kwargs
         )
     else:
@@ -74,21 +60,8 @@ def feature_extraction(
         The whole-slide image object.
     model : str or model object
         The model used for image feature extraction.
-        Built-in foundation models include:
-
-        - 'uni'/'uni2': UNI model from Mahmood Lab.
-        - 'conch': CONCH model from Mahmood Lab for text-image co-embedding.
-        - 'conch_vision': CONCH model for only vision task.
-        - 'gigapath': GigaPath model from Microsoft.
-        - 'plip': PLIP model from Standford Zou Lab for text-image co-embedding.
-        - 'plip_vision': PLIP model for only vision task.
-        Other models can be loaded from torchvision:
-        See https://pytorch.org/vision/stable/models.html for available models.
-        Here list some commonly used models in digital pathology:
-
-        - 'resnet50'
-        - 'vgg16'
-        - 'convnet_base'
+        A list of built-in foundation models can be found in :mod:`models <lazyslide.models.vision>`
+        Other models can be loaded from timm with feature extraction head implemented.
     model_path : str or Path
         The path to the model file. Either model or model_path must be provided.
         If you don't have internet access, you can download the model file and load it from the local path.
