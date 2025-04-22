@@ -2,56 +2,13 @@ from __future__ import annotations
 
 from typing import Literal
 
-import torch
-from huggingface_hub import hf_hub_download
 from wsidata import WSIData
 from wsidata.io import add_shapes
 
 from lazyslide._const import Key
 from lazyslide._utils import get_torch_device
-from lazyslide.models.base import SegmentationModel
-from lazyslide.models.segmentation.postprocess import semanticseg_postprocess
 from ._seg_runner import SegmentationRunner
-
-
-class GrandQCArtifactSegmentation(SegmentationModel):
-    def __init__(self, model: Literal["5x", "7x", "10x"] = "7x"):
-        weights_map = {
-            "5x": "GrandQC_MPP2_traced.pt",
-            "7x": "GrandQC_MPP15_traced.pt",
-            "10x": "GrandQC_MPP1_traced.pt",
-        }
-        weights = hf_hub_download(
-            "RendeiroLab/LazySlide-models", f"grandqc/{weights_map[model]}"
-        )
-
-        self.model = torch.jit.load(weights)
-
-    def get_transform(self):
-        import torch
-        from torchvision.transforms.v2 import (
-            Compose,
-            ToImage,
-            ToDtype,
-            Normalize,
-        )
-
-        return Compose(
-            [
-                ToImage(),
-                ToDtype(dtype=torch.float32, scale=True),
-                Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-            ]
-        )
-
-    def segment(self, image):
-        with torch.inference_mode():
-            out = self.model(image)
-        return out.detach().cpu().numpy()
-
-    def get_postprocess(self):
-        return semanticseg_postprocess
-
+from ..models.segmentation import GrandQCArtifact
 
 # Define class mapping
 CLASS_MAPPING = {
@@ -105,7 +62,7 @@ def artifact(
         if spec.width != 512 or spec.height != 512:
             raise ValueError("Tile should be 512x512.")
 
-    model = GrandQCArtifactSegmentation(model=variants.lstrip("grandqc_"))
+    model = GrandQCArtifact(model=variants.lstrip("grandqc_"))
 
     runner = SegmentationRunner(
         wsi,

@@ -1,33 +1,7 @@
 import torch
 from timm.layers import SwiGLUPacked
 
-from lazyslide.models.base import TimmModel, ModelBase
-
-
-def get_virchow_transform():
-    from torchvision.transforms import InterpolationMode
-    from torchvision.transforms.v2 import (
-        Compose,
-        Normalize,
-        CenterCrop,
-        ToImage,
-        ToDtype,
-        Resize,
-    )
-
-    transforms = [
-        ToImage(),
-        Resize(
-            size=(224, 224),
-            interpolation=InterpolationMode.BICUBIC,
-            max_size=None,
-            antialias=True,
-        ),
-        CenterCrop(224),
-        ToDtype(dtype=torch.float32, scale=True),
-        Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-    ]
-    return Compose(transforms)
+from lazyslide.models.base import TimmModel
 
 
 class Virchow(TimmModel):
@@ -41,9 +15,6 @@ class Virchow(TimmModel):
             act_layer=torch.nn.SiLU,
             token=token,
         )
-
-    def get_transform(self):
-        return get_virchow_transform()
 
     def encode_image(self, img):
         with torch.inference_mode():

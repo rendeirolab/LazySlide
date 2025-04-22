@@ -4,33 +4,6 @@ import torch
 from lazyslide.models.base import TimmModel
 
 
-def get_uni_transform():
-    from torchvision.transforms import InterpolationMode
-    from torchvision.transforms.v2 import (
-        Resize,
-        CenterCrop,
-        ToImage,
-        ToDtype,
-        Normalize,
-        Compose,
-    )
-
-    return Compose(
-        [
-            ToImage(),
-            Resize(
-                size=(224, 224),
-                antialias=True,
-                interpolation=InterpolationMode.BILINEAR,
-                max_size=None,
-            ),
-            CenterCrop(size=(224, 224)),
-            ToDtype(dtype=torch.float32, scale=True),
-            Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-        ]
-    )
-
-
 class UNI(TimmModel):
     def __init__(self, model_path=None, token=None):
         # from huggingface_hub import hf_hub_download
@@ -55,9 +28,6 @@ class UNI(TimmModel):
                 init_values=1e-5,
                 dynamic_img_size=True,
             )
-
-    def get_transform(self):
-        return get_uni_transform()
 
 
 class UNI2(TimmModel):
@@ -90,6 +60,3 @@ class UNI2(TimmModel):
             )
         else:
             super().__init__("hf-hub:MahmoodLab/UNI2-h", **timm_kwargs)
-
-    def get_transform(self):
-        return get_uni_transform()

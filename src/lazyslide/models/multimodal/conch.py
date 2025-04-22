@@ -1,5 +1,6 @@
 import torch
 
+from .._utils import hf_access
 from ..base import ImageTextModel
 
 
@@ -17,10 +18,11 @@ class CONCH(ImageTextModel):
         if model_path is None:
             model_path = "hf_hub:MahmoodLab/conch"
 
-        self.model, self.processor = create_model_from_pretrained(
-            "conch_ViT-B-16", model_path, hf_auth_token=token
-        )
-        self.tokenizer = get_tokenizer()
+        with hf_access(model_path):
+            self.model, self.processor = create_model_from_pretrained(
+                "conch_ViT-B-16", model_path, hf_auth_token=token
+            )
+            self.tokenizer = get_tokenizer()
 
     def encode_image(self, image):
         if not isinstance(image, torch.Tensor):

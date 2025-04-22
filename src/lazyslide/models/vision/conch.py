@@ -1,5 +1,6 @@
 import torch
 
+from lazyslide.models._utils import hf_access
 from lazyslide.models.base import ImageModel
 
 
@@ -13,13 +14,15 @@ class CONCHVision(ImageModel):
                 "`pip install git+https://github.com/mahmoodlab/CONCH.git`."
             )
 
-        self.model, self.processor = create_model_from_pretrained(
-            "conch_ViT-B-16", model_path, hf_auth_token=token
-        )
+        with hf_access("conch_ViT-B-16"):
+            self.model, self.processor = create_model_from_pretrained(
+                "conch_ViT-B-16", model_path, hf_auth_token=token
+            )
 
     def get_transform(self):
         return None
 
+    @torch.inference_mode()
     def encode_image(self, image):
         if not isinstance(image, torch.Tensor):
             image = self.processor(image)

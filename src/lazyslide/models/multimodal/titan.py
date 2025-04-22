@@ -1,5 +1,6 @@
 import torch
 
+from .._utils import hf_access
 from ..base import ImageModel
 
 
@@ -35,13 +36,14 @@ class Titan(ImageModel):
     def __init__(self, model_path=None, token=None):
         from transformers import AutoModel
 
-        self.model = AutoModel.from_pretrained(
-            "MahmoodLab/TITAN",
-            add_pooling_layer=False,
-            use_auth_token=token,
-            trust_remote_code=True,
-        )
-        self.conch, self.conch_transform = self.model.return_conch()
+        with hf_access(model_path):
+            self.model = AutoModel.from_pretrained(
+                "MahmoodLab/TITAN",
+                add_pooling_layer=False,
+                use_auth_token=token,
+                trust_remote_code=True,
+            )
+            self.conch, self.conch_transform = self.model.return_conch()
 
     def to(self, device):
         super().to(device)

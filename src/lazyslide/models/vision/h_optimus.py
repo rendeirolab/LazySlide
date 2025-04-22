@@ -7,11 +7,26 @@ from lazyslide.models.base import TimmModel
 
 
 def get_hoptimus_transform():
-    from torchvision.transforms.v2 import Compose, ToImage, ToDtype, Normalize
+    from torchvision.transforms.v2 import (
+        Compose,
+        ToImage,
+        Resize,
+        CenterCrop,
+        ToDtype,
+        Normalize,
+    )
+    from torchvision.transforms import InterpolationMode
 
     return Compose(
         [
             ToImage(),
+            Resize(
+                size=(224, 224),
+                interpolation=InterpolationMode.BICUBIC,
+                max_size=None,
+                antialias=True,
+            ),
+            CenterCrop(224),
             ToDtype(dtype=torch.float32, scale=True),
             Normalize(
                 mean=(0.707223, 0.578729, 0.703617), std=(0.211883, 0.230117, 0.177517)
@@ -65,9 +80,7 @@ class H0Mini(TimmModel):
         )
 
     def get_transform(self):
-        return create_transform(
-            **resolve_data_config(self.model.pretrained_cfg, model=self.model)
-        )
+        return get_hoptimus_transform()
 
     def encode_image(self, image):
         with torch.inference_mode():

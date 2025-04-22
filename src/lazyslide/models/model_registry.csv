@@ -1,0 +1,21 @@
+name,keys,model_type,module,github_url,hf_url,paper_url,description
+CONCH,conch,multimodal,CONCH,https://github.com/mahmoodlab/CONCH,https://huggingface.co/MahmoodLab/conch,https://doi.org/10.1038/s41591-024-02856-4,Multimodal foundation model
+PLIP,plip,multimodal,PLIP,https://github.com/PathologyFoundation/plip,https://huggingface.co/vinid/plip,https://doi.org/10.1038/s41591-023-02504-3,Multimodal foundation model
+Prism,prism,multimodal,Prism,https://github.com/mahmoodlab/PRISM,https://huggingface.co/paige-ai/Prism,https://doi.org/10.48550/arXiv.2405.10254,Slide-Level multimodal generative model
+Titan,"titan, conch_v1.5",multimodal,Titan,https://github.com/mahmoodlab/TITAN,https://huggingface.co/MahmoodLab/TITAN,https://doi.org/10.48550/arXiv.2411.19666,Multimodal foundation model
+Uni,uni,vision,UNI,https://github.com/mahmoodlab/UNI,https://huggingface.co/MahmoodLab/UNI,https://doi.org/10.1038/s41591-024-02857-3,Vision foundation model
+Uni2,uni2,vision,UNI2,https://github.com/mahmoodlab/UNI,https://huggingface.co/MahmoodLab/UNI2-h,https://doi.org/10.1038/s41591-024-02857-3,Vision foundation model
+GigaPath,gigapath,vision,GigaPath,https://github.com/prov-gigapath/prov-gigapath,https://huggingface.co/prov-gigapath/prov-gigapath,https://doi.org/10.1038/s41586-024-07441-w,Vision foundation model
+Virchow,virchow,vision,Virchow,,https://huggingface.co/paige-ai/Virchow,https://doi.org/10.1038/s41591-024-03141-0,Vision foundation model
+Virchow2,virchow2,vision,Virchow2,,https://huggingface.co/paige-ai/Virchow2,https://doi.org/10.48550/arXiv.2408.00738,Vision foundation model
+Phikon,phikon,vision,Phikon,https://github.com/owkin/HistoSSLscaling/,https://huggingface.co/owkin/phikon,https://doi.org/10.1101/2023.07.21.23292757,Vision foundation model
+PhikonV2,phikonv2,vision,PhikonV2,https://github.com/owkin,https://huggingface.co/owkin/phikon-v2,https://doi.org/10.48550/arXiv.2409.09173,Vision foundation model
+H-optimus-0,h-optimus-0,vision,HOptimus0,https://github.com/bioptimus,https://huggingface.co/bioptimus/H-optimus-0,,Vision foundation model
+H-optimus-1,h-optimus-1,vision,HOptimus1,https://github.com/bioptimus,https://huggingface.co/bioptimus/H-optimus-1,,Vision foundation model
+H0-mini,h0-mini,vision,H0Mini,https://github.com/bioptimus,https://huggingface.co/bioptimus/H0-mini,https://doi.org/10.48550/arXiv.2501.16239,Vision foundation model
+CONCHVision,conch_vision,vision,CONCHVision,https://github.com/mahmoodlab/CONCH,https://huggingface.co/MahmoodLab/conch,https://doi.org/10.1038/s41591-024-02856-4,Multimodal foundation model
+PLIPVision,plip_vision,vision,PLIPVision,https://github.com/PathologyFoundation/plip,https://huggingface.co/vinid/plip,https://doi.org/10.1038/s41591-023-02504-3,Multimodal foundation model
+NuLite,nulite,segmentation,NuLite,https://github.com/CosmoIknosLab/NuLite,,https://doi.org/10.48550/arXiv.2408.01797,Cell segmentation and classification
+InstanSeg,instanseg,segmentation,Instanseg,https://github.com/instanseg/instanseg,,https://doi.org/10.48550/arXiv.2408.15954,Cell segmentation
+GrandQC-Tissue,grandqc-tissue,segmentation,GrandQCTissue,https://github.com/cpath-ukk/grandqc,,https://doi.org/10.1038/s41467-024-54769-y,Tissue segmentation
+GrandQC-Artifact,grandqc-artifact,segmentation,GrandQCArtifact,https://github.com/cpath-ukk/grandqc,,https://doi.org/10.1038/s41467-024-54769-y,Artifact segmentation

@@ -2,6 +2,7 @@ import warnings
 
 import torch
 
+from .._utils import hf_access
 from ..base import ModelBase
 
 
@@ -10,7 +11,7 @@ class Prism(ModelBase):
         from transformers import AutoModel
 
         # Suppress warnings from transformers
-        with warnings.catch_warnings():
+        with warnings.catch_warnings(), hf_access(model_path):
             warnings.simplefilter("ignore")
 
             self.model = AutoModel.from_pretrained(
