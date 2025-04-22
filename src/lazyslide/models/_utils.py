@@ -29,8 +29,9 @@ def hf_access(name):
     except GatedRepoError as e:
         raise GatedRepoError(
             f"You don't have access to {name}. Please request access to the model on HuggingFace. "
-            "After access granted, please login to HuggingFace "
-            "with a token that has access to this model."
+            "After access granted, please login to HuggingFace with huggingface-cli on this machine "
+            "with a token that has access to this model. "
+            "You may also pass token as an argument in LazySlide, however, this is not recommended."
         ) from e
 
 
