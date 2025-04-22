@@ -22,12 +22,14 @@ from lazyslide.preprocess._utils import get_scorer, Scorer
 def tile_tissues(
     wsi: WSIData,
     tile_px: int | (int, int),
+    *,
     stride_px: int | (int, int) = None,
     overlap: float = None,
     edge: bool = False,
     mpp: float = None,
     slide_mpp: float = None,
     ops_level: int = None,
+    background_filter: bool = True,
     background_fraction: float = 0.3,
     tissue_key: str | None = Key.tissue,
     key_added: str | None = Key.tiles,
@@ -59,8 +61,10 @@ def tile_tissues(
         This value will override the slide mpp.
     ops_level : int, default: None
         Which level to use for the actual tile image retrival.
+    background_filter : bool, default: True
+        Whether to filter the tiles based on the background fraction.
     background_fraction : float, default: 0.3
-        For :code:`method='mask'`,
+        Only used if `background_filter` is True.
         The fraction of background in the tile, if more than this, discard the tile.
     tissue_key : str, default 'tissue'
         The key of the tissue contours.
@@ -152,25 +156,28 @@ def tile_tissues(
 
         # first check for tiles that are intersecting with the tissue
         intersect = gpd.sjoin(tiles, query_tissue, how="inner", predicate="intersects")
+        if background_filter:
+            # then check for tiles that are within the tissue
+            within = gpd.sjoin(
+                intersect.drop(columns="index_right", errors="ignore"),
+                query_tissue,
+                how="inner",
+                predicate="within",
+            )
 
-        # then check for tiles that are within the tissue
-        within = gpd.sjoin(
-            intersect.drop(columns="index_right", errors="ignore"),
-            query_tissue,
-            how="inner",
-            predicate="within",
-        )
+            # To apply filtering based on the background fraction
+            # We only need to check the tiles that are on the border
+            border_tiles = intersect[~intersect.index.isin(within.index)]
+            ov_ratio = border_tiles.intersection(cnt).area / border_tiles.area
+            ov_ratio = ov_ratio[ov_ratio > (1 - background_fraction)]
 
-        # To apply filtering based on the background fraction
-        # We only need to check the tiles that are on the border
-        border_tiles = intersect[~intersect.index.isin(within.index)]
-        ov_ratio = border_tiles.intersection(cnt).area / border_tiles.area
-        ov_ratio = ov_ratio[ov_ratio > (1 - background_fraction)]
-
-        # The tiles that are used will be the ones that are within the tissue
-        # and the ones that are on the border but pass filtering
-        final_ixs = ov_ratio.index.tolist() + within.index.tolist()
-        overlap_tiles = tiles.loc[final_ixs].copy()
+            # The tiles that are used will be the ones that are within the tissue
+            # and the ones that are on the border but pass filtering
+            final_ixs = ov_ratio.index.tolist() + within.index.tolist()
+            overlap_tiles = tiles.loc[final_ixs].copy()
+        else:
+            # If no background filter, just use the intersecting tiles
+            overlap_tiles = intersect.drop(columns="index_right", errors="ignore")
 
         # Add to the final collection and match the tissue id
         tiles_collections.append(overlap_tiles)
