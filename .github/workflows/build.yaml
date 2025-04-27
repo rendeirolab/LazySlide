@@ -35,7 +35,6 @@ jobs:
         run: uv sync --dev
       - name: Tests
         run: |
-          ulimit -a
           uv run task test-ci
 
   Upload_to_pypi:
