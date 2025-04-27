@@ -3,7 +3,6 @@ from __future__ import annotations
 import cv2
 import numpy as np
 import torch
-from huggingface_hub import hf_hub_download
 from shapely.affinity import scale
 from wsidata import WSIData
 from wsidata.io import add_tissues
@@ -11,31 +10,7 @@ from wsidata.io import add_tissues
 from lazyslide._const import Key
 from lazyslide._utils import get_torch_device
 from lazyslide.cv import BinaryMask
-from lazyslide.models.segmentation import SMPBase
-
-
-class GrandQCTissueSegmentation(SMPBase):
-    def __init__(self):
-        weights = hf_hub_download(
-            "RendeiroLab/LazySlide-models", "grandqc/Tissue_Detection_MPP10.pth"
-        )
-
-        super().__init__(
-            arch="unetplusplus",
-            encoder_name="timm-efficientnet-b0",
-            encoder_weights="imagenet",
-            in_channels=3,
-            classes=2,
-            activation=None,
-        )
-        self.model.load_state_dict(
-            torch.load(weights, map_location=torch.device("cpu"), weights_only=True)
-        )
-        self.model.eval()
-
-    def segment(self, image):
-        with torch.inference_mode():
-            return self.model.predict(image)
+from lazyslide.models.segmentation import GrandQCTissue
 
 
 def tissue(
@@ -70,7 +45,7 @@ def tissue(
         level = np.argmin(np.abs(level_mpp - 10))
     shape = props.level_shape[level]
 
-    model = GrandQCTissueSegmentation()
+    model = GrandQCTissue()
     transform = model.get_transform()
 
     model.to(device)

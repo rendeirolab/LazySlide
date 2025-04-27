@@ -14,7 +14,7 @@ from ..models.segmentation import GrandQCArtifact
 CLASS_MAPPING = {
     1: "Normal Tissue",
     2: "Fold",
-    3: "Darkspot & Foreign Object",
+    3: "Dark spot & Foreign Object",
     4: "PenMarking",
     5: "Edge & Air Bubble",
     6: "Out of Focus",
@@ -27,11 +27,44 @@ def artifact(
     tile_key: str,
     variants: Literal["grandqc_5x", "grandqc_7x", "grandqc_10x"] = "grandqc_7x",
     tissue_key: str = Key.tissue,
-    batch_size: int = 16,
-    n_workers: int = 0,
+    batch_size: int = 4,
+    num_workers: int = 0,
     device: str | None = None,
     key_added: str = "artifacts",
 ):
+    """
+    Artifact segmentation for the whole slide image.
+
+    Run GrandQC artifact segmentation model on the whole slide image.
+    The model is trained on 512x512 tiles with mpp=1.5, 2, or 1.
+
+    It can detect the following artifacts:
+    - Fold
+    - Darkspot & Foreign Object
+    - Pen Marking
+    - Edge & Air Bubble
+    - Out of Focus
+
+    Parameters
+    ----------
+    wsi : WSIData
+        The whole slide image data.
+    tile_key : str
+        The key of the tile table.
+    variants : {"grandqc_5x", "grandqc_7x", "grandqc_10x"}, default: "grandqc_7x"
+        The model variant to use for segmentation.
+    tissue_key : str, default: Key.tissue
+        The key of the tissue table.
+    batch_size : int, default: 4
+        The batch size for segmentation.
+    num_workers : int, default: 0
+        The number of workers for data loading.
+    device : str, default: None
+        The device for the model.
+    key_added : str, default: "artifacts"
+        The key for the added artifact shapes.
+
+    """
     if tissue_key not in wsi:
         raise ValueError(
             "Tissue segmentation is required before artifact segmentation."
@@ -70,7 +103,7 @@ def artifact(
         tile_key,
         transform=None,
         batch_size=batch_size,
-        n_workers=n_workers,
+        num_workers=num_workers,
         device=device,
         class_col="class",
         postprocess_kws={
