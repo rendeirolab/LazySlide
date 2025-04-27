@@ -2277,7 +2277,7 @@ requires-dist = [
     { name = "torch", specifier = ">=2.0.0" },
     { name = "torchstain", marker = "extra == 'all'", specifier = ">=1.4.1" },
     { name = "torchvision", marker = "extra == 'all'", specifier = ">=0.15" },
-    { name = "wsidata", editable = "../wsidata" },
+    { name = "wsidata", specifier = ">=0.6.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -6847,7 +6847,8 @@ wheels = [
 
 [[package]]
 name = "wsidata"
-source = { editable = "../wsidata" }
+version = "0.6.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numba" },
     { name = "opencv-python-headless" },
@@ -6858,48 +6859,9 @@ dependencies = [
     { name = "tiffslide" },
     { name = "torch" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "cucim", marker = "extra == 'cucim'" },
-    { name = "legendkit", marker = "extra == 'plot'" },
-    { name = "matplotlib", marker = "extra == 'plot'" },
-    { name = "numba", specifier = ">=0.61.0" },
-    { name = "opencv-python-headless" },
-    { name = "openslide-bin" },
-    { name = "openslide-python" },
-    { name = "rich" },
-    { name = "scyjava", marker = "extra == 'bioformats'" },
-    { name = "spatialdata", specifier = ">=0.3.0" },
-    { name = "tiffslide" },
-    { name = "torch", specifier = ">=2.0.0" },
-    { name = "torchstain", marker = "extra == 'stain'" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "jupyter-cache", specifier = ">=1.0.1" },
-    { name = "jupyterlab", specifier = ">=4.3.5" },
-    { name = "legendkit", specifier = ">=0.3.4" },
-    { name = "matplotlib", specifier = ">=3.10.0" },
-    { name = "notebook", specifier = ">=7.3.3" },
-    { name = "pooch", specifier = ">=1.8.2" },
-    { name = "pre-commit", specifier = ">=4.1.0" },
-    { name = "pyright", specifier = ">=1.1.393" },
-    { name = "pytest", specifier = ">=8.3.4" },
-    { name = "pytest-cov", specifier = ">=6.0.0" },
-    { name = "ruff", specifier = ">=0.9.4" },
-    { name = "taskipy", specifier = ">=1.14.1" },
-    { name = "torchstain", specifier = ">=1.4.1" },
-    { name = "torchvision", specifier = ">=0.21.0" },
-]
-docs = [
-    { name = "myst-nb", specifier = ">=1.1.2" },
-    { name = "numpydoc", specifier = ">=1.8.0" },
-    { name = "pydata-sphinx-theme", specifier = ">=0.16.1" },
-    { name = "sphinx", specifier = ">=8.1.3" },
-    { name = "sphinx-copybutton", specifier = ">=0.5.2" },
-    { name = "sphinx-design", specifier = ">=0.6.1" },
+sdist = { url = "https://files.pythonhosted.org/packages/7b/d2/97a37a454555bf92253bd1cf70fa205ad063578cb8c8b5b2d08a48a067e8/wsidata-0.6.0.tar.gz", hash = "sha256:226b10e283fc80f601cabd03c1313b04b491618bd019c2de7a44002350655af0", size = 36183 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dd/c6/5b8bf3ef0f0ae29b089c0bc8ba9f50b7c77ab2b02a07e55a30ac2491da71/wsidata-0.6.0-py3-none-any.whl", hash = "sha256:851f2dcb10de0bae96ccd9bedd106539d50997c633f04d83ef5d297ee59275d6", size = 47982 },
 ]
 
 [[package]]

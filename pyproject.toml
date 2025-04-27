@@ -28,7 +28,7 @@ Documentation = "https://lazyslide.readthedocs.io"
 repository = "https://github.com/rendeirolab/lazyslide"
 dynamic = ["version"]
 dependencies = [
-    "wsidata>=0.4.0",
+    "wsidata>=0.6.0",
     "scikit-learn>=1.0",
     "matplotlib>=3.9.0",
     "matplotlib-scalebar>=0.9.0",
@@ -163,7 +163,7 @@ caption = [
 
 [tool.uv.sources]
 # wsidata = { git = "https://github.com/rendeirolab/wsidata", branch = "main" }
-wsidata = { path = "../wsidata", editable = true }
+# wsidata = { path = "../wsidata", editable = true }
 conch = { git = "https://github.com/mahmoodlab/CONCH.git" }
 
 [tool.uv.workspace]
