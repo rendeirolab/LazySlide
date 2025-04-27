@@ -55,7 +55,6 @@ html_sidebars = {"installation": [], "cli": []}
 nb_output_stderr = "remove"
 nb_execution_mode = "off"
 nb_merge_streams = True
-nb_render_image_options = {"height": "auto"}
 myst_enable_extensions = [
     "colon_fence",
     "html_image",
