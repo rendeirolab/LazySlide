@@ -10,7 +10,7 @@ class TestFeatureExtraction:
         zs.pp.tile_tissues(wsi, 512)
         zs.tl.feature_extraction(wsi, model_path=torch_model_file)
         # Test feature aggregation
-        zs.tl.feature_aggregation(wsi, feature_key=TIMM_MODEL)
+        zs.tl.feature_aggregation(wsi, feature_key="MockNet")
 
     def test_load_jit_model(self, wsi, torch_jit_file):
         zs.tl.feature_extraction(wsi, model_path=torch_jit_file)
