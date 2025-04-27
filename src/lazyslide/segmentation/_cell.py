@@ -8,15 +8,16 @@ from wsidata.io import add_shapes
 from lazyslide.models import SegmentationModel
 from lazyslide.models.segmentation import Instanseg, NuLite
 from ._seg_runner import SegmentationRunner
+from .._const import Key
 
 
 def cells(
     wsi: WSIData,
     model: str | SegmentationModel = "instanseg",
-    tile_key="tiles",
+    tile_key=Key.tiles,
     transform=None,
-    batch_size=16,
-    n_workers=4,
+    batch_size=4,
+    num_workers=0,
     device=None,
     key_added="cells",
 ):
@@ -37,9 +38,9 @@ def cells(
         The key of the tile table.
     transform : callable, default: None
         The transformation for the input tiles.
-    batch_size : int, default: 16
+    batch_size : int, default: 4
         The batch size for segmentation.
-    n_workers : int, default: 4
+    num_workers : int, default: 0
         The number of workers for data loading.
     device : str, default: None
         The device for the model.
@@ -66,7 +67,7 @@ def cells(
         tile_key,
         transform=transform,
         batch_size=batch_size,
-        n_workers=n_workers,
+        num_workers=num_workers,
         device=device,
     )
     cells = runner.run()
@@ -78,8 +79,8 @@ def nulite(
     wsi: WSIData,
     tile_key="tiles",
     transform=None,
-    batch_size=16,
-    n_workers=4,
+    batch_size=4,
+    num_workers=0,
     device=None,
     key_added="cell_types",
 ):
@@ -98,9 +99,9 @@ def nulite(
         The key of the tile table.
     transform : callable, default: None
         The transformation for the input tiles.
-    batch_size : int, default: 16
+    batch_size : int, default: 4
         The batch size for segmentation.
-    n_workers : int, default: 4
+    num_workers : int, default: 0
         The number of workers for data loading.
     device : str, default: None
         The device for the model.
@@ -117,7 +118,7 @@ def nulite(
         tile_key,
         transform=transform,
         batch_size=batch_size,
-        n_workers=n_workers,
+        num_workers=num_workers,
         device=device,
     )
     cells = runner.run()
