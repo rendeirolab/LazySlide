@@ -177,6 +177,8 @@ def feature_extraction(
         )
         # Extract features
         features = []
+        if isinstance(device, torch.device):
+            device = device.type
         amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()
         with amp_ctx, torch.inference_mode():
             for batch in loader:
@@ -198,6 +200,7 @@ def feature_extraction(
     add_features(wsi, key=key_added, tile_key=tile_key, features=features)
     if return_features:
         return features
+    return None
 
 
 def feature_aggregation(
@@ -222,7 +225,8 @@ def feature_aggregation(
         The key of the layer in the feature table.
     encoder : str or callable, default: 'mean'
         - Numpy functions: 'mean', 'median', 'sum', 'std', 'var', ...
-        - 'gigapath': GigaPath slide encoder. The feature must be extracted by GigaPath model.
+        - 'prism': Prism slide encoder. The feature must be extracted by Virchow model.
+        - 'titan': Titan slide encoder. The feature must be extracted by Titan/CONCH_v1.5 model.
     tile_key : str, default: 'tiles'
         The key of the tiles dataframe in the spatial data object.
     by : str or array of str, default: None
@@ -237,8 +241,8 @@ def feature_aggregation(
 
     Returns
     -------
-    The aggregated features will be added to the :bdg-danger:`varm` slot of the feature :code:`AnnData`.
-    The aggregation operation will be recorded in the :bdg-danger:`uns` slot.
+        The aggregated features will be added to the :bdg-danger:`varm` slot of the feature :code:`AnnData`.
+        The aggregation operation will be recorded in the :bdg-danger:`uns` slot.
 
     """
     if device is None:
@@ -327,7 +331,7 @@ def _encode_slide(features, encoder, coords=None, device=None, tile_spec=None):
         fs = torch.tensor(features, dtype=torch.float32).unsqueeze(0).to(device)
         cs = torch.tensor(coords.values, dtype=torch.int64).unsqueeze(0).to(device)
         if encoder == "prism":
-            from lazyslide.models.vision import Prism
+            from lazyslide.models.multimodal import Prism
 
             encoder = Prism()
             encoder.to(device)
@@ -337,7 +341,7 @@ def _encode_slide(features, encoder, coords=None, device=None, tile_spec=None):
             img_latents = slide_reprs["image_latents"].cpu().detach().numpy()
             result_dict["latents"] = img_latents
         elif encoder == "titan":
-            from lazyslide.models.vision import Titan
+            from lazyslide.models.multimodal import Titan
 
             encoder = Titan()
             encoder.to(device)
