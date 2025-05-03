@@ -1,0 +1,10 @@
+pdf.fonttype: 42
+svg.fonttype: none
+font.family: sans-serif
+font.sans-serif: Arial
+font.size: 10.0
+figure.figsize: 4.0, 4.0
+savefig.dpi:       300      # figure dots per inch or 'figure'
+savefig.facecolor: none        # figure face color when saving
+savefig.edgecolor: none        # figure edge color when saving
+savefig.bbox: tight

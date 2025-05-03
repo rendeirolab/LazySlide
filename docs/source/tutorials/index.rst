@@ -12,8 +12,9 @@ Here is a list of tutorials that will help you get started with the LazySlide.
     02_feature_extraction
     03_multiple_slides
     04_genomics_integration
-    cell-segmentation
-    visualization
+    05_cell-segmentation
+    06_visualization
+    07_zero-shot-learning
 
 .. card:: Introduction to WSI
 
@@ -37,9 +38,13 @@ Here is a list of tutorials that will help you get started with the LazySlide.
 
 .. card:: Cell segmentation
 
-    :doc:`cell-segmentation`
+    :doc:`05_cell-segmentation`
 
 .. card:: WSI visualization in LazySlide
 
-    :doc:`visualization`
+    :doc:`06_visualization`
+
+.. card:: Zero-shot learning LazySlide
+
+    :doc:`07_zero-shot-learning`
 

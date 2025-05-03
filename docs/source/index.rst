@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-LazySlide: Modular and scalable whole slide image analysis
-==========================================================
+LazySlide: Accessible and interoperable whole slide image analysis
+==================================================================
 
 .. grid:: 1 2 2 2
 
@@ -19,9 +19,15 @@ LazySlide: Modular and scalable whole slide image analysis
       :columns: 12 8 8 8
       :child-align: center
 
-      **LasySlide** is a Python library for processing whole slide images (WSI) analysis.
-      It provides a simple interface to perform robust preprocessing and advanced analysis for WSI.
+      **LasySlide** LazySlide is a Python framework for whole slide image (WSI) analysis,
+      designed to integrate seamlessly with the scverse ecosystem.
 
+      By adopting standardized data structures and APIs familiar to the single-cell and genomics community,
+      LazySlide enables intuitive, interoperable, and reproducible workflows for histological analysis.
+      It supports a range of tasks from basic preprocessing to advanced deep learning applications,
+      facilitating the integration of histopathology into modern computational biology.
+
+.. image:: https://github.com/rendeirolab/LazySlide/blob/main/assets/Figure.png
 
 .. toctree::
     :maxdepth: 1
