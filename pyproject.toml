@@ -38,6 +38,7 @@ dependencies = [
     "timm>=1.0.3",
     "torch>=2.0.0",
     "seaborn>=0.12.2",
+    "psutil>=5.9.0",
 ]
 
 [project.optional-dependencies]
@@ -46,6 +47,7 @@ all = [
     "scanpy>=1.10.4",
     "torchvision>=0.15",  # >0.15
     "torchstain>=1.4.1",
+    "transformers>=4.49.0",
 ]
 
 # Define entry points
@@ -106,14 +108,12 @@ default-groups = ["dev", "docs"]
 [dependency-groups]
 dev = [
     "jupyterlab>=4.3.5",
-    "pre-commit>=4.1.0",
     "pytest>=8.3.4",
+    "pre-commit>=4.1.0",
     "ruff>=0.9.4",
     "taskipy>=1.14.1",
-    "pytest-cov>=6.0.0",
     "torchvision>=0.21.0",
     "torchstain>=1.4.1",
-    "pyright>=1.1.393",
     "matplotlib>=3.10.0",
     "matplotlib-scalebar>=0.9.0",
     "scikit-learn>=1.6.1",
@@ -121,20 +121,6 @@ dev = [
     "scipy>=1.15.1",
     "segmentation-models-pytorch>=0.4.0",
     "albumentations>=2.0.3",
-    "lxml>=5.3.1",
-    "igraph>=0.11.8",
-    "ipywidgets>=8.1.5",
-    "marsilea>=0.5.1",
-    "transformers>=4.49.0",
-    "conch",
-    "parse>=1.20.2",
-    "gseapy>=1.1.7",
-    "mpl-fontkit>=0.5.1",
-    "matplotlib-venn>=1.1.2",
-    "muon>=0.1.7",
-    "mofapy2>=0.7.2",
-    "pypalettes>=0.1.5",
-    "bokeh>=3.7.2",
     "spatialdata-plot>=0.2.9",
 ]
 docs = [
@@ -148,16 +134,32 @@ docs = [
     "sphinx-copybutton>=0.5.2",
     "sphinx-design>=0.6.1",
 ]
+tutorials = [
+    "igraph>=0.11.8",
+    "ipywidgets>=8.1.5",
+    "marsilea>=0.5.1",
+    "parse>=1.20.2",
+    "gseapy>=1.1.7",
+    "mpl-fontkit>=0.5.1",
+    "matplotlib-venn>=1.1.2",
+    "muon>=0.1.7",
+    "mofapy2>=0.7.2",
+    "pypalettes>=0.1.5",
+    "bokeh>=3.7.2",
+    "dask-jobqueue>=0.9.0",
+]
 napari = [
     "napari[all]>=0.5.6",
     "napari-spatialdata>=0.5.5",
     "spatialdata-plot>=0.2.9",
 ]
-caption = [
+model = [
     "einops>=0.8.1",
     "einops-exts>=0.0.4",
     "environs>=14.1.1",
     "sacremoses>=0.1.1",
+    "conch",
+    "transformers>=4.49.0",
 ]
 
 
