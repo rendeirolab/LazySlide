@@ -6,6 +6,7 @@ root = Path(__file__).parent  # ./docs
 target_folders = [
     root / "build",
     root / "source" / "api" / "_autogen",
+    root / "jupyter_execute",
 ]
 
 

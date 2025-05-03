@@ -29,7 +29,7 @@ LazySlide: Modular and scalable whole slide image analysis
 
     installation
     api/index
-    tutorial/index
+    tutorials/index
 
 
 .. grid:: 1 2 2 2
