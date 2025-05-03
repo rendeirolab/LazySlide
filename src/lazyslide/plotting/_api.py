@@ -8,33 +8,6 @@ from ._wsi_viewer import WSIViewer
 from .._const import Key
 
 
-def thumbnail(wsi: WSIData, ax=None):
-    """
-    Display the thumbnail.
-
-    Parameters
-    ----------
-    wsi : :class:`WSIData <wsidata.WSIData>`
-        The whole-slide image object.
-    ax : matplotlib.axes.Axes, default: None
-        The axes to plot on.
-
-    Examples
-    --------
-
-    .. plot::
-        :context: close-figs
-
-        >>> import lazyslide as zs
-        >>> wsi = zs.open_wsi("sample.svs")
-
-
-    """
-    viewer = WSIViewer(wsi)
-    viewer.add_image()
-    viewer.show(ax=ax, axis="off")
-
-
 def tissue(
     wsi: WSIData,
     tissue_id=None,
@@ -88,7 +61,7 @@ def tissue(
         :context: close-figs
 
         >>> import lazyslide as zs
-        >>> wsi = zs.open_wsi("sample.svs")
+        >>> wsi = zs.datasets.sample()
         >>> zs.pl.tissue(wsi)
 
     """
@@ -224,9 +197,7 @@ def tiles(
         :context: close-figs
 
         >>> import lazyslide as zs
-        >>> wsi = zs.open_wsi("sample.svs")
-        >>> zs.pp.find_tissues(wsi)
-        >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
+        >>> wsi = zs.datasets.sample()
         >>> zs.pp.score_tiles(wsi, scorers=["contrast"])
         >>> zs.pl.tiles(wsi, tissue_id=0, color='contrast')
 

@@ -842,7 +842,8 @@ class WSIViewer:
         in_zoom=True,
         cache=True,
     ):
-        """Add a scale bar to the plot.
+        """
+        Add a scale bar to the plot.
 
         The scale bar is a matplotlib_scalebar.ScaleBar object.
 
@@ -854,9 +855,9 @@ class WSIViewer:
             The length of the scale bar as a fraction of the axes.
         width_fraction : float, optional
             The width of the scale bar as a fraction of the axes.
-        location : {'upper right', 'upper left', 'lower left', 'lower right', 'right',
-               'center left', 'center right', 'lower center',
-               'upper center', 'center', 'best'}, optional
+        location : {'upper right', 'upper left', 'lower left', 'lower right', 'right', \
+            'center left', 'center right', 'lower center', \
+            'upper center', 'center', 'best'}, optional
             The location of the scale bar. Same as legend location in matplotlib.
         pad : float, optional
             The padding inside the scale bar.
@@ -864,7 +865,7 @@ class WSIViewer:
             The padding outside the scale bar.
         sep : float, optional
             The separation between the scale bar and the label.
-        frameon : bool, default: False
+        frameon : bool, default: True
             Whether to draw a box behind the scale bar.
         color : str, optional
             The color of the scale bar.
