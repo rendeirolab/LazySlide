@@ -27,7 +27,7 @@ LazySlide: Accessible and interoperable whole slide image analysis
       It supports a range of tasks from basic preprocessing to advanced deep learning applications,
       facilitating the integration of histopathology into modern computational biology.
 
-.. image:: https://github.com/rendeirolab/LazySlide/blob/main/assets/Figure.png
+.. image:: https://github.com/rendeirolab/LazySlide/raw/main/assets/Figure.png
 
 .. toctree::
     :maxdepth: 1
