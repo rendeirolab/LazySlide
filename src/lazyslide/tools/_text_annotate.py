@@ -12,19 +12,33 @@ def text_embedding(
     texts: List[str],
     model: Literal["plip", "conch"] = "plip",
 ):
-    """Embed the text
+    """Embed the text into a vector in the text-vision co-embedding using `PLIP <https://www.nature.com/articles/s41591-023-02504-3>`_ or `CONCH <https://www.nature.com/articles/s41591-024-02856-4>`_.
 
     Parameters
     ----------
     texts : List[str]
         The list of texts.
     model : Literal["plip", "conch"], default: "plip"
-        The text embedding model.
+        The text embedding model, either PLIP or CONCH
 
     Returns
     -------
     pd.DataFrame
         The embeddings of the texts, with texts as index.
+
+    # - The embeddings will be added to :bdg-danger:`tables` slot of the spatial data object.
+
+    Examples
+    --------
+    .. code-block:: python
+        >>> import lazyslide as zs
+        >>> wsi = zs.datasets.sample()
+        >>> zs.pp.find_tissues(wsi)
+        >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5, key_added="text_tiles")
+        >>> zs.tl.feature_extraction(wsi, "plip", tile_key="text_tiles")
+        >>> terms = ["mucosa", "submucosa", "musclaris", "lymphocyte"]
+        >>> embeddings = zs.tl.text_embedding(terms, model="plip")
+        >>> print(embeddings)
 
     """
     import torch
@@ -74,6 +88,22 @@ def text_image_similarity(
 
     Returns
     -------
+    None
+        The similarity score will be added to the WSIData object.
+
+    - The similarity scores will be added to :bdg-danger:`tables` slot of the spatial data object.
+
+    Examples
+    --------
+    .. code-block:: python
+        >>> import lazyslide as zs
+        >>> wsi = zs.datasets.sample()
+        >>> zs.pp.find_tissues(wsi)
+        >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5, key_added="text_tiles")
+        >>> zs.tl.feature_extraction(wsi, "plip", tile_key="text_tiles")
+        >>> terms = ["mucosa", "submucosa", "musclaris", "lymphocyte"]
+        >>> embeddings = zs.tl.text_embedding(terms, model="plip")
+        >>> zs.tl.text_image_similarity(wsi, embeddings, model="plip", tile_key="text_tiles")
 
     """
 

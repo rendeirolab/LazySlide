@@ -52,7 +52,7 @@ def feature_extraction(
     **kwargs,
 ):
     """
-    Extract features from WSI tiles using a pre-trained model.
+    Extract features from WSI tiles using a pre-trained vision models.
 
     Parameters
     ----------
@@ -105,7 +105,19 @@ def feature_extraction(
 
     - The feature matrix will be added to :bdg-danger:`tables` slot of the spatial data object.
 
+    Examples
+    --------
+    .. code-block:: python
+
+        >>> import lazyslide as zs
+        >>> wsi = zs.datasets.sample()
+        >>> zs.pp.find_tissues(wsi)
+        >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
+        >>> zs.tl.feature_extraction(wsi, "resnet50")
+        >>> wsi.fetch.features_anndata("resnet50")
+
     """
+
     try:
         import torch
         import torchvision
@@ -243,6 +255,18 @@ def feature_aggregation(
     -------
         The aggregated features will be added to the :bdg-danger:`varm` slot of the feature :code:`AnnData`.
         The aggregation operation will be recorded in the :bdg-danger:`uns` slot.
+
+    Examples
+    --------
+    .. code-block:: python
+
+        >>> import lazyslide as zs
+        >>> wsi = zs.datasets.sample()
+        >>> zs.pp.find_tissues(wsi)
+        >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
+        >>> zs.tl.feature_extraction(wsi, "resnet50")
+        >>> zs.tl.feature_aggregation(wsi, feature_key="resnet50")
+        >>> wsi.fetch.features_anndata("resnet50")
 
     """
     if device is None:

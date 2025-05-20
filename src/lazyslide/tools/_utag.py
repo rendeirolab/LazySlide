@@ -11,7 +11,7 @@ def feature_utag(
     graph_key: str = None,
 ):
     """
-    Transform feature with UTAG.
+    Transform feature with `UTAG <https://doi.org/10.1038/s41592-022-01657-2>`_.
 
     Parameters
     ----------
@@ -23,6 +23,27 @@ def feature_utag(
         The tile key.
     graph_key: str
         The graph key.
+
+    Returns
+    -------
+    The transformed feature with UTAG.
+    #TODO: check if correct:
+    # - The transformed feature will be added to :bdg-danger:`tables` slot of the spatial data object.
+    # - The transformed feature will be stored in the `utag` layer of the feature table.
+
+    Examples
+    --------
+    .. code-block:: python
+
+        >>> import lazyslide as zs
+        >>> wsi = zs.datasets.sample()
+        >>> zs.pp.find_tissues(wsi)
+        >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
+        >>> zs.tl.feature_extraction(wsi, "resnet50")
+        >>> zs.pp.tile_graph(wsi)
+        >>> zs.tl.feature_utag(wsi, "resnet50")
+        # >>> zs.tl.spatial_domain(wsi, layer="utag", feature_key="resnet50", resolution=0.3)
+        # >>> zs.pl.tiles(wsi, color="domain", alpha=0.5)
 
     """
     # Get the spatial connectivity

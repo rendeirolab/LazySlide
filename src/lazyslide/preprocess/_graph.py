@@ -49,6 +49,24 @@ def tile_graph(
         The tile key.
     table_key : str, default: None
         The table key to store the graph.
+
+    Returns
+    -------
+    The tiles with spatial connectivities and distances in an anndata format.
+
+    - The feature spatial connectivities and distances will be added to :bdg-danger:`tables` slot of the spatial data object.
+
+    Examples
+    --------
+    .. code-block:: python
+
+        >>> import lazyslide as zs
+        >>> wsi = zs.datasets.sample()
+        >>> zs.pp.find_tissues(wsi)
+        >>> zs.pp.tile_graph(wsi)
+        >>> wsi['tile_graph']
+
+
     """
     coords = wsi[tile_key].bounds[["minx", "miny"]].values
     Adj, Dst = _spatial_neighbor(
