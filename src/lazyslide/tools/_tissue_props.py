@@ -21,7 +21,37 @@ def tissue_props(
     wsi: WSIData,
     key: str = Key.tissue,
 ):
-    """Extract tissue properties from the WSI."""
+    """Extract comprehensive tissue properties from the WSI such as:
+    - Area and perimeter
+    - Compactness and roundness
+    - Major and minor axis lengths
+    - Orientation and eccentricity
+
+    Parameters
+    ----------
+    wsi: :class:`WSIData <wsidata.WSIData>`
+        The WSIData object.
+    key: str
+        The tissue key.
+
+    Returns
+    -------
+    pd.DataFrame
+        The tissue properties.
+    - The tissue properties will be added to :bdg-danger:`shapes` slot of the spatial data object.
+
+    Examples
+    --------
+    .. code-block:: python
+
+        >>> import lazyslide as zs
+        >>> wsi = zs.datasets.sample()
+        >>> zs.pp.find_tissues(wsi)
+        >>> zs.tl.tissue_props(wsi)
+        >>> wsi['tissues']
+
+    """
+
     props = []
     cnts = []
     for tissue_contour in wsi.iter.tissue_contours(key):

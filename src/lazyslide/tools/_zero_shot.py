@@ -62,8 +62,8 @@ def zero_shot_score(
     Perform zero-shot classification on the WSI
 
     Supported models:
-    - prism: Prism model
-    - titan: Titan model
+    - prism: `Prism model <https://huggingface.co/paige-ai/Prism>`_.
+    - titan: `Titan model <https://huggingface.co/MahmoodLab/TITAN>`_.
 
     Corresponding slide-level features are required for the model.
 
@@ -85,6 +85,26 @@ def zero_shot_score(
         The model to use for zero-shot classification.
     device : str
         The device to use for inference. If None, the default device will be used.
+
+    Returns
+    -------
+    pd.DataFrame
+        The classification results (probability). The columns are the text labels and the
+        rows are the slide features.
+
+    # - The classification results will be added to :bdg-danger:`tables` slot of the spatial data object.
+
+    Examples
+    --------
+    .. code-block:: python
+
+        >>> import lazyslide as zs
+        >>> wsi = zs.datasets.lung_carcinoma(with_data=False)
+        >>> zs.pp.find_tissues(wsi)
+        >>> zs.pp.tile_tissues(wsi, 512, background_fraction=0.95, mpp=0.5)
+        >>> zs.tl.feature_extraction(wsi, "virchow")
+        >>> zs.tl.feature_aggregation(wsi, feature_key="virchow", encoder="prism")
+        >>> print(zs.tl.zero_shot_score(wsi, classes, feature_key="virchow_tiles"))
 
     """
     if device is None:
