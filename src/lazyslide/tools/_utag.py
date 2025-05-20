@@ -11,7 +11,7 @@ def feature_utag(
     graph_key: str = None,
 ):
     """
-    Transform feature with `UTAG <https://doi.org/10.1038/s41592-022-01657-2>`_.
+    Integrate spatial tile context with vision features with `UTAG <https://doi.org/10.1038/s41592-022-01657-2>`_.
 
     Parameters
     ----------
@@ -27,9 +27,9 @@ def feature_utag(
     Returns
     -------
     The transformed feature with UTAG.
-    #TODO: check if correct:
-    # - The transformed feature will be added to :bdg-danger:`tables` slot of the spatial data object.
-    # - The transformed feature will be stored in the `utag` layer of the feature table.
+
+    - The transformed feature will be added to :bdg-danger:`tables` slot of the spatial data object.
+    - The transformed feature will be stored in the `utag` layer of the feature table.
 
     Examples
     --------
@@ -42,8 +42,7 @@ def feature_utag(
         >>> zs.tl.feature_extraction(wsi, "resnet50")
         >>> zs.pp.tile_graph(wsi)
         >>> zs.tl.feature_utag(wsi, "resnet50")
-        # >>> zs.tl.spatial_domain(wsi, layer="utag", feature_key="resnet50", resolution=0.3)
-        # >>> zs.pl.tiles(wsi, color="domain", alpha=0.5)
+        >>> wsi["resnet50"].layers["utag"]
 
     """
     # Get the spatial connectivity

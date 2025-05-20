@@ -22,6 +22,7 @@ def tissue_props(
     key: str = Key.tissue,
 ):
     """Extract comprehensive tissue properties from the WSI such as:
+
     - Area and perimeter
     - Compactness and roundness
     - Major and minor axis lengths
@@ -36,8 +37,8 @@ def tissue_props(
 
     Returns
     -------
-    pd.DataFrame
-        The tissue properties.
+    None
+
     - The tissue properties will be added to :bdg-danger:`shapes` slot of the spatial data object.
 
     Examples

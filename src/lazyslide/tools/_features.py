@@ -225,7 +225,8 @@ def feature_aggregation(
     agg_key: str = None,
     device: str = None,
 ):
-    """Feature aggregation on different levels.
+    """Aggregate features on a key e.g.: per tissue_id.
+    The aggregation is done by averaging the features of the tiles in each group.
 
     Parameters
     ----------
@@ -253,20 +254,20 @@ def feature_aggregation(
 
     Returns
     -------
+    None
         The aggregated features will be added to the :bdg-danger:`varm` slot of the feature :code:`AnnData`.
-        The aggregation operation will be recorded in the :bdg-danger:`uns` slot.
 
     Examples
     --------
     .. code-block:: python
 
         >>> import lazyslide as zs
-        >>> wsi = zs.datasets.sample()
+        >>> wsi = zs.datasets.sample(with_data=False)
         >>> zs.pp.find_tissues(wsi)
         >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
         >>> zs.tl.feature_extraction(wsi, "resnet50")
-        >>> zs.tl.feature_aggregation(wsi, feature_key="resnet50")
-        >>> wsi.fetch.features_anndata("resnet50")
+        >>> zs.tl.feature_aggregation(wsi, feature_key="resnet50", by="tissue_id")
+        >>> wsi.tables['resnet50_tiles'].varm['agg_tissue_id']
 
     """
     if device is None:

@@ -12,7 +12,9 @@ def text_embedding(
     texts: List[str],
     model: Literal["plip", "conch"] = "plip",
 ):
-    """Embed the text into a vector in the text-vision co-embedding using `PLIP <https://www.nature.com/articles/s41591-023-02504-3>`_ or `CONCH <https://www.nature.com/articles/s41591-024-02856-4>`_.
+    """Embed the text into a vector in the text-vision co-embedding using
+    `PLIP <https://www.nature.com/articles/s41591-023-02504-3>`_ or
+    `CONCH <https://www.nature.com/articles/s41591-024-02856-4>`_.
 
     Parameters
     ----------
@@ -26,19 +28,17 @@ def text_embedding(
     pd.DataFrame
         The embeddings of the texts, with texts as index.
 
-    # - The embeddings will be added to :bdg-danger:`tables` slot of the spatial data object.
-
     Examples
     --------
     .. code-block:: python
+
         >>> import lazyslide as zs
         >>> wsi = zs.datasets.sample()
         >>> zs.pp.find_tissues(wsi)
         >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5, key_added="text_tiles")
         >>> zs.tl.feature_extraction(wsi, "plip", tile_key="text_tiles")
         >>> terms = ["mucosa", "submucosa", "musclaris", "lymphocyte"]
-        >>> embeddings = zs.tl.text_embedding(terms, model="plip")
-        >>> print(embeddings)
+        >>> zs.tl.text_embedding(terms, model="plip")
 
     """
     import torch
