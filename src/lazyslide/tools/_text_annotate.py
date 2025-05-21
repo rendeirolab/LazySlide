@@ -77,7 +77,7 @@ def text_image_similarity(
         The WSIData object.
     text_embeddings : pd.DataFrame
         The embeddings of the texts, with texts as index.
-        You can use :func:`text_embedding` to get the embeddings.
+        You can use :func:`zs.tl.text_embedding <lazyslide.tl.text.embedding>` to get the embeddings.
     model : Literal["plip", "conch"], default: "plip"
         The text embedding model.
     tile_key : str, default: 'tiles'
@@ -89,7 +89,6 @@ def text_image_similarity(
     Returns
     -------
     None
-        The similarity score will be added to the WSIData object.
 
     - The similarity scores will be added to :bdg-danger:`tables` slot of the spatial data object.
 

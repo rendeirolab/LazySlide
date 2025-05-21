@@ -15,13 +15,13 @@ def feature_utag(
 
     Parameters
     ----------
-    wsi: :class:`WSIData <wsidata.WSIData>`
+    wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object.
-    feature_key: str
+    feature_key : str
         The feature key.
-    tile_key: str, default: 'tiles'
+    tile_key : str, default: 'tiles'
         The tile key.
-    graph_key: str
+    graph_key : str
         The graph key.
 
     Returns

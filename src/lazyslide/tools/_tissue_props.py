@@ -21,25 +21,33 @@ def tissue_props(
     wsi: WSIData,
     key: str = Key.tissue,
 ):
-    """Extract comprehensive tissue properties from the WSI such as:
+    """Compute a series of geometrical properties of tissue piecies
 
-    - Area and perimeter
-    - Compactness and roundness
-    - Major and minor axis lengths
-    - Orientation and eccentricity
+    - "area"
+    - "area_filled"
+    - "convex_area"
+    - "solidity"
+    - "convexity"
+    - "axis_major_length"
+    - "axis_minor_length"
+    - "eccentricity"
+    - "orientation"
+    - "extent"
+    - "perimeter"
+    - "circularity"
 
     Parameters
     ----------
-    wsi: :class:`WSIData <wsidata.WSIData>`
+    wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object.
-    key: str
+    key : str
         The tissue key.
 
     Returns
     -------
     None
 
-    - The tissue properties will be added to :bdg-danger:`shapes` slot of the spatial data object.
+    - The tissue properties will be added to the same table as the tissue shapes.
 
     Examples
     --------

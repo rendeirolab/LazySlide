@@ -107,6 +107,7 @@ def feature_extraction(
 
     Examples
     --------
+
     .. code-block:: python
 
         >>> import lazyslide as zs
@@ -225,8 +226,12 @@ def feature_aggregation(
     agg_key: str = None,
     device: str = None,
 ):
-    """Aggregate features on a key e.g.: per tissue_id.
-    The aggregation is done by averaging the features of the tiles in each group.
+    """
+    Aggregate features on a key e.g.: per tissue_id.
+
+    The aggregation is done by apply an encoder to a group of features to acquire
+    a 1d representation of the group. Notice that the final shape of the aggregated
+    features might not be the same as the original features.
 
     Parameters
     ----------
