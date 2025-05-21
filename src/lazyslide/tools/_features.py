@@ -260,7 +260,10 @@ def feature_aggregation(
     Returns
     -------
     None
-        The aggregated features will be added to the :bdg-danger:`varm` slot of the feature :code:`AnnData`.
+
+    - The aggregation features and operation will be recorded in the :bdg-danger:`uns` slot.
+    - The aggregated features will only be added to the :bdg-danger:`varm` slot of the feature :code:`AnnData` if
+        their shape is the same as the original features.
 
     Examples
     --------
@@ -272,7 +275,7 @@ def feature_aggregation(
         >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
         >>> zs.tl.feature_extraction(wsi, "resnet50")
         >>> zs.tl.feature_aggregation(wsi, feature_key="resnet50", by="tissue_id")
-        >>> wsi.tables['resnet50_tiles'].varm['agg_tissue_id']
+        >>> wsi.tables['resnet50_tiles'].uns['agg_tissue_id']
 
     """
     if device is None:
