@@ -229,7 +229,7 @@ def feature_aggregation(
     """
     Aggregate features on a key e.g.: per tissue_id.
 
-    The aggregation is done by apply an encoder to a group of features to acquire
+    The aggregation is done by applying an encoder to a group of features to acquire
     a 1d representation of the group. Notice that the final shape of the aggregated
     features might not be the same as the original features.
 
