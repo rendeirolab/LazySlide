@@ -1,7 +1,10 @@
+import warnings
+
 import numpy as np
 from wsidata import WSIData
 
 from lazyslide._const import Key
+from lazyslide._utils import find_stack_level
 
 
 def feature_utag(
@@ -45,6 +48,13 @@ def feature_utag(
         >>> wsi["resnet50"].layers["utag"]
 
     """
+
+    warnings.warn(
+        "`tl.feature_utag` is deprecated and will be removed after 0.8.0, "
+        "please use `tl.spatial_features` instead.",
+        stacklevel=find_stack_level(),
+    )
+
     # Get the spatial connectivity
     try:
         if graph_key is None:
