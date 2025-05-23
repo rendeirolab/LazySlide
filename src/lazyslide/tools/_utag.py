@@ -1,7 +1,10 @@
+import warnings
+
 import numpy as np
 from wsidata import WSIData
 
 from lazyslide._const import Key
+from lazyslide._utils import find_stack_level
 
 
 def feature_utag(
@@ -11,25 +14,28 @@ def feature_utag(
     graph_key: str = None,
 ):
     """
-    Transform feature with `UTAG <https://doi.org/10.1038/s41592-022-01657-2>`_.
+    Integrate spatial tile context with vision features with `UTAG <https://doi.org/10.1038/s41592-022-01657-2>`_.
+
+    .. deprecated:: 0.6.0
+        Use :func:`feature_smoothing <lazyslide.tl.feature_smoothing>` instead.
 
     Parameters
     ----------
-    wsi: :class:`WSIData <wsidata.WSIData>`
+    wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object.
-    feature_key: str
+    feature_key : str
         The feature key.
-    tile_key: str, default: 'tiles'
+    tile_key : str, default: 'tiles'
         The tile key.
-    graph_key: str
+    graph_key : str
         The graph key.
 
     Returns
     -------
     The transformed feature with UTAG.
-    #TODO: check if correct:
-    # - The transformed feature will be added to :bdg-danger:`tables` slot of the spatial data object.
-    # - The transformed feature will be stored in the `utag` layer of the feature table.
+
+    - The transformed feature will be added to :bdg-danger:`tables` slot of the spatial data object.
+    - The transformed feature will be stored in the `utag` layer of the feature table.
 
     Examples
     --------
@@ -42,10 +48,16 @@ def feature_utag(
         >>> zs.tl.feature_extraction(wsi, "resnet50")
         >>> zs.pp.tile_graph(wsi)
         >>> zs.tl.feature_utag(wsi, "resnet50")
-        # >>> zs.tl.spatial_domain(wsi, layer="utag", feature_key="resnet50", resolution=0.3)
-        # >>> zs.pl.tiles(wsi, color="domain", alpha=0.5)
+        >>> wsi["resnet50"].layers["utag"]
 
     """
+
+    warnings.warn(
+        "`tl.feature_utag` is deprecated and will be removed after 0.8.0, "
+        "please use `tl.spatial_features` instead.",
+        stacklevel=find_stack_level(),
+    )
+
     # Get the spatial connectivity
     try:
         if graph_key is None:

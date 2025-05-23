@@ -107,6 +107,7 @@ def feature_extraction(
 
     Examples
     --------
+
     .. code-block:: python
 
         >>> import lazyslide as zs
@@ -225,7 +226,12 @@ def feature_aggregation(
     agg_key: str = None,
     device: str = None,
 ):
-    """Feature aggregation on different levels.
+    """
+    Aggregate features on a key e.g.: per tissue_id.
+
+    The aggregation is done by applying an encoder to a group of features to acquire
+    a 1d representation of the group. Notice that the final shape of the aggregated
+    features might not be the same as the original features.
 
     Parameters
     ----------
@@ -253,20 +259,23 @@ def feature_aggregation(
 
     Returns
     -------
-        The aggregated features will be added to the :bdg-danger:`varm` slot of the feature :code:`AnnData`.
-        The aggregation operation will be recorded in the :bdg-danger:`uns` slot.
+    None
+
+    - The aggregation features and operation will be recorded in the :bdg-danger:`uns` slot.
+    - The aggregated features will only be added to the :bdg-danger:`varm` slot of the feature :code:`AnnData` if
+        their shape is the same as the original features.
 
     Examples
     --------
     .. code-block:: python
 
         >>> import lazyslide as zs
-        >>> wsi = zs.datasets.sample()
+        >>> wsi = zs.datasets.sample(with_data=False)
         >>> zs.pp.find_tissues(wsi)
         >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
         >>> zs.tl.feature_extraction(wsi, "resnet50")
-        >>> zs.tl.feature_aggregation(wsi, feature_key="resnet50")
-        >>> wsi.fetch.features_anndata("resnet50")
+        >>> zs.tl.feature_aggregation(wsi, feature_key="resnet50", by="tissue_id")
+        >>> wsi.tables['resnet50_tiles'].uns['agg_tissue_id']
 
     """
     if device is None:
@@ -379,3 +388,73 @@ def _encode_slide(features, encoder, coords=None, device=None, tile_spec=None):
     result_dict["features"] = agg_features
 
     return result_dict
+
+
+def features_smoothing(
+    wsi: WSIData,
+    feature_key: str,
+    method: str = "utag",
+    layer_key: str = "feature_smoothing",
+    tile_key: str = Key.tiles,
+    graph_key: str = None,
+):
+    """
+    Integrate spatial tile context with vision features with `UTAG <https://doi.org/10.1038/s41592-022-01657-2>`_.
+
+    Parameters
+    ----------
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The WSIData object.
+    feature_key : str
+        The feature key.
+    method : str, default: 'utag'
+        The method used for feature smoothening.
+        - 'utag': applies spatial feature smoothening.
+    layer_key : str, default: 'feature_smoothing'
+        The key added in the layer in the feature table.
+    tile_key : str, default: 'tiles'
+        The tile key.
+    graph_key : str
+        The graph key.
+
+    Returns
+    -------
+    The transformed feature with UTAG.
+
+    - The transformed feature will be added to :bdg-danger:`tables` slot of the spatial data object.
+    - The transformed feature will be stored in the `feature_smoothing` layer of the feature table.
+
+    Examples
+    --------
+    .. code-block:: python
+
+        >>> import lazyslide as zs
+        >>> wsi = zs.datasets.sample()
+        >>> zs.pp.find_tissues(wsi)
+        >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
+        >>> zs.tl.feature_extraction(wsi, "resnet50")
+        >>> zs.pp.tile_graph(wsi)
+        >>> zs.tl.features_smoothing(wsi, "resnet50")
+        >>> wsi["resnet50"].layers["feature_smoothing"]
+
+    """
+    # Get the spatial connectivity
+    try:
+        if graph_key is None:
+            graph_key = f"{tile_key}_graph"
+        A = wsi.tables[graph_key].obsp["spatial_connectivities"]
+    except KeyError:
+        raise ValueError(
+            "The tile graph is needed to transform feature with UTAG, Please run `pp.tile_graph` first."
+        )
+    A = A + np.eye(A.shape[0])
+    # L1 norm for each row
+    norms = np.sum(np.abs(A), axis=1)
+    # Normalize the array
+    A_norm = A / norms
+
+    feature_key = wsi._check_feature_key(feature_key, tile_key)
+    feature_X = wsi.tables[feature_key].X
+    A_spatial = np.transpose(feature_X) @ A_norm
+    A_spatial = np.transpose(A_spatial)
+    wsi.tables[feature_key].layers[layer_key] = np.asarray(A_spatial)
