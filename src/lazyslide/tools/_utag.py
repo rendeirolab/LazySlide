@@ -16,6 +16,9 @@ def feature_utag(
     """
     Integrate spatial tile context with vision features with `UTAG <https://doi.org/10.1038/s41592-022-01657-2>`_.
 
+    .. deprecated:: 0.6.0
+        Use :func:`feature_smoothing <lazyslide.tl.feature_smoothing>` instead.
+
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
