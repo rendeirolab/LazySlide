@@ -49,16 +49,12 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Publish to test pypi
-        env:
-          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TEST_TOKEN }}
         run: |
           uv build
           uv publish --publish-url https://test.pypi.org/legacy/ || exit 0
 
       - name: Publish to pypi
         if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
-        env:
-          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
         run: |
           uv build
           uv publish
