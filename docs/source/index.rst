@@ -34,8 +34,10 @@ LazySlide: Accessible and interoperable whole slide image analysis
     :hidden:
 
     installation
-    api/index
     tutorials/index
+    api/index
+    contributing
+    contributors
 
 
 .. grid:: 1 2 2 2
@@ -47,8 +49,8 @@ LazySlide: Accessible and interoperable whole slide image analysis
 
       How to install LazySlide
 
-   .. grid-item-card:: Tutorial
-      :link: tutorial/index
+   .. grid-item-card:: Tutorials
+      :link: tutorials/index
       :link-type: doc
 
       Get started with LazySlide

@@ -73,6 +73,16 @@ The reader will be automatically detected by :code:`wsidata` when you open the s
 
         `OpenSlide <https://openslide.org/>`_ is a C library that provides a simple interface to read whole-slide images.
 
+        OpenSlide is installed by default, you don't need to install it manually.
+
+        But you can always install from PyPI
+
+        .. code-block:: bash
+
+            pip install openslide-python openslide-bin
+
+        In case your OpenSlide installation is not working, you can install it manually.
+
         For Linux and OSX users, it's suggested that you install :code:`openslide` with conda or mamba:
 
         .. code-block:: bash

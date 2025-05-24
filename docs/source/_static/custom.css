@@ -18,3 +18,7 @@ html[data-theme="light"] .highlight .hll {
 .cell_output img {
     height: auto !important;
 }
+
+.navbar-brand .logo__image {
+    height: 150px;
+}
