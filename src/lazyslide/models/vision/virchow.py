@@ -1,5 +1,4 @@
 import torch
-from timm.layers import SwiGLUPacked
 
 from lazyslide.models.base import TimmModel
 
@@ -8,6 +7,8 @@ class Virchow(TimmModel):
     _hf_hub_id = "paige-ai/Virchow"
 
     def __init__(self, model_path=None, token=None):
+        from timm.layers import SwiGLUPacked
+
         super().__init__(
             f"hf-hub:{self._hf_hub_id}",
             pretrained=True,

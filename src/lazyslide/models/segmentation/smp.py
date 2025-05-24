@@ -57,27 +57,3 @@ class SMPBase(SegmentationModel):
 
     def get_postprocess(self) -> Callable:
         return semanticseg_postprocess
-
-
-class GrandQCTissueSegmentation(SMPBase):
-    def __init__(self):
-        weights = self.load_weights(
-            "https://zenodo.org/records/14507273/files/Tissue_Detection_MPP10.pth"
-        )
-
-        super().__init__(
-            arch="unetplusplus",
-            encoder_name="timm-efficientnet-b0",
-            encoder_weights="imagenet",
-            in_channels=3,
-            classes=2,
-            activation=None,
-        )
-        self.model.load_state_dict(
-            torch.load(weights, map_location=torch.device("cpu"))
-        )
-        self.model.eval()
-
-    def segment(self, image):
-        with torch.inference_mode():
-            return self.model.predict(image)

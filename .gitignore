@@ -168,3 +168,11 @@ cython_debug/
 
 work/
 .nextflow.log*
+data/
+checkpoints/
+annotations/
+# JetBrains AI Agent
+.junie/
+pretrained_models/
+figures/
+sample_data/

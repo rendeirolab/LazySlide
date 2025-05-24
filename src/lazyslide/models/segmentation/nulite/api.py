@@ -4,8 +4,6 @@ import cv2
 import numpy as np
 import torch
 import geopandas as gpd
-from torchvision.transforms.v2 import ToImage, ToDtype, Normalize, Compose
-from huggingface_hub import hf_hub_download
 
 from lazyslide.cv import Mask
 from lazyslide.models.base import SegmentationModel
@@ -18,6 +16,8 @@ class NuLite(SegmentationModel):
         self,
         variant: Literal["H", "M", "T"] = "H",
     ):
+        from huggingface_hub import hf_hub_download
+
         model_file = hf_hub_download(
             "RendeiroLab/LazySlide-models", f"nulite/NuLite-{variant}-Weights.pth"
         )
@@ -33,6 +33,8 @@ class NuLite(SegmentationModel):
         self.model.load_state_dict(weights["model_state_dict"])
 
     def get_transform(self):
+        from torchvision.transforms.v2 import ToImage, ToDtype, Normalize, Compose
+
         return Compose(
             [
                 ToImage(),

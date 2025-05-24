@@ -4,8 +4,6 @@ from typing import Callable
 
 import numpy as np
 import torch
-from huggingface_hub import hf_hub_download
-from torchvision.transforms.v2 import ToImage, ToDtype, Compose
 
 from lazyslide.models.base import SegmentationModel
 from .postprocess import instanseg_postprocess
@@ -31,6 +29,8 @@ class Instanseg(SegmentationModel):
     _base_mpp = 0.5
 
     def __init__(self, model_file=None):
+        from huggingface_hub import hf_hub_download
+
         model_file = hf_hub_download(
             "RendeiroLab/LazySlide-models", "instanseg/instanseg_v0_1_0.pt"
         )
@@ -38,6 +38,8 @@ class Instanseg(SegmentationModel):
         self.model = torch.jit.load(model_file, map_location="cpu")
 
     def get_transform(self):
+        from torchvision.transforms.v2 import ToImage, ToDtype, Compose
+
         return Compose(
             [
                 ToImage(),  # Converts numpy or PIL to torch.Tensor in [C, H, W] format
@@ -46,6 +48,7 @@ class Instanseg(SegmentationModel):
             ]
         )
 
+    @torch.inference_mode()
     def segment(self, image):
         # with torch.inference_mode():
         out = self.model(image)

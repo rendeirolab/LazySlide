@@ -8,7 +8,8 @@ from typing import Sequence
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from shapely.geometry import box
+from shapely.geometry import box, Polygon
+from shapely import contains_xy, prepare
 from spatialdata.models import ShapesModel
 from wsidata import WSIData, TileSpec
 from wsidata.io import update_shapes_data
@@ -151,6 +152,7 @@ def tile_tissues(
             stride_w=tile_spec.base_stride_width,
             stride_h=tile_spec.base_stride_height,
             edge=edge,
+            # mask=cnt,
         )
         query_tissue = gpd.GeoDataFrame({"geometry": [cnt]})
 
@@ -178,6 +180,7 @@ def tile_tissues(
         else:
             # If no background filter, just use the intersecting tiles
             overlap_tiles = intersect.drop(columns="index_right", errors="ignore")
+            # overlap_tiles = tiles
 
         # Add to the final collection and match the tissue id
         tiles_collections.append(overlap_tiles)
@@ -331,7 +334,16 @@ def _chunk_scoring(tiles, spec: TileSpec, reader: ReaderBase, scorer, queue):
 
 
 def tiles_from_bbox(
-    x, y, w, h, tile_w: int, tile_h: int, stride_w=None, stride_h=None, edge=True
+    x,
+    y,
+    w,
+    h,
+    tile_w: int,
+    tile_h: int,
+    stride_w=None,
+    stride_h=None,
+    edge=True,
+    mask=None,
 ):
     """Create tiles from a bounding box.
 
@@ -345,6 +357,8 @@ def tiles_from_bbox(
         The width/height of stride when moving to the next tile.
     edge : bool, default True
         Whether to include the edge tiles.
+    mask : Polygon, default None
+        The mask to use for the tiles.
 
     Returns
     -------
@@ -360,8 +374,8 @@ def tiles_from_bbox(
     if stride_h is None:
         stride_h = tile_h
 
-    # calculate number of expected tiles
-    # If the width/height is divisible by stride
+    # calculate the number of expected tiles
+    # If the width/height is divisible by stride,
     # We need to add 1 to include the starting point
     nw = w // stride_w + 1
     nh = h // stride_h + 1
@@ -376,8 +390,27 @@ def tiles_from_bbox(
     ys = np.arange(nh, dtype=np.uint) * stride_h + y
 
     tiles = []
-    for i in range(nw):
-        for j in range(nh):
-            x, y = xs[i], ys[j]
-            tiles.append(box(x, y, x + tile_w, y + tile_h))
+    if mask is not None:
+        # Filter the points that are within the mask
+        points = np.array(np.meshgrid(xs, ys)).T.reshape(-1, 2)
+        prepare(mask)
+        is_in = contains_xy(mask, x=points[:, 0], y=points[:, 1])
+        # make a dict mapping if the point is in the mask
+        in_dict = dict(zip(map(tuple, points), is_in))
+        for i in range(nw):
+            for j in range(nh):
+                x, y = xs[i], ys[j]
+                p1, p2, p3, p4 = (
+                    (x, y),
+                    (x + tile_w, y),
+                    (x + tile_w, y + tile_h),
+                    (x, y + tile_h),
+                )
+                if any(in_dict.get(p) for p in (p1, p2, p3, p4)):
+                    tiles.append(box(x, y, x + tile_w, y + tile_h))
+    else:
+        for i in range(nw):
+            for j in range(nh):
+                x, y = xs[i], ys[j]
+                tiles.append(box(x, y, x + tile_w, y + tile_h))
     return gpd.GeoDataFrame({"geometry": tiles})
