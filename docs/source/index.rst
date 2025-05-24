@@ -1,8 +1,3 @@
-.. LazySlide documentation master file, created by
-   sphinx-quickstart on Sat Jun 15 08:19:55 2024.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 LazySlide: Accessible and interoperable whole slide image analysis
 ==================================================================
 
@@ -27,15 +22,20 @@ LazySlide: Accessible and interoperable whole slide image analysis
       It supports a range of tasks from basic preprocessing to advanced deep learning applications,
       facilitating the integration of histopathology into modern computational biology.
 
+
 .. image:: https://github.com/rendeirolab/LazySlide/raw/main/assets/Figure.png
+
+|
 
 .. toctree::
     :maxdepth: 1
     :hidden:
 
     installation
-    api/index
     tutorials/index
+    api/index
+    contributing
+    contributors
 
 
 .. grid:: 1 2 2 2
@@ -47,8 +47,8 @@ LazySlide: Accessible and interoperable whole slide image analysis
 
       How to install LazySlide
 
-   .. grid-item-card:: Tutorial
-      :link: tutorial/index
+   .. grid-item-card:: Tutorials
+      :link: tutorials/index
       :link-type: doc
 
       Get started with LazySlide
