@@ -8,8 +8,8 @@ from typing import Sequence
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from shapely.geometry import box, Polygon
 from shapely import contains_xy, prepare
+from shapely.geometry import box
 from spatialdata.models import ShapesModel
 from wsidata import WSIData, TileSpec
 from wsidata.io import update_shapes_data
@@ -131,7 +131,7 @@ def tile_tissues(
         _add_tiles(wsi, tiles, tile_spec, key_added=key_added)
         if return_tiles:
             return tiles, tile_spec
-        return
+        return None
 
     # tile_coords = []
     tiles_collections = []
@@ -152,34 +152,23 @@ def tile_tissues(
             stride_w=tile_spec.base_stride_width,
             stride_h=tile_spec.base_stride_height,
             edge=edge,
-            # mask=cnt,
+            mask=cnt,
         )
-        query_tissue = gpd.GeoDataFrame({"geometry": [cnt]})
 
-        # first check for tiles that are intersecting with the tissue
-        intersect = gpd.sjoin(tiles, query_tissue, how="inner", predicate="intersects")
         if background_filter:
-            # then check for tiles that are within the tissue
-            within = gpd.sjoin(
-                intersect.drop(columns="index_right", errors="ignore"),
-                query_tissue,
-                how="inner",
-                predicate="within",
-            )
+            # check for tiles that are on the border of the tissue
+            border_tiles = tiles[tiles["pt_count"] < 4]
 
-            # To apply filtering based on the background fraction
-            # We only need to check the tiles that are on the border
-            border_tiles = intersect[~intersect.index.isin(within.index)]
+            # calculate the background fraction of each tile
             ov_ratio = border_tiles.intersection(cnt).area / border_tiles.area
-            ov_ratio = ov_ratio[ov_ratio > (1 - background_fraction)]
 
-            # The tiles that are used will be the ones that are within the tissue
-            # and the ones that are on the border but pass filtering
-            final_ixs = ov_ratio.index.tolist() + within.index.tolist()
-            overlap_tiles = tiles.loc[final_ixs].copy()
+            # filter out the tiles that are not within the tissue
+            exclude_tiles = ov_ratio[ov_ratio < (1 - background_fraction)]
+            overlap_tiles = tiles.drop(index=exclude_tiles.index, errors="ignore")
+
         else:
             # If no background filter, just use the intersecting tiles
-            overlap_tiles = intersect.drop(columns="index_right", errors="ignore")
+            overlap_tiles = tiles.drop(columns="index_right", errors="ignore")
             # overlap_tiles = tiles
 
         # Add to the final collection and match the tissue id
@@ -193,6 +182,7 @@ def tile_tissues(
             UserWarning,
             stacklevel=find_stack_level(),
         )
+        return None
     else:
         tiles["tissue_id"] = tiles_tissue_id
         tiles["tile_id"] = np.arange(len(tiles))
@@ -201,6 +191,7 @@ def tile_tissues(
         _add_tiles(wsi, tiles, tile_spec, key_added=key_added)
         if return_tiles:
             return tiles, tile_spec
+        return None
 
 
 def _add_tiles(wsi, tiles_gdf, tile_spec, key_added=None):
@@ -390,6 +381,7 @@ def tiles_from_bbox(
     ys = np.arange(nh, dtype=np.uint) * stride_h + y
 
     tiles = []
+    pt_counts = []
     if mask is not None:
         # Filter the points that are within the mask
         points = np.array(np.meshgrid(xs, ys)).T.reshape(-1, 2)
@@ -406,11 +398,14 @@ def tiles_from_bbox(
                     (x + tile_w, y + tile_h),
                     (x, y + tile_h),
                 )
-                if any(in_dict.get(p) for p in (p1, p2, p3, p4)):
+                pt_count = sum(in_dict.get(p, 0) for p in (p1, p2, p3, p4))
+                if pt_count > 0:
                     tiles.append(box(x, y, x + tile_w, y + tile_h))
+                    pt_counts.append(pt_count)
     else:
         for i in range(nw):
             for j in range(nh):
                 x, y = xs[i], ys[j]
                 tiles.append(box(x, y, x + tile_w, y + tile_h))
-    return gpd.GeoDataFrame({"geometry": tiles})
+        pt_counts = 4
+    return gpd.GeoDataFrame({"geometry": tiles, "pt_count": pt_counts})
