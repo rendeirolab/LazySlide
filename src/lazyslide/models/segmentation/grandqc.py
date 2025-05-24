@@ -1,7 +1,6 @@
 from typing import Literal
 
 import torch
-from huggingface_hub import hf_hub_download
 from lazyslide.models.base import SegmentationModel
 from lazyslide.models.segmentation.postprocess import semanticseg_postprocess
 from lazyslide.models.segmentation.smp import SMPBase
@@ -20,6 +19,8 @@ class GrandQCArtifact(SegmentationModel):
     }
 
     def __init__(self, model: Literal["5x", "7x", "10x"] = "7x"):
+        from huggingface_hub import hf_hub_download
+
         weights_map = {
             "5x": "GrandQC_MPP2_traced.pt",
             "7x": "GrandQC_MPP15_traced.pt",
@@ -64,6 +65,8 @@ class GrandQCTissue(SMPBase):
     }
 
     def __init__(self):
+        from huggingface_hub import hf_hub_download
+
         weights = hf_hub_download(
             "RendeiroLab/LazySlide-models", "grandqc/Tissue_Detection_MPP10.pth"
         )

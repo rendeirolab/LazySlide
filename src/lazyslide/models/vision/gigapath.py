@@ -1,5 +1,3 @@
-import timm
-from huggingface_hub import login
 from platformdirs import user_cache_path
 
 from lazyslide.models.base import SlideEncoderModel, TimmModel
@@ -10,6 +8,8 @@ class GigaPath(TimmModel):
 
     def __init__(self, model_path=None, token=None):
         # Version check
+        import timm
+
         try:
             from packaging import version
 
@@ -29,6 +29,8 @@ class GigaPath(TimmModel):
 
 class GigaPathSlideEncoder(SlideEncoderModel):
     def __init__(self, model_path=None, token=None):
+        from huggingface_hub import login
+
         super().__init__()
 
         if token is not None:

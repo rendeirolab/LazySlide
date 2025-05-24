@@ -1,4 +1,3 @@
-import timm
 import torch
 
 from lazyslide.models.base import TimmModel
@@ -32,6 +31,8 @@ class UNI(TimmModel):
 
 class UNI2(TimmModel):
     def __init__(self, model_path=None, token=None):
+        import timm
+
         timm_kwargs = {
             "img_size": 224,
             "patch_size": 14,

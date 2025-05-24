@@ -3,7 +3,6 @@ from typing import Literal
 
 import torch
 import torch.nn as nn
-import timm
 
 
 class Conv2DBlock(nn.Module):
@@ -43,6 +42,8 @@ class Conv2DBlock(nn.Module):
 
 class FastViTEncoder(nn.Module):
     def __init__(self, vit_structure, pretrained=True):
+        import timm
+
         super(FastViTEncoder, self).__init__()
 
         self.fast_vit = timm.create_model(

@@ -9,9 +9,6 @@ from anndata import AnnData
 from numba import njit
 from scipy.sparse import csr_matrix, spmatrix, isspmatrix_csr, SparseEfficiencyWarning
 from scipy.spatial import Delaunay
-from sklearn.metrics import euclidean_distances
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.neighbors import NearestNeighbors
 from wsidata import WSIData
 from wsidata.io import add_table
 
@@ -187,6 +184,9 @@ def _build_connectivity(
     set_diag: bool = False,
     return_distance: bool = False,
 ) -> csr_matrix | tuple[csr_matrix, csr_matrix]:
+    from sklearn.metrics import euclidean_distances
+    from sklearn.neighbors import NearestNeighbors
+
     N = coords.shape[0]
     if delaunay:
         tri = Delaunay(coords)
@@ -275,4 +275,6 @@ def _transform_a_spectral(a: spmatrix) -> spmatrix:
 
 
 def _transform_a_cosine(a: spmatrix) -> spmatrix:
+    from sklearn.metrics.pairwise import cosine_similarity
+
     return cosine_similarity(a, dense_output=False)

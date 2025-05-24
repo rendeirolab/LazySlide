@@ -1,7 +1,4 @@
-import timm
 import torch
-from timm.data import resolve_data_config
-from timm.data.transforms_factory import create_transform
 
 from lazyslide.models.base import TimmModel
 
@@ -71,6 +68,8 @@ class H0Mini(TimmModel):
     name = "H0-mini"
 
     def __init__(self, model_path=None, token=None):
+        import timm
+
         super().__init__(
             "hf-hub:bioptimus/H0-mini",
             pretrained=True,

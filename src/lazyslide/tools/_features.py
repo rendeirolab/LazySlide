@@ -390,7 +390,7 @@ def _encode_slide(features, encoder, coords=None, device=None, tile_spec=None):
     return result_dict
 
 
-def features_smoothing(
+def feature_smoothing(
     wsi: WSIData,
     feature_key: str,
     method: str = "utag",
@@ -434,7 +434,7 @@ def features_smoothing(
         >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
         >>> zs.tl.feature_extraction(wsi, "resnet50")
         >>> zs.pp.tile_graph(wsi)
-        >>> zs.tl.features_smoothing(wsi, "resnet50")
+        >>> zs.tl.feature_smoothing(wsi, "resnet50")
         >>> wsi["resnet50"].layers["feature_smoothing"]
 
     """

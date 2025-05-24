@@ -4,10 +4,7 @@ from pathlib import Path
 from typing import Callable
 
 import numpy as np
-import timm
 import torch
-from huggingface_hub import login
-from timm.models.hub import download_cached_file
 
 from lazyslide.models._utils import hf_access, get_default_transform
 
@@ -26,6 +23,8 @@ class ModelBase:
 
     @staticmethod
     def load_weights(url, progress=True):
+        from timm.models.hub import download_cached_file
+
         return Path(download_cached_file(url, progress=progress))
 
 
@@ -60,6 +59,9 @@ class ImageModel(ModelBase):
 
 class TimmModel(ImageModel):
     def __init__(self, name, token=None, compile=False, compile_kws=None, **kwargs):
+        import timm
+        from huggingface_hub import login
+
         if token is not None:
             login(token)
 
