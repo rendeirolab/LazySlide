@@ -1,8 +1,3 @@
-.. LazySlide documentation master file, created by
-   sphinx-quickstart on Sat Jun 15 08:19:55 2024.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 LazySlide: Accessible and interoperable whole slide image analysis
 ==================================================================
 
