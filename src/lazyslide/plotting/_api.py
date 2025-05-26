@@ -309,6 +309,20 @@ def annotations(
         The whole-slide image object.
     key : str
         The annotation key.
+    color : str, optional
+        The column name that should be visualized from the annotation key.
+
+    Examples
+    --------
+    .. plot::
+        :context: close-figs
+
+        >>> import lazyslide as zs
+        >>> wsi = zs.datasets.lung_carcinoma()
+        >>> zs.pl.annotations(wsi, "annotations", color='name')
+
+
+
 
     """
     if ax is None:
