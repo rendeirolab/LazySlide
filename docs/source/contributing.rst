@@ -71,7 +71,7 @@ When adding new tests:
 4. Use assertions to verify expected behavior.
 
 Code style and development guidelines
-------------------------------------
+-------------------------------------
 
 LazySlide uses `ruff <https://github.com/astral-sh/ruff>`_ for both linting and formatting. 
 The configuration is defined in ``pyproject.toml`` and enforced through pre-commit hooks.
@@ -83,7 +83,7 @@ To format code::
     ruff format docs/source src/lazyslide tests
 
 Documentation
-------------
+-------------
 
 Documentation is built using Sphinx and is located in the ``docs`` directory.
 
@@ -103,7 +103,7 @@ This will start a local server at http://localhost:8000.
 Documentation is written in reStructuredText (.rst) and Jupyter notebooks (.ipynb) using the myst-nb extension.
 
 Submitting changes
------------------
+------------------
 
 1. Commit your changes and push them to your branch.
 2. Create a pull request on GitHub.
@@ -111,7 +111,7 @@ Submitting changes
 4. Wait for a review from a maintainer.
 
 Reporting issues
----------------
+----------------
 
 If you encounter a bug or have a feature request, please open an issue on the 
 `GitHub repository <https://github.com/rendeirolab/lazyslide/issues>`_.

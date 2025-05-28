@@ -48,8 +48,8 @@ You can install :code:`lazyslide` with different package manager you prefer.
             pip install git+https://github.com/rendeirolab/lazyslide.git
 
 
-Installation for slide readers
-------------------------------
+Installation of slide readers
+-----------------------------
 
 LazySlide uses :code:`wsidata` to handle the IO with the slide files.
 To support different file formats, you need to install corresponding slide readers.
