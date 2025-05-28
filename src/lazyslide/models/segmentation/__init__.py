@@ -6,3 +6,4 @@ from .postprocess import (
     semanticseg_postprocess,
 )
 from .smp import SMPBase
+from .sam import SAM
