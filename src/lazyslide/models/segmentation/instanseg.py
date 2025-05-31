@@ -52,7 +52,7 @@ class Instanseg(SegmentationModel):
     def segment(self, image):
         # with torch.inference_mode():
         out = self.model(image)
-        return out.squeeze().cpu().numpy().astype(np.uint16)
+        return out.squeeze(0).cpu().numpy().astype(np.uint16)
 
     def get_postprocess(self) -> Callable | None:
         return instanseg_postprocess

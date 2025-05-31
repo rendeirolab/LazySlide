@@ -169,7 +169,9 @@ def nulite_preprocess(
             class_ix = np.argmax(probs)
             class_prob = type_prob_map[class_ix, x, y].mean()
             m = Mask.from_array(mask.astype(np.uint8))
-            poly = m.to_polygons()[0]
-            cells.append([CLASS_MAPPING[class_ix + 1], class_prob, poly])
-            final_seg[markers_clean == lbl] = lbl
+            polys = m.to_polygons()
+            if len(polys) > 0:
+                poly = polys[0]
+                cells.append([CLASS_MAPPING[class_ix + 1], class_prob, poly])
+                final_seg[markers_clean == lbl] = lbl
     return gpd.GeoDataFrame(cells, columns=["name", "prob", "geometry"])
