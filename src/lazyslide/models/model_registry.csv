@@ -19,6 +19,6 @@ NuLite,nulite,segmentation,NuLite,https://github.com/CosmoIknosLab/NuLite,,https
 InstanSeg,instanseg,segmentation,Instanseg,https://github.com/instanseg/instanseg,,https://doi.org/10.48550/arXiv.2408.15954,Cell segmentation
 GrandQC-Tissue,grandqc-tissue,segmentation,GrandQCTissue,https://github.com/cpath-ukk/grandqc,,https://doi.org/10.1038/s41467-024-54769-y,Tissue segmentation
 GrandQC-Artifact,grandqc-artifact,segmentation,GrandQCArtifact,https://github.com/cpath-ukk/grandqc,,https://doi.org/10.1038/s41467-024-54769-y,Artifact segmentation
-Midnight,midnight,vision,Midnight,https://github.com/kaiko-ai/midnight,https://huggingface.co/kaiko-ai/midnight,https://doi.org/10.48550/arXiv.2504.05186, Vision foundation model
-HibouB,hibou-b,vision,HibouB,https://github.com/HistAI/hibou/tree/main,https://huggingface.co/histai/hibou-b,https://doi.org/10.48550/arXiv.2406.05074, Foundation Vision Transformer
-HibouL,hibou-l,vision,HibouL,https://github.com/HistAI/hibou/tree/main,https://huggingface.co/histai/hibou-l,https://doi.org/10.48550/arXiv.2406.05074, Foundation Vision Transformer
+Midnight,midnight,vision,Midnight,https://github.com/kaiko-ai/midnight,https://huggingface.co/kaiko-ai/midnight,https://doi.org/10.48550/arXiv.2504.05186,Vision foundation model
+HibouB,hibou-b,vision,HibouB,https://github.com/HistAI/hibou/tree/main,https://huggingface.co/histai/hibou-b,https://doi.org/10.48550/arXiv.2406.05074,Foundation Vision Transformer
+HibouL,hibou-l,vision,HibouL,https://github.com/HistAI/hibou/tree/main,https://huggingface.co/histai/hibou-l,https://doi.org/10.48550/arXiv.2406.05074,Foundation Vision Transformer
