@@ -8,8 +8,7 @@ from typing import Sequence
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from shapely import contains_xy, prepare
-from shapely.geometry import box
+from shapely import contains_xy, prepare, box, Polygon
 from spatialdata.models import ShapesModel
 from wsidata import WSIData, TileSpec
 from wsidata.io import update_shapes_data
@@ -76,8 +75,12 @@ def tile_tissues(
 
     Returns
     -------
-    tils_gdf, tile_spec : gpd.GeoDataFrame, TileSpec
-        The tiles and the tile spec.
+    :class:`geopandas.GeoDataFrame`
+        The tiles dataframe with columns :code:`tissue_id`, :code:`tile_id`, and :code:`geometry`.\
+        Added to :bdg-danger:`shapes`.
+    :class:`TileSpec <wsidata.TileSpec>`
+        The tile specification used to create the tiles.\
+        Added to :bdg-danger:`attrs` with key :code:`tile_spec`.
 
     Examples
     --------
@@ -152,7 +155,7 @@ def tile_tissues(
             stride_w=tile_spec.base_stride_width,
             stride_h=tile_spec.base_stride_height,
             edge=edge,
-            mask=cnt,
+            mask=Polygon(cnt.exterior),
         )
 
         if background_filter:
@@ -379,16 +382,29 @@ def tiles_from_bbox(
 
     xs = np.arange(nw, dtype=np.uint) * stride_w + x
     ys = np.arange(nh, dtype=np.uint) * stride_h + y
+    # points = np.array(np.meshgrid(xs, ys)).T.reshape(-1, 2)
+
+    # Add xs and ys after stride
+    if stride_h != tile_h:
+        yss = ys + tile_h
+        yss = np.sort(np.unique(np.concatenate((ys, yss))))
+    else:
+        yss = ys
+    if stride_w != tile_w:
+        xss = xs + tile_w
+        xss = np.sort(np.unique(np.concatenate((xs, xss))))
+    else:
+        xss = xs
 
     tiles = []
     pt_counts = []
     if mask is not None:
         # Filter the points that are within the mask
-        points = np.array(np.meshgrid(xs, ys)).T.reshape(-1, 2)
+        tile_points = np.array(np.meshgrid(xss, yss)).T.reshape(-1, 2)
         prepare(mask)
-        is_in = contains_xy(mask, x=points[:, 0], y=points[:, 1])
+        is_in = contains_xy(mask, x=tile_points[:, 0], y=tile_points[:, 1])
         # make a dict mapping if the point is in the mask
-        in_dict = dict(zip(map(tuple, points), is_in))
+        in_dict = dict(zip(map(tuple, tile_points), is_in))
         for i in range(nw):
             for j in range(nh):
                 x, y = xs[i], ys[j]
