@@ -48,6 +48,7 @@ all = [
     "torchvision>=0.15",  # >0.15
     "torchstain>=1.4.1",
     "transformers>=4.49.0",
+    "open-clip-torch>=2.32.0",
 ]
 
 # Define entry points
@@ -163,6 +164,7 @@ model = [
     "sacremoses>=0.1.1",
     "conch",
     "transformers>=4.49.0",
+    "open-clip-torch>=2.32.0",
 ]
 
 

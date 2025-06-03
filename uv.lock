@@ -2266,6 +2266,7 @@ dependencies = [
 
 [package.optional-dependencies]
 all = [
+    { name = "open-clip-torch" },
     { name = "scanpy" },
     { name = "scipy" },
     { name = "torchstain" },
@@ -2308,6 +2309,7 @@ model = [
     { name = "einops" },
     { name = "einops-exts" },
     { name = "environs" },
+    { name = "open-clip-torch" },
     { name = "sacremoses" },
     { name = "transformers" },
 ]
@@ -2337,6 +2339,7 @@ requires-dist = [
     { name = "legendkit", specifier = ">=0.3.4" },
     { name = "matplotlib", specifier = ">=3.9.0" },
     { name = "matplotlib-scalebar", specifier = ">=0.9.0" },
+    { name = "open-clip-torch", marker = "extra == 'all'", specifier = ">=2.32.0" },
     { name = "psutil", specifier = ">=5.9.0" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "scanpy", marker = "extra == 'all'", specifier = ">=1.10.4" },
@@ -2385,6 +2388,7 @@ model = [
     { name = "einops", specifier = ">=0.8.1" },
     { name = "einops-exts", specifier = ">=0.0.4" },
     { name = "environs", specifier = ">=14.1.1" },
+    { name = "open-clip-torch", specifier = ">=2.32.0" },
     { name = "sacremoses", specifier = ">=0.1.1" },
     { name = "transformers", specifier = ">=4.49.0" },
 ]
@@ -3679,6 +3683,25 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/43/25/0e7b247e3e864b93058e5af536407e943edca9f2002c93a9ac04064ff684/ome_zarr-0.11.1.tar.gz", hash = "sha256:f178e336412eaefdb74172b280095cd9bd497bfeb235c1b1c2b0965c21aa1af0", size = 65091 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/24/c8/35ac60b20eccccf84638a872c3b4ebefad46b20f87540ca17a37908b1db6/ome_zarr-0.11.1-py3-none-any.whl", hash = "sha256:e8ffc93de78558be990ed3b1b2b186b97ca0c7eb2cb460a7cffb861f4f13a8f1", size = 40000 },
+]
+
+[[package]]
+name = "open-clip-torch"
+version = "2.32.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "ftfy" },
+    { name = "huggingface-hub" },
+    { name = "regex" },
+    { name = "safetensors" },
+    { name = "timm" },
+    { name = "torch" },
+    { name = "torchvision" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6d/7b/fd38dfd522968135dce71d0b543c2ae776f9c8e27df6ad46b63bab09eef7/open_clip_torch-2.32.0.tar.gz", hash = "sha256:0220bc111162527eb738c1fe20dbfd6ea45dfe44726b54a4de18d3945d8f2f00", size = 1491248 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/32/f9/0458745c1d299411161ee3b6c32228a3de0be1d8497d779fd7f17a8e96aa/open_clip_torch-2.32.0-py3-none-any.whl", hash = "sha256:80b35b43e37afc2b6173aa5ab0ad68744ab3a3211e624f72dfe743a162707637", size = 1528783 },
 ]
 
 [[package]]

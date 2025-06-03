@@ -22,3 +22,4 @@ GrandQC-Artifact,grandqc-artifact,segmentation,GrandQCArtifact,https://github.co
 Midnight,midnight,vision,Midnight,https://github.com/kaiko-ai/midnight,https://huggingface.co/kaiko-ai/midnight,https://doi.org/10.48550/arXiv.2504.05186,Vision foundation model
 HibouB,hibou-b,vision,HibouB,https://github.com/HistAI/hibou/tree/main,https://huggingface.co/histai/hibou-b,https://doi.org/10.48550/arXiv.2406.05074,Foundation Vision Transformer
 HibouL,hibou-l,vision,HibouL,https://github.com/HistAI/hibou/tree/main,https://huggingface.co/histai/hibou-l,https://doi.org/10.48550/arXiv.2406.05074,Foundation Vision Transformer
+Loki,loki,multimodal,Loki,https://github.com/GuangyuWangLab2021/Loki,https://huggingface.co/WangGuangyuLab/Loki,https://doi.org/10.1038/s41592-025-02707-1,Multimodal foundation model
