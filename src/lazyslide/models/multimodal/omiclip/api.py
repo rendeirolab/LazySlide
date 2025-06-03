@@ -5,7 +5,7 @@ from ..._utils import hf_access
 from ...base import ImageTextModel
 
 
-class Loki(ImageTextModel):
+class OmiCLIP(ImageTextModel):
     def __init__(self, model_path=None, token=None):
         try:
             from open_clip import create_model_from_pretrained, get_tokenizer

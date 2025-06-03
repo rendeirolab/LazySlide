@@ -51,10 +51,10 @@ def text_embedding(
         from lazyslide.models.multimodal import CONCH
 
         model_ins = CONCH()
-    elif model == "loki":
-        from lazyslide.models.multimodal import Loki
+    elif model == "omiclip":
+        from lazyslide.models.multimodal import OmiCLIP
 
-        model_ins = Loki()
+        model_ins = OmiCLIP()
     else:
         raise ValueError(f"Invalid model: {model}")
 
