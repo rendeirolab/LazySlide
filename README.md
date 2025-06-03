@@ -9,6 +9,8 @@
   <i>Accessible and interoperable whole slide image analysis</i>
 </p>
 
+[![bioRxiv badge](https://zenodo.org/badge/doi/10.1101/2025.05.28.656548.svg)](https://doi.org/10.1101/2025.05.28.656548) ⬅️ read the preprint on BioRxiv
+
 [![Documentation Status](https://readthedocs.org/projects/lazyslide/badge/?version=stable&style=flat-square)](https://lazyslide.readthedocs.io/en/stable)
 ![pypi version](https://img.shields.io/pypi/v/lazyslide?color=0098FF&logo=python&logoColor=white&style=flat-square)
 ![PyPI - License](https://img.shields.io/pypi/l/lazyslide?color=FFD43B&style=flat-square)
