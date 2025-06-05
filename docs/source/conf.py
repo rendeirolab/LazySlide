@@ -70,7 +70,9 @@ plot_html_show_source_link = False
 plot_html_show_formats = False
 plot_formats = [("png", 200)]
 
+nitpicky = True
 intersphinx_mapping = {
     "wsidata": ("https://wsidata.readthedocs.io/en/latest", None),
     "torch": ("https://pytorch.org/docs/stable/", None),
+    "geopandas": ("https://geopandas.org/en/stable", None),
 }

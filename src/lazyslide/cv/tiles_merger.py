@@ -4,12 +4,11 @@ from typing import Generator, List
 
 import geopandas as gpd
 import numpy as np
-from numpy.typing import NDArray
 import pandas as pd
+from numpy.typing import NDArray
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
 from shapely.strtree import STRtree
-
 
 # There are two ways to merge polygons:
 # 1. For semantic segmentation: Merge overlapping polygons using a spatial index (STRtree)
@@ -239,7 +238,7 @@ class PolygonMerger:
         return self._merged_polygons
 
 
-def preserve_largest_polygons(
+def preserve_largest_polygon(
     gdf: gpd.GeoDataFrame, buffer_px: float = 0
 ) -> gpd.GeoDataFrame:
     """

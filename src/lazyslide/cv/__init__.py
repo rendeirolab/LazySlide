@@ -1,9 +1,9 @@
 from .mask import (
-    Mask,
     BinaryMask,
-    MultilabelMask,
-    MulticlassMask,
     InstanceMap,
+    Mask,
+    MulticlassMask,
+    MultilabelMask,
     ProbabilityMap,
 )
-from .tiles_merger import merge_polygons, preserve_largest_polygons
+from .tiles_merger import merge_polygons, preserve_largest_polygon

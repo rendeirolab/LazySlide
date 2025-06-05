@@ -1,11 +1,9 @@
 from ._artifact import artifact
-from ._cell import cells, nulite, cell_types
+from ._cell import cell_types, cells, nulite
 from ._seg_runner import (
-    SegmentationRunner,
-    semantic,
-    slide_window_inference,
-    SemanticSegmentationRunner,
     CellSegmentationRunner,
+    SemanticSegmentationRunner,
+    semantic,
 )
 from ._tissue import tissue
 from ._zero_shot import zero_shot
