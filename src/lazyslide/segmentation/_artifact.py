@@ -7,8 +7,9 @@ from wsidata.io import add_shapes
 
 from lazyslide._const import Key
 from lazyslide._utils import get_torch_device
-from ._seg_runner import SegmentationRunner, SemanticSegmentationRunner
+
 from ..models.segmentation import GrandQCArtifact
+from ._seg_runner import SemanticSegmentationRunner
 
 # Define class mapping
 CLASS_MAPPING = {

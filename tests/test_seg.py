@@ -1,5 +1,11 @@
 import pytest
+
 import lazyslide as zs
+
+
+@pytest.mark.skip_on_ci
+def test_tissue_segmentation(wsi):
+    zs.seg.tissue(wsi, key_added="tissues")
 
 
 @pytest.mark.skip_on_ci
