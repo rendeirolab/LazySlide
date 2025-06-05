@@ -66,7 +66,7 @@ def load_focuslite_model(device="cpu"):
 class FocusLite(ScorerBase):
     # The device must be CPU, otherwise this module cannot be serialized
     def __init__(self, threshold=3, device="cpu"):
-        from torchvision.transforms import ToTensor, Resize
+        from torchvision.transforms import Resize, ToTensor
 
         # threshold should be between 1 and 12
         if not (1 <= threshold <= 12):

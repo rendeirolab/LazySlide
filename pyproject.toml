@@ -92,7 +92,7 @@ allow-direct-references = true
 [tool.ruff]
 lint.ignore = ["F401"]
 line-length = 88
-extend-select = ["I"]
+lint.extend-select = ["I"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/test_example.py" = ["E402"]

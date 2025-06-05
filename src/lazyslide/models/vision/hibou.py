@@ -22,15 +22,15 @@ class Hibou(ImageModel):
             )
 
     def get_transform(self):
-        from torchvision.transforms.v2 import (
-            Compose,
-            ToImage,
-            Resize,
-            CenterCrop,
-            ToDtype,
-            Normalize,
-        )
         from torchvision.transforms import InterpolationMode
+        from torchvision.transforms.v2 import (
+            CenterCrop,
+            Compose,
+            Normalize,
+            Resize,
+            ToDtype,
+            ToImage,
+        )
 
         return Compose(
             [

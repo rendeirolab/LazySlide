@@ -90,8 +90,7 @@ def artifact(
             raise ValueError(f"Tiles or tile spec for {tile_key} not found.")
         if spec.mpp != mpp:
             raise ValueError(
-                f"Tile spec mpp {spec.mpp} is not "
-                f"compatible with the model mpp {mpp}"
+                f"Tile spec mpp {spec.mpp} is not compatible with the model mpp {mpp}"
             )
         if spec.width != 512 or spec.height != 512:
             raise ValueError("Tile should be 512x512.")

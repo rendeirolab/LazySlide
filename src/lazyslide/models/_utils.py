@@ -39,12 +39,12 @@ def get_default_transform():
     """The default transform for the model."""
     from torchvision.transforms import InterpolationMode
     from torchvision.transforms.v2 import (
+        CenterCrop,
         Compose,
         Normalize,
-        CenterCrop,
-        ToImage,
-        ToDtype,
         Resize,
+        ToDtype,
+        ToImage,
     )
 
     transforms = [

@@ -6,6 +6,7 @@ import numpy as np
 import torch
 
 from lazyslide.models.base import SegmentationModel
+
 from .postprocess import instanseg_postprocess
 
 
@@ -38,7 +39,7 @@ class Instanseg(SegmentationModel):
         self.model = torch.jit.load(model_file, map_location="cpu")
 
     def get_transform(self):
-        from torchvision.transforms.v2 import ToImage, ToDtype, Compose
+        from torchvision.transforms.v2 import Compose, ToDtype, ToImage
 
         return Compose(
             [

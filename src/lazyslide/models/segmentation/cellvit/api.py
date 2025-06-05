@@ -10,6 +10,7 @@ from scipy.ndimage.morphology import binary_fill_holes
 from skimage.segmentation import watershed
 
 from lazyslide.models.base import SegmentationModel
+
 from .nulite import NuLite as NuLiteModel
 
 
@@ -35,7 +36,7 @@ class NuLite(SegmentationModel):
         self.model.load_state_dict(weights["model_state_dict"])
 
     def get_transform(self):
-        from torchvision.transforms.v2 import ToImage, ToDtype, Normalize, Compose
+        from torchvision.transforms.v2 import Compose, Normalize, ToDtype, ToImage
 
         return Compose(
             [

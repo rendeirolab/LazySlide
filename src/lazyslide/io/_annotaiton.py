@@ -3,18 +3,19 @@ from __future__ import annotations
 import json
 from itertools import cycle
 from pathlib import Path
-from typing import List, Literal, Mapping, Iterable
+from typing import Iterable, List, Literal, Mapping
 
 import pandas as pd
 from geopandas import GeoDataFrame
 from wsidata import WSIData
-from wsidata.io import update_shapes_data, add_shapes
+from wsidata.io import add_shapes, update_shapes_data
 
 from lazyslide._const import Key
 
 
 def _in_bounds_transform(wsi: WSIData, annos: GeoDataFrame, reverse: bool = False):
     from functools import partial
+
     from shapely.affinity import translate
 
     xoff, yoff, _, _ = wsi.properties.bounds

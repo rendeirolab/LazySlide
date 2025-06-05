@@ -1,6 +1,7 @@
 from typing import Literal
 
 import torch
+
 from lazyslide.models.base import SegmentationModel
 from lazyslide.models.segmentation.postprocess import semanticseg_postprocess
 from lazyslide.models.segmentation.smp import SMPBase
@@ -36,9 +37,9 @@ class GrandQCArtifact(SegmentationModel):
         import torch
         from torchvision.transforms.v2 import (
             Compose,
-            ToImage,
-            ToDtype,
             Normalize,
+            ToDtype,
+            ToImage,
         )
 
         return Compose(

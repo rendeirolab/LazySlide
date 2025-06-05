@@ -8,7 +8,7 @@ from typing import Callable
 import numpy as np
 import torch
 
-from lazyslide.models._utils import hf_access, get_default_transform
+from lazyslide.models._utils import get_default_transform, hf_access
 
 
 class ModelBase:
@@ -37,10 +37,10 @@ class ImageModel(ModelBase):
         import torch
         from torchvision.transforms.v2 import (
             Compose,
-            ToImage,
-            ToDtype,
-            Resize,
             Normalize,
+            Resize,
+            ToDtype,
+            ToImage,
         )
 
         return Compose(
@@ -116,7 +116,7 @@ class SegmentationModel(ModelBase):
 
     def get_transform(self):
         import torch
-        from torchvision.transforms.v2 import Compose, ToImage, ToDtype, Normalize
+        from torchvision.transforms.v2 import Compose, Normalize, ToDtype, ToImage
 
         return Compose(
             [

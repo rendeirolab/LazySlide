@@ -1,10 +1,10 @@
-from typing import Literal
 from collections import OrderedDict
+from typing import Literal
 
 import torch
 import torch.nn as nn
 
-from .modules import FastViTEncoder, Conv2DBlock
+from .modules import Conv2DBlock, FastViTEncoder
 
 
 class NuLite(nn.Module):

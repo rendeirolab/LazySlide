@@ -2,19 +2,18 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from typing import Sequence, Dict, Mapping
+from typing import Dict, Mapping, Sequence
 
 import cv2
-import numpy as np
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 from geopandas import GeoDataFrame
+from legendkit import cat_legend
 from matplotlib import pyplot as plt
 from shapely import Polygon
-from legendkit import cat_legend
 
 from lazyslide._utils import find_stack_level
-
 
 # Mask: (Any)
 #   The base class for all mask types.

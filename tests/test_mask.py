@@ -1,15 +1,15 @@
-import pytest
-import numpy as np
 import geopandas as gpd
-from shapely.geometry import Polygon
 import matplotlib.pyplot as plt
+import numpy as np
+import pytest
+from shapely.geometry import Polygon
 
 from lazyslide.cv.mask import (
-    Mask,
     BinaryMask,
+    InstanceMap,
+    Mask,
     MulticlassMask,
     MultilabelMask,
-    InstanceMap,
     ProbabilityMap,
     binary_mask_to_polygons,
     binary_mask_to_polygons_with_prob,

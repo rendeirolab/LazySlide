@@ -7,9 +7,10 @@ from wsidata.io import add_shapes
 
 from lazyslide.models import SegmentationModel
 from lazyslide.models.segmentation import Instanseg, NuLite
-from ._seg_runner import CellSegmentationRunner
+
 from .._const import Key
 from .._utils import find_stack_level
+from ._seg_runner import CellSegmentationRunner
 
 
 def cells(

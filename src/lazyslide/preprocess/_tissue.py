@@ -10,7 +10,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import psutil
-from shapely.affinity import translate, scale
+from shapely.affinity import scale, translate
 from wsidata import WSIData
 from wsidata.io import add_tissues, update_shapes_data
 
@@ -18,14 +18,15 @@ from lazyslide.cv.mask import BinaryMask
 from lazyslide.cv.transform import (
     ArtifactFilterThreshold,
     BinaryThreshold,
+    Compose,
     MedianBlur,
     MorphClose,
-    Compose,
 )
-from ._utils import get_scorer, Scorer
+
 from .._const import Key
 from .._utils import default_pbar, find_stack_level
 from ..cv import merge_polygons
+from ._utils import Scorer, get_scorer
 
 
 def _tissue_mask(

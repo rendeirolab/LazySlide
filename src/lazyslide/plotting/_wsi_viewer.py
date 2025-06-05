@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from itertools import cycle
 from numbers import Number
-from typing import Literal, List, Sequence, Dict, Any, Union
+from typing import Any, Dict, List, Literal, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -13,13 +13,13 @@ from geopandas import points_from_xy
 from legendkit import cat_legend, colorart, vstack
 from matplotlib import pyplot as plt
 from matplotlib.artist import Artist
-from matplotlib.cm import get_cmap, ScalarMappable
-from matplotlib.collections import PatchCollection
-from matplotlib.colors import to_rgba, is_color_like, ListedColormap
-from matplotlib.patches import Rectangle, Patch
+from matplotlib.cm import ScalarMappable, get_cmap
+from matplotlib.collections import PatchCollection, PathCollection
+from matplotlib.colors import ListedColormap, is_color_like, to_rgba
+from matplotlib.patches import Patch, Rectangle
 from matplotlib.typing import ColorType
-from shapely import Polygon, box
-from wsidata import WSIData, TileSpec
+from shapely import MultiPolygon, Polygon, box
+from wsidata import TileSpec, WSIData
 from wsidata.reader import ReaderBase
 
 from .._utils import find_stack_level
@@ -739,7 +739,7 @@ class WSIViewer:
         The whole slide image data.
     in_bounds : bool, default: True
         Whether to render the image in the bounds.
-    img_bytes_limit : int, default: 4e9
+    img_bytes_limit : int, default: 2e9
         The limit of the bytes to render image.
         The image size has a strong impact on the rendering time.
 
@@ -751,7 +751,7 @@ class WSIViewer:
         self,
         wsi: WSIData,
         in_bounds: bool = True,
-        img_bytes_limit: int = 4e9,
+        img_bytes_limit: int = 2e9,
     ):
         self.wsi = wsi
         self.in_bounds = in_bounds
