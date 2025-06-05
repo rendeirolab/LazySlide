@@ -5,7 +5,8 @@ from typing import List, Type
 
 import pandas as pd
 
-from . import ModelBase, multimodal, segmentation, vision
+from . import multimodal, segmentation, vision
+from .base import ModelBase
 
 
 class ModelTask(Enum):
