@@ -84,6 +84,12 @@ def find_tissues(
     .. note::
         The results may not be deterministic between runs,
         as the segmentation level is automatically decided by the available memory.
+        To get a consistent result, you can set the `level` parameter to a specific value.
+        Set `level=-1` for the lowest resolution level and fastest segmentation speed.
+
+    .. seealso::
+        :func:`zs.seg.tissue <lazyslide.seg.tissue>`
+
 
     Parameters
     ----------
@@ -117,9 +123,9 @@ def find_tissues(
 
     Returns
     -------
-    - A :class:`GeoDataFrame <geopandas.GeoDataFrame>` with columns of 'tissue_id' and 'geometry'.
-      added to the :bdg-danger:`shapes` slot of the SpatialData object.
-
+    :class:`GeoDataFrame <geopandas.GeoDataFrame>`
+        The tissues dataframe, with columns of `tissue_id` and `geometry`.
+        Added to :bdg-danger:`shapes`.
 
     Examples
     --------
@@ -163,6 +169,7 @@ def find_tissues(
     tissue_polys = BinaryMask(tissue_mask).to_polygons(
         **to_poly_option, detect_holes=detect_holes_1
     )
+    tissue_polys = tissue_polys.geometry
 
     if len(tissue_polys) == 0:
         logging.warning("No tissue is found.", stacklevel=find_stack_level())
@@ -203,6 +210,7 @@ def find_tissues(
             tissue_polys = BinaryMask(tissue_mask).to_polygons(
                 **to_poly_option, detect_holes=detect_holes
             )
+            tissue_polys = tissue_polys.geometry
 
             for tissue in tissue_polys:
                 tissue = scale(
@@ -237,10 +245,11 @@ def score_tissues(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object to work on.
-    scorers : :class:`Scorer` or array of :class`Scorer`
-        :class:`Scorer` to use for scoring tissue regions.
-        - 'redness': The redness of the tissue.
-        - 'brightness': The brightness of the tissue.
+    scorers : :class:`Scorer` or array of :class:`Scorer`
+        :class:`Scorer` to use for scoring tissue regions.:
+
+        - redness: The redness of the tissue.
+        - brightness: The brightness of the tissue.
     num_workers : int, optional, default: 1
         Number of workers to use for scoring.
     pbar : bool, optional, default: False
