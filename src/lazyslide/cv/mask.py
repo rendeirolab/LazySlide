@@ -35,20 +35,20 @@ class Mask(ABC):
         self,
         mask: np.ndarray,
         prob_map: np.ndarray | None = None,
-        class_name: Sequence[str] | Mapping[int, str] = None,
+        class_names: Sequence[str] | Mapping[int, str] = None,
     ):
         self.mask = mask
         self.prob_map = prob_map
         # Parse class names if provided
-        if class_name is not None:
-            if isinstance(class_name, Mapping):
-                self.class_name = class_name
-            elif isinstance(class_name, Sequence):
-                self.class_name = {i: name for i, name in enumerate(class_name)}
+        if class_names is not None:
+            if isinstance(class_names, Mapping):
+                self.class_names = class_names
+            elif isinstance(class_names, Sequence):
+                self.class_names = {i: name for i, name in enumerate(class_names)}
             else:
                 raise ValueError("class_name must be a Mapping or a Sequence.")
         else:
-            self.class_name = None
+            self.class_names = None
 
     @staticmethod
     def _is_integer_dtype(mask):
@@ -132,7 +132,7 @@ class Mask(ABC):
         else:
             # Ensure the mask is of an integer type
             mask = np.asarray(mask, dtype=np.uint8)
-            return MultilabelMask(mask, class_name=classes_order)
+            return MultilabelMask(mask, class_names=classes_order)
 
     @abstractmethod
     def to_polygons(
@@ -205,7 +205,7 @@ class BinaryMask(Mask):
         self,
         mask: np.ndarray,
         prob_map: np.ndarray | None = None,
-        class_name: Sequence[str] | Mapping[int, str] = None,
+        class_names: Sequence[str] | Mapping[int, str] = None,
     ):
         assert mask.ndim == 2, "Binary mask must be 2D."
         if prob_map is not None:
@@ -214,7 +214,7 @@ class BinaryMask(Mask):
             ), "Probability mask must have the same shape as the binary mask."
         # Coerce the mask to binary (0 and 1)
         mask = np.asarray(mask > 0, dtype=np.uint8)
-        super().__init__(mask, prob_map, class_name)
+        super().__init__(mask, prob_map, class_names)
 
     def to_polygons(
         self,
@@ -225,7 +225,7 @@ class BinaryMask(Mask):
     ) -> gpd.GeoDataFrame:
         return binary_mask_to_polygons_with_prob(
             self.mask,
-            prob_mask=self.prob_map,
+            prob_map=self.prob_map,
             min_area=min_area,
             min_hole_area=min_hole_area,
             detect_holes=detect_holes,
@@ -252,7 +252,7 @@ class MulticlassMask(Mask):
         self,
         mask: np.ndarray,
         prob_map: np.ndarray | None = None,
-        class_name: Sequence[str] | Mapping[int, str] = None,
+        class_names: Sequence[str] | Mapping[int, str] = None,
     ):
         assert mask.ndim == 2, "Multiclass mask must be 2D."
         assert self._is_integer_dtype(mask), "Multiclass mask must be of integer type."
@@ -263,14 +263,14 @@ class MulticlassMask(Mask):
         super().__init__(mask, prob_map)
         self.classes = np.sort(np.unique(self.mask))
         self.n_classes = len(self.classes)
-        if class_name is not None:
-            if isinstance(class_name, Mapping):
-                self.class_name = class_name
-            elif isinstance(class_name, Sequence):
-                self.class_name = {i: name for i, name in enumerate(class_name)}
+        if class_names is not None:
+            if isinstance(class_names, Mapping):
+                self.class_name = class_names
+            elif isinstance(class_names, Sequence):
+                self.class_name = {i: name for i, name in enumerate(class_names)}
             else:
                 raise ValueError("class_name must be a Mapping or a Sequence.")
-        self.class_name = class_name
+        self.class_name = class_names
 
     def to_polygons(
         self,
@@ -293,21 +293,22 @@ class MulticlassMask(Mask):
             mask = np.asarray(self.mask == c, dtype=np.uint8)
             polys_c = binary_mask_to_polygons_with_prob(
                 mask,
-                prob_mask=self.prob_map,
+                prob_map=self.prob_map,
                 min_area=min_area,
                 min_hole_area=min_hole_area,
                 detect_holes=detect_holes,
             )
             if len(polys_c) > 0:
                 polys_c["class"] = c
-                if self.class_name is not None:
-                    polys_c["class_name"] = self.class_name.get(c, str(c))
                 polys.append(polys_c)
         if len(polys) == 0:
             return gpd.GeoDataFrame()
-        return gpd.GeoDataFrame(pd.concat(polys, ignore_index=True)).reset_index(
+        final = gpd.GeoDataFrame(pd.concat(polys, ignore_index=True)).reset_index(
             drop=True
         )
+        if self.class_name is not None:
+            final["class"] = final["class"].map(self.class_name)
+        return final
 
     def to_binary_mask(self) -> np.ndarray:
         mask = np.zeros(self.mask.shape, dtype=np.uint8)
@@ -340,12 +341,12 @@ class MultilabelMask(Mask):
         self,
         mask: np.ndarray,
         prob_map: np.ndarray | None = None,
-        class_name: Sequence[str] | Mapping[int, str] = None,
+        class_names: Sequence[str] | Mapping[int, str] = None,
     ):
         assert mask.ndim == 3, "Multiclass mask must be C, H, W."
         assert self._is_integer_dtype(mask), "Multiclass mask must be of integer type."
         mask = np.asarray(mask > 0, dtype=np.uint8)
-        super().__init__(mask, prob_map, class_name)
+        super().__init__(mask, prob_map, class_names)
         self.n_classes = self.mask.shape[0]
         self.classes = np.arange(self.n_classes)
 
@@ -369,21 +370,22 @@ class MultilabelMask(Mask):
                 continue
             polys_c = binary_mask_to_polygons_with_prob(
                 self.mask[c],
-                prob_mask=self.prob_map[c] if self.prob_map is not None else None,
+                prob_map=self.prob_map[c] if self.prob_map is not None else None,
                 min_area=min_area,
                 min_hole_area=min_hole_area,
                 detect_holes=detect_holes,
             )
             if len(polys_c) > 0:
                 polys_c["class"] = c
-                if self.class_name is not None:
-                    polys_c["class_name"] = self.class_name.get(c, str(c))
                 polys.append(polys_c)
         if len(polys) == 0:
             return gpd.GeoDataFrame()
-        return gpd.GeoDataFrame(pd.concat(polys, ignore_index=True)).reset_index(
+        final = gpd.GeoDataFrame(pd.concat(polys, ignore_index=True)).reset_index(
             drop=True
         )
+        if self.class_names is not None:
+            final["class"] = final["class"].map(self.class_names)
+        return final
 
     def to_binary_mask(self) -> np.ndarray:
         mask = np.zeros(self.mask.shape[1:], dtype=np.uint8)
@@ -405,8 +407,8 @@ class MultilabelMask(Mask):
         fig.set_size_inches(self.n_classes * 3, 3)
         for i, ax in enumerate(axes):
             ax.imshow(self.mask[i], **kwargs)
-            if self.class_name is not None:
-                title = self.class_name.get(i, str(i))
+            if self.class_names is not None:
+                title = self.class_names.get(i, str(i))
             else:
                 title = f"Class {i}"
             ax.set_title(title)
@@ -420,14 +422,22 @@ class InstanceMap(Mask):
         self,
         instance_map: np.ndarray,
         prob_map: np.ndarray | None = None,
-        class_name: Sequence[str] | Mapping[int, str] = None,
+        class_names: Sequence[str] | Mapping[int, str] = None,
     ):
         assert instance_map.ndim == 2, "Instance map must be 2D."
         # The map must be an integer type with unique values for each instance
         assert np.issubdtype(
             instance_map.dtype, np.integer
         ), "Instance map must be of integer type."
-        super().__init__(instance_map, prob_map, class_name)
+
+        self._is_classification = False
+        if prob_map is not None:
+            # If the probability map is provided, it must be 2D or 3D
+            # 2D is for cell probabilities
+            # 3D is for cell classification
+            self._is_classification = prob_map.ndim == 3
+
+        super().__init__(instance_map, prob_map, class_names)
 
     def to_polygons(
         self,
@@ -461,25 +471,26 @@ class InstanceMap(Mask):
         instance_ids = np.unique(self.mask)
         instances = []
         for instance_id in instance_ids:
-            if instance_id == 0:  # Skip background
+            if instance_id <= 0:  # Skip background
                 continue
             instance_mask = np.asarray(self.mask == instance_id, dtype=np.uint8)
             polys = binary_mask_to_polygons_with_prob(
                 instance_mask,
-                prob_mask=self.prob_map if self.prob_map is not None else None,
+                prob_map=self.prob_map,
                 min_area=min_area,
                 min_hole_area=min_hole_area,
                 detect_holes=detect_holes,
             )
             if len(polys) > 0:
-                first_poly = polys.iloc[0]
-                instances.append(
-                    [instance_id, first_poly["prob"], first_poly["geometry"]]
-                )
+                instances.append(polys.iloc[0])
         if len(instances) == 0:
             return gpd.GeoDataFrame()
         # Create a GeoDataFrame from the instances
-        return gpd.GeoDataFrame(instances, columns=["instance_id", "prob", "geometry"])
+        instances = gpd.GeoDataFrame(instances)
+        if "class" in instances.columns:
+            if self.class_names is not None:
+                instances["class"] = instances["class"].map(self.class_names)
+        return instances
 
 
 class ProbabilityMap(Mask):
@@ -487,7 +498,7 @@ class ProbabilityMap(Mask):
         self,
         probability_map: np.ndarray,
         prob_map: np.ndarray | None = None,
-        class_name: Sequence[str] | Mapping[int, str] = None,
+        class_names: Sequence[str] | Mapping[int, str] = None,
     ):
         # The probability map can be 2D or 3D, but must be of the floating point type
         assert probability_map.ndim in (2, 3), "Probability map must be 2D or 3D."
@@ -501,7 +512,7 @@ class ProbabilityMap(Mask):
                 stacklevel=find_stack_level(),
             )
             prob_map = None
-        super().__init__(probability_map, prob_map, class_name)
+        super().__init__(probability_map, prob_map, class_names)
         self.is2D = probability_map.ndim == 2
 
     def to_polygons(
@@ -538,7 +549,7 @@ class ProbabilityMap(Mask):
             binary_mask = (self.mask > threshold).astype(np.uint8)
             return binary_mask_to_polygons_with_prob(
                 binary_mask,
-                prob_mask=self.mask,
+                prob_map=self.mask,
                 min_area=min_area,
                 min_hole_area=min_hole_area,
                 detect_holes=detect_holes,
@@ -558,21 +569,22 @@ class ProbabilityMap(Mask):
                 binary_mask = (self.mask[i] > threshold).astype(np.uint8)
                 polys_c = binary_mask_to_polygons_with_prob(
                     binary_mask,
-                    prob_mask=self.mask[i],
+                    prob_map=self.mask[i],
                     min_area=min_area,
                     min_hole_area=min_hole_area,
                     detect_holes=detect_holes,
                 )
                 if len(polys_c) > 0:
                     polys_c["class"] = i
-                    if self.class_name is not None:
-                        polys_c["class_name"] = self.class_name.get(i, str(i))
                     polys.append(polys_c)
             if len(polys) == 0:
                 return gpd.GeoDataFrame()
-            return gpd.GeoDataFrame(pd.concat(polys, ignore_index=True)).reset_index(
+            final = gpd.GeoDataFrame(pd.concat(polys, ignore_index=True)).reset_index(
                 drop=True
             )
+            if self.class_names is not None:
+                final["class"] = final["class"].map(self.class_names)
+            return final
 
 
 def binary_mask_to_polygons(
@@ -667,7 +679,7 @@ def binary_mask_to_polygons(
 
 def binary_mask_to_polygons_with_prob(
     binary_mask,
-    prob_mask=None,
+    prob_map=None,
     min_area: float = 0,
     min_hole_area: float = 0,
     detect_holes: bool = True,
@@ -679,7 +691,7 @@ def binary_mask_to_polygons_with_prob(
     ----------
     binary_mask : np.ndarray
         Binary mask.
-    prob_mask : np.ndarray, optional
+    prob_map : np.ndarray, optional
         Probability mask with the same shape as the binary mask.
     min_area : float
         Minimum area of detected regions to be included in the polygon.
@@ -710,13 +722,15 @@ def binary_mask_to_polygons_with_prob(
     data = []
 
     # If a probability mask is provided, calculate the probability for each polygon
-    if prob_mask is not None:
+    if prob_map is not None:
+        is_classification = prob_map.ndim == 3
         for poly in polys:
             # Create a mask for the current polygon
             poly_mask = np.zeros_like(binary_mask, dtype=np.uint8)
             # Convert polygon coordinates to integer points for cv2.fillPoly
             points = np.array(poly.exterior.coords, dtype=np.int32)
-            cv2.fillPoly(poly_mask, [points], 1)
+            # cv2.fillPoly(poly_mask, [points], 1)
+            cv2.drawContours(poly_mask, [points], -1, 1, thickness=cv2.FILLED)
             # Fill the holes with 0 if detect_holes is True
             if detect_holes:
                 for hole in poly.interiors:
@@ -724,15 +738,28 @@ def binary_mask_to_polygons_with_prob(
                     cv2.fillPoly(poly_mask, [hole_points], 0)
 
             # Calculate mean probability within the polygon
-            masked_prob = prob_mask * poly_mask
-            prob = (
-                np.sum(masked_prob) / np.sum(poly_mask) if np.sum(poly_mask) > 0 else 0
-            )
-
-            # Add polygon and probability to data
-            data.append({"geometry": poly, "prob": prob})
+            if is_classification:
+                # If it's a classification map, calculate the mean probability for each class
+                # And then argmax to get the most probable class
+                masked_prob = prob_map * poly_mask
+                prob = (
+                    np.sum(masked_prob, axis=(1, 2)) / np.sum(poly_mask)
+                    if np.sum(poly_mask) > 0
+                    else 0
+                )
+                c = np.argmax(prob)
+                prob = prob[c]
+                data.append({"geometry": poly, "prob": prob, "class": c})
+            else:
+                masked_prob = prob_map * poly_mask
+                prob = (
+                    np.sum(masked_prob) / np.sum(poly_mask)
+                    if np.sum(poly_mask) > 0
+                    else 0
+                )
+                # Add polygon and probability to data
+                data.append({"geometry": poly, "prob": prob})
     else:
-        # If no probability mask is provided, set probability to None
         for poly in polys:
             data.append({"geometry": poly})
 

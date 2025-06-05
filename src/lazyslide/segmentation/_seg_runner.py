@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from functools import partial, cached_property
-from typing import Literal, Callable, Mapping
+from typing import Literal, Callable, Mapping, List
 
 import cv2
 import geopandas as gpd
@@ -18,7 +18,12 @@ from wsidata.io import add_shapes
 
 from lazyslide._const import Key
 from lazyslide._utils import default_pbar, get_torch_device
-from lazyslide.cv import merge_polygons, ProbabilityMap
+from lazyslide.cv import (
+    merge_polygons,
+    ProbabilityMap,
+    InstanceMap,
+    preserve_largest_polygons,
+)
 from lazyslide.models.base import SegmentationModel
 
 
@@ -325,7 +330,7 @@ def slide_window_inference(
     return None
 
 
-def _initialize_merging_prob_masks(out: torch.Tensor, height: int, width: int):
+def _initialize_merging_prob_masks(out: np.ndarray, height: int, width: int):
     """Create the masks for merging based on the shape of probability mask."""
     # TODO: decide the channel dimension
     dims = out.shape
@@ -338,7 +343,7 @@ def _initialize_merging_prob_masks(out: torch.Tensor, height: int, width: int):
     else:
         raise ValueError(f"Unsupported shape for probability mask: {out.shape}")
 
-    return torch.zeros((C, height, width), dtype=torch.float)
+    return np.zeros((C, height, width), dtype=np.float32)
 
 
 def create_importance_map(
@@ -372,7 +377,7 @@ def create_importance_map(
 
 class Runner(ABC):
     @abstractmethod
-    def run(self):
+    def run(self) -> gpd.GeoDataFrame:
         """
         Run the segmentation.
         This method should be implemented by subclasses.
@@ -454,11 +459,13 @@ class SemanticSegmentationRunner(Runner):
         low_memory: bool = False,
         threshold: float = 0.5,
         ignore_index: int | None = 0,
+        class_names: List[str] | Mapping[int, str] | None = None,
         buffer_px: int = 2,
         chunk_size: int = 512,
         batch_size: int = 4,
         num_workers: int = 0,
         device: str | None = None,
+        pbar: bool = True,
     ):
         self.wsi = wsi
         self.model = model
@@ -475,6 +482,8 @@ class SemanticSegmentationRunner(Runner):
         self.num_workers = num_workers
         self.device = device or get_torch_device()
         self.model.to(self.device)
+        self.class_names = class_names
+        self.pbar = pbar
 
         self.tile_spec = wsi.tile_spec(tile_key)
         tissue_key = self.tile_spec.tissue_name
@@ -493,6 +502,7 @@ class SemanticSegmentationRunner(Runner):
             tissues = wsi[tissue_key]
         self.tissues = tissues
         self.downsample = self.tile_spec.base_downsample
+        self._supported_output = self.model.supported_output()
 
     @cached_property
     def importance_map(self):
@@ -507,123 +517,266 @@ class SemanticSegmentationRunner(Runner):
             mode=self.mode,
         )
 
-    def run(self):
+    def run(self) -> gpd.GeoDataFrame:
         # For each tissue, we will run the segmentation
         results = []
-        for _, row in self.tissues.iterrows():
-            tid = row["tissue_id"]
-            tissue = row["geometry"]
-            minx, miny, maxx, maxy = tissue.bounds
-            height, width = maxy - miny, maxx - minx
-            # map the tissue bounds to the tile mpp
-            height, width = int(height / self.downsample), int(width / self.downsample)
+        with default_pbar(disable=not self.pbar) as progress_bar:
+            for _, row in self.tissues.iterrows():
+                tid = row["tissue_id"]
+                tissue = row["geometry"]
+                minx, miny, maxx, maxy = tissue.bounds
+                height, width = maxy - miny, maxx - minx
+                # map the tissue bounds to the tile mpp
+                height, width = (
+                    int(height / self.downsample),
+                    int(width / self.downsample),
+                )
 
-            # Create masks for 1) the output probabilities, 2) the importance map, 3) the count map
-            prob_mask = None
-            count_mask = torch.zeros((height, width), dtype=torch.float)
+                # Create masks for 1) the output probabilities, 2) the count map
+                prob_mask = None
+                count_mask = torch.zeros((height, width), dtype=torch.float)
 
-            # Get tiles within the tissue bounds
-            current_tiles = self.wsi[self.tile_key][
-                self.wsi[self.tile_key]["tissue_id"] == tid
-            ]
+                # Get tiles within the tissue bounds
+                current_tiles = self.wsi[self.tile_key][
+                    self.wsi[self.tile_key]["tissue_id"] == tid
+                ]
 
-            ds = TileDataset(
-                wsi=self.wsi,
-                tiles=current_tiles,
-                tile_spec=self.tile_spec,
-                transform=self.transform,
-            )
-            dl = DataLoader(
-                ds, batch_size=self.batch_size, num_workers=self.num_workers
-            )
+                ds = TileDataset(
+                    wsi=self.wsi,
+                    tiles=current_tiles,
+                    tile_spec=self.tile_spec,
+                    transform=self.transform,
+                )
+                dl = DataLoader(
+                    ds, batch_size=self.batch_size, num_workers=self.num_workers
+                )
 
-            for chunk in tqdm(dl, desc=f"Processing tissue {tid}"):
-                images = chunk["image"]
-                xs, ys = np.asarray(chunk["x"]), np.asarray(chunk["y"])
-                if self.device is not None:
-                    images = images.to(self.device)
-                output = self.model.segment(images)
+                task = progress_bar.add_task(f"Processing tissue {tid}", total=len(ds))
 
-                # Update the out tensor with the importance map
-                output = output * self.importance_map.to(output.device)
+                for chunk in dl:
+                    images = chunk["image"]
+                    xs, ys = np.asarray(chunk["x"]), np.asarray(chunk["y"])
+                    if self.device is not None:
+                        images = images.to(self.device)
+                    # TODO: output may not be tensor
+                    output = self.model.segment(images)
 
-                # Get output back to cpu
-                output = output.detach().cpu()
+                    probability_map = output["probability_map"]
 
-                # Calculate the position of the tile in the tissue bounds
-                for i in range(len(xs)):
-                    pos_x = int((xs[i] - minx) / self.downsample)
-                    pos_y = int((ys[i] - miny) / self.downsample)
-                    # Update the probability mask
-                    if prob_mask is None:
-                        # Initialize the probability mask with the shape of the output
-                        prob_mask = _initialize_merging_prob_masks(
-                            output[i], height, width
+                    if isinstance(probability_map, torch.Tensor):
+                        # Update the out tensor with the importance map
+                        probability_map = probability_map * self.importance_map.to(
+                            probability_map.device
                         )
-                    slice_y = slice(
-                        pos_y,
-                        np.clip(
-                            pos_y + self.tile_spec.height, a_max=height, a_min=None
-                        ),
-                    )
-                    slice_x = slice(
-                        pos_x,
-                        np.clip(pos_x + self.tile_spec.width, a_max=width, a_min=None),
-                    )
-                    # Clip out if it exceeds the mask boundaries
-                    out_clipped = output[i][
-                        :,
-                        : slice_y.stop - slice_y.start,
-                        : slice_x.stop - slice_x.start,
-                    ]
-                    prob_mask[:, slice_y, slice_x] += out_clipped
-                    # Update the count mask
-                    count_mask[slice_y, slice_x] += 1
-            # Normalize the probability mask by the count mask
-            prob_mask /= count_mask.unsqueeze(0).clamp(min=1e-6)
-            # Chunk the probability mask into PATCHES to avoid large memory allocation
-            np_mask = prob_mask.detach().cpu().numpy()
-            seg_objects = []
-            for tile, (i, i_end, j, j_end) in self.tiler(
-                np_mask, tile_size=self.chunk_size
-            ):
-                if tile.sum() > 0:
-                    m = ProbabilityMap(tile)
-                    df = m.to_polygons(
-                        threshold=self.threshold, ignore_index=self.ignore_index
-                    )
-                    if len(df) > 0:
-                        df["geometry"] = df["geometry"].translate(
-                            xoff=j,
-                            yoff=i,
+                        # Get output back to cpu
+                        probability_map = probability_map.detach().cpu().numpy()
+                    elif isinstance(probability_map, np.ndarray):
+                        probability_map *= self.importance_map.numpy()
+                    else:
+                        raise TypeError(
+                            f"Probability map type {type(probability_map)} is not supported"
                         )
-                        seg_objects.append(df)
-            # Concatenate the results for this tissue
-            seg_results = pd.concat(seg_objects, ignore_index=True).reset_index(
-                drop=True
-            )
-            # Move the polygons to the global coordinate
-            seg_results["geometry"] = (
-                seg_results["geometry"]
-                .scale(xfact=self.downsample, yfact=self.downsample, origin=(0, 0))
-                .translate(xoff=minx, yoff=miny)
-                .buffer(0)
-            )
-            merged_results = merge_polygons(
-                seg_results,
-                class_col="class",
-                prob_col="prob",
-                buffer_px=self.buffer_px,
-            )
-            # Filter out polygons that are outside the tissue bounds
-            merged_results = merged_results[merged_results.intersects(tissue)]
-            results.append(merged_results)
 
+                    # Calculate the position of the tile in the tissue bounds
+                    for i in range(len(xs)):
+                        pos_x = int((xs[i] - minx) / self.downsample)
+                        pos_y = int((ys[i] - miny) / self.downsample)
+                        # Update the probability mask
+                        if prob_mask is None:
+                            # Initialize the probability mask with the shape of the output
+                            prob_mask = _initialize_merging_prob_masks(
+                                probability_map[i], height, width
+                            )
+                        slice_y = slice(
+                            pos_y,
+                            np.clip(
+                                pos_y + self.tile_spec.height, a_max=height, a_min=None
+                            ),
+                        )
+                        slice_x = slice(
+                            pos_x,
+                            np.clip(
+                                pos_x + self.tile_spec.width, a_max=width, a_min=None
+                            ),
+                        )
+                        # Clip out if it exceeds the mask boundaries
+                        out_clipped = probability_map[i][
+                            :,
+                            : slice_y.stop - slice_y.start,
+                            : slice_x.stop - slice_x.start,
+                        ]
+                        prob_mask[:, slice_y, slice_x] += out_clipped
+                        # Update the count mask
+                        count_mask[slice_y, slice_x] += 1
+                    progress_bar.update(task, advance=len(images))
+                    progress_bar.refresh()
+                # Normalize the probability mask by the count mask
+                prob_mask /= count_mask.unsqueeze(0).clamp(min=1e-6)
+                # Chunk the probability mask into PATCHES to avoid large memory allocation
+                np_mask = prob_mask.detach().cpu().numpy()
+                seg_objects = []
+
+                for tile, (i, i_end, j, j_end) in self.tiler(
+                    np_mask, tile_size=self.chunk_size
+                ):
+                    if tile.sum() > 0:
+                        # TODO: There could be other output types,
+                        #       e.g. multiclass/multilabel mask
+                        m = ProbabilityMap(tile, class_names=self.class_names)
+                        df = m.to_polygons(
+                            threshold=self.threshold, ignore_index=self.ignore_index
+                        )
+                        if len(df) > 0:
+                            df["geometry"] = df["geometry"].translate(
+                                xoff=j,
+                                yoff=i,
+                            )
+                            seg_objects.append(df)
+                # Concatenate the results for this tissue
+                if len(seg_objects) == 0:
+                    continue
+                seg_results = pd.concat(seg_objects, ignore_index=True).reset_index(
+                    drop=True
+                )
+                # Move the polygons to the global coordinate
+                seg_results["geometry"] = (
+                    seg_results["geometry"]
+                    .scale(xfact=self.downsample, yfact=self.downsample, origin=(0, 0))
+                    .translate(xoff=minx, yoff=miny)
+                    .buffer(0)
+                )
+                for class_id, class_group in seg_results.groupby("class"):
+                    merged = merge_polygons(
+                        class_group,
+                        prob_col="prob",
+                        buffer_px=self.buffer_px,
+                    )
+                    # Filter out polygons that are outside the tissue bounds
+                    merged = merged[merged.intersects(tissue)]
+                    merged["class"] = class_id
+                    results.append(merged)
+            progress_bar.refresh()
         # Concatenate all results into a single GeoDataFrame
+        if len(results) == 0:
+            return gpd.GeoDataFrame(columns=["geometry"])
         return gpd.GeoDataFrame(pd.concat(results, ignore_index=True)).reset_index(
             drop=True
         )
 
 
 class CellSegmentationRunner(Runner):
-    pass
+    def __init__(
+        self,
+        wsi: WSIData,
+        model: SegmentationModel,
+        tile_key: str = Key.tiles,
+        transform: Callable = None,
+        nucleus_size: (int, int) = (20, 1000),
+        batch_size: int = 4,
+        num_workers: int = 0,
+        device: str | None = None,
+        class_names: List[str] | Mapping[int, str] | None = None,
+        pbar: bool = True,
+    ):
+        self.wsi = wsi
+        self.model = model
+        self.tile_key = tile_key
+        self.transform = transform or model.get_transform()
+        self.nucleus_size = nucleus_size
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.device = device or get_torch_device()
+        self.model.to(self.device)
+        self.class_names = class_names
+        self.pbar = pbar
+
+        self.tile_spec = wsi.tile_spec(tile_key)
+        self.downsample = self.tile_spec.base_downsample
+        self._supported_output = self.model.supported_output()
+        if "instance_map" not in self._supported_output:
+            raise ValueError("The model does not support instance segmentation.")
+
+    def run(self) -> gpd.GeoDataFrame:
+        with default_pbar(disable=not self.pbar) as progress_bar:
+            tile_dataset = self.wsi.ds.tile_images(
+                tile_key=self.tile_key, transform=self.transform
+            )
+
+            tile_loader = DataLoader(
+                tile_dataset, batch_size=self.batch_size, num_workers=self.num_workers
+            )
+
+            results = []
+            # is_classification = "class_map" in self._supported_output
+
+            task = progress_bar.add_task("Processing tiles", total=len(tile_loader))
+
+            for chunk in tile_loader:
+                images = chunk["image"]
+                xs, ys = np.asarray(chunk["x"]), np.asarray(chunk["y"])
+                if self.device is not None:
+                    images = images.to(self.device)
+                output = self.model.segment(images)
+
+                instance_map = output["instance_map"]
+                class_map = output.get("class_map", None)
+
+                # Get output and covert to numpy
+                if isinstance(instance_map, torch.Tensor):
+                    instance_map = instance_map.detach().cpu().to(torch.int).numpy()
+                if class_map is not None:
+                    if isinstance(class_map, torch.Tensor):
+                        class_map = class_map.detach().cpu().numpy()
+                for i in range(len(xs)):
+                    pos_x = xs[i]
+                    pos_y = ys[i]
+                    out = instance_map[i]
+                    if class_map is not None:
+                        prob_map = class_map[i]
+                    else:
+                        prob_map = None
+
+                    # Convert the output to polygons
+                    m = InstanceMap(
+                        out,
+                        prob_map=prob_map,
+                        class_names=self.class_names,
+                    )
+                    df = m.to_polygons(detect_holes=False)
+                    if len(df) > 0:
+                        # Remove the polygons that are on the edge of the tile
+                        tile_box = box(
+                            0, 0, self.tile_spec.width, self.tile_spec.height
+                        )
+                        df = df[
+                            df["geometry"].apply(lambda geom: tile_box.covers(geom))
+                        ]
+                        # Move the polygons to the global coordinate
+                        df["geometry"] = (
+                            df["geometry"]
+                            .scale(
+                                xfact=self.downsample,
+                                yfact=self.downsample,
+                                origin=(0, 0),
+                            )
+                            .translate(xoff=pos_x, yoff=pos_y)
+                            .buffer(0)
+                        )
+                        df = df[df["geometry"].area.between(*self.nucleus_size)]
+                        results.append(df)
+                progress_bar.update(task, advance=len(images))
+        progress_bar.refresh()
+        # Concatenate all results into a single GeoDataFrame
+        if len(results) == 0:
+            return gpd.GeoDataFrame(columns=["geometry"])
+        cells = gpd.GeoDataFrame(pd.concat(results, ignore_index=True)).reset_index(
+            drop=True
+        )
+        # Drop the overlapping cells, preserving the largest one
+        cells = preserve_largest_polygons(cells)
+        # Remove cells that are not in the tissue
+        tissue_key = self.tile_spec.tissue_name
+        tissues = self.wsi[tissue_key]  # GeoDataFrame
+        cells = cells[cells.intersects(tissues.unary_union)]
+
+        return cells

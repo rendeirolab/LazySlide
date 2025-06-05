@@ -52,7 +52,6 @@ class Instanseg(SegmentationModel):
     def segment(self, image):
         # with torch.inference_mode():
         out = self.model(image)
-        return out.squeeze().cpu().numpy().astype(np.uint16)
-
-    def get_postprocess(self) -> Callable | None:
-        return instanseg_postprocess
+        # Output is a tensor of B, C, H, W
+        # But C is always 1 so we can squeeze it
+        return {"instance_map": out.squeeze(1)}

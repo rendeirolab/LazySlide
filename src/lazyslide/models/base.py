@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from enum import Enum
+from functools import cached_property
 from pathlib import Path
 from typing import Callable
 
@@ -102,8 +104,15 @@ class ImageTextModel(ImageModel):
         raise NotImplementedError
 
 
+class SegmentationOutput(Enum):
+    probability_map = "probability_map"
+    instance_map = "instance_map"
+    class_map = "class_map"
+    token_map = "token_map"
+
+
 class SegmentationModel(ModelBase):
-    CLASS_MAPPING = None
+    output_keys = SegmentationOutput
 
     def get_transform(self):
         import torch
@@ -120,5 +129,13 @@ class SegmentationModel(ModelBase):
     def segment(self, image):
         raise NotImplementedError
 
-    def get_postprocess(self) -> Callable | None:
+    def supported_output(self):
+        return (
+            "probability_map",
+            "instance_map",
+            "class_map",
+            "token_map",
+        )
+
+    def get_classes(self):
         return None

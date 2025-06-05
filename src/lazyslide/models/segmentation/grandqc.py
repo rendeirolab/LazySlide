@@ -49,13 +49,14 @@ class GrandQCArtifact(SegmentationModel):
             ]
         )
 
-    @torch.inference_mode()
+    # @torch.inference_mode()
     def segment(self, image):
-        out = self.model(image)
-        return out.detach().cpu().numpy()
+        with torch.inference_mode():
+            out = self.model(image)
+        return {"probability_map": out}
 
-    def get_postprocess(self):
-        return semanticseg_postprocess
+    def supported_output(self):
+        return ("probability_map",)
 
 
 class GrandQCTissue(SMPBase):
@@ -86,4 +87,7 @@ class GrandQCTissue(SMPBase):
 
     @torch.inference_mode()
     def segment(self, image):
-        return self.model.predict(image)
+        return {"probability_map": self.model.predict(image)}
+
+    def supported_output(self):
+        return ("probability_map",)

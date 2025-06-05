@@ -1,5 +1,5 @@
 from .instanseg import Instanseg
-from .nulite import NuLite
+from .cellvit import NuLite
 from .grandqc import GrandQCTissue, GrandQCArtifact
 from .postprocess import (
     instanseg_postprocess,
