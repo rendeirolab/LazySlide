@@ -47,7 +47,14 @@ all = [
     "scanpy>=1.10.4",
     "torchvision>=0.15",  # >0.15
     "torchstain>=1.4.1",
-    "transformers>=4.49.0",
+    "transformers>=4.52.1",
+]
+models = [
+    "einops>=0.8.1",
+    "einops-exts>=0.0.4",
+    "environs>=14.1.1",
+    "sacremoses>=0.1.1",
+    "transformers>=4.52.1",
 ]
 
 # Define entry points
@@ -85,6 +92,7 @@ allow-direct-references = true
 [tool.ruff]
 lint.ignore = ["F401"]
 line-length = 88
+lint.extend-select = ["I"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/test_example.py" = ["E402"]
@@ -162,7 +170,7 @@ model = [
     "environs>=14.1.1",
     "sacremoses>=0.1.1",
     "conch",
-    "transformers>=4.49.0",
+    "transformers>=4.52.1",
 ]
 
 

@@ -1,11 +1,11 @@
-from typing import Literal, Iterable
+from typing import Iterable, Literal
 
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from wsidata import WSIData
 
-from ._wsi_viewer import WSIViewer
 from .._const import Key
+from ._wsi_viewer import WSIViewer
 
 
 def tissue(
@@ -19,7 +19,7 @@ def tissue(
     scalebar=True,
     in_bounds=True,
     zoom=None,
-    img_bytes_limit=4e9,
+    img_bytes_limit=2e9,
     ax=None,
 ):
     """
@@ -49,7 +49,7 @@ def tissue(
         A zoom view for the current viewport.
         If in range [0, 1], will be interpreted as a fraction of the image size.
         If > 1, will be interpreted as the absolute size in pixels.
-    img_bytes_limit : int, default: 4e9
+    img_bytes_limit : int, default: 2e9
         The image bytes limits.
     ax : matplotlib.axes.Axes, default: None
         The axes to plot on.
@@ -108,7 +108,7 @@ def tiles(
     mark_origin=True,
     scalebar=True,
     in_bounds=True,
-    img_bytes_limit=4e9,
+    img_bytes_limit=2e9,
     zoom=None,
     alpha=0.9,
     marker="o",
@@ -146,7 +146,7 @@ def tiles(
     tissue_key : str, default: "tissue"
         The tissue key.
     tile_key : str, default: "tiles"
-        The tile key.
+        The key of the tiles in the :bdg-danger:`shapes` slot.
     title : str, default: None
         The title of the plot.
     style : {"heatmap", "scatter"}, default: "heatmap"
@@ -290,7 +290,7 @@ def annotations(
     mark_origin=True,
     scalebar=True,
     in_bounds=True,
-    img_bytes_limit=4e9,
+    img_bytes_limit=2e9,
     tissue_id=None,
     zoom=None,
     fill=True,

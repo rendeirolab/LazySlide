@@ -52,12 +52,12 @@ class Titan(ImageModel):
     def get_transform(self):
         from torchvision.transforms import InterpolationMode
         from torchvision.transforms.v2 import (
-            Resize,
             CenterCrop,
-            ToImage,
-            ToDtype,
-            Normalize,
             Compose,
+            Normalize,
+            Resize,
+            ToDtype,
+            ToImage,
         )
 
         return Compose(

@@ -11,7 +11,7 @@ from wsidata.io import add_features
 
 from lazyslide._const import Key
 from lazyslide._utils import default_pbar, get_torch_device
-from lazyslide.models import ImageModel, MODEL_REGISTRY
+from lazyslide.models import MODEL_REGISTRY, ImageModel
 
 
 def load_models(model_name: str, model_path=None, token=None, **kwargs):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import Optional, Annotated
+from typing import Annotated, Optional
 
 from cyclopts import App, Parameter, validators
 from rich import print
@@ -26,9 +26,9 @@ def info(slide: Annotated[Path, Parameter(validator=validators.Path(exists=True)
         The whole slide image file to process
 
     """
-    from wsidata import open_wsi
     from rich.console import Console
     from rich.table import Table
+    from wsidata import open_wsi
 
     wsi = open_wsi(slide)
 
@@ -239,8 +239,8 @@ def agg(
         The output path to save the aggregated features
 
     """
-    from wsidata import agg_wsi
     import pandas as pd
+    from wsidata import agg_wsi
 
     print(f"Read slide table {slide_table}")
     slides_df = pd.read_csv(slide_table)

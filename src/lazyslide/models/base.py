@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from enum import Enum
+from functools import cached_property
 from pathlib import Path
 from typing import Callable
 
 import numpy as np
 import torch
 
-from lazyslide.models._utils import hf_access, get_default_transform
+from lazyslide.models._utils import get_default_transform, hf_access
 
 
 class ModelBase:
@@ -35,10 +37,10 @@ class ImageModel(ModelBase):
         import torch
         from torchvision.transforms.v2 import (
             Compose,
-            ToImage,
-            ToDtype,
-            Resize,
             Normalize,
+            Resize,
+            ToDtype,
+            ToImage,
         )
 
         return Compose(
@@ -102,12 +104,19 @@ class ImageTextModel(ImageModel):
         raise NotImplementedError
 
 
+class SegmentationOutput(Enum):
+    probability_map = "probability_map"
+    instance_map = "instance_map"
+    class_map = "class_map"
+    token_map = "token_map"
+
+
 class SegmentationModel(ModelBase):
-    CLASS_MAPPING = None
+    output_keys = SegmentationOutput
 
     def get_transform(self):
         import torch
-        from torchvision.transforms.v2 import Compose, ToImage, ToDtype, Normalize
+        from torchvision.transforms.v2 import Compose, Normalize, ToDtype, ToImage
 
         return Compose(
             [
@@ -120,5 +129,13 @@ class SegmentationModel(ModelBase):
     def segment(self, image):
         raise NotImplementedError
 
-    def get_postprocess(self) -> Callable | None:
+    def supported_output(self):
+        return (
+            "probability_map",
+            "instance_map",
+            "class_map",
+            "token_map",
+        )
+
+    def get_classes(self):
         return None

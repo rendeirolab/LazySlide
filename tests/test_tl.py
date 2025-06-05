@@ -1,4 +1,5 @@
 import pytest
+
 import lazyslide as zs
 
 TIMM_MODEL = "mobilenetv3_small_050"

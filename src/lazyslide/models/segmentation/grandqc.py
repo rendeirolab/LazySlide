@@ -1,6 +1,7 @@
 from typing import Literal
 
 import torch
+
 from lazyslide.models.base import SegmentationModel
 from lazyslide.models.segmentation.postprocess import semanticseg_postprocess
 from lazyslide.models.segmentation.smp import SMPBase
@@ -36,9 +37,9 @@ class GrandQCArtifact(SegmentationModel):
         import torch
         from torchvision.transforms.v2 import (
             Compose,
-            ToImage,
-            ToDtype,
             Normalize,
+            ToDtype,
+            ToImage,
         )
 
         return Compose(
@@ -49,13 +50,14 @@ class GrandQCArtifact(SegmentationModel):
             ]
         )
 
-    @torch.inference_mode()
+    # @torch.inference_mode()
     def segment(self, image):
-        out = self.model(image)
-        return out.detach().cpu().numpy()
+        with torch.inference_mode():
+            out = self.model(image)
+        return {"probability_map": out}
 
-    def get_postprocess(self):
-        return semanticseg_postprocess
+    def supported_output(self):
+        return ("probability_map",)
 
 
 class GrandQCTissue(SMPBase):
@@ -86,4 +88,7 @@ class GrandQCTissue(SMPBase):
 
     @torch.inference_mode()
     def segment(self, image):
-        return self.model.predict(image)
+        return {"probability_map": self.model.predict(image)}
+
+    def supported_output(self):
+        return ("probability_map",)

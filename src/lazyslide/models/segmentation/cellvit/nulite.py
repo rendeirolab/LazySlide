@@ -4,61 +4,7 @@ from typing import Literal
 import torch
 import torch.nn as nn
 
-
-class Conv2DBlock(nn.Module):
-    """Conv2DBlock with convolution followed by batch-normalisation, ReLU activation and dropout
-
-    Args:
-        in_channels (int): Number of input channels for convolution
-        out_channels (int): Number of output channels for convolution
-        kernel_size (int, optional): Kernel size for convolution. Defaults to 3.
-        dropout (float, optional): Dropout. Defaults to 0.
-    """
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int = 3,
-        dropout: float = 0,
-    ) -> None:
-        super().__init__()
-        self.block = nn.Sequential(
-            nn.Conv2d(
-                in_channels=in_channels,
-                out_channels=out_channels,
-                kernel_size=kernel_size,
-                stride=1,
-                padding=((kernel_size - 1) // 2),
-            ),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(True),
-            nn.Dropout(dropout),
-        )
-
-    def forward(self, x):
-        return self.block(x)
-
-
-class FastViTEncoder(nn.Module):
-    def __init__(self, vit_structure, pretrained=True):
-        import timm
-
-        super(FastViTEncoder, self).__init__()
-
-        self.fast_vit = timm.create_model(
-            f"{vit_structure}.apple_in1k", features_only=True, pretrained=pretrained
-        )
-
-        self.avg_pooling = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)), nn.Flatten())
-
-    def forward(self, x):
-        extracted_layers = self.fast_vit(x)
-        return (
-            self.avg_pooling(extracted_layers[-1]),
-            extracted_layers[-1],
-            extracted_layers,
-        )
+from .modules import Conv2DBlock, FastViTEncoder
 
 
 class NuLite(nn.Module):

@@ -27,7 +27,7 @@ def spatial_features(
     method : str, default: 'smoothing'
         The method used for spatial feature smoothing. Currently only 'smoothing' is supported.
     tile_key : str, default: 'tiles'
-        The tile key.
+        The key of the tiles in the :bdg-danger:`shapes` slot.
     graph_key : str, optional
         The graph key. If None, defaults to '{tile_key}_graph'.
     layer_key : str, default: 'spatial_features'
@@ -52,7 +52,9 @@ def spatial_features(
 
     """
     if method != "smoothing":
-        raise ValueError(f"Unknown method '{method}'. Only 'smoothing' is currently supported.")
+        raise ValueError(
+            f"Unknown method '{method}'. Only 'smoothing' is currently supported."
+        )
 
     # Get the spatial connectivity
     try:
@@ -90,4 +92,11 @@ def feature_utag(
         "please use `tl.spatial_features` instead.",
         stacklevel=find_stack_level(),
     )
-    return spatial_features(wsi, feature_key, method="smoothing", tile_key=tile_key, graph_key=graph_key, layer_key="spatial_features")
+    return spatial_features(
+        wsi,
+        feature_key,
+        method="smoothing",
+        tile_key=tile_key,
+        graph_key=graph_key,
+        layer_key="spatial_features",
+    )

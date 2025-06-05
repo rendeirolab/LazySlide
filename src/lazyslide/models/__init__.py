@@ -1,15 +1,12 @@
 from typing import Dict, Type
 
-from . import multimodal
-from . import segmentation
-from . import vision
+from . import multimodal, segmentation, vision
+from ._model_registry import MODEL_REGISTRY, list_models
 from .base import (
-    ModelBase,
     ImageModel,
     ImageTextModel,
+    ModelBase,
     SegmentationModel,
     SlideEncoderModel,
     TimmModel,
 )
-
-from ._model_registry import MODEL_REGISTRY, list_models

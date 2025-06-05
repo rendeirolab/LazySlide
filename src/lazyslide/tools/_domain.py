@@ -1,6 +1,6 @@
 import numpy as np
 from wsidata import WSIData
-from wsidata.io import update_shapes_data, add_shapes
+from wsidata.io import add_shapes, update_shapes_data
 
 from lazyslide._const import Key
 
@@ -69,8 +69,9 @@ def tile_shaper(
     #
     # """
     import geopandas as gpd
-    from lazyslide.cv import BinaryMask
     from shapely.affinity import scale, translate
+
+    from lazyslide.cv import BinaryMask
 
     result = []
 

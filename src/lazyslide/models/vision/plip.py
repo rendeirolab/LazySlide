@@ -7,7 +7,7 @@ from lazyslide.models.base import ImageModel
 class PLIPVision(ImageModel):
     def __init__(self, model_path=None, token=None):
         try:
-            from transformers import CLIPVisionModelWithProjection, CLIPProcessor
+            from transformers import CLIPProcessor, CLIPVisionModelWithProjection
         except ImportError:
             raise ImportError(
                 "Please install the 'transformers' package to use the PLIP model"

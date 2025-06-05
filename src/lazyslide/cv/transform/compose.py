@@ -2,12 +2,12 @@ import cv2
 from shapely import Polygon
 
 from .mods import (
-    Transform,
-    MedianBlur,
-    MorphClose,
     ArtifactFilterThreshold,
     BinaryThreshold,
     ForegroundDetection,
+    MedianBlur,
+    MorphClose,
+    Transform,
 )
 
 
