@@ -1,5 +1,3 @@
-from typing import Dict, Type
-
 from . import multimodal, segmentation, vision
 from ._model_registry import MODEL_REGISTRY, list_models
 from .base import (
