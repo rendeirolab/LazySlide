@@ -265,12 +265,11 @@ class MulticlassMask(Mask):
         self.n_classes = len(self.classes)
         if class_names is not None:
             if isinstance(class_names, Mapping):
-                self.class_name = class_names
+                self.class_names = class_names
             elif isinstance(class_names, Sequence):
-                self.class_name = {i: name for i, name in enumerate(class_names)}
+                self.class_names = {i: name for i, name in enumerate(class_names)}
             else:
                 raise ValueError("class_name must be a Mapping or a Sequence.")
-        self.class_name = class_names
 
     def to_polygons(
         self,
@@ -306,8 +305,8 @@ class MulticlassMask(Mask):
         final = gpd.GeoDataFrame(pd.concat(polys, ignore_index=True)).reset_index(
             drop=True
         )
-        if self.class_name is not None:
-            final["class"] = final["class"].map(self.class_name)
+        if self.class_names is not None:
+            final["class"] = final["class"].map(self.class_names)
         return final
 
     def to_binary_mask(self) -> np.ndarray:

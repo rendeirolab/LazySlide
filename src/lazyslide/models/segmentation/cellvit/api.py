@@ -1,17 +1,15 @@
 from typing import Literal
 
 import cv2
+import geopandas as gpd
 import numpy as np
 import torch
-import geopandas as gpd
 from scipy import ndimage
 from scipy.ndimage import measurements
 from scipy.ndimage.morphology import binary_fill_holes
 from skimage.segmentation import watershed
 
-from lazyslide.cv import Mask
 from lazyslide.models.base import SegmentationModel
-
 from .nulite import NuLite as NuLiteModel
 
 
