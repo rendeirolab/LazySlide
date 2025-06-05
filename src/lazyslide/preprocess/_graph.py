@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 from numba import njit
-from scipy.sparse import csr_matrix, spmatrix, isspmatrix_csr, SparseEfficiencyWarning
+from scipy.sparse import SparseEfficiencyWarning, csr_matrix, isspmatrix_csr, spmatrix
 from scipy.spatial import Delaunay
 from wsidata import WSIData
 from wsidata.io import add_table

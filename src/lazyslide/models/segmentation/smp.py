@@ -40,7 +40,7 @@ class SMPBase(SegmentationModel):
         )
 
     def get_transform(self):
-        from torchvision.transforms.v2 import Compose, ToImage, ToDtype, Normalize
+        from torchvision.transforms.v2 import Compose, Normalize, ToDtype, ToImage
 
         # default_fn = smp.encoders.get_preprocessing_fn(
         #     self.encoder_name, self.encoder_weights

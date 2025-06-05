@@ -176,3 +176,5 @@ annotations/
 pretrained_models/
 figures/
 sample_data/
+*.ipynb
+*.geojson

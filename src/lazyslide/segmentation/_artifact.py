@@ -7,8 +7,9 @@ from wsidata.io import add_shapes
 
 from lazyslide._const import Key
 from lazyslide._utils import get_torch_device
-from ._seg_runner import SegmentationRunner
+
 from ..models.segmentation import GrandQCArtifact
+from ._seg_runner import SemanticSegmentationRunner
 
 # Define class mapping
 CLASS_MAPPING = {
@@ -47,8 +48,8 @@ def artifact(
 
     Parameters
     ----------
-    wsi : WSIData
-        The whole slide image data.
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The WSIData object to work on.
     tile_key : str
         The key of the tile table.
     variants : {"grandqc_5x", "grandqc_7x", "grandqc_10x"}, default: "grandqc_7x"
@@ -89,27 +90,22 @@ def artifact(
             raise ValueError(f"Tiles or tile spec for {tile_key} not found.")
         if spec.mpp != mpp:
             raise ValueError(
-                f"Tile spec mpp {spec.mpp} is not "
-                f"compatible with the model mpp {mpp}"
+                f"Tile spec mpp {spec.mpp} is not compatible with the model mpp {mpp}"
             )
         if spec.width != 512 or spec.height != 512:
             raise ValueError("Tile should be 512x512.")
 
     model = GrandQCArtifact(model=variants.lstrip("grandqc_"))
 
-    runner = SegmentationRunner(
-        wsi,
-        model,
-        tile_key,
-        transform=None,
+    runner = SemanticSegmentationRunner(
+        wsi=wsi,
+        model=model,
+        tile_key=tile_key,
         batch_size=batch_size,
         num_workers=num_workers,
         device=device,
-        class_col="class",
-        postprocess_kws={
-            "ignore_index": [0, 1, 7],  # Ignore background, normal tissue
-            "mapping": CLASS_MAPPING,
-        },
+        ignore_index=[0, 1, 7],
+        class_names=CLASS_MAPPING,
     )
     arts = runner.run()
     add_shapes(wsi, key=key_added, shapes=arts)

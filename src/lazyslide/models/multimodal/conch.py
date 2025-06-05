@@ -7,8 +7,10 @@ from ..base import ImageTextModel
 class CONCH(ImageTextModel):
     def __init__(self, model_path=None, token=None):
         try:
-            from conch.open_clip_custom import create_model_from_pretrained
-            from conch.open_clip_custom import get_tokenizer
+            from conch.open_clip_custom import (
+                create_model_from_pretrained,
+                get_tokenizer,
+            )
         except ImportError:
             raise ImportError(
                 "Conch is not installed. You can install it using "

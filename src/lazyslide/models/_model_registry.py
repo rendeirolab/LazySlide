@@ -1,14 +1,12 @@
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Type, List
+from typing import List, Type
 
 import pandas as pd
 
-from . import ModelBase
-from . import multimodal
-from . import segmentation
-from . import vision
+from . import multimodal, segmentation, vision
+from .base import ModelBase
 
 
 class ModelTask(Enum):

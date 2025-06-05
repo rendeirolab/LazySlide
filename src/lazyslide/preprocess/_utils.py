@@ -7,12 +7,12 @@ Scorer = Union[ScorerBase, str]
 
 def get_scorer(scorers):
     from lazyslide.cv.scorer import (
-        ScorerBase,
-        ComposeScorer,
-        FocusLite,
-        Contrast,
         Brightness,
+        ComposeScorer,
+        Contrast,
+        FocusLite,
         Redness,
+        ScorerBase,
     )
 
     scorer_mapper = {

@@ -29,8 +29,10 @@ Mask
 
     Mask
     BinaryMask
-    MultiLabelMask
-    MultiClassMask
+    MultilabelMask
+    MulticlassMask
+    InstanceMap
+    ProbabilityMask
 
 
 Polygon merging
@@ -43,3 +45,4 @@ Polygon merging
     :nosignatures:
 
     merge_polygons
+    preserve_largest_polygon

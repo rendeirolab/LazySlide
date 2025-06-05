@@ -2273,6 +2273,13 @@ all = [
     { name = "torchvision" },
     { name = "transformers" },
 ]
+models = [
+    { name = "einops" },
+    { name = "einops-exts" },
+    { name = "environs" },
+    { name = "sacremoses" },
+    { name = "transformers" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -2336,12 +2343,16 @@ tutorials = [
 [package.metadata]
 requires-dist = [
     { name = "cyclopts", specifier = ">=3.0.0" },
+    { name = "einops", marker = "extra == 'models'", specifier = ">=0.8.1" },
+    { name = "einops-exts", marker = "extra == 'models'", specifier = ">=0.0.4" },
+    { name = "environs", marker = "extra == 'models'", specifier = ">=14.1.1" },
     { name = "legendkit", specifier = ">=0.3.4" },
     { name = "matplotlib", specifier = ">=3.9.0" },
     { name = "matplotlib-scalebar", specifier = ">=0.9.0" },
     { name = "open-clip-torch", marker = "extra == 'all'", specifier = ">=2.32.0" },
     { name = "psutil", specifier = ">=5.9.0" },
     { name = "rich", specifier = ">=13.0.0" },
+    { name = "sacremoses", marker = "extra == 'models'", specifier = ">=0.1.1" },
     { name = "scanpy", marker = "extra == 'all'", specifier = ">=1.10.4" },
     { name = "scikit-learn", specifier = ">=1.0" },
     { name = "scipy", marker = "extra == 'all'", specifier = ">=1.15.1" },
@@ -2350,7 +2361,8 @@ requires-dist = [
     { name = "torch", specifier = ">=2.0.0" },
     { name = "torchstain", marker = "extra == 'all'", specifier = ">=1.4.1" },
     { name = "torchvision", marker = "extra == 'all'", specifier = ">=0.15" },
-    { name = "transformers", marker = "extra == 'all'", specifier = ">=4.49.0" },
+    { name = "transformers", marker = "extra == 'all'", specifier = ">=4.52.1" },
+    { name = "transformers", marker = "extra == 'models'", specifier = ">=4.52.1" },
     { name = "wsidata", specifier = ">=0.6.0" },
 ]
 
@@ -2390,7 +2402,7 @@ model = [
     { name = "environs", specifier = ">=14.1.1" },
     { name = "open-clip-torch", specifier = ">=2.32.0" },
     { name = "sacremoses", specifier = ">=0.1.1" },
-    { name = "transformers", specifier = ">=4.49.0" },
+    { name = "transformers", specifier = ">=4.52.1" },
 ]
 napari = [
     { name = "napari", extras = ["all"], specifier = ">=0.5.6" },
@@ -6588,7 +6600,7 @@ wheels = [
 
 [[package]]
 name = "transformers"
-version = "4.51.3"
+version = "4.52.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "filelock" },
@@ -6602,9 +6614,9 @@ dependencies = [
     { name = "tokenizers" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f1/11/7414d5bc07690002ce4d7553602107bf969af85144bbd02830f9fb471236/transformers-4.51.3.tar.gz", hash = "sha256:e292fcab3990c6defe6328f0f7d2004283ca81a7a07b2de9a46d67fd81ea1409", size = 8941266 }
+sdist = { url = "https://files.pythonhosted.org/packages/07/42/271bcf364788337ac24e7f200005ac7142aaf022206bd6119d2daca22c04/transformers-4.52.3.tar.gz", hash = "sha256:2e1de29374f27920aaf6d589d4e6339f33def2fb08809e1a1d792e040e9fbce7", size = 8951324 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a9/b6/5257d04ae327b44db31f15cce39e6020cc986333c715660b1315a9724d82/transformers-4.51.3-py3-none-any.whl", hash = "sha256:fd3279633ceb2b777013234bbf0b4f5c2d23c4626b05497691f00cfda55e8a83", size = 10383940 },
+    { url = "https://files.pythonhosted.org/packages/36/f8/1f086942bc6a044e4e68dacf6de761a45367795efd5f57ad356765691c79/transformers-4.52.3-py3-none-any.whl", hash = "sha256:cd04059da50e7cf2a617ce3143ba8beffbf119f8c25a0717c3454fd9d0f19609", size = 10460322 },
 ]
 
 [[package]]

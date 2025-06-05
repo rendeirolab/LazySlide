@@ -25,11 +25,11 @@ def get_torch_device():
 
 def default_pbar(disable=False):
     """Get the default progress bar"""
-    from rich.progress import Progress
     from rich.progress import (
-        TextColumn,
         BarColumn,
+        Progress,
         TaskProgressColumn,
+        TextColumn,
         TimeRemainingColumn,
     )
 
