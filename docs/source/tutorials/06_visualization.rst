@@ -75,7 +75,7 @@ Furthermore, we can project many features onto the tile visualization.
     zs.pl.tiles(wsi, tissue_id=0, feature_key="resnet50", color=["1", "100"])
 
 Visualize annotations
---------------------
+---------------------
 
 If you have imported pathological annotations, they can also be visualized.
 

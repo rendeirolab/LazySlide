@@ -104,15 +104,11 @@ class ImageTextModel(ImageModel):
         raise NotImplementedError
 
 
-class SegmentationOutput(Enum):
-    probability_map = "probability_map"
-    instance_map = "instance_map"
-    class_map = "class_map"
-    token_map = "token_map"
-
-
 class SegmentationModel(ModelBase):
-    output_keys = SegmentationOutput
+    probability_map_key = "probability_map"
+    instance_map_key = "instance_map"
+    class_map_key = "class_map"
+    token_map_key = "token_map"
 
     def get_transform(self):
         import torch
