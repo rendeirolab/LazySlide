@@ -75,4 +75,8 @@ intersphinx_mapping = {
     "wsidata": ("https://wsidata.readthedocs.io/en/latest", None),
     "torch": ("https://pytorch.org/docs/stable/", None),
     "geopandas": ("https://geopandas.org/en/stable", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "pandas": ("https://pandas.pydata.org/pandas-docs/stable/", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
+    "anndata": ("https://anndata.readthedocs.io/en/latest/", None),
 }

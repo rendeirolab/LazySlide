@@ -40,6 +40,7 @@ def artifact(
     The model is trained on 512x512 tiles with mpp=1.5, 2, or 1.
 
     It can detect the following artifacts:
+
     - Fold
     - Darkspot & Foreign Object
     - Pen Marking

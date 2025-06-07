@@ -70,8 +70,8 @@ def zero_shot_score(
 
     Parameters
     ----------
-    wsi : :class:`wsidata.WSIData`
-        The WSI data object.
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The WSIData object to work on.
     prompts : array of str
         The text labels to classify. You can use a list of strings to
         add more information to one class.
@@ -88,14 +88,13 @@ def zero_shot_score(
 
     Returns
     -------
-    pd.DataFrame
+    :class:`DataFrame <pandas.DataFrame>`
         The classification results (probability). The columns are the text labels and the
         rows are the slide features.
 
-    # - The classification results will be added to :bdg-danger:`tables` slot of the spatial data object.
-
     Examples
     --------
+
     .. code-block:: python
 
         >>> import lazyslide as zs
@@ -104,6 +103,7 @@ def zero_shot_score(
         >>> zs.pp.tile_tissues(wsi, 512, background_fraction=0.95, mpp=0.5)
         >>> zs.tl.feature_extraction(wsi, "virchow")
         >>> zs.tl.feature_aggregation(wsi, feature_key="virchow", encoder="prism")
+        >>> classes = ["lung cancer", "normal lung"]
         >>> print(zs.tl.zero_shot_score(wsi, classes, feature_key="virchow_tiles"))
 
     """
@@ -163,8 +163,8 @@ def slide_caption(
 
     Parameters
     ----------
-    wsi : :class:`wsidata.WSIData`
-        The WSI data object.
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The WSIData object to work on.
     prompt : list of str
         The text instruction to generate the caption.
     feature_key : str

@@ -26,15 +26,17 @@ def cells(
 ):
     """Cell segmentation for the whole slide image.
 
-    Tiles should be prepared before segmentation.
+    .. note::
+        Tiles should be prepared before segmentation.
 
-    Recommended tile setting:
-    - **instanseg**: 512x512, mpp=0.5
+        Recommended tile setting:
+
+        - **instanseg**: 512x512, mpp=0.5
 
     Parameters
     ----------
-    wsi : WSIData
-        The whole slide image data.
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The WSIData object to work on.
     model : str | SegmentationModel, default: "instanseg"
         The cell segmentation model.
     tile_key : str, default: "tiles"
@@ -103,15 +105,17 @@ def cell_types(
 ):
     """Cell type segmentation for the whole slide image.
 
-    Tiles should be prepared before segmentation.
+    .. note::
+        Tiles should be prepared before segmentation.
 
-    Recommended tile setting:
-    - **nulite**: 512x512, mpp=0.5
+        Recommended tile setting:
+
+        - **nulite**: mpp=0.5 or 0.25
 
     Parameters
     ----------
-    wsi : WSIData
-        The whole slide image data.
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The WSIData object to work on.
     model : str | SegmentationModel, default: "nulite"
         The cell type segmentation model.
     tile_key : str, default: "tiles"
@@ -135,12 +139,12 @@ def cell_types(
         model = NuLite()
         # Run tile check
         tile_spec = wsi.tile_spec(tile_key)
-        check_mpp = tile_spec.mpp == 0.5
+        check_mpp = tile_spec.mpp == 0.5 or tile_spec.mpp == 0.25
         # check_size = tile_spec.height == 102 and tile_spec.width == 512
         if not check_mpp:
             warnings.warn(
                 f"To optimize the performance of NuLite model, "
-                f"the tiles should be created at the mpp=0.5. "
+                f"the tiles should be created at the mpp=0.5 or 0.25. "
                 f"Current tile size is {tile_spec.width}x{tile_spec.height} with {tile_spec.mpp} mpp."
             )
         CLASS_MAPPING = {
@@ -190,8 +194,8 @@ def nulite(
 
     Parameters
     ----------
-    wsi : WSIData
-        The whole slide image data.
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The WSIData object to work on.
     tile_key : str, default: "tiles"
         The key of the tile table.
     transform : callable, default: None

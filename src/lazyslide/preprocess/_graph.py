@@ -49,9 +49,9 @@ def tile_graph(
 
     Returns
     -------
-    The tiles with spatial connectivities and distances in an anndata format.
-
-    - The feature spatial connectivities and distances will be added to :bdg-danger:`tables` slot of the spatial data object.
+    :class:`AnnData <anndata.AnnData>`
+        The tiles with spatial connectivities and distances in an anndata format. |
+        Added to :code:`tile_graph | {key_added}` in :bdg-danger:`tables` slot of the WSIData object.
 
     Examples
     --------

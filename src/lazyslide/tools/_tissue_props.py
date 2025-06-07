@@ -47,7 +47,9 @@ def tissue_props(
     -------
     None
 
-    - The tissue properties will be added to the same table as the tissue shapes.
+    .. note::
+        The geometry features will be added to the :code:`tissues | {tissue_key}` table in the WSIData object.
+        The columns will be named after the properties, e.g. `area`, `solidity`.
 
     Examples
     --------

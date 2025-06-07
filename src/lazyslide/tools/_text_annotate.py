@@ -10,26 +10,29 @@ from lazyslide._const import Key
 
 def text_embedding(
     texts: List[str],
-    model: Literal["plip", "conch"] = "plip",
+    model: Literal["plip", "conch", "omiclip"] = "plip",
 ):
     """Embed the text into a vector in the text-vision co-embedding using
-    `PLIP <https://www.nature.com/articles/s41591-023-02504-3>`_ or
-    `CONCH <https://www.nature.com/articles/s41591-024-02856-4>`_.
+
+    - `PLIP <https://www.nature.com/articles/s41591-023-02504-3>`_
+    - `CONCH <https://www.nature.com/articles/s41591-024-02856-4>`_
+    - `OmiCLIP <https://www.nature.com/articles/s41592-025-02707-1>`_
 
     Parameters
     ----------
     texts : List[str]
         The list of texts.
-    model : Literal["plip", "conch"], default: "plip"
-        The text embedding model, either PLIP or CONCH
+    model : Literal["plip", "conch", "omiclip"], default: "plip"
+        The text embedding model
 
     Returns
     -------
-    pd.DataFrame
+    :class:`DataFrame <pandas.DataFrame>`
         The embeddings of the texts, with texts as index.
 
     Examples
     --------
+
     .. code-block:: python
 
         >>> import lazyslide as zs
@@ -67,7 +70,7 @@ def text_embedding(
 def text_image_similarity(
     wsi: WSIData,
     text_embeddings: pd.DataFrame,
-    model: Literal["plip", "conch"] = "plip",
+    model: Literal["plip", "conch", "omiclip"] = "plip",
     tile_key: str = Key.tiles,
     feature_key: str = None,
     key_added: str = None,
@@ -75,30 +78,39 @@ def text_image_similarity(
     """
     Compute the similarity between text and image.
 
+    .. note::
+        Prerequisites:
+
+        - The image features should be extracted using :func:`zs.tl.feature_extraction <lazyslide.tl.feature_extraction>`.
+        - The text embeddings should be computed using :func:`zs.tl.text_embedding <lazyslide.tl.text_embedding>`.
+
     Parameters
     ----------
-    wsi : WSIData
-        The WSIData object.
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The WSIData object to work on.
     text_embeddings : pd.DataFrame
         The embeddings of the texts, with texts as index.
-        You can use :func:`zs.tl.text_embedding <lazyslide.tl.text.embedding>` to get the embeddings.
-    model : Literal["plip", "conch"], default: "plip"
+    model : {"plip", "conch", "omiclip"}, default: "plip"
         The text embedding model.
     tile_key : str, default: 'tiles'
         The tile key.
     feature_key : str
         The feature key.
     key_added : str
+        The key to store the similarity scores. If None, defaults to '{feature_key}_text_similarity'.
 
     Returns
     -------
     None
 
-    - The similarity scores will be added to :bdg-danger:`tables` slot of the spatial data object.
+    .. note::
+        The similarity scores will be saved as an  to :bdg-danger:`tables` slot of the spatial data object.
 
     Examples
     --------
+
     .. code-block:: python
+
         >>> import lazyslide as zs
         >>> wsi = zs.datasets.sample()
         >>> zs.pp.find_tissues(wsi)

@@ -25,7 +25,7 @@ def spatial_features(
     feature_key : str
         The feature key.
     method : str, default: 'smoothing'
-        The method used for spatial feature smoothing. Currently only 'smoothing' is supported.
+        The method used for spatial feature smoothing. Currently, only 'smoothing' is supported.
     tile_key : str, default: 'tiles'
         The key of the tiles in the :bdg-danger:`shapes` slot.
     graph_key : str, optional
@@ -35,10 +35,12 @@ def spatial_features(
 
     Returns
     -------
-    None. The transformed feature will be added to the `spatial_features` layer of the feature table.
+    None.
+        The transformed feature will be added to the :code:`spatial_features` layer of the feature AnnData.
 
     Examples
     --------
+
     .. code-block:: python
 
         >>> import lazyslide as zs
