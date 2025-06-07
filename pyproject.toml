@@ -47,14 +47,14 @@ all = [
     "scanpy>=1.10.4",
     "torchvision>=0.15",  # >0.15
     "torchstain>=1.4.1",
-    "transformers>=4.52.1",
+    "transformers>=4.49.0",
 ]
 models = [
     "einops>=0.8.1",
     "einops-exts>=0.0.4",
     "environs>=14.1.1",
     "sacremoses>=0.1.1",
-    "transformers>=4.52.1",
+    "transformers>=4.49.0",
     "open-clip-torch>=2.32.0",
 ]
 
@@ -172,7 +172,7 @@ model = [
     "sacremoses>=0.1.1",
     "conch",
     "open-clip-torch>=2.32.0",
-    "transformers>=4.52.1",
+    "transformers>=4.49.0",
 ]
 
 

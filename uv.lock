@@ -2266,7 +2266,6 @@ dependencies = [
 
 [package.optional-dependencies]
 all = [
-    { name = "open-clip-torch" },
     { name = "scanpy" },
     { name = "scipy" },
     { name = "torchstain" },
@@ -2277,6 +2276,7 @@ models = [
     { name = "einops" },
     { name = "einops-exts" },
     { name = "environs" },
+    { name = "open-clip-torch" },
     { name = "sacremoses" },
     { name = "transformers" },
 ]
@@ -2349,7 +2349,7 @@ requires-dist = [
     { name = "legendkit", specifier = ">=0.3.4" },
     { name = "matplotlib", specifier = ">=3.9.0" },
     { name = "matplotlib-scalebar", specifier = ">=0.9.0" },
-    { name = "open-clip-torch", marker = "extra == 'all'", specifier = ">=2.32.0" },
+    { name = "open-clip-torch", marker = "extra == 'models'", specifier = ">=2.32.0" },
     { name = "psutil", specifier = ">=5.9.0" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "sacremoses", marker = "extra == 'models'", specifier = ">=0.1.1" },
@@ -2361,8 +2361,8 @@ requires-dist = [
     { name = "torch", specifier = ">=2.0.0" },
     { name = "torchstain", marker = "extra == 'all'", specifier = ">=1.4.1" },
     { name = "torchvision", marker = "extra == 'all'", specifier = ">=0.15" },
-    { name = "transformers", marker = "extra == 'all'", specifier = ">=4.52.1" },
-    { name = "transformers", marker = "extra == 'models'", specifier = ">=4.52.1" },
+    { name = "transformers", marker = "extra == 'all'", specifier = ">=4.49.0" },
+    { name = "transformers", marker = "extra == 'models'", specifier = ">=4.49.0" },
     { name = "wsidata", specifier = ">=0.6.0" },
 ]
 
@@ -2402,7 +2402,7 @@ model = [
     { name = "environs", specifier = ">=14.1.1" },
     { name = "open-clip-torch", specifier = ">=2.32.0" },
     { name = "sacremoses", specifier = ">=0.1.1" },
-    { name = "transformers", specifier = ">=4.52.1" },
+    { name = "transformers", specifier = ">=4.49.0" },
 ]
 napari = [
     { name = "napari", extras = ["all"], specifier = ">=0.5.6" },
