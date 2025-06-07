@@ -14,7 +14,6 @@ Image Embedding
     tl.feature_extraction
     tl.feature_aggregation
     tl.spatial_features
-    tl.feature_utag
 
 Tissue Geometry
 ~~~~~~~~~~~~~~~

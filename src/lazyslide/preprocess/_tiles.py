@@ -92,7 +92,7 @@ def tile_tissues(
         >>> wsi = zs.datasets.sample()
         >>> zs.pp.find_tissues(wsi)
         >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
-        >>> zs.pl.tiles(wsi)
+        >>> zs.pl.tiles(wsi, linewidth=0.5)
 
     """
 
@@ -228,6 +228,7 @@ def score_tiles(
     scorers : Scorer
         The scorer object or a callable that takes in an image and returns a score.
         You can also pass in a string:
+
         - 'focus': A FocusLite scorer that will score the focus of the image
         - 'contrast': A Contrast scorer that will score the contrast of the image
         - 'brightness': A Brightness scorer that will score the brightness of the image
@@ -241,18 +242,23 @@ def score_tiles(
 
     Returns
     -------
-    The columns with scores and the key added to the spatial data object.
+    None
+
+    .. note::
+        The scores will be added to the :code:`tiles | {tile_key}` table in the WSIData object.
+        The columns will be named after the scorers, e.g. `redness`, `brightness`.
 
     Examples
     --------
-    .. code-block:: python
+    .. plot::
+        :context: close-figs
 
         >>> import lazyslide as zs
         >>> wsi = zs.datasets.sample()
         >>> zs.pp.find_tissues(wsi)
         >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
         >>> zs.pp.score_tiles(wsi, scorers=["focus", "contrast"])
-        >>> wsi['tiles'].head(n=2)
+        >>> zs.pl.tiles(wsi, color=["focus", "contrast"])
 
     """
 

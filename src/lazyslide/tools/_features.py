@@ -54,14 +54,28 @@ def feature_extraction(
     """
     Extract features from WSI tiles using a pre-trained vision models.
 
+    To list all timm models:
+
+    .. code-block:: python
+
+        >>> import timm
+        >>> timm.list_models(pretrained=True)
+
+    To list all lazyslide built-in models:
+
+    .. code-block:: python
+
+        >>> import lazyslide as zs
+        >>> zs.models.list_models()
+
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The whole-slide image object.
     model : str or model object
         The model used for image feature extraction.
-        A list of built-in foundation models can be found in :mod:`models <lazyslide.models.vision>`
-        Other models can be loaded from timm with feature extraction head implemented.
+        A list of built-in foundation models can be found in :ref:`models-section`.
+        Other models can be loaded from huggingface, but only models with feature extraction head implemented.
     model_path : str or Path
         The path to the model file. Either model or model_path must be provided.
         If you don't have internet access, you can download the model file and load it from the local path.
@@ -100,10 +114,12 @@ def feature_extraction(
 
     Returns
     -------
-    None or ndarray
+    :class:`numpy.ndarray` or None
         If return_features is True, return the extracted features.
 
-    - The feature matrix will be added to :bdg-danger:`tables` slot of the spatial data object.
+    .. note::
+        The feature matrix will be added to :code:`{model_name}_{tile_key}`
+        in :bdg-danger:`tables` slot of WSIData object.
 
     Examples
     --------
@@ -227,7 +243,7 @@ def feature_aggregation(
     device: str = None,
 ):
     """
-    Aggregate features on a key e.g.: per tissue_id.
+    Aggregate features by groups.
 
     The aggregation is done by applying an encoder to a group of features to acquire
     a 1d representation of the group. Notice that the final shape of the aggregated
@@ -242,13 +258,15 @@ def feature_aggregation(
     layer_key : str, optional
         The key of the layer in the feature table.
     encoder : str or callable, default: 'mean'
+
         - Numpy functions: 'mean', 'median', 'sum', 'std', 'var', ...
-        - 'prism': Prism slide encoder. The feature must be extracted by Virchow model.
-        - 'titan': Titan slide encoder. The feature must be extracted by Titan/CONCH_v1.5 model.
+        - :code:`prism`: Prism slide encoder. The feature must be extracted by Virchow model.
+        - :code:`titan`: Titan slide encoder. The feature must be extracted by Titan/CONCH_v1.5 model.
     tile_key : str, default: 'tiles'
         The key of the tiles dataframe in the spatial data object.
     by : str or array of str, default: None
         The level to aggregate the features.
+
         - By default will aggregate the features from all tiles in the slide.
         - Column name in tile dataframe: Aggregate the features by specific column.
           For example, to aggregate by tissue pieces, set by='tissue_id'.
@@ -261,8 +279,10 @@ def feature_aggregation(
     -------
     None
 
-    - The aggregation features and operation will be recorded in the :bdg-danger:`uns` slot.
-    - The aggregated features will only be added to the :bdg-danger:`varm` slot of the feature :code:`AnnData` if
+    .. note::
+
+        The aggregation features and operation will be recorded in the :bdg-warning:`uns` slot of features AnnData.
+        The aggregated features will only be added to the :bdg-warning:`varm` slot if
         their shape is the same as the original features.
 
     Examples

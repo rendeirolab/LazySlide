@@ -125,7 +125,7 @@ def find_tissues(
     Returns
     -------
     :class:`GeoDataFrame <geopandas.GeoDataFrame>`
-        The tissues dataframe, with columns of `tissue_id` and `geometry`.
+        The tissues dataframe, with columns of :code:`tissue_id` and :code:`geometry`.
         Added to :bdg-danger:`shapes`.
 
     Examples
@@ -257,6 +257,14 @@ def score_tissues(
         Show progress bar.
     tissue_key : str, optional, default: 'tissue'
         Key of the tissue data in the :bdg-danger:`shapes` slot.
+
+    Returns
+    -------
+    None
+
+    .. note::
+        The scores will be added to the :code:`tissues | {tissue_key}` table in the WSIData object.
+        The columns will be named after the scorers, e.g. `redness`, `brightness`.
 
     Examples
     --------

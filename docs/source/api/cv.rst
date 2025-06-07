@@ -32,7 +32,7 @@ Mask
     MultilabelMask
     MulticlassMask
     InstanceMap
-    ProbabilityMask
+    ProbabilityMap
 
 
 Polygon merging

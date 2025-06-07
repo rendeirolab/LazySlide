@@ -30,6 +30,13 @@ def semantic(
     tile_key=Key.tiles,
     class_names: List[str] | Mapping[int, str] | None = None,
     transform=None,
+    mode: Literal["constant", "gaussian"] = "gaussian",
+    sigma_scale: float = 0.125,
+    low_memory: bool = False,
+    threshold: float = 0.5,
+    ignore_index: int | None = 0,
+    buffer_px: int = 2,
+    chunk_size: int = 512,
     batch_size=4,
     num_workers=0,
     device=None,
@@ -41,26 +48,46 @@ def semantic(
 
     Parameters
     ----------
-    wsi : WSIData
-        The whole slide image data.
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The WSIData object to work on.
     model : SegmentationModel
         The segmentation model.
     tile_key : str, default: "tiles"
         The key of the tile table.
-    class_names : array of str or dict, optional
-        The class names for the segmentation. Either a list of class names or a dict.
+    class_names : list of str or dict, optional
+        The class names for the segmentation. Either a list of class names or a dict mapping class indices to names.
     transform : callable, default: None
-        The transformation for the input tiles.
+        The transformation to apply to each input tile before segmentation.
+    mode : {"constant", "gaussian"}, default: "gaussian"
+        The probability distribution to apply for the prediction map.
+        "constant" uses uniform weights, "gaussian" applies a Gaussian weighting.
+    sigma_scale : float, default: 0.125
+        The scale of the Gaussian sigma for the importance map if mode is "gaussian".
+    low_memory : bool, default: False
+        Whether to use a low-memory mode for processing large slides.
+    threshold : float, default: 0.5
+        The threshold to binarize the probability map for segmentation.
+    ignore_index : int or None, default: 0
+        The index to ignore during segmentation (e.g., background).
+    buffer_px : int, default: 2
+        The buffer in pixels to apply when merging polygons.
+    chunk_size : int, default: 512
+        The size of chunks to process at a time when merging probability maps.
     batch_size : int, default: 4
         The batch size for segmentation.
     num_workers : int, default: 0
         The number of workers for data loading.
     device : str, default: None
-        The device for the model.
+        The device for the model (e.g., "cpu" or "cuda"). If None, automatically selected.
     pbar : bool, default: True
         Whether to show the progress bar.
     key_added : str, default: "anatomical_structures"
-        The key for the added instance shapes.
+        The key for the added instance shapes in the WSIData object.
+
+    Returns
+    -------
+    None
+        The segmentation results are added to the WSIData object under the specified key.
 
     """
     runner = SemanticSegmentationRunner(
@@ -68,6 +95,13 @@ def semantic(
         model=model,
         tile_key=tile_key,
         transform=transform,
+        mode=mode,
+        sigma_scale=sigma_scale,
+        low_memory=low_memory,
+        threshold=threshold,
+        ignore_index=ignore_index,
+        buffer_px=buffer_px,
+        chunk_size=chunk_size,
         batch_size=batch_size,
         num_workers=num_workers,
         device=device,

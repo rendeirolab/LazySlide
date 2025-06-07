@@ -1,3 +1,5 @@
+.. _models-section:
+
 Models
 ------
 
@@ -31,10 +33,12 @@ Vision Models
     HOptimus0
     HOptimus1
     H0Mini
+    HibouB
+    HibouL
 
 
-Image-Text Models
-~~~~~~~~~~~~~~~~~~~
+Multimodal Models
+~~~~~~~~~~~~~~~~~
 
 .. currentmodule:: lazyslide.models.multimodal
 
@@ -46,6 +50,7 @@ Image-Text Models
     CONCH
     Titan
     Prism
+    OmiCLIP
 
 
 Segmentation Models

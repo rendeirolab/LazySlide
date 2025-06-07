@@ -51,9 +51,9 @@ You can install :code:`lazyslide` with different package manager you prefer.
 Installation of slide readers
 -----------------------------
 
-LazySlide uses :code:`wsidata` to handle the IO with the slide files.
+LazySlide uses `wsidata <https://wsidata.readthedocs.io>`_ to handle the IO with the slide files.
 To support different file formats, you need to install corresponding slide readers.
-The reader will be automatically detected by :code:`wsidata` when you open the slide file.
+The reader will be automatically detected by `wsidata <https://wsidata.readthedocs.io>`_` when you open the slide file.
 
 
 .. tab-set::

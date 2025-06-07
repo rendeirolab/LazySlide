@@ -13,7 +13,47 @@ def spatial_domain(
     resolution: float = 0.1,
     key_added: str = "domain",
 ):
-    """Return the unsupervised domain of the WSI"""
+    """
+    Perform unsupervised spatial domain segmentation on a WSI using feature embeddings.
+
+    This function applies scaling, PCA, neighborhood graph construction, and Leiden clustering
+    to identify spatial domains within the WSI based on the provided features.
+
+    Parameters
+    ----------
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The whole-slide image object.
+    feature_key : str
+        The key for the feature table to use.
+    tile_key : str, default: "tiles"
+        The key for the tile table.
+    layer : str, optional
+        The layer in the feature table to use for clustering.
+    resolution : float, optional
+        The resolution parameter for Leiden clustering. Defaults to 0.1.
+    key_added : str, optional
+        The key under which to store the domain labels. Defaults to "domain".
+
+    Returns
+    -------
+    None
+        The domain labels are added to the tile table in the WSIData object.
+
+    Examples
+    --------
+
+    .. code-block:: python
+
+        >>> import lazyslide as zs
+        >>> wsi = zs.datasets.sample()
+        >>> zs.pp.find_tissues(wsi)
+        >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
+        >>> zs.tl.feature_extraction(wsi, "resnet50")
+        >>> zs.pp.tile_graph(wsi)
+        >>> zs.tl.spatial_features(wsi)
+        >>> zs.tl.spatial_domain(wsi, layer="spatial_features", feature_key="resnet", resolution=0.3)
+
+    """
     try:
         import scanpy as sc
     except ImportError:
@@ -36,38 +76,35 @@ def tile_shaper(
     tile_key: str = Key.tiles,
     key_added: str = "domain_shapes",
 ):
-    # """Return the domain shapes of the WSI
-    # Parameters
-    # ----------
-    # wsi: :class:`WSIData <wsidata.WSIData>`
-    #     The WSIData object.
-    # groupby: str
-    #     The groupby key.
-    # tile_key: str
-    #     The tile key.
-    # key_added: str
-    #     The key to add the shapes to.
-    #
-    # Returns
-    # -------
-    # None
-    #     The shapes will be added to the WSIData object.
-    # - The shapes will be added to the `domain_shapes` layer of the tile table.
-    #
-    # Examples
-    # --------
-    # .. code-block:: python
-    #
-    #     >>> import lazyslide as zs
-    #     >>> wsi = zs.datasets.sample()
-    #     >>> zs.pp.find_tissues(wsi)
-    #     >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
-    #     >>> zs.tl.feature_extraction(wsi, "resnet50")
-    #     >>> zs.pp.tile_graph(wsi)
-    #     >>> zs.tl.spatial_domain(wsi, layer="utag", feature_key="resnet50", resolution=0.3)
-    #     >>> zs.tl.tile_shaper(wsi)
-    #
-    # """
+    """
+    Return the domain shapes of the WSI
+
+    Parameters
+    ----------
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The WSIData object.
+    groupby : str
+        The groupby key.
+    tile_key : str
+        The tile key.
+    key_added : str
+        The key to add the shapes to.
+
+    Returns
+    -------
+    :class:`GeoDataFrame <geopandas.GeoDataFrame>`
+        Added to to the :bdg-danger:`shapes` slot of the WSIData object.
+
+    Examples
+    --------
+
+    .. code-block:: python
+
+        >>> import lazyslide as zs
+        >>> wsi = zs.datasets.sample()
+        >>> zs.tl.tile_shaper(wsi, groupby="domain")
+
+    """
     import geopandas as gpd
     from shapely.affinity import scale, translate
 

@@ -260,7 +260,7 @@ def zero_shot(
 
     Parameters
     ----------
-    wsi : WSIData
+    wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object to work on.
     prompts : list[str]
         List of prompts for zero-shot segmentation.
