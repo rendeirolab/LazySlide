@@ -1,6 +1,6 @@
 """Efficient and Scalable Whole Slide Image (WSI) processing library."""
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 
 import sys
