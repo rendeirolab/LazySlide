@@ -89,7 +89,7 @@ def tissue(
 
     # Prepare title
     if title is None:
-        if tissue_id[0] is None:
+        if tissue_ids[0] is None:
             titles = ""
         else:
             titles = [f"Tissue {tid}" for tid in tissue_ids]
@@ -452,7 +452,7 @@ def annotations(
 
     # Prepare title
     if title is None:
-        if tissue_id[0] is None:
+        if tissue_ids[0] is None:
             titles = ""
         else:
             titles = [f"Tissue {tid}" for tid in tissue_ids]
