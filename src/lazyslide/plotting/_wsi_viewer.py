@@ -7,6 +7,7 @@ from itertools import cycle
 from numbers import Number
 from typing import Any, Dict, List, Literal, Sequence, Union
 
+import cv2
 import numpy as np
 import pandas as pd
 from geopandas import points_from_xy
@@ -340,8 +341,11 @@ class HeatmapTilesRenderPlan(RenderPlan):
         norm=None,
         vmin=None,
         vmax=None,
-        alpha=0.5,
+        alpha=0.7,
+        smooth=False,
+        smooth_scale=2,
         legend_kws=None,
+        **kwargs: Any,  # noqa: ANN001
     ):
         self.datasource: TileDataSource = tile_datasource
         self.image_datasource: ImageDataSource = image_datasource
@@ -359,6 +363,8 @@ class HeatmapTilesRenderPlan(RenderPlan):
         self.vmin = vmin
         self.vmax = vmax
         self.alpha = alpha
+        self.smooth = smooth
+        self.smooth_scale = smooth_scale
         self.legend_kws = legend_kws or {}
         self._A = None
 
@@ -379,6 +385,18 @@ class HeatmapTilesRenderPlan(RenderPlan):
         # sm.autoscale()
 
         A = sm.to_rgba(tile_image, bytes=True, alpha=self.alpha)
+
+        # Apply gaussian blur to the heatmap
+        # kernel size is 2x of tile size
+        if self.smooth:
+            ksize = int(self.smooth_scale * max(self.datasource.tile_shape))
+            ksize = ksize if ksize % 2 == 1 else ksize + 1
+            A = cv2.GaussianBlur(A, (ksize, ksize), 0)
+
+        # Downsample and then upscale to the original size
+        # down = cv2.resize(A, (A.shape[1] // 4, A.shape[0] // 4), interpolation=cv2.INTER_AREA)
+        # A = cv2.resize(down, (A.shape[1], A.shape[0]), interpolation=cv2.INTER_CUBIC)
+
         self._A = A
         ax.imshow(
             A,
@@ -414,6 +432,7 @@ class ScatterTilesRenderPlan(RenderPlan):
         marker="o",
         rasterized=True,
         legend_kws=None,
+        **kwargs: Any,  # noqa: ANN001
     ):
         self.datasource: TileDataSource = datasource
         # If is categorical
@@ -627,6 +646,7 @@ class FilledPolygonRenderPlan(PolygonMixin):
         colors: Sequence = None,
         palette: Dict = None,
         color="#FFE31A",
+        linewidth: int = 1,
         alpha=0.3,
         legend_kws=None,
         **kwargs,
@@ -639,7 +659,9 @@ class FilledPolygonRenderPlan(PolygonMixin):
         super().__init__(polygons, labels=labels, colors=colors)
 
         self.legend_kws = legend_kws or {}
-        self.kwargs = dict(facecolor=to_rgba(color, alpha), edgecolor=color, lw=1)
+        self.kwargs = dict(
+            facecolor=to_rgba(color, alpha), edgecolor=color, linewidth=linewidth
+        )
         if kwargs is not None:
             self.kwargs.update(kwargs)
 
@@ -1043,6 +1065,7 @@ class WSIViewer:
         palette: PaletteType = None,
         alpha: float = 0.3,
         color: ColorType = "#FFE31A",
+        linewidth: int = 1,
         legend_kws: Dict = None,
         legend: bool = True,
         in_zoom: bool = True,
@@ -1070,6 +1093,10 @@ class WSIViewer:
             If a color, all the polygons will have the same color.
         alpha : float, default: 0.3
             The transparency of the polygons.
+        color : color, default: "#FFE31A"
+            The default color of the polygons.
+        linewidth : int, default: 1
+            The width of the outline of the polygons.
         legend_kws : dict, optional
             The keyword arguments for the legend.
         in_zoom : bool, default: True
@@ -1088,6 +1115,7 @@ class WSIViewer:
             palette=palette,
             alpha=alpha,
             color=color,
+            linewidth=linewidth,
             legend_kws=legend_kws,
             **kwargs,
         )
@@ -1189,6 +1217,8 @@ class WSIViewer:
         vmin=None,
         vmax=None,
         alpha=0.5,
+        smooth=False,
+        smooth_scale=2,
         rasterized=False,
         size=None,
         zoom_size=None,
@@ -1200,6 +1230,54 @@ class WSIViewer:
         in_zoom=True,
         cache=True,
     ):
+        """Add tiles to the plot.
+
+        Parameters
+        ----------
+        key : str
+            The key of the tile table.
+        feature_key : str, optional
+            The key of the feature table to visualize.
+        color_by : str, optional
+            The column or feature to color the tiles by.
+        style : {'scatter', 'heatmap'}, default: 'scatter'
+            The style to render the tiles.
+        palette : dict, list, str, optional
+            The color palette for categorical coloring.
+        cmap : str, optional
+            The colormap for continuous coloring.
+        norm : matplotlib.colors.Normalize, optional
+            The normalization for the colormap.
+        vmin, vmax : float, optional
+            The min and max values for the colormap.
+        alpha : float, default: 0.5
+            The transparency of the tiles.
+        smooth : bool, default: False
+            Whether to apply smoothing to the heatmap.
+        smooth_scale : int, default: 2
+            The scale of the smoothing kernel.
+        rasterized : bool, default: False
+            Whether to rasterize the scatter plot.
+        size : float, optional
+            The size of the scatter points.
+        zoom_size : float, optional
+            The size of the scatter points in zoom view.
+        marker : str, default: 'o'
+            The marker style for scatter.
+        gridcolor : color, default: 'k'
+            The color of the grid lines.
+        linewidth : float, default: 0.1
+            The width of the grid lines.
+        legend_kws : dict, optional
+            The keyword arguments for the legend.
+        legend : bool, default: True
+            Whether to show the legend.
+        in_zoom : bool, default: True
+            Whether to render in the zoom view.
+        cache : bool, default: True
+            Whether to cache the render plan.
+
+        """
         container = self._process_tiles(key, color_by, feature_key, cmap, palette)
         if color_by is None:
             plan = GridTilesRenderPlan(
@@ -1233,6 +1311,8 @@ class WSIViewer:
                     vmin=vmin,
                     vmax=vmax,
                     alpha=alpha,
+                    smooth=smooth,
+                    smooth_scale=smooth_scale,
                     legend_kws=legend_kws,
                 )
             else:
@@ -1354,7 +1434,7 @@ class WSIViewer:
         ax = _axes_style(ax, axis=axis, xaxis=xaxis)
 
         legend_placement = dict(
-            loc="center left", bbox_transform=ax.transAxes, bbox_to_anchor=(1.1, 0.5)
+            loc="center left", bbox_transform=ax.transAxes, bbox_to_anchor=(1.01, 0.5)
         )
         if self._zoom_plan is not None:
             self._zoom_plan.render(ax, self.get_render_plans(in_zoom=True))
@@ -1381,19 +1461,25 @@ class WSIViewer:
         target_level = 0
         downsample = 1
 
+        dw = w
+        dh = h
         if n_bytes > self.bytes_limit:
             dh, dw = self.wsi.properties.shape
             while n_bytes > self.bytes_limit:
                 target_level += 1
+                if target_level >= self.wsi.properties.n_level:
+                    # We've reached the highest level but still exceed the limit
+                    # Set to the highest level and adjust dimensions if needed
+                    target_level = self.wsi.properties.n_level - 1
+                    downsample = self.wsi.properties.level_downsample[target_level]
+                    dw = w // downsample
+                    dh = h // downsample
+                    break
+
                 downsample = self.wsi.properties.level_downsample[target_level]
                 dw = w // downsample
                 dh = h // downsample
                 n_bytes = dw * dh * 8 * 3
-                if target_level >= self.wsi.properties.n_level:
-                    break
-        else:
-            dw = w
-            dh = h
 
         return Viewport(int(x), int(y), int(dw), int(dh), target_level, downsample)
 
