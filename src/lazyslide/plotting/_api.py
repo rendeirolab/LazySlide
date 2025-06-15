@@ -1,3 +1,4 @@
+from itertools import cycle
 from typing import Iterable, Literal
 
 import matplotlib.pyplot as plt
@@ -21,6 +22,10 @@ def tissue(
     zoom=None,
     img_bytes_limit=2e9,
     ax=None,
+    ncols=4,
+    wspace=0.5,
+    hspace=0.5,
+    return_figure=False,
 ):
     """
     Display the tissue image.
@@ -29,11 +34,11 @@ def tissue(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The whole-slide image object.
-    tissue_id : int, default: None
+    tissue_id : int or 'all', default: None
         The tissue id (piece) to extract.
     tissue_key : str, default: "tissue"
         The tissue key.
-    title : str, default: None
+    title : str or array of str, default: None
         The title of the plot.
     show_contours : bool, default: True
         Show the tissue contours.
@@ -61,36 +66,77 @@ def tissue(
         :context: close-figs
 
         >>> import lazyslide as zs
-        >>> wsi = zs.datasets.sample()
-        >>> zs.pl.tissue(wsi)
+        >>> wsi = zs.datasets.gtex_artery()
+        >>> zs.pl.tissue(wsi, tissue_id="all")
 
     """
-    if ax is None:
-        _, ax = plt.subplots()
-    viewer = WSIViewer(
-        wsi,
-        in_bounds=in_bounds,
-        img_bytes_limit=img_bytes_limit,
-    )
-    viewer.add_image()
+    # We need to prepare the following variables
+    # axes, list of ax
+    # tissue_id, list of tissue ids
 
+    # Prepare tissue_id
     if tissue_key in wsi:
-        if show_contours:
-            viewer.add_contours(
-                key=tissue_key,
-                label_by="tissue_id" if show_id else None,
-            )
-        if tissue_id is not None:
-            viewer.set_tissue_id(tissue_id)
-    if scalebar:
-        viewer.add_scalebar()
-    if mark_origin:
-        viewer.mark_origin()
+        if tissue_id is None:
+            tissue_ids = [None]
+        elif isinstance(tissue_id, int):
+            tissue_ids = [tissue_id]
+        elif tissue_id == "all":
+            tissue_ids = sorted(wsi[tissue_key].tissue_id.unique().tolist())
+        else:
+            tissue_ids = list(tissue_id)
+    else:
+        tissue_ids = [None]
 
-    if zoom is not None:
-        viewer.add_zoom(*zoom)
-    viewer.title = title
-    viewer.show(ax=ax)
+    # Prepare title
+    if title is None:
+        if tissue_ids[0] is None:
+            titles = ""
+        else:
+            titles = [f"Tissue {tid}" for tid in tissue_ids]
+    elif isinstance(title, str):
+        titles = [title] * len(tissue_ids)
+    else:
+        titles = list(title)
+
+    # Prepare axes for plotting
+    n_axes = len(tissue_ids)
+    if n_axes == 1:
+        if ax is None:
+            ax = plt.gca()
+        axes = [ax]
+    else:
+        nrows = n_axes // int(ncols) + 1
+        figure = plt.figure(figsize=(ncols * 4, nrows * 4))
+        gs = GridSpec(nrows, ncols, wspace=wspace, hspace=hspace)
+        axes = [figure.add_subplot(gs[i]) for i in range(n_axes)]
+
+    for tid, t, ax in zip(tissue_ids, titles, axes):
+        viewer = WSIViewer(
+            wsi,
+            in_bounds=in_bounds,
+            img_bytes_limit=img_bytes_limit,
+        )
+        viewer.add_image()
+        if tid is not None:
+            if show_contours:
+                viewer.add_contours(
+                    key=tissue_key,
+                    label_by="tissue_id" if show_id else None,
+                )
+            viewer.set_tissue_id(tid, tissue_key=tissue_key)
+        if scalebar:
+            viewer.add_scalebar()
+        if mark_origin:
+            viewer.mark_origin()
+        if zoom is not None:
+            viewer.add_zoom(*zoom)
+        viewer.title = t
+        viewer.show(ax=ax)
+
+    # Return the axes if there is only one
+    if n_axes > 1 and return_figure:
+        return figure
+    return None
 
 
 def tiles(
@@ -98,7 +144,7 @@ def tiles(
     feature_key=None,
     color=None,
     tissue_id=None,
-    tissue_key=Key.tissue,
+    tissue_key=None,
     tile_key=Key.tiles,
     title=None,
     style: Literal["scatter", "heatmap"] = "heatmap",
@@ -111,6 +157,8 @@ def tiles(
     img_bytes_limit=2e9,
     zoom=None,
     alpha=0.9,
+    smooth=False,
+    smooth_scale=2,
     marker="o",
     vmin=None,
     vmax=None,
@@ -121,7 +169,6 @@ def tiles(
     gridcolor="k",
     linewidth=0.1,
     ax=None,
-    figure=None,
     rasterized=True,
     ncols=4,
     wspace=0.5,
@@ -140,7 +187,7 @@ def tiles(
     color : str, default: None
         The column/ feature name that should be visualized from feature_key.
         If feature_key is None, this is the column name from the tiles table.
-    tissue_id : int, default: None
+    tissue_id : int or 'all', default: None
         The tissue id (piece) to plot.
         If None, all will be plotted.
     tissue_key : str, default: "tissue"
@@ -183,8 +230,6 @@ def tiles(
         The size of the points.
     ax : matplotlib.axes.Axes, default: None
         The axes to plot on.
-    figure : matplotlib.figure.Figure, default: None
-        The figure to plot on.
     rasterized : bool, default: False
         Rasterize the points.
     kwargs : dict
@@ -202,35 +247,48 @@ def tiles(
         >>> zs.pl.tiles(wsi, tissue_id=0, color='contrast')
 
     """
+    tile_spec = wsi.tile_spec(tile_key)
+    # Prepare tissue_id
+    if tissue_key is None:
+        tissue_key = tile_spec.tissue_name
 
-    viewer = WSIViewer(wsi, in_bounds=in_bounds, img_bytes_limit=img_bytes_limit)
-    if show_image:
-        viewer.add_image()
-
-    viewer.title = title
     if tissue_key in wsi:
-        if show_contours:
-            viewer.add_contours(
-                key=tissue_key,
-                label_by="tissue_id" if show_id else None,
-            )
-        if tissue_id is not None:
-            viewer.set_tissue_id(tissue_id)
-    if mark_origin:
-        viewer.mark_origin()
-    if scalebar:
-        viewer.add_scalebar()
-
-    if zoom is not None:
-        viewer.add_zoom(*zoom)
-
-    if color is not None:
-        if isinstance(color, str):
-            color = [color]
-        elif isinstance(color, Iterable):
-            color = list(color)
+        if tissue_id is None:
+            tissue_ids = [None]
+        elif isinstance(tissue_id, int):
+            tissue_ids = [tissue_id]
+        elif tissue_id == "all":
+            tissue_ids = sorted(wsi[tissue_key].tissue_id.unique().tolist())
         else:
-            color = [color]
+            tissue_ids = list(tissue_id)
+    else:
+        tissue_ids = [None]
+
+    # Prepare colors
+    if color is None:
+        colors = [None]
+    elif isinstance(color, str):
+        colors = [color]
+    else:
+        colors = list(color)
+
+    # Prepare axes for plotting
+    n_axes = len(tissue_ids) * len(colors)
+    if n_axes == 1:
+        if ax is None:
+            ax = plt.gca()
+        axes = [ax]
+    else:
+        nrows = n_axes // int(ncols) + 1
+        figure = plt.figure(figsize=(ncols * 4, nrows * 4))
+        gs = GridSpec(nrows, ncols, wspace=wspace, hspace=hspace)
+        axes = [figure.add_subplot(gs[i]) for i in range(n_axes)]
+
+    # Prepare title
+    if title is None:
+        titles = [""] * n_axes
+    else:
+        titles = list(title)
 
     options = dict(
         style=style,
@@ -242,43 +300,51 @@ def tiles(
         norm=norm,
         palette=palette,
         size=size,
+        smooth=smooth,
+        smooth_scale=smooth_scale,
         rasterized=rasterized,
         gridcolor=gridcolor,
         linewidth=linewidth,
         **kwargs,
     )
 
-    if color is not None:
-        if len(color) > 1:
-            nrows = len(color) // int(ncols) + 1
-            if figure is None:
-                figure = plt.figure(figsize=(ncols * 4, nrows * 4))
-            gs = GridSpec(nrows, ncols, wspace=wspace, hspace=hspace)
-            for i, c in enumerate(color):
-                ax = figure.add_subplot(gs[i])
-                viewer.add_tiles(
-                    key=tile_key,
-                    feature_key=feature_key,
-                    color_by=c,
-                    cache=False,
-                    **options,
+    ix = 0
+    for tid in tissue_ids:
+        for c in colors:
+            t = titles[ix]
+            ax = axes[ix]
+            ix += 1
+
+            viewer = WSIViewer(
+                wsi, in_bounds=in_bounds, img_bytes_limit=img_bytes_limit
+            )
+            if show_image:
+                viewer.add_image()
+
+            if show_contours:
+                viewer.add_contours(
+                    key=tissue_key,
+                    label_by="tissue_id" if show_id else None,
                 )
-                viewer.show(ax=ax)
-        else:
+            if tid is not None:
+                viewer.set_tissue_id(tid)
+            if mark_origin:
+                viewer.mark_origin()
+            if scalebar:
+                viewer.add_scalebar()
+            if zoom is not None:
+                viewer.add_zoom(*zoom)
+
             viewer.add_tiles(
                 key=tile_key,
-                color_by=color[0],
+                color_by=c,
                 feature_key=feature_key,
                 **options,
             )
+            if t == "":
+                t = f"Tissue ({tid}) {viewer.title}"
+            viewer.title = t
             viewer.show(ax=ax)
-    else:
-        viewer.add_tiles(
-            key=tile_key,
-            feature_key=feature_key,
-            **options,
-        )
-        viewer.show(ax=ax)
 
 
 def annotations(
@@ -291,6 +357,7 @@ def annotations(
     scalebar=True,
     in_bounds=True,
     img_bytes_limit=2e9,
+    tissue_key=Key.tissue,
     tissue_id=None,
     zoom=None,
     fill=True,
@@ -298,6 +365,10 @@ def annotations(
     alpha=0.5,
     legend_kws=None,
     legend=True,
+    title=None,
+    ncols=4,
+    wspace=0.5,
+    hspace=0.5,
     ax=None,
 ):
     """
@@ -309,41 +380,130 @@ def annotations(
         The whole-slide image object.
     key : str
         The annotation key.
+    color : str, optional
+        The column or feature name to use for coloring the annotations.
+    label : str, optional
+        The column or feature name to use for labeling the annotations.
+    show_image : bool, default: True
+        Whether to display the underlying tissue image.
+    mark_origin : bool, default: True
+        Whether to mark the origin on the plot.
+    scalebar : bool, default: True
+        Whether to show a scalebar.
+    in_bounds : bool, default: True
+        Whether to restrict annotations to the image bounds.
+    img_bytes_limit : int, default: 2e9
+        The maximum number of bytes for the image.
+    tissue_key : str, default: "tissue"
+        The key for tissue segmentation.
+    tissue_id : int or 'all', optional
+        The tissue id(s) to display annotations for.
+    zoom : tuple, optional
+        (xmin, xmax, ymin, ymax) for zooming into a region.
+    fill : bool, default: True
+        Whether to fill the annotation polygons.
+    palette : str, optional
+        The color palette to use.
+    alpha : float, default: 0.5
+        The transparency of the annotation polygons.
+    legend_kws : dict, optional
+        Additional keyword arguments for the legend.
+    legend : bool, default: True
+        Whether to display a legend.
+    title : str or list of str, optional
+        The title(s) for the plot(s).
+    ncols : int, default: 4
+        Number of columns for subplot arrangement.
+    wspace : float, default: 0.5
+        Width space between subplots.
+    hspace : float, default: 0.5
+        Height space between subplots.
+    ax : matplotlib.axes.Axes, optional
+        The axes to plot on.
+
+    Returns
+    -------
+    None or matplotlib.figure.Figure
+        The figure if multiple axes are created and return_figure is True, otherwise None.
+
+    Examples
+    --------
+
+    .. plot::
+        :context: close-figs
+
+        >>> import lazyslide as zs
+        >>> wsi = zs.datasets.sample()
+        >>> zs.pl.annotations(wsi, key="annotations", tissue_id="all")
 
     """
-    if ax is None:
-        _, ax = plt.subplots()
-
-    viewer = WSIViewer(wsi, in_bounds=in_bounds, img_bytes_limit=img_bytes_limit)
-    if show_image:
-        viewer.add_image()
-    if mark_origin:
-        viewer.mark_origin()
-    if scalebar:
-        viewer.add_scalebar()
-    if tissue_id is not None:
-        viewer.set_tissue_id(tissue_id)
-    if fill:
-        viewer.add_polygons(
-            key,
-            color_by=color,
-            label_by=label,
-            palette=palette,
-            alpha=alpha,
-            legend=legend,
-            legend_kws=legend_kws,
-        )
+    # Prepare tissue_id
+    if tissue_key in wsi:
+        if tissue_id is None:
+            tissue_ids = [None]
+        elif isinstance(tissue_id, int):
+            tissue_ids = [tissue_id]
+        elif tissue_id == "all":
+            tissue_ids = sorted(wsi[tissue_key].tissue_id.unique().tolist())
+        else:
+            tissue_ids = list(tissue_id)
     else:
-        viewer.add_contours(
-            key,
-            color_by=color,
-            label_by=label,
-            palette=palette,
-            legend=legend,
-            legend_kws=legend_kws,
-        )
+        tissue_ids = [None]
 
-    if zoom is not None:
-        viewer.add_zoom(*zoom)
+    # Prepare title
+    if title is None:
+        if tissue_ids[0] is None:
+            titles = ""
+        else:
+            titles = [f"Tissue {tid}" for tid in tissue_ids]
+    elif isinstance(title, str):
+        titles = [title] * len(tissue_ids)
+    else:
+        titles = list(title)
 
-    viewer.show(ax=ax)
+    # Prepare axes for plotting
+    n_axes = len(tissue_ids)
+    if n_axes == 1:
+        if ax is None:
+            ax = plt.gca()
+        axes = [ax]
+    else:
+        nrows = n_axes // int(ncols) + 1
+        figure = plt.figure(figsize=(ncols * 4, nrows * 4))
+        gs = GridSpec(nrows, ncols, wspace=wspace, hspace=hspace)
+        axes = [figure.add_subplot(gs[i]) for i in range(n_axes)]
+
+    for tid, t, ax in zip(tissue_ids, titles, axes):
+        viewer = WSIViewer(wsi, in_bounds=in_bounds, img_bytes_limit=img_bytes_limit)
+        if show_image:
+            viewer.add_image()
+        if mark_origin:
+            viewer.mark_origin()
+        if scalebar:
+            viewer.add_scalebar()
+        if tissue_id is not None:
+            viewer.set_tissue_id(tid)
+        if fill:
+            viewer.add_polygons(
+                key,
+                color_by=color,
+                label_by=label,
+                palette=palette,
+                alpha=alpha,
+                legend=legend,
+                legend_kws=legend_kws,
+            )
+        else:
+            viewer.add_contours(
+                key,
+                color_by=color,
+                label_by=label,
+                palette=palette,
+                legend=legend,
+                legend_kws=legend_kws,
+            )
+
+        if zoom is not None:
+            viewer.add_zoom(*zoom)
+        viewer.title = t
+        viewer.show(ax=ax)
