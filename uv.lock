@@ -2435,14 +2435,14 @@ wheels = [
 
 [[package]]
 name = "legendkit"
-version = "0.3.4"
+version = "0.3.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "matplotlib" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ba/5d/32c32b2c5fc9079936cf25d355257bcf2c4db1fe56cfece029c937ec091d/legendkit-0.3.4.tar.gz", hash = "sha256:38d3e2628cdfad1dc07656c79e2b83bd43631e02359fbeea9be12e450c5d3b87", size = 1090667 }
+sdist = { url = "https://files.pythonhosted.org/packages/7c/b7/b1aa7a8075cd90d1231ca39cc01eaf004ba84bc192cc763a3212fc4b6311/legendkit-0.3.6.tar.gz", hash = "sha256:89c0d95c262420086f08c1fff06f9d3d3ee779cacf598464bec7bca10ac36853", size = 19490 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/dd/3b/09999dafa8c3d838fbb2005d4bad79a59e2f0af3a545b066246ffe374ed0/legendkit-0.3.4-py3-none-any.whl", hash = "sha256:b0b25735abf9c558ce50caafbc1e22d90354fc6b60a7c15271e0d7d8353e009b", size = 21947 },
+    { url = "https://files.pythonhosted.org/packages/86/92/bd62fb14acf1f74ed021b3e2f105466a6b47b0ebedc5daddada4b88b47b4/legendkit-0.3.6-py3-none-any.whl", hash = "sha256:345ecb286d9aa8775c4a6498a8b0a37f76a2736870220d0687396db33b5bf91d", size = 24861 },
 ]
 
 [[package]]
