@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from itertools import cycle
 from pathlib import Path
-from typing import Iterable, List, Literal, Mapping
+from typing import List, Literal, Mapping, Sequence
 
 import pandas as pd
 from geopandas import GeoDataFrame
@@ -146,7 +146,7 @@ def export_annotations(
     *,
     in_bounds: bool = False,
     classes: str = None,
-    colors: str | Mapping = None,
+    colors: str | Mapping | Sequence = None,
     format: Literal["qupath"] = "qupath",
     file: str | Path = None,
 ):
@@ -158,24 +158,49 @@ def export_annotations(
     wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object to work on.
     key : str
-        The key to export.
+        The key to export. Must exist in wsi.shapes.
     in_bounds : bool, default: False
         Whether to move the annotations to the slide bounds.
     classes : str, default: None
         The column to use for the classification.
         If None, the classification will be ignored.
-    colors : str, Mapping, default: None
-        The column to use for the color.
-        If None, the color will be ignored.
+        If provided, must exist in the GeoDataFrame.
+    colors : str | Mapping | Sequence, default: None
+        The column to use for the color, or a mapping from class values to colors,
+        or a sequence of colors to be assigned to unique class values.
+        If None, default colors will be used.
     format : str, default: 'qupath'
         The format to export.
         Currently only 'qupath' is supported.
-    file : str, Path, default: None
+    file : str | Path, default: None
         The file to save the annotations.
         If None, the annotations will not be saved.
+        If provided, the parent directory will be created if it doesn't exist.
 
+    Returns
+    -------
+    GeoDataFrame
+        The exported annotations.
 
+    Raises
+    ------
+    ValueError
+        If key doesn't exist in wsi.shapes.
+        If classes is provided but doesn't exist in the GeoDataFrame.
+        If colors is provided but is not a string, mapping, or sequence.
     """
+    # Validate key exists in wsi.shapes
+    if key not in wsi.shapes:
+        raise ValueError(
+            f"Key '{key}' does not exist in wsi.shapes. Available keys: {list(wsi.shapes.keys())}"
+        )
+
+    if file is not None:
+        # Ensure parent directory exists
+        file_path = Path(file)
+        if not file_path.parent.exists():
+            raise NotADirectoryError(f"{file_path.parent} does not exist")
+
     gdf = wsi.shapes[key].copy()
     if in_bounds:
         gdf = _in_bounds_transform(wsi, gdf, reverse=True)
@@ -185,47 +210,59 @@ def export_annotations(
         import json
 
         if classes is not None:
+            # Validate classes exists in gdf
+            if classes not in gdf.columns:
+                raise ValueError(
+                    f"Column '{classes}' does not exist in the GeoDataFrame."
+                )
+
             class_values = gdf[classes]
 
+            # Define default colors
+            default_colors = [
+                "#1B9E77",  # Teal Green
+                "#D95F02",  # Burnt Orange
+                "#7570B3",  # Deep Lavender
+                "#E7298A",  # Magenta
+                "#66A61E",  # Olive Green
+                "#E6AB02",  # Goldenrod
+                "#A6761D",  # Earthy Brown
+                "#666666",  # Charcoal Gray
+                "#1F78B4",  # Cool Blue
+            ]
+
+            # Initialize color_values
             if colors is None:
-                # Assign default colors
-                colors = cycle(
-                    [
-                        "#1B9E77",  # Teal Green
-                        "#D95F02",  # Burnt Orange
-                        "#7570B3",  # Deep Lavender
-                        "#E7298A",  # Magenta
-                        "#66A61E",  # Olive Green
-                        "#E6AB02",  # Goldenrod
-                        "#A6761D",  # Earthy Brown
-                        "#666666",  # Charcoal Gray
-                        "#1F78B4",  # Cool Blue
-                    ]
+                # Use default colors in a cycle
+                color_map = dict(zip(pd.unique(class_values), cycle(default_colors)))
+                color_values = [color_map.get(x) for x in class_values]
+            elif isinstance(colors, str):
+                # Validate color column exists
+                if colors not in gdf.columns:
+                    raise ValueError(
+                        f"Color column '{colors}' does not exist in the GeoDataFrame. Available columns: {list(gdf.columns)}"
+                    )
+                color_values = gdf[colors]
+            elif isinstance(colors, Mapping):
+                color_values = [colors.get(x, None) for x in gdf[classes]]
+            elif isinstance(colors, Sequence):
+                # Map sequence of colors to unique class values
+                color_map = dict(zip(pd.unique(class_values), colors))
+                color_values = [color_map.get(x, None) for x in class_values]
+            else:
+                raise ValueError(
+                    f"Invalid colors: {colors}. Must be a string, mapping, or sequence."
                 )
 
-            if colors is not None:
-                color_values = cycle([])
-                if isinstance(colors, str):
-                    color_values = gdf[colors]
-                elif isinstance(colors, Iterable):
-                    # if sequence of colors, map to class values
-                    colors = dict(zip(pd.unique(class_values), colors))
-                else:
-                    raise ValueError(f"Invalid colors: {colors}")
+            # Convert colors to RGB arrays
+            from matplotlib.colors import to_rgb
 
-                if isinstance(colors, Mapping):
-                    color_values = map(lambda x: colors.get(x, None), gdf[classes])
+            color_values = [
+                tuple(int(255 * c) for c in to_rgb(x)) if x is not None else None
+                for x in color_values
+            ]
 
-                # covert color to rgb array
-                from matplotlib.colors import to_rgb
-
-                color_values = map(
-                    lambda x: tuple(int(255 * c) for c in to_rgb(x))
-                    if x is not None
-                    else None,
-                    color_values,
-                )
-
+            # Create classification JSON strings
             classifications = []
             for class_value, color_value in zip(class_values, color_values):
                 json_string = json.dumps({"name": class_value, "color": color_value})
