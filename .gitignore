@@ -178,3 +178,4 @@ figures/
 sample_data/
 *.ipynb
 *.geojson
+*.zarr

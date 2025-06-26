@@ -240,7 +240,9 @@ def feature_aggregation(
     tile_key: str = Key.tiles,
     by: str | Sequence[str] | None = None,
     agg_key: str = None,
-    device: str = None,
+    amp: bool = False,
+    autocast_dtype: torch.dtype = torch.float16,
+    device: str = "cpu",
 ):
     """
     Aggregate features by groups.
@@ -260,8 +262,10 @@ def feature_aggregation(
     encoder : str or callable, default: 'mean'
 
         - Numpy functions: 'mean', 'median', 'sum', 'std', 'var', ...
-        - :code:`prism`: Prism slide encoder. The feature must be extracted by Virchow model.
-        - :code:`titan`: Titan slide encoder. The feature must be extracted by Titan/CONCH_v1.5 model.
+        - :code:`prism`: Prism slide encoder. The feature must be extracted by :code:`Virchow` model.
+        - :code:`titan`: Titan slide encoder. The feature must be extracted by :code:`Titan`/:code:`CONCH_v1.5` model.
+        - :code:`madeleine`: Madeleine slide encoder. The feature must be extracted by :code:`CONCH` model.
+        - :code:`chief`: Chief slide encoder. The feature must be extracted by :code:`CHIEF` model.
     tile_key : str, default: 'tiles'
         The key of the tiles dataframe in the spatial data object.
     by : str or array of str, default: None
@@ -272,6 +276,10 @@ def feature_aggregation(
           For example, to aggregate by tissue pieces, set by='tissue_id'.
     agg_key : str, optional
         The key to store the aggregated features. If not provided, the key will be 'agg_{by}'.
+    amp : bool, default: False
+        Whether to use automatic mixed precision.
+    autocast_dtype : torch.dtype, default: torch.float16
+        The dtype for automatic mixed precision.
     device : str, optional
         The device to use for inference. If not provided, the device will be automatically selected.
 
@@ -310,13 +318,19 @@ def feature_aggregation(
     else:
         features = wsi.tables[feature_key].layers[layer_key]
 
-    agg_info = {}
+    agg_info = {"encoder": encoder, "tile_key": tile_key}
 
     if by is None:
         if agg_key is None:
             agg_key = "agg_slide"
         slide_reprs = _encode_slide(
-            features, encoder, coords, device=device, tile_spec=tile_spec
+            features,
+            encoder,
+            coords,
+            device=device,
+            amp=amp,
+            autocast_dtype=autocast_dtype,
+            tile_spec=tile_spec,
         )
         agg_fs = slide_reprs["features"]
         for k, v in slide_reprs.items():
@@ -336,6 +350,8 @@ def feature_aggregation(
                 encoder,
                 coords.loc[x.index],
                 device=device,
+                amp=amp,
+                autocast_dtype=autocast_dtype,
                 tile_spec=tile_spec,
             )
             agg_fs.append(slide_reprs["features"])
@@ -365,46 +381,93 @@ def feature_aggregation(
     feature_table.uns["agg_ops"] = agg_ops
 
 
-def _encode_slide(features, encoder, coords=None, device=None, tile_spec=None):
-    result_dict = {
-        "features": None,
-    }
-    if encoder == "mean":
-        agg_features = np.mean(features, axis=0)
-    elif encoder == "median":
-        agg_features = np.median(features, axis=0)
-    # elif encoder == "gigapath":
-    #     from lazyslide.models.vision import GigaPathSlideEncoder
-    #
-    #     encoder = GigaPathSlideEncoder()
-    #     fs = torch.tensor(features).unsqueeze(0)
-    #     cs = torch.tensor(coords.values).unsqueeze(0)
-    #     agg_features = encoder.encode_slide(fs, cs)
-    else:
+def _encode_slide(
+    features,
+    encoder,
+    coords=None,
+    amp: bool = False,
+    autocast_dtype: torch.dtype = torch.float16,
+    device=None,
+    tile_spec=None,
+):
+    """
+    Encode slide features using various methods.
+
+    Parameters
+    ----------
+    features : numpy.ndarray
+        Feature matrix with shape (n_tiles, n_features)
+    encoder : str or callable
+        Encoding method to use
+    coords : pandas.DataFrame, optional
+        Tile coordinates with columns 'minx' and 'miny'
+    device : str, optional
+        Device to use for PyTorch operations
+    tile_spec : object, optional
+        Tile specification object with base_width attribute
+
+    Returns
+    -------
+    dict
+        Dictionary with 'features' key containing the encoded features
+        and optionally other keys like 'latents'
+    """
+    result_dict = {"features": None}
+
+    # Simple statistical aggregation methods
+    # Model-based encoding methods
+    if encoder in {"prism", "titan", "madeleine", "chief"}:
+        # Convert features and coordinates to PyTorch tensors
         fs = torch.tensor(features, dtype=torch.float32).unsqueeze(0).to(device)
-        cs = torch.tensor(coords.values, dtype=torch.int64).unsqueeze(0).to(device)
-        if encoder == "prism":
-            from lazyslide.models.multimodal import Prism
+        cs = torch.tensor(coords.values, dtype=torch.long).unsqueeze(0).to(device)
+        amp_ctx = nullcontext() if not amp else torch.autocast(device, autocast_dtype)
+        with amp_ctx, torch.inference_mode():
+            if encoder == "prism":
+                from lazyslide.models.multimodal import Prism
 
-            encoder = Prism()
-            encoder.to(device)
+                model = Prism()
+                model.to(device)
+                slide_reprs = model.encode_slide(fs, cs)
+                agg_features = slide_reprs["image_embedding"].cpu().detach().numpy()
+                img_latents = slide_reprs["image_latents"].cpu().detach().numpy()
+                result_dict["latents"] = img_latents
+            elif encoder == "titan":
+                from lazyslide.models.multimodal import Titan
 
-            slide_reprs = encoder.encode_slide(fs, cs)
-            agg_features = slide_reprs["image_embedding"].cpu().detach().numpy()
-            img_latents = slide_reprs["image_latents"].cpu().detach().numpy()
-            result_dict["latents"] = img_latents
-        elif encoder == "titan":
-            from lazyslide.models.multimodal import Titan
+                model = Titan()
+                model.to(device)
+                agg_features = model.encode_slide(fs, cs, tile_spec.base_width)
 
-            encoder = Titan()
-            encoder.to(device)
-            agg_features = encoder.encode_slide(fs, cs, tile_spec.base_width)
+            elif encoder == "madeleine":
+                from lazyslide.models.vision import MadeleineSlideEncoder
+
+                model = MadeleineSlideEncoder()
+                model.to(device)
+                agg_features = model.encode_slide(fs, cs)
+
+            elif encoder == "chief":
+                from lazyslide.models.vision import CHIEFSlideEncoder
+
+                model = CHIEFSlideEncoder()
+                model.to(device)
+                # CHIEF slide encoder expects features of shape (B, N)
+                if fs.ndim == 3:
+                    fs = fs.squeeze(0)
+                agg_features = model.encode_slide(fs, cs)
+    # Unknown encoder
+    else:
+        func = getattr(np, encoder, None)
+        if callable(func):
+            # Use numpy function for aggregation
+            agg_features = func(features, axis=0)
         else:
             raise ValueError(f"Unknown slide encoding method: {encoder}")
 
+    # Ensure the features have the right shape (batch, features)
     if agg_features.ndim == 1:
         agg_features = agg_features.reshape(1, -1)
+    if isinstance(agg_features, torch.Tensor):
+        agg_features = agg_features.detach().cpu().numpy()
 
     result_dict["features"] = agg_features
-
     return result_dict

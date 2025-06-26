@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 
 from .._utils import hf_access
@@ -73,14 +74,15 @@ class Titan(ImageModel):
     @torch.inference_mode()
     def encode_image(self, image):
         image_feature = self.conch(image)
-        return image_feature.detach().cpu().numpy()
+        return image_feature
 
     @torch.inference_mode()
     def encode_slide(self, embeddings, coords=None, base_tile_size=None, **kwargs):
+        # Cast base_tile_size to numpy integer if it's not already
         slide_embeddings = self.model.encode_slide_from_patch_features(
-            embeddings, coords, base_tile_size
+            embeddings, coords, np.int64(base_tile_size)
         )
-        return slide_embeddings.detach().cpu().numpy()
+        return slide_embeddings
 
     @torch.inference_mode()
     def score(
@@ -91,4 +93,4 @@ class Titan(ImageModel):
 
         classifier = self.model.zero_shot_classifier(prompts, template)
         scores = self.model.zero_shot(slide_embeddings, classifier)
-        return scores.squeeze(0).detach().cpu().numpy()
+        return scores
