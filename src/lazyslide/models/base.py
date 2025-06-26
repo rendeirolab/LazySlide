@@ -84,7 +84,7 @@ class TimmModel(ImageModel):
     @torch.inference_mode()
     def encode_image(self, image):
         with torch.inference_mode():
-            return self.model(image).cpu().detach().numpy()
+            return self.model(image)
 
 
 class SlideEncoderModel(ModelBase):

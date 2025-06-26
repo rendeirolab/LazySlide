@@ -17,7 +17,7 @@ class CHIEF(ImageModel):
 
     def encode_image(self, image):
         """
-        Encode the input image using the CTransPath model.
+        Encode the input image using the CHIEF model.
         The model expects a tensor of shape [B, C, H, W].
         """
         with torch.inference_mode():
