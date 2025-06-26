@@ -92,8 +92,8 @@ allow-direct-references = true
 
 [tool.ruff]
 lint.ignore = ["F401"]
-line-length = 88
 lint.extend-select = ["I"]
+line-length = 88
 
 [tool.ruff.lint.per-file-ignores]
 "tests/test_example.py" = ["E402"]
@@ -132,6 +132,8 @@ dev = [
     "albumentations>=2.0.3",
     "spatialdata-plot>=0.2.9",
     "scyjava>=1.12.0",
+    "pandas-stubs>=2.2",
+    "pytest-env>=1.1.5",
 ]
 docs = [
     "sphinx>=8.1.3",

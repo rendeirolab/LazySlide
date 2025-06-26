@@ -93,4 +93,4 @@ class H0Mini(TimmModel):
         concatenated_features = torch.cat(
             [cls_features, patch_token_features.mean(1)], dim=-1
         )
-        return concatenated_features.cpu().detach().numpy()
+        return concatenated_features

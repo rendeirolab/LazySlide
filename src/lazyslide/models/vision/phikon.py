@@ -28,7 +28,7 @@ class Phikon(ImageModel):
     def encode_image(self, image) -> np.ndarray[np.float32]:
         inputs = self.img_processor(images=image, return_tensors="pt")
         inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
-        return self.model(**inputs).last_hidden_state[:, 0, :].cpu().detach().numpy()
+        return self.model(**inputs).last_hidden_state[:, 0, :]
 
 
 class PhikonV2(ImageModel):
@@ -40,7 +40,6 @@ class PhikonV2(ImageModel):
         with hf_access("owkin/phikon-v2"):
             self.model = AutoModel.from_pretrained(
                 "owkin/phikon-v2",
-                add_pooling_layer=False,
                 use_auth_token=token,
             )
             self.img_processor = AutoImageProcessor.from_pretrained(
@@ -54,4 +53,4 @@ class PhikonV2(ImageModel):
     def encode_image(self, image) -> np.ndarray[np.float32]:
         inputs = self.img_processor(images=image, return_tensors="pt")
         inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
-        return self.model(**inputs).last_hidden_state[:, 0, :].cpu().detach().numpy()
+        return self.model(**inputs).last_hidden_state[:, 0, :]

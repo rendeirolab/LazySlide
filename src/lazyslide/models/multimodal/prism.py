@@ -22,9 +22,6 @@ class Prism(ModelBase):
 
     @torch.inference_mode()
     def encode_slide(self, embeddings, coords=None) -> dict:
-        # Make sure the embeddings has a batch dimension
-        if len(embeddings.shape) == 2:
-            embeddings = embeddings.unsqueeze(0)
         return self.model.slide_representations(embeddings)
 
     @torch.inference_mode()
@@ -70,7 +67,7 @@ class Prism(ModelBase):
             start = end
 
         probs = torch.cat(class_probs, dim=-1)
-        return probs.detach().cpu().numpy()
+        return probs
 
     @torch.inference_mode()
     def caption(

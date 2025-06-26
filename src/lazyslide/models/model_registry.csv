@@ -1,7 +1,7 @@
 name,keys,model_type,module,github_url,hf_url,paper_url,description
 CONCH,conch,multimodal,CONCH,https://github.com/mahmoodlab/CONCH,https://huggingface.co/MahmoodLab/conch,https://doi.org/10.1038/s41591-024-02856-4,Multimodal foundation model
 PLIP,plip,multimodal,PLIP,https://github.com/PathologyFoundation/plip,https://huggingface.co/vinid/plip,https://doi.org/10.1038/s41591-023-02504-3,Multimodal foundation model
-Prism,prism,multimodal,Prism,https://github.com/mahmoodlab/PRISM,https://huggingface.co/paige-ai/Prism,https://doi.org/10.48550/arXiv.2405.10254,Slide-Level multimodal generative model
+Prism,prism,multimodal,Prism,,https://huggingface.co/paige-ai/Prism,https://doi.org/10.48550/arXiv.2405.10254,Slide-Level multimodal generative model
 Titan,"titan, conch_v1.5",multimodal,Titan,https://github.com/mahmoodlab/TITAN,https://huggingface.co/MahmoodLab/TITAN,https://doi.org/10.48550/arXiv.2411.19666,Multimodal foundation model
 Uni,uni,vision,UNI,https://github.com/mahmoodlab/UNI,https://huggingface.co/MahmoodLab/UNI,https://doi.org/10.1038/s41591-024-02857-3,Vision foundation model
 Uni2,uni2,vision,UNI2,https://github.com/mahmoodlab/UNI,https://huggingface.co/MahmoodLab/UNI2-h,https://doi.org/10.1038/s41591-024-02857-3,Vision foundation model
@@ -23,3 +23,5 @@ Midnight,midnight,vision,Midnight,https://github.com/kaiko-ai/midnight,https://h
 HibouB,hibou-b,vision,HibouB,https://github.com/HistAI/hibou/tree/main,https://huggingface.co/histai/hibou-b,https://doi.org/10.48550/arXiv.2406.05074,Foundation Vision Transformer
 HibouL,hibou-l,vision,HibouL,https://github.com/HistAI/hibou/tree/main,https://huggingface.co/histai/hibou-l,https://doi.org/10.48550/arXiv.2406.05074,Foundation Vision Transformer
 OmiCLIP,omiclip,multimodal,OmiCLIP,https://github.com/GuangyuWangLab2021/Loki,https://huggingface.co/WangGuangyuLab/Loki,https://doi.org/10.1038/s41592-025-02707-1,Multimodal foundation model
+CTransPath,ctranspath,vision,CTransPath,https://github.com/Xiyue-Wang/TransPath,,https://doi.org/10.1016/j.media.2022.102559,Vision foundation model
+CHIEF,chief,vision,CHIEF,https://github.com/hms-dbmi/CHIEF,,https://doi.org/10.1038/s41586-024-07894-z,Vision foundation model
