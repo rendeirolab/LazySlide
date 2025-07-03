@@ -14,8 +14,8 @@ assignees: ''
 A clear and concise description of what the bug is.
 
 **To Reproduce**
-Steps to reproduce the behavior, please compile a miniumum reproducible example here.
-If your problem is slide-specific, please take a sceenshot first. You may be asked to upload sample data when needed.
+Steps to reproduce the behavior, please compile a minimum reproducible example here.
+If your problem is slide-specific, please take a screenshot first. You may be asked to upload sample data when needed.
 
 ```python
 copy-paste the code to reproduce the bug here
@@ -30,6 +30,7 @@ If applicable, add screenshots to help explain your problem.
 **System information (please complete the following information):**
 
 - OS: [e.g. Linux Ubuntu 20.04, Windows 11, macOS Big Sur]
+- CPU: [e.g. x86, ARM]
 - GPU: [e.g. RTX4090 (torch+CUDA12.8), MPS(M2 pro)]
 - Python Version [e.g. 3.10, 3.11] `python --version`
 - UV version: [e.g. 0.5.13 ] `uv --version`
