@@ -19,7 +19,7 @@ If your problem is slide-specific, please take a sceenshot first. You may be ask
 
 ```python
 copy-paste the code to reproduce the bug here
-``
+```
 
 **Expected behavior**
 A clear and concise description of what you expected to happen.
@@ -27,10 +27,10 @@ A clear and concise description of what you expected to happen.
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
 
-**Desktop (please complete the following information):**
+**System information (please complete the following information):**
 
 - OS: [e.g. Linux Ubuntu 20.04, Windows 11, macOS Big Sur]
-- URL of repository: [e.g. https://github.com/JoseRZapata/demo-data-science-template]
+- GPU: [e.g. RTX4090 (torch+CUDA12.8), MPS(M2 pro)]
 - Python Version [e.g. 3.10, 3.11] `python --version`
 - UV version: [e.g. 0.5.13 ] `uv --version`
 - IDE: [e.g. VSCode, PyCharm, Jupyter Notebook]
