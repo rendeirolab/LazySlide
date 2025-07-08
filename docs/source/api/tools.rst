@@ -15,7 +15,7 @@ Image Embedding
     tl.feature_aggregation
     tl.spatial_features
 
-Tissue Geometry
+Tissue/Tile Properties
 ~~~~~~~~~~~~~~~
 
 .. currentmodule:: lazyslide
@@ -25,6 +25,7 @@ Tissue Geometry
     :nosignatures:
 
     tl.tissue_props
+    tl.tile_prediction
 
 
 Tissue Spatial Domain
@@ -51,6 +52,7 @@ Multi-Modal Analysis
 
     tl.text_embedding
     tl.text_image_similarity
+    tl.RNALinker
 
 
 Zero-shot Learning

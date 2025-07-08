@@ -5,7 +5,7 @@ from typing import List, Type
 
 import pandas as pd
 
-from . import multimodal, segmentation, vision
+from . import multimodal, segmentation, tile_prediction, vision
 from .base import ModelBase
 
 
@@ -13,11 +13,13 @@ class ModelTask(Enum):
     vision = "vision"
     segmentation = "segmentation"
     multimodal = "multimodal"
+    tile_prediction = "tile_prediction"
 
 
 @dataclass
 class ModelCard:
     name: str
+    is_gated: bool
     model_type: ModelTask
     module: Type[ModelBase]
     github_url: str = None
@@ -43,7 +45,11 @@ class ModelCard:
             self.keys = [self.name.lower()]
 
     def __str__(self):
-        skeleton = ""
+        skeleton = (
+            ":octicon:`lock;1em;`"
+            if self.is_gated
+            else ":octicon:`check-circle-fill;1em;`"
+        )
         if self.github_url is not None:
             skeleton += f":octicon:`mark-github;1em;` `GitHub <{self.github_url}>`__ \\"
         if self.hf_url is not None:
@@ -63,12 +69,14 @@ _modules = {
     ModelTask.vision: vision,
     ModelTask.segmentation: segmentation,
     ModelTask.multimodal: multimodal,
+    ModelTask.tile_prediction: tile_prediction,
 }
 
 for _, row in MODEL_DB.iterrows():
     model_type = ModelTask(row["model_type"])
     card = ModelCard(
         name=row["name"],
+        is_gated=bool(row["is_gated"]),
         model_type=model_type,
         module=getattr(_modules[model_type], row["module"]),
         github_url=None if pd.isna(row["github_url"]) else row["github_url"],
@@ -89,7 +97,7 @@ def list_models(task: ModelTask = None):
 
     Parameters
     ----------
-    task : {'vision', 'segmentation', 'multimodal'}, default: None
+    task : {'vision', 'segmentation', 'multimodal', 'tile_prediction'}, default: None
         The task to filter the models. If None, return all models.
 
     Returns
@@ -111,5 +119,5 @@ def list_models(task: ModelTask = None):
         else:
             raise ValueError(
                 f"Unknown task: {task}. "
-                "Available tasks are: vision, segmentation, multimodal."
+                "Available tasks are: vision, segmentation, multimodal and tile_prediction."
             )
