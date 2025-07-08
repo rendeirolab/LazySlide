@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from enum import Enum
-from functools import cached_property
+from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Callable
 
 import numpy as np
 import torch
@@ -11,7 +9,7 @@ import torch
 from lazyslide.models._utils import get_default_transform, hf_access
 
 
-class ModelBase:
+class ModelBase(ABC):
     model: torch.nn.Module
     name: str = "ModelBase"
     is_restricted: bool = False
@@ -52,6 +50,7 @@ class ImageModel(ModelBase):
             ]
         )
 
+    @abstractmethod
     def encode_image(self, image) -> np.ndarray[np.float32]:
         raise NotImplementedError
 
@@ -88,15 +87,18 @@ class TimmModel(ImageModel):
 
 
 class SlideEncoderModel(ModelBase):
+    @abstractmethod
     def encode_slide(self, embeddings, coords=None):
         raise NotImplementedError
 
 
 class ImageTextModel(ImageModel):
+    @abstractmethod
     def encode_image(self, image):
         """This should return the image feature before normalize."""
         raise NotImplementedError
 
+    @abstractmethod
     def encode_text(self, text):
         raise NotImplementedError
 
@@ -122,9 +124,11 @@ class SegmentationModel(ModelBase):
             ]
         )
 
+    @abstractmethod
     def segment(self, image):
         raise NotImplementedError
 
+    @abstractmethod
     def supported_output(self):
         return (
             "probability_map",
@@ -135,3 +139,12 @@ class SegmentationModel(ModelBase):
 
     def get_classes(self):
         return None
+
+
+class TilePredictionModel(ModelBase):
+    @abstractmethod
+    def predict(self, image):
+        """The output should always be a dict of numpy arrays
+        to allow multiple outputs.
+        """
+        raise NotImplementedError
