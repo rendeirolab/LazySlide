@@ -1,5 +1,4 @@
-from itertools import cycle
-from typing import Iterable, Literal
+from typing import Literal
 
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -90,7 +89,7 @@ def tissue(
     # Prepare title
     if title is None:
         if tissue_ids[0] is None:
-            titles = ""
+            titles = [""]
         else:
             titles = [f"Tissue {tid}" for tid in tissue_ids]
     elif isinstance(title, str):
@@ -453,7 +452,7 @@ def annotations(
     # Prepare title
     if title is None:
         if tissue_ids[0] is None:
-            titles = ""
+            titles = [""]
         else:
             titles = [f"Tissue {tid}" for tid in tissue_ids]
     elif isinstance(title, str):
@@ -472,7 +471,6 @@ def annotations(
         figure = plt.figure(figsize=(ncols * 4, nrows * 4))
         gs = GridSpec(nrows, ncols, wspace=wspace, hspace=hspace)
         axes = [figure.add_subplot(gs[i]) for i in range(n_axes)]
-
     for tid, t, ax in zip(tissue_ids, titles, axes):
         viewer = WSIViewer(wsi, in_bounds=in_bounds, img_bytes_limit=img_bytes_limit)
         if show_image:
