@@ -48,6 +48,7 @@ def tissue(
         device = get_torch_device()
 
     # Load the model
+    model_name = model
     if model == "grandqc":
         model = GrandQCTissue()
         target_mpp = 10
@@ -133,7 +134,7 @@ def tissue(
 
     pred = pred.squeeze().detach().cpu().numpy()
     mask = np.argmax(pred, axis=0).astype(np.uint8)
-    if model == "grandqc":
+    if model_name == "grandqc":
         # Flip the mask
         mask = 1 - mask
     polygons = BinaryMask(mask).to_polygons(
