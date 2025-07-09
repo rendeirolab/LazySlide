@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "uv-dynamic-versioning"]
 build-backend = "hatchling.build"
 
 [project]
@@ -63,9 +63,6 @@ models = [
 lazyslide = "lazyslide.__main__:app"
 zs = "lazyslide.__main__:app"
 
-[tool.hatch.version]
-path = "src/lazyslide/__init__.py"
-
 [tool.hatch.build.targets.sdist]
 exclude = [
     "docs",
@@ -89,6 +86,15 @@ packages = ["src/lazyslide", "README.md", "LICENSE", "pyproject.toml"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.hatch.build.hooks.version]
+path = "src/lazyslide/_version.py"
+template = '''
+version = "{version}"
+'''
 
 [tool.ruff]
 lint.ignore = ["F401"]
