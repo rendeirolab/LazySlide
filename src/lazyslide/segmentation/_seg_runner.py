@@ -270,10 +270,11 @@ class SemanticSegmentationRunner(Runner):
 
         self.tile_spec = wsi.tile_spec(tile_key)
         tissue_key = self.tile_spec.tissue_name
+        self.has_tissue = tissue_key in wsi
         # No tissue associated with the tile key
         # Uses the whole image as a single tissue
 
-        if tissue_key not in wsi:
+        if not self.has_tissue:
             wsi_bounds = wsi.properties.bounds
             tissues = gpd.GeoDataFrame(
                 {
@@ -320,81 +321,92 @@ class SemanticSegmentationRunner(Runner):
                 count_mask = torch.zeros((height, width), dtype=torch.float)
 
                 # Get tiles within the tissue bounds
-                current_tiles = self.wsi[self.tile_key][
-                    self.wsi[self.tile_key]["tissue_id"] == tid
-                ]
+                if self.has_tissue:
+                    current_tiles = self.wsi[self.tile_key][
+                        self.wsi[self.tile_key]["tissue_id"] == tid
+                    ]
+                else:
+                    current_tiles = self.wsi[self.tile_key]
 
-                ds = TileDataset(
-                    wsi=self.wsi,
-                    tiles=current_tiles,
-                    tile_spec=self.tile_spec,
-                    transform=self.transform,
-                )
-                dl = DataLoader(
-                    ds, batch_size=self.batch_size, num_workers=self.num_workers
-                )
+                if len(current_tiles) > 0:
+                    ds = TileDataset(
+                        wsi=self.wsi,
+                        tiles=current_tiles,
+                        tile_spec=self.tile_spec,
+                        transform=self.transform,
+                    )
+                    dl = DataLoader(
+                        ds, batch_size=self.batch_size, num_workers=self.num_workers
+                    )
 
-                task = progress_bar.add_task(f"Processing tissue {tid}", total=len(ds))
+                    task = progress_bar.add_task(
+                        f"Processing tissue {tid}", total=len(ds)
+                    )
 
-                for chunk in dl:
-                    images = chunk["image"]
-                    xs, ys = np.asarray(chunk["x"]), np.asarray(chunk["y"])
-                    if self.device is not None:
-                        images = images.to(self.device)
-                    # TODO: output may not be tensor
-                    output = self.model.segment(images)
+                    for chunk in dl:
+                        images = chunk["image"]
+                        xs, ys = np.asarray(chunk["x"]), np.asarray(chunk["y"])
+                        if self.device is not None:
+                            images = images.to(self.device)
+                        # TODO: output may not be tensor
+                        output = self.model.segment(images)
 
-                    probability_map = output["probability_map"]
+                        probability_map = output["probability_map"]
 
-                    if isinstance(probability_map, torch.Tensor):
-                        # Update the out tensor with the importance map
-                        probability_map = probability_map * self.importance_map.to(
-                            probability_map.device
-                        )
-                        # Get output back to cpu
-                        probability_map = probability_map.detach().cpu().numpy()
-                    elif isinstance(probability_map, np.ndarray):
-                        probability_map *= self.importance_map.numpy()
-                    else:
-                        raise TypeError(
-                            f"Probability map type {type(probability_map)} is not supported"
-                        )
-
-                    # Calculate the position of the tile in the tissue bounds
-                    for i in range(len(xs)):
-                        pos_x = int((xs[i] - minx) / self.downsample)
-                        pos_y = int((ys[i] - miny) / self.downsample)
-                        # Update the probability mask
-                        if prob_mask is None:
-                            # Initialize the probability mask with the shape of the output
-                            prob_mask = _initialize_merging_prob_masks(
-                                probability_map[i], height, width
+                        if isinstance(probability_map, torch.Tensor):
+                            # Update the out tensor with the importance map
+                            probability_map = probability_map * self.importance_map.to(
+                                probability_map.device
                             )
-                        slice_y = slice(
-                            pos_y,
-                            np.clip(
-                                pos_y + self.tile_spec.height, a_max=height, a_min=None
-                            ),
-                        )
-                        slice_x = slice(
-                            pos_x,
-                            np.clip(
-                                pos_x + self.tile_spec.width, a_max=width, a_min=None
-                            ),
-                        )
-                        # Clip out if it exceeds the mask boundaries
-                        out_clipped = probability_map[i][
-                            :,
-                            : slice_y.stop - slice_y.start,
-                            : slice_x.stop - slice_x.start,
-                        ]
-                        prob_mask[:, slice_y, slice_x] += out_clipped
-                        # Update the count mask
-                        count_mask[slice_y, slice_x] += 1
-                    progress_bar.update(task, advance=len(images))
-                    progress_bar.refresh()
+                            # Get output back to cpu
+                            probability_map = probability_map.detach().cpu().numpy()
+                        elif isinstance(probability_map, np.ndarray):
+                            probability_map *= self.importance_map.numpy()
+                        else:
+                            raise TypeError(
+                                f"Probability map type {type(probability_map)} is not supported"
+                            )
+
+                        # Calculate the position of the tile in the tissue bounds
+                        for i in range(len(xs)):
+                            # Update the probability mask
+                            if prob_mask is None:
+                                # Initialize the probability mask with the shape of the output
+                                prob_mask = _initialize_merging_prob_masks(
+                                    probability_map[i], height, width
+                                )
+                            pos_x = int((xs[i] - minx) / self.downsample)
+                            pos_y = int((ys[i] - miny) / self.downsample)
+                            slice_y = slice(
+                                pos_y,
+                                np.clip(
+                                    pos_y + self.tile_spec.height,
+                                    a_max=height,
+                                    a_min=None,
+                                ),
+                            )
+                            slice_x = slice(
+                                pos_x,
+                                np.clip(
+                                    pos_x + self.tile_spec.width,
+                                    a_max=width,
+                                    a_min=None,
+                                ),
+                            )
+                            # Clip out if it exceeds the mask boundaries
+                            out_clipped = probability_map[i][
+                                :,
+                                : slice_y.stop - slice_y.start,
+                                : slice_x.stop - slice_x.start,
+                            ]
+                            prob_mask[:, slice_y, slice_x] += out_clipped
+                            # Update the count mask
+                            count_mask[slice_y, slice_x] += 1
+                        progress_bar.update(task, advance=len(images))
+                        progress_bar.refresh()
                 # Normalize the probability mask by the count mask
                 prob_mask /= count_mask.unsqueeze(0).clamp(min=1e-6)
+                prob_mask[prob_mask < 1e-3] = 0
                 # Chunk the probability mask into PATCHES to avoid large memory allocation
                 np_mask = prob_mask.detach().cpu().numpy()
                 seg_objects = []
