@@ -179,3 +179,4 @@ sample_data/
 *.ipynb
 *.geojson
 *.zarr
+*_version.py
