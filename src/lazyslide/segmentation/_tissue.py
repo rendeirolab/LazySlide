@@ -5,7 +5,7 @@ from typing import Literal
 import cv2
 import numpy as np
 import torch
-from shapely import box
+from shapely import box, clip_by_rect
 from shapely.affinity import scale
 from wsidata import WSIData
 from wsidata.io import add_tissues
@@ -132,11 +132,12 @@ def tissue(
     pred = model.segment(img_t)
     pred = pred["probability_map"]
 
-    pred = pred.squeeze().detach().cpu().numpy()
-    mask = np.argmax(pred, axis=0).astype(np.uint8)
+    pred = pred.squeeze(0).detach().cpu().numpy()
     if model_name == "grandqc":
-        # Flip the mask
-        mask = 1 - mask
+        tissue_prob = pred[0]
+    else:
+        tissue_prob = pred[1]
+    mask = (tissue_prob > 0.5).astype(np.uint8)
     polygons = BinaryMask(mask).to_polygons(
         min_area=1e-3,
         min_hole_area=1e-5,
@@ -151,11 +152,18 @@ def tissue(
         .scale(xfact=current_downsample, yfact=current_downsample, origin=(0, 0))
     )
     minx, miny, width, height = wsi.properties.bounds
+    tissue_box = box(minx, miny, minx + width, miny + height)
     filter_box = scale(
-        box(minx, miny, minx + width, miny + height),
+        tissue_box,
         xfact=1 - bbox_ratio,
         yfact=1 - bbox_ratio,
     )
     # Filter polygons that are outside the filter box
     polygons = polygons[polygons.geometry.intersects(filter_box)]
+    # Clip the polygons to the filter box
+    polygons.geometry = clip_by_rect(
+        polygons.geometry, minx, miny, minx + width, miny + height
+    )
+    polygons.geometry = polygons.geometry.buffer(0)  # Fix any invalid geometries
+    polygons = polygons.explode().reset_index(drop=True)
     add_tissues(wsi, key_added, polygons.geometry)
