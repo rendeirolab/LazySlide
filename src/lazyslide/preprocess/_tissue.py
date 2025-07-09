@@ -242,6 +242,8 @@ def score_tissues(
 
     This is useful to filter out artifacts or non-tissue regions.
 
+    .. deprecated:: 0.7.2
+
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
@@ -279,6 +281,12 @@ def score_tissues(
 
 
     """
+
+    warnings.warn(
+        "This function is deprecated and will be removed after v0.9.0",
+        stacklevel=find_stack_level(),
+    )
+
     if scorers is None:
         scorers = ["redness", "brightness"]
     compose_scorer = get_scorer(scorers)

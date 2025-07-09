@@ -221,6 +221,8 @@ def score_tiles(
     """
     Score the tiles and filter the tiles based on their quality scores.
 
+    .. deprecated:: 0.7.2
+
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
@@ -261,6 +263,12 @@ def score_tiles(
         >>> zs.pl.tiles(wsi, color=["focus", "contrast"])
 
     """
+
+    warnings.warn(
+        "This function is deprecated and will be removed after v0.9.0, "
+        "please use `tl.tile_prediction` instead.",
+        stacklevel=find_stack_level(),
+    )
 
     compose_scorer = get_scorer(scorers)
 
