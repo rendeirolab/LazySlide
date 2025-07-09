@@ -46,7 +46,7 @@ class PathProfilerQC(TilePredictionModel):
         | `diagnostic_quality`     | Whether the image is usable for diagnosis (1 = good quality)       |
         | `visual_cleanliness`     | Whether the image appears normal and free of artefacts (1 = clean) |
         | `focus_issue`            | Degree of focus issue (1 = severe, 0.5 = slight, 0 = none)         |
-        | `staining_quality`       | Degree of staining issue (1 = severe, 0.5 = slight, 0 = none)      |
+        | `staining_issue`       | Degree of staining issue (1 = severe, 0.5 = slight, 0 = none)      |
         | `tissue_folding_present` | Whether tissue folding is present (1 = present)                    |
         | `misc_artifacts_present` | Whether other artefacts are present (1 = present)                  |
 
@@ -55,7 +55,7 @@ class PathProfilerQC(TilePredictionModel):
             "diagnostic_quality",
             "visual_cleanliness",
             "focus_issue",
-            "staining_quality",
+            "staining_issue",
             "tissue_folding_present",
             "misc_artifacts_present",
         ]
