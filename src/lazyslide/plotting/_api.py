@@ -116,7 +116,7 @@ def tissue(
             img_bytes_limit=img_bytes_limit,
         )
         viewer.add_image()
-        if show_contours:
+        if show_contours and tissue_key in wsi:
             viewer.add_contours(
                 key=tissue_key,
                 label_by="tissue_id" if show_id else None,
@@ -320,7 +320,7 @@ def tiles(
             if show_image:
                 viewer.add_image()
 
-            if show_contours:
+            if show_contours and tissue_key in wsi:
                 viewer.add_contours(
                     key=tissue_key,
                     label_by="tissue_id" if show_id else None,
@@ -341,7 +341,10 @@ def tiles(
                 **options,
             )
             if t == "":
-                t = f"Tissue ({tid}) {viewer.title}"
+                if tid is not None:
+                    t += f"Tissue ({tid})"
+                if viewer.title is not None:
+                    t += f" {viewer.title}"
             viewer.title = t
             viewer.show(ax=ax)
 
