@@ -116,12 +116,12 @@ def tissue(
             img_bytes_limit=img_bytes_limit,
         )
         viewer.add_image()
+        if show_contours:
+            viewer.add_contours(
+                key=tissue_key,
+                label_by="tissue_id" if show_id else None,
+            )
         if tid is not None:
-            if show_contours:
-                viewer.add_contours(
-                    key=tissue_key,
-                    label_by="tissue_id" if show_id else None,
-                )
             viewer.set_tissue_id(tid, tissue_key=tissue_key)
         if scalebar:
             viewer.add_scalebar()
