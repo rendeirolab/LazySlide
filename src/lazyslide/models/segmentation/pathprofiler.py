@@ -58,7 +58,7 @@ class PathProfilerTissueSegmentation(SegmentationModel):
 
     def segment(self, image):
         with torch.inference_mode():
-            return {"probability_map": self.model(image)}
+            return {"probability_map": self.model(image).softmax(1)}
 
     def supported_output(self):
         return ("probability_map",)
