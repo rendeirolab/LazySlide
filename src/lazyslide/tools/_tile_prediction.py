@@ -85,7 +85,13 @@ def tile_prediction(
     results = []
 
     with default_pbar(disable=not pbar) as progress_bar:
-        task = progress_bar.add_task(f"Predicting tiles with {model}", total=len(ds))
+        if isinstance(model, str):
+            model_name = model
+        else:
+            model_name = model.__class__.__name__
+        task = progress_bar.add_task(
+            f"Predicting tiles with {model_name}", total=len(ds)
+        )
 
         with torch.inference_mode():
             for batch in dl:
