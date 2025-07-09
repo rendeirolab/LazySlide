@@ -221,7 +221,7 @@ def score_tiles(
     """
     Score the tiles and filter the tiles based on their quality scores.
 
-    .. deprecation:: 0.7.2
+    .. deprecated:: 0.7.2
 
     Parameters
     ----------
