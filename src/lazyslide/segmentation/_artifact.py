@@ -67,11 +67,11 @@ def artifact(
         The key for the added artifact shapes.
 
     """
-    if tissue_key not in wsi:
-        raise ValueError(
-            "Tissue segmentation is required before artifact segmentation."
-            "Please run `pp.find_tissues` first."
-        )
+    # if tissue_key not in wsi:
+    #     raise ValueError(
+    #         "Tissue segmentation is required before artifact segmentation."
+    #         "Please run `pp.find_tissues` first."
+    #     )
 
     if device is None:
         device = get_torch_device()
@@ -109,4 +109,5 @@ def artifact(
         class_names=CLASS_MAPPING,
     )
     arts = runner.run()
+    arts = arts.explode().reset_index(drop=True)
     add_shapes(wsi, key=key_added, shapes=arts)
