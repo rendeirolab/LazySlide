@@ -88,7 +88,7 @@ class GrandQCTissue(SMPBase):
 
     @torch.inference_mode()
     def segment(self, image):
-        return {"probability_map": self.model.predict(image)}
+        return {"probability_map": self.model.predict(image).softmax(dim=1)}
 
     def supported_output(self):
         return ("probability_map",)
