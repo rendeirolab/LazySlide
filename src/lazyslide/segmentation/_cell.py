@@ -20,6 +20,8 @@ def cells(
     batch_size=4,
     num_workers=0,
     device=None,
+    size_filter=False,
+    nucleus_size=(20, 1000),
     pbar=True,
     key_added="cells",
     **model_kwargs,
@@ -81,6 +83,8 @@ def cells(
         transform=transform,
         batch_size=batch_size,
         num_workers=num_workers,
+        size_filter=size_filter,
+        nucleus_size=nucleus_size,
         device=device,
         pbar=pbar,
     )

@@ -8,7 +8,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import torch
-from shapely import box
+from shapely import box, prepare
 from torch.utils.data import DataLoader
 from wsidata import TileSpec, WSIData
 from wsidata.io import add_shapes
@@ -466,6 +466,7 @@ class CellSegmentationRunner(Runner):
         model: SegmentationModel,
         tile_key: str = Key.tiles,
         transform: Callable = None,
+        size_filter: bool = True,
         nucleus_size: (int, int) = (20, 1000),
         batch_size: int = 4,
         num_workers: int = 0,
@@ -477,6 +478,7 @@ class CellSegmentationRunner(Runner):
         self.model = model
         self.tile_key = tile_key
         self.transform = transform or model.get_transform()
+        self.size_filter = size_filter
         self.nucleus_size = nucleus_size
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -539,13 +541,14 @@ class CellSegmentationRunner(Runner):
                     )
                     df = m.to_polygons(detect_holes=False)
                     if len(df) > 0:
+                        print(out.shape, self.tile_spec.height, self.tile_spec.width)
                         # Remove the polygons that are on the edge of the tile
                         tile_box = box(
                             0, 0, self.tile_spec.width, self.tile_spec.height
-                        )
-                        df = df[
-                            df["geometry"].apply(lambda geom: tile_box.covers(geom))
-                        ]
+                        ).buffer(-2).boundary
+                        prepare(tile_box)
+                        sel = df["geometry"].apply(lambda geom: not tile_box.intersects(geom))
+                        df = df[sel]
                         # Move the polygons to the global coordinate
                         df["geometry"] = (
                             df["geometry"]
@@ -557,16 +560,17 @@ class CellSegmentationRunner(Runner):
                             .translate(xoff=pos_x, yoff=pos_y)
                             .buffer(0)
                         )
-                        df = df[df["geometry"].area.between(*self.nucleus_size)]
+                        if self.size_filter:
+                            df = df[df["geometry"].area.between(*self.nucleus_size)]
                         results.append(df)
                 progress_bar.update(task, advance=len(images))
         progress_bar.refresh()
         # Concatenate all results into a single GeoDataFrame
-        if len(results) == 0:
-            return gpd.GeoDataFrame(columns=["geometry"])
         cells = gpd.GeoDataFrame(pd.concat(results, ignore_index=True)).reset_index(
             drop=True
         )
+        if len(cells) == 0:
+            return gpd.GeoDataFrame(columns=["geometry"])
         # Drop the overlapping cells, preserving the largest one
         cells = preserve_largest_polygon(cells)
         # Remove cells that are not in the tissue
