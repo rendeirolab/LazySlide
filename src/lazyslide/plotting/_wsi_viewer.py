@@ -727,7 +727,6 @@ class ZoomRenderPlan(ZoomMixin, RenderPlan):
 
         if all([0 <= x <= 1 for x in [xmin, xmax, ymin, ymax]]):
             w, h = self.image_datasource.get_image_size()
-            print(w, h)
             x_start, y_start = (
                 self.image_datasource.viewport.x,
                 self.image_datasource.viewport.y,
@@ -958,15 +957,13 @@ class WSIViewer:
         colors = None
         if color_by is not None:
             colors = shapes[color_by]
-            if palette is None:
-                palette = LAZYSLIDE_PALETTE
-            if is_color_like(palette):
-                colors = [palette for _ in colors]
+            if isinstance(colors, pd.Categorical):
+                # If colors is categorical, convert to codes
+                colors = colors.codes
             else:
-                if isinstance(palette, Sequence):
-                    cats = np.unique(colors)
-                    palette = dict(zip(cats, palette))
-                colors = [palette[c] for c in colors]
+                colors = np.unique(colors)
+            palette = get_dict_palette(palette, colors)
+            colors = [palette[c] for c in colors]
         else:
             # Set palette to None
             palette = None
@@ -1181,19 +1178,8 @@ class WSIViewer:
                 is_categorical = True
 
         if is_categorical:
-            if palette is None:
-                palette = LAZYSLIDE_PALETTE
-            if isinstance(palette, Sequence):
-                cats = np.unique(values)
-                if len(cats) > len(palette):
-                    warnings.warn(
-                        f"n_categories ({len(cats)}) for color_by={color_by} "
-                        f"is greater than the n_colors ({len(palette)})."
-                        f"Duplicated colors will be used.",
-                        stacklevel=find_stack_level(),
-                    )
-                palette = dict(zip(cats, cycle(palette)))
-
+            cats = np.unique(values)
+            palette = get_dict_palette(palette, cats)
         container = dict(
             ds=self.tile_source[key],
             values=values,
@@ -1378,10 +1364,11 @@ class WSIViewer:
 
         if all([0 <= x <= 1 for x in [xmin, xmax, ymin, ymax]]):
             current_viewport = self._viewport
-            xmin = current_viewport.x + xmin * current_viewport.w
-            xmax = current_viewport.x + xmax * current_viewport.w
-            ymin = current_viewport.y + ymin * current_viewport.h
-            ymax = current_viewport.y + ymax * current_viewport.h
+            downsample = current_viewport.downsample
+            xmin = (current_viewport.x + xmin * current_viewport.w) * downsample
+            xmax = (current_viewport.x + xmax * current_viewport.w) * downsample
+            ymin = (current_viewport.y + ymin * current_viewport.h) * downsample
+            ymax = (current_viewport.y + ymax * current_viewport.h) * downsample
         elif all([x > 1 for x in [xmin, xmax, ymin, ymax]]):
             pass
         else:
@@ -1494,3 +1481,46 @@ def _axes_style(ax, anchor=None, axis="off", xaxis="top"):
     ax.xaxis.set_ticks(np.asarray(ax.get_xlim(), dtype=int))
     ax.yaxis.set_ticks(np.asarray(ax.get_ylim(), dtype=int))
     return ax
+
+
+MPL_QUAL_PALS = {
+    "tab10": 10,
+    "tab20": 20,
+    "tab20b": 20,
+    "tab20c": 20,
+    "Set1": 9,
+    "Set2": 8,
+    "Set3": 12,
+    "Accent": 8,
+    "Paired": 12,
+    "Pastel1": 9,
+    "Pastel2": 8,
+    "Dark2": 8,
+}
+
+
+def get_dict_palette(palette: PaletteType, category: list) -> Dict:
+    """Convert a palette to a dictionary if it is not already.
+
+    The category must be a sequence of unique values.
+    """
+    if palette is None:
+        palette = LAZYSLIDE_PALETTE
+
+    if isinstance(palette, dict):
+        return palette
+    if isinstance(palette, str):
+        cmap = plt.get_cmap(palette)
+        if palette in MPL_QUAL_PALS:
+            # If the palette is a qualitative palette, call by n_colors
+            sel = np.arange(len(category))
+        else:
+            sel = np.linspace(0, 1, len(category))
+        colors = cmap(sel)
+        return dict(zip(category, colors))
+    elif isinstance(palette, Sequence):
+        return dict(zip(category, palette))
+    elif is_color_like(palette):
+        return {cat: to_rgba(palette) for cat in category}
+    else:
+        raise ValueError(f"Unsupported palette type: {type(palette)}")
