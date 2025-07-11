@@ -6,7 +6,6 @@ from wsidata import WSIData
 from wsidata.io import add_shapes
 
 from lazyslide.models import SegmentationModel
-from lazyslide.models.segmentation import Instanseg, NuLite
 
 from .._const import Key
 from .._utils import find_stack_level
@@ -21,8 +20,11 @@ def cells(
     batch_size=4,
     num_workers=0,
     device=None,
+    size_filter=False,
+    nucleus_size=(20, 1000),
     pbar=True,
     key_added="cells",
+    **model_kwargs,
 ):
     """Cell segmentation for the whole slide image.
 
@@ -56,7 +58,9 @@ def cells(
 
     """
     if model == "instanseg":
-        model = Instanseg()
+        from lazyslide.models.segmentation import Instanseg
+
+        model = Instanseg(**model_kwargs)
         # Run tile check
         tile_spec = wsi.tile_spec(tile_key)
         check_mpp = tile_spec.mpp == 0.5
@@ -67,16 +71,11 @@ def cells(
                 f"the tile size should be 512x512 and the mpp should be 0.5. "
                 f"Current tile size is {tile_spec.width}x{tile_spec.height} with {tile_spec.mpp} mpp."
             )
+    elif model == "cellpose":
+        from lazyslide.models.segmentation import Cellpose
 
-    # runner = SegmentationRunner(
-    #     wsi,
-    #     model,
-    #     tile_key,
-    #     transform=transform,
-    #     batch_size=batch_size,
-    #     num_workers=num_workers,
-    #     device=device,
-    # )
+        model = Cellpose(**model_kwargs)
+
     runner = CellSegmentationRunner(
         wsi,
         model,
@@ -84,6 +83,8 @@ def cells(
         transform=transform,
         batch_size=batch_size,
         num_workers=num_workers,
+        size_filter=size_filter,
+        nucleus_size=nucleus_size,
         device=device,
         pbar=pbar,
     )
@@ -136,6 +137,8 @@ def cell_types(
     """
 
     if model == "nulite":
+        from lazyslide.models.segmentation import NuLite
+
         model = NuLite()
         # Run tile check
         tile_spec = wsi.tile_spec(tile_key)

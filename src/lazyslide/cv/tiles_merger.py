@@ -15,7 +15,10 @@ from shapely.strtree import STRtree
 # 2. For cell segmentation: Only preserve the largest polygon in each group of overlapping polygons.
 
 
-def polygon_groups(polygons: List[Polygon]) -> Generator[NDArray[np.integer]]:
+def polygon_groups(
+        polygons: List[Polygon], 
+        find_all=True,
+    ) -> Generator[NDArray[np.integer]]:
     """A generator that yields indexes of polygon that are intersected."""
     tree = STRtree(polygons)
     visited = set()
@@ -29,19 +32,20 @@ def polygon_groups(polygons: List[Polygon]) -> Generator[NDArray[np.integer]]:
         if len(groups_ix) == 0:
             continue
         else:
-            # continue finding other polygons that intersect with the group
-            # until the group size is stable
-            current_group_size = len(groups_ix)
-            while True:
-                new_groups_ix = set()
-                for ix in groups_ix:
-                    c_groups_ix = tree.query(polygons[ix], predicate="intersects")
-                    c_groups_ix = [g for g in c_groups_ix if g not in visited]
-                    new_groups_ix.update(c_groups_ix)
-                groups_ix.update(new_groups_ix)
-                if len(groups_ix) == current_group_size:
-                    break
+            if find_all:
+                # continue finding other polygons that intersect with the group
+                # until the group size is stable
                 current_group_size = len(groups_ix)
+                while True:
+                    new_groups_ix = set()
+                    for ix in groups_ix:
+                        c_groups_ix = tree.query(polygons[ix], predicate="intersects")
+                        c_groups_ix = [g for g in c_groups_ix if g not in visited]
+                        new_groups_ix.update(c_groups_ix)
+                    groups_ix.update(new_groups_ix)
+                    if len(groups_ix) == current_group_size:
+                        break
+                    current_group_size = len(groups_ix)
 
         # Sort the group index
         groups_ix = np.sort(list(groups_ix))
@@ -81,8 +85,8 @@ class PolygonMerger:
     def __init__(
         self,
         gdf: gpd.GeoDataFrame,
-        class_col: str = None,
-        prob_col: str = None,
+        class_col: str | None = None,
+        prob_col: str | None = None,
         buffer_px: float = 0,
     ):
         self.gdf = gdf
@@ -261,7 +265,7 @@ def preserve_largest_polygon(
     polygons = pp_gdf["geometry"].tolist()
 
     merged = []
-    for groups_ix in polygon_groups(polygons):
+    for groups_ix in polygon_groups(polygons, find_all=False):
         if len(groups_ix) == 1:
             merged.append(gdf.iloc[groups_ix[0]])
         else:

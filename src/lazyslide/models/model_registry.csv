@@ -33,3 +33,4 @@ SpiderBreast,spider-breast,1,tile_prediction,SpiderBreast,,https://huggingface.c
 SpiderColorectal,spider-colorectal,1,tile_prediction,SpiderColorectal,,https://huggingface.co/collections/histai/spider-models-and-datasets-6814834eca365b006389c117,,Tile prediction model on different organs
 SpiderSkin,spider-skin,1,tile_prediction,SpiderSkin,,https://huggingface.co/collections/histai/spider-models-and-datasets-6814834eca365b006389c117,,Tile prediction model on different organs
 SpiderThorax,spider-thorax,1,tile_prediction,SpiderThorax,,https://huggingface.co/collections/histai/spider-models-and-datasets-6814834eca365b006389c117,,Tile prediction model on different organs
+Cellpose,cellpose,0,segmentation,Cellpose,https://github.com/MouseLand/cellpose,https://huggingface.co/mouseland/cellpose-sam,https://doi.org/10.1038/s41592-020-01018-x,Cell segmentation model
