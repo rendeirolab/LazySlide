@@ -181,6 +181,7 @@ model = [
     "conch",
     "open-clip-torch>=2.32.0",
     "transformers>=4.49.0",
+    "cellpose>=4.0.0"
 ]
 
 
