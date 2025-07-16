@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import warnings
 from typing import Literal
 
 import cv2
 import numpy as np
 import torch
-from shapely import box, clip_by_rect
+from shapely import box
 from shapely.affinity import scale
 from wsidata import WSIData
 from wsidata.io import add_tissues
@@ -22,6 +23,10 @@ def tissue(
     model: Literal["grandqc", "pathprofiler"] = "grandqc",
     level: int = None,
     bbox_ratio: float = 0.05,
+    min_area=1e-3,
+    min_hole_area=1e-5,
+    detect_holes: bool = True,
+    threshold: float = 0.5,
     device: str | None = None,
     key_added: str = Key.tissue,
 ):
@@ -37,6 +42,14 @@ def tissue(
     bbox_ratio : float, default: 0.05
         The ratio of the bounding box to filter
         the false positive tissue polygons.
+    min_area : float, default: 1e-3
+        The minimum area of the tissue polygon.
+    min_hole_area : float, default: 1e-5
+        The minimum area of the hole in the tissue polygon.
+    detect_holes : bool, default: True
+        Whether to detect holes in the tissue polygons.
+    threshold : float, default: 0.5
+        The probability threshold to consider a pixel as tissue.
     device : str, default: None
         The device to run the model.
     key_added : str, default: 'tissues'
@@ -113,6 +126,7 @@ def tissue(
     right_pad = new_width - width - left_pad
 
     # Apply padding
+    img_height, img_width = img.shape[:2]
     img = np.pad(
         img,
         pad_width=((top_pad, bottom_pad), (left_pad, right_pad), (0, 0)),
@@ -137,33 +151,28 @@ def tissue(
         tissue_prob = pred[0]
     else:
         tissue_prob = pred[1]
-    mask = (tissue_prob > 0.5).astype(np.uint8)
+    mask = (tissue_prob > threshold).astype(np.uint8)
+    # Unpad the mask to match the original image size
+    mask = mask[top_pad : top_pad + img_height, left_pad : left_pad + img_width]
     polygons = BinaryMask(mask).to_polygons(
-        min_area=1e-3,
-        min_hole_area=1e-5,
-        detect_holes=True,
+        min_area=min_area,
+        min_hole_area=min_hole_area,
+        detect_holes=detect_holes,
     )
     polygons["geometry"] = (
         polygons["geometry"]
-        # Translate the polygons to the image coordinates
-        # Account for the padding
-        .translate(xoff=-left_pad, yoff=-top_pad)
         # Scale the polygons to the original image coordinates
         .scale(xfact=current_downsample, yfact=current_downsample, origin=(0, 0))
     )
     minx, miny, width, height = wsi.properties.bounds
-    tissue_box = box(minx, miny, minx + width, miny + height)
     filter_box = scale(
-        tissue_box,
+        box(minx, miny, minx + width, miny + height),
         xfact=1 - bbox_ratio,
         yfact=1 - bbox_ratio,
     )
-    # Filter polygons that are outside the filter box
+    # Only polygons that are in the filter box are kept
     polygons = polygons[polygons.geometry.intersects(filter_box)]
-    # Clip the polygons to the filter box
-    polygons.geometry = clip_by_rect(
-        polygons.geometry, minx, miny, minx + width, miny + height
-    )
-    polygons.geometry = polygons.geometry.buffer(0)  # Fix any invalid geometries
-    polygons = polygons.explode().reset_index(drop=True)
+    if len(polygons) == 0:
+        warnings.warn("No tissues were found. The staining might be too weak.")
+        return
     add_tissues(wsi, key_added, polygons.geometry)
