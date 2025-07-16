@@ -126,7 +126,7 @@ def text_image_similarity(
     None
 
     .. note::
-        The similarity scores will be saved as an to :bdg-danger:`tables`
+        The similarity scores will be saved in the :bdg-danger:`tables`
         slot of the spatial data object.
 
     Examples
@@ -152,7 +152,7 @@ def text_image_similarity(
     if feature_key is None:
         feature_key = model
     feature_key = wsi._check_feature_key(feature_key, tile_key)
-    key_added = f"{feature_key}_text_similarity" or key_added
+    key_added = key_added or f"{feature_key}_text_similarity"
 
     feature_X = wsi.tables[feature_key].X
 
