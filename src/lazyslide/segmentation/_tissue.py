@@ -173,6 +173,6 @@ def tissue(
     # Only polygons that are in the filter box are kept
     polygons = polygons[polygons.geometry.intersects(filter_box)]
     if len(polygons) == 0:
-        warnings.warn("No tissue are found. The staining might be too weak.")
+        warnings.warn("No tissues were found. The staining might be too weak.")
         return
     add_tissues(wsi, key_added, polygons.geometry)
