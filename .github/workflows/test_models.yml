@@ -1,0 +1,36 @@
+name: Test Models
+on:
+  workflow_dispatch: # Allows manual triggering of the workflow
+  schedule:          # Schedules the workflow to run weekly
+    - cron: '0 0 * * 0' # Runs every Sunday at midnight UTC
+  push:
+    paths:
+      - '.github/workflows/test_models.yml'
+      - 'src/lazyslide/models/**'
+      - 'tests/models/**'
+
+jobs:
+  Test:
+    runs-on: linux-cpu8-300g # Use a runner with enough disk space
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: 3.12
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install project
+        run: uv sync --dev
+      - name: Login to Hugging Face
+        run: |
+          uv run huggingface-cli login --token ${{ secrets.HF_TOKEN }}
+      - name: Tests # TODO: Add tests for models
+        run: |
+          uv run pytest tests/models --cov=src/lazyslide/models --cov-report=xml --cov-report=html
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+
