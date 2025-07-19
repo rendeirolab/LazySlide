@@ -35,18 +35,19 @@ class CHIEFSlideEncoder(SlideEncoderModel):
 
         self.model = torch.jit.load(model_file, map_location="cpu")
 
-    def encode_slide(self, embeddings, coords=None):
+    def encode_slide(self, embeddings, coords=None, **kwargs):
         """
         Encode the slide using the CHIEF slide encoder.
-        The embeddings should be a tensor of shape [B, N].
+        The embeddings should be a tensor of shape [B, T, N].
+        T is the number of tiles, and N is the feature dimension.
         """
 
-        if len(embeddings.shape) == 3:
-            raise ValueError(
-                "CHIEF slide encoder expects a 2D tensor of shape [B, N], "
-                "B tiles with N features."
-            )
-
         with torch.inference_mode():
-            output = self.model(embeddings)
-            return output
+            if len(embeddings.shape) == 2:
+                # If embeddings are of shape [T, N], we need to unsqueeze to [1, T, N]
+                embeddings = embeddings.unsqueeze(0)
+            outputs = []
+            for emb in embeddings:
+                output = self.model(emb)
+                outputs.append(output.squeeze(0))
+            return torch.stack(outputs, dim=0)

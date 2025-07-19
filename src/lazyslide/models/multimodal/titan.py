@@ -49,6 +49,7 @@ class Titan(ImageModel):
     def to(self, device):
         super().to(device)
         self.conch.to(device)
+        return self
 
     def get_transform(self):
         from torchvision.transforms import InterpolationMode

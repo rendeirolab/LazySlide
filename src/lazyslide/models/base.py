@@ -88,7 +88,7 @@ class TimmModel(ImageModel):
 
 class SlideEncoderModel(ModelBase):
     @abstractmethod
-    def encode_slide(self, embeddings, coords=None):
+    def encode_slide(self, embeddings, coords=None, **kwargs):
         raise NotImplementedError
 
 
