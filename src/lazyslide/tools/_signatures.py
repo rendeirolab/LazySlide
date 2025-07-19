@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import TYPE_CHECKING, Any, Literal
 
-import numpy as np
-import pandas as pd
-import seaborn as sns
-from anndata import AnnData
-from matplotlib import pyplot as plt
+# For type checking only
+if TYPE_CHECKING:
+    from anndata import AnnData
 
 
 class RNALinker:
@@ -37,6 +35,11 @@ class RNALinker:
                 "To use MultimodalLinker, you need to install scanpy. You can install it using "
                 "`pip install scanpy."
             )
+
+        from anndata import AnnData
+
+        if not isinstance(agg_features, AnnData) or not isinstance(others, AnnData):
+            raise TypeError("agg_features and others must be AnnData objects")
 
         self.agg_features = agg_features
         self.others = others
@@ -77,6 +80,7 @@ class RNALinker:
             If not specify, f"{score_group}_score" will be added to the obs of agg_features.
 
         """
+        import numpy as np
         import scanpy as sc
 
         self.groupby = groupby
@@ -117,6 +121,10 @@ class RNALinker:
         """
         Plot the score distribution for the score group and others.
         """
+        import pandas as pd
+        import seaborn as sns
+        from matplotlib import pyplot as plt
+
         if self.score_key is None:
             raise ValueError("Please run .score() first.")
 
@@ -149,6 +157,10 @@ class RNALinker:
         """
         Associate scores with other omics.
         """
+        import numpy as np
+        import pandas as pd
+        from anndata import AnnData
+
         omics_matrix = self.others
         if not isinstance(omics_matrix, AnnData):
             raise TypeError("omics_matrix must be an AnnData object.")
@@ -190,6 +202,9 @@ class RNALinker:
         omics_matrix.var[key_added] = np.asarray(coef)
 
     def _get_associated_genes(self, gene_name: str | None = None):
+        # Import dependencies locally
+        import pandas as pd
+
         omics_matrix = self.others
         if self.association_score_key not in omics_matrix.var:
             raise ValueError("Please run .associate() first.")
@@ -217,6 +232,9 @@ class RNALinker:
         """
         Plot the rank of the association score.
         """
+        import numpy as np
+        from matplotlib import pyplot as plt
+
         omics_matrix = self.others
         if self.association_score_key not in omics_matrix.var:
             raise ValueError("Please run .associate() first.")
