@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import Manager
-from typing import Sequence
+from typing import Literal, Sequence
 
 import geopandas as gpd
 import numpy as np
@@ -31,6 +31,7 @@ def tile_tissues(
     ops_level: int = None,
     background_filter: bool = True,
     background_fraction: float = 0.3,
+    background_filter_mode: Literal["approx", "exact"] = "approx",
     tissue_key: str | None = Key.tissue,
     key_added: str | None = Key.tiles,
     return_tiles: bool = False,
@@ -66,6 +67,11 @@ def tile_tissues(
     background_fraction : float, default: 0.3
         Only used if `background_filter` is True.
         The fraction of background in the tile, if more than this, discard the tile.
+    background_filter_mode : {'approx', 'exact'}, default: 'approx'
+        The mode of the background filter.
+        If 'approx', it will filter out tiles that are on the border of the tissue.
+        If 'exact', it will filter out tiles that are not within the tissue,
+        but it may be much slower for smaller tiles.
     tissue_key : str, default 'tissue'
         The key of the tissue contours.
     key_added : str, default 'tiles'
@@ -155,13 +161,20 @@ def tile_tissues(
             stride_w=tile_spec.base_stride_width,
             stride_h=tile_spec.base_stride_height,
             edge=edge,
-            mask=Polygon(cnt.exterior),
+            mask=cnt,
         )
 
         if background_filter:
-            # check for tiles that are on the border of the tissue
-            border_tiles = tiles[tiles["pt_count"] < 4]
-
+            if background_filter_mode == "approx":
+                # check for tiles that are on the border of the tissue
+                border_tiles = tiles[tiles["pt_count"] < 4]
+            elif background_filter_mode == "exact":
+                border_tiles = tiles
+            else:
+                raise ValueError(
+                    f"Unknown background filter mode: {background_filter_mode}. "
+                    "Use 'approx' or 'exact'."
+                )
             # calculate the background fraction of each tile
             ov_ratio = border_tiles.intersection(cnt).area / border_tiles.area
 
