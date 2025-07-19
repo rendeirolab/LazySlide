@@ -19,6 +19,13 @@ def wsi():
     return zs.datasets.gtex_artery()
 
 
+@pytest.fixture(scope="session", autouse=True)
+def wsi_small():
+    import lazyslide as zs
+
+    return zs.datasets.sample()
+
+
 @pytest.fixture(scope="session")
 def tmp_path_session(tmp_path_factory):
     return tmp_path_factory.mktemp("session_tmp")
