@@ -49,8 +49,8 @@ class Instanseg(SegmentationModel):
         # with torch.inference_mode():
         out = self.model(image)
         # Output is a tensor of B, C, H, W
-        # But C is always 1 so we can squeeze it
-        return {"instance_map": out.squeeze(1)}
+        # But C is always 1, so we can squeeze it
+        return {"instance_map": out.long().squeeze(1)}
 
     def supported_output(self):
         return ("instance_map",)

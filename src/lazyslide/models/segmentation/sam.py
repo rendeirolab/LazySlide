@@ -40,7 +40,7 @@ class SAM(SegmentationModel):
             )
 
     def get_transform(self):
-        return self.processor.image_processor
+        return None
 
     @torch.inference_mode()
     def get_image_embedding(self, image) -> torch.Tensor:
@@ -103,4 +103,10 @@ class SAM(SegmentationModel):
             inputs["reshaped_input_sizes"].cpu(),
             mask_threshold=0,
         )
-        return masks[0]
+        return {"probability_map": masks[0]}
+
+    def supported_output(self):
+        """
+        Returns the supported output types for the SAM model.
+        """
+        return ("probability_map",)

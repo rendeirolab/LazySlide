@@ -23,12 +23,12 @@ class GrandQCArtifact(SegmentationModel):
         from huggingface_hub import hf_hub_download
 
         weights_map = {
-            "5x": "GrandQC_MPP2_traced.pt",
-            "7x": "GrandQC_MPP15_traced.pt",
-            "10x": "GrandQC_MPP1_traced.pt",
+            "5x": "GrandQC_MPP2_jit.pt",
+            "7x": "GrandQC_MPP15_jit.pt",
+            "10x": "GrandQC_MPP1_jit.pt",
         }
         weights = hf_hub_download(
-            "RendeiroLab/LazySlide-models", f"grandqc/{weights_map[model]}"
+            "RendeiroLab/LazySlide-models", f"GrandQC/{weights_map[model]}"
         )
 
         self.model = torch.jit.load(weights)
@@ -60,7 +60,41 @@ class GrandQCArtifact(SegmentationModel):
         return ("probability_map",)
 
 
-class GrandQCTissue(SMPBase):
+# class GrandQCTissue(SMPBase):
+#     CLASS_MAPPING = {
+#         0: "Background",
+#         1: "Tissue",
+#     }
+#
+#     def __init__(self):
+#         from huggingface_hub import hf_hub_download
+#
+#         weights = hf_hub_download(
+#             "RendeiroLab/LazySlide-models", "grandqc/Tissue_Detection_MPP10.pth"
+#         )
+#
+#         super().__init__(
+#             arch="unetplusplus",
+#             encoder_name="timm-efficientnet-b0",
+#             encoder_weights="imagenet",
+#             in_channels=3,
+#             classes=2,
+#             activation=None,
+#         )
+#         self.model.load_state_dict(
+#             torch.load(weights, map_location=torch.device("cpu"), weights_only=True)
+#         )
+#         self.model.eval()
+#
+#     @torch.inference_mode()
+#     def segment(self, image):
+#         return {"probability_map": self.model.predict(image).softmax(dim=1)}
+#
+#     def supported_output(self):
+#         return ("probability_map",)
+
+
+class GrandQCTissue(SegmentationModel):
     CLASS_MAPPING = {
         0: "Background",
         1: "Tissue",
@@ -70,25 +104,15 @@ class GrandQCTissue(SMPBase):
         from huggingface_hub import hf_hub_download
 
         weights = hf_hub_download(
-            "RendeiroLab/LazySlide-models", "grandqc/Tissue_Detection_MPP10.pth"
+            "RendeiroLab/LazySlide-models", "GrandQC/GrandQC_tissue_seg_jit.pt"
         )
 
-        super().__init__(
-            arch="unetplusplus",
-            encoder_name="timm-efficientnet-b0",
-            encoder_weights="imagenet",
-            in_channels=3,
-            classes=2,
-            activation=None,
-        )
-        self.model.load_state_dict(
-            torch.load(weights, map_location=torch.device("cpu"), weights_only=True)
-        )
+        self.model = torch.jit.load(weights)
         self.model.eval()
 
     @torch.inference_mode()
     def segment(self, image):
-        return {"probability_map": self.model.predict(image).softmax(dim=1)}
+        return {"probability_map": self.model(image).softmax(dim=1)}
 
     def supported_output(self):
         return ("probability_map",)

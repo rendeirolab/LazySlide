@@ -23,7 +23,7 @@ class PLIPVision(ImageModel):
                 model_path, use_auth_token=token
             )
             self.processor = CLIPProcessor.from_pretrained(
-                model_path, use_auth_token=token
+                model_path, use_auth_token=token, use_fast=True, do_rescale=False
             )
 
     def get_transform(self):
@@ -31,7 +31,10 @@ class PLIPVision(ImageModel):
 
     @torch.inference_mode()
     def encode_image(self, image):
-        inputs = self.processor(images=image, return_tensors="pt")
+        inputs = self.processor(
+            images=image,
+            return_tensors="pt",
+        )
         inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
-        image_features = self.model.get_image_features(**inputs)
-        return image_features
+        image_features = self.model(**inputs)
+        return image_features["image_embeds"]

@@ -158,7 +158,7 @@ class Sharpness(_CVFeatures):
     def _func(self, image):
         gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         # Apply Laplacian operator
-        laplacian = cv2.Laplacian(gray_image.astype(np.float32), cv2.CV_64F)
+        laplacian = cv2.Laplacian(gray_image.astype(np.float32), cv2.CV_32F)
         return laplacian.var()
 
 
