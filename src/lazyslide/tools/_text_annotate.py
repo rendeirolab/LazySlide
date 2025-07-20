@@ -6,11 +6,13 @@ from wsidata import WSIData
 from wsidata.io import add_features
 
 from lazyslide._const import Key
+from lazyslide._utils import get_torch_device
 
 
 def text_embedding(
     texts: List[str],
     model: Literal["plip", "conch", "omiclip"] = "plip",
+    device: str = None,
 ):
     """Embed the text into a vector in the text-vision co-embedding using
 
@@ -24,6 +26,9 @@ def text_embedding(
         The list of texts.
     model : Literal["plip", "conch", "omiclip"], default: "plip"
         The text embedding model
+    device : str, optional
+        The device to use for computation (e.g., 'cpu', 'cuda', 'mps').
+        If None, will use CUDA if available, otherwise CPU.
 
     Returns
     -------
@@ -46,6 +51,10 @@ def text_embedding(
     """
     import torch
 
+    # Determine device
+    if device is None:
+        device = get_torch_device()
+
     if model == "plip":
         from lazyslide.models.multimodal import PLIP
 
@@ -60,6 +69,9 @@ def text_embedding(
         model_ins = OmiCLIP()
     else:
         raise ValueError(f"Invalid model: {model}")
+
+    # Move model to the specified device
+    model_ins.to(device)
 
     # use numpy record array to store the embeddings
     with torch.inference_mode():

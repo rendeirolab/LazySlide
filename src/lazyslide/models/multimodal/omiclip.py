@@ -41,6 +41,9 @@ class OmiCLIP(ImageTextModel):
             # Preprocess the image, then stack to create a batch of size 1
             image = self.processor(image)
 
+        # Move image to the same device as the model
+        image = image.to(self.model.device)
+
         # Generate the image features
         images_embedding = self.model.encode_image(image)
 
@@ -57,6 +60,9 @@ class OmiCLIP(ImageTextModel):
         """
         # Tokenizer returns a dict of tensors
         text_inputs = self.tokenizer(text)
+
+        # Move tokenized text to the same device as the model
+        text_inputs = {k: v.to(self.model.device) for k, v in text_inputs.items()}
 
         feats = self.model.encode_text(text_inputs)  # (N, D)
         normalized_features = F.normalize(feats, p=2, dim=-1)  # (N, D)

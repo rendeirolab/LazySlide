@@ -33,6 +33,9 @@ class CONCH(ImageTextModel):
         if image.dim() == 3:
             image = image.unsqueeze(0)
 
+        # Move image to the same device as the model
+        image = image.to(self.model.device)
+
         image_feature = self.model.encode_image(
             image, normalize=True, proj_contrast=True
         )
@@ -46,5 +49,7 @@ class CONCH(ImageTextModel):
     @torch.inference_mode()
     def encode_text(self, text):
         encode_texts = self.tokenize(text)
+        # Move tokenized text to the same device as the model
+        encode_texts = encode_texts.to(self.model.device)
         text_feature = self.model.encode_text(encode_texts)
         return text_feature
