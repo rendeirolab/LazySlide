@@ -170,6 +170,14 @@ def tile_tissues(
                 border_tiles = tiles[tiles["pt_count"] < 4]
             elif background_filter_mode == "exact":
                 border_tiles = tiles
+                if len(border_tiles) > 5000:
+                    # If there are too many tiles, warn the user
+                    # This is to avoid performance issues with exact mode
+                    warnings.warn(
+                        "Using 'exact' mode for background_filter_mode may be computationally expensive "
+                        "for large numbers of tiles. Consider using 'approx' mode for better performance.",
+                        stacklevel=find_stack_level(),
+                    )
             else:
                 raise ValueError(
                     f"Unknown background filter mode: {background_filter_mode}. "
