@@ -209,46 +209,12 @@ class TestPlTiles:
 class TestPlAnnotations:
     """Tests for zs.pl.annotations function."""
 
-    def setup_annotations(self, wsi):
-        """Helper to set up annotations for testing."""
-        # Ensure tissues are segmented
-        if "tissues" not in wsi.shapes:
-            zs.pp.find_tissues(wsi)
-
-        # Create some simple annotations if they don't exist
-        if "annotations" not in wsi.shapes:
-            # Get a tissue polygon to use as an annotation
-            if len(wsi["tissues"]) > 0:
-                tissue_poly = wsi["tissues"].geometry.iloc[0]
-                # Create a smaller polygon inside the tissue
-                minx, miny, maxx, maxy = tissue_poly.bounds
-                width, height = maxx - minx, maxy - miny
-
-                # Create a polygon that's 25% of the size in the center
-                small_poly = [
-                    (minx + width * 0.375, miny + height * 0.375),
-                    (minx + width * 0.625, miny + height * 0.375),
-                    (minx + width * 0.625, miny + height * 0.625),
-                    (minx + width * 0.375, miny + height * 0.625),
-                ]
-
-                # Add to wsi as annotations
-                import geopandas as gpd
-                from shapely.geometry import Polygon
-
-                annot_gdf = gpd.GeoDataFrame(
-                    {"geometry": [Polygon(small_poly)], "class": ["test_annotation"]}
-                )
-                wsi.shapes["annotations"] = annot_gdf
-
-    def test_basic_functionality(self, wsi):
+    def test_basic_functionality(self, wsi_with_annotations):
         """Test basic functionality of annotations plotting."""
-        self.setup_annotations(wsi)
-
         # Call the function
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        zs.pl.annotations(wsi, key="annotations", ax=ax)
+        zs.pl.annotations(wsi_with_annotations, key="annotations", ax=ax)
 
         # Check that the plot was created
         assert isinstance(ax, Axes)
@@ -256,26 +222,24 @@ class TestPlAnnotations:
         plt.close(fig)
 
     @pytest.mark.parametrize("fill", [True, False])
-    def test_fill(self, wsi, fill):
+    def test_fill(self, wsi_with_annotations, fill):
         """Test fill parameter."""
-        self.setup_annotations(wsi)
-
         # Call the function
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        zs.pl.annotations(wsi, key="annotations", fill=fill, ax=ax)
+        zs.pl.annotations(wsi_with_annotations, key="annotations", fill=fill, ax=ax)
 
         plt.close(fig)
 
     @pytest.mark.parametrize("show_image", [True, False])
-    def test_show_image(self, wsi, show_image):
+    def test_show_image(self, wsi_with_annotations, show_image):
         """Test show_image parameter."""
-        self.setup_annotations(wsi)
-
         # Call the function
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        zs.pl.annotations(wsi, key="annotations", show_image=show_image, ax=ax)
+        zs.pl.annotations(
+            wsi_with_annotations, key="annotations", show_image=show_image, ax=ax
+        )
 
         # Check for images
         if show_image:
