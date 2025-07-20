@@ -11,7 +11,7 @@ class TestTextEmbedding:
     def test_text_embedding_plip(self):
         """Test text_embedding with PLIP model."""
         texts = ["This is a test", "Another test text"]
-        embeddings = zs.tl.text_embedding(texts, model="plip")
+        embeddings = zs.tl.text_embedding(texts, model="plip", device="cpu")
 
         # Check that the output is a DataFrame with the expected shape and index
         assert isinstance(embeddings, pd.DataFrame)
@@ -34,7 +34,7 @@ class TestTextImageSimilarity:
     @pytest.fixture(autouse=True)
     def setup(self, wsi_small):
         """Setup for text_image_similarity tests."""
-        zs.tl.feature_extraction(wsi_small, model="plip")
+        zs.tl.feature_extraction(wsi_small, model="plip", device="cpu")
 
         # Verify that the tiles were created
         assert "plip_tiles" in wsi_small.tables
@@ -49,7 +49,7 @@ class TestTextImageSimilarity:
     def test_text_image_similarity_plip(self):
         """Test text_image_similarity with PLIP model."""
         # Get text embeddings
-        text_embeddings = zs.tl.text_embedding(self.texts, model="plip")
+        text_embeddings = zs.tl.text_embedding(self.texts, model="plip", device="cpu")
 
         # Compute similarity
         zs.tl.text_image_similarity(
@@ -70,7 +70,7 @@ class TestTextImageSimilarity:
     def test_text_image_similarity_with_softmax(self):
         """Test text_image_similarity with softmax applied."""
         # Get text embeddings
-        text_embeddings = zs.tl.text_embedding(self.texts, model="plip")
+        text_embeddings = zs.tl.text_embedding(self.texts, model="plip", device="cpu")
 
         # Compute similarity with softmax
         zs.tl.text_image_similarity(
@@ -96,7 +96,7 @@ class TestTextImageSimilarity:
     def test_text_image_similarity_with_custom_scoring(self):
         """Test text_image_similarity with a custom scoring function."""
         # Get text embeddings
-        text_embeddings = zs.tl.text_embedding(self.texts, model="plip")
+        text_embeddings = zs.tl.text_embedding(self.texts, model="plip", device="cpu")
 
         # Define a custom scoring function (cosine similarity)
         def cosine_similarity(X, Y):
@@ -129,7 +129,7 @@ class TestTextImageSimilarity:
     def test_text_image_similarity_invalid_scoring_func(self):
         """Test text_image_similarity with an invalid scoring function."""
         # Get text embeddings
-        text_embeddings = zs.tl.text_embedding(self.texts, model="plip")
+        text_embeddings = zs.tl.text_embedding(self.texts, model="plip", device="cpu")
 
         # Define an invalid scoring function that will raise an error
         def invalid_scoring_func(X, Y):
