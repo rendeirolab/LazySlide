@@ -13,14 +13,6 @@ You can install :code:`lazyslide` with different package manager you prefer.
 
             pip install lazyslide
 
-    .. tab-item:: Conda
-
-        The alternative installation.
-
-        .. code-block:: bash
-
-            conda install conda-forge::lazyslide
-
     .. tab-item:: uv
 
         .. code-block:: bash
