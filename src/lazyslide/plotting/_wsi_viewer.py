@@ -304,8 +304,7 @@ class ScaleBarRenderPlan(RenderPlan):
     def render(self, ax):
         from matplotlib_scalebar.scalebar import ScaleBar
 
-        downsample = self.datasource.viewport.downsample
-        scalebar = ScaleBar(self.dx * downsample, units=self.units, **self.kwargs)
+        scalebar = ScaleBar(self.dx, units=self.units, **self.kwargs)
         ax.add_artist(scalebar)
 
 
