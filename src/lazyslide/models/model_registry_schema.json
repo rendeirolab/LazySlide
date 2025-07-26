@@ -1,0 +1,24 @@
+{
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "name": { "type": "string" },
+      "keys": { "type": "array", "items": { "type": "string" } },
+      "is_gated": { "type": "boolean" },
+      "model_type": { "type": "string" },
+      "module": { "type": "string" },
+      "github_url": { "type": ["string", "null"] },
+      "hf_url": { "type": ["string", "null"] },
+      "paper_url": { "type": ["string", "null"] },
+      "description": { "type": "string" },
+      "bib_key": { "type": ["string", "null"] },
+      "license": { "type": ["string", "array"], "items": { "type": "string" } },
+      "license_url": { "type": ["string", "null"] },
+      "commercial": { "type": "boolean" },
+      "param_size": { "type": ["string", "null"] },
+      "encode_dim": { "type": ["number", "null"] }
+    },
+    "required": ["name", "keys", "is_gated", "model_type", "module", "description", "license", "commercial"]
+  }
+}

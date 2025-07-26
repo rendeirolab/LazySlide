@@ -1,0 +1,598 @@
+[
+  {
+    "name": "CONCH",
+    "keys": [
+      "conch"
+    ],
+    "is_gated": true,
+    "model_type": "multimodal",
+    "module": "CONCH",
+    "github_url": "https://github.com/mahmoodlab/CONCH",
+    "hf_url": "https://huggingface.co/MahmoodLab/conch",
+    "paper_url": "https://doi.org/10.1038/s41591-024-02856-4",
+    "description": "CONtrastive learning from Captions for Histopathology (CONCH)",
+    "bib_key": "Lu2024-nu",
+    "license": "CC-BY-NC-ND-4.0",
+    "commercial": false,
+    "param_size": "395.2M",
+    "encode_dim": 512
+  },
+  {
+    "name": "PLIP",
+    "keys": [
+      "plip"
+    ],
+    "is_gated": false,
+    "model_type": "multimodal",
+    "module": "PLIP",
+    "github_url": "https://github.com/PathologyFoundation/plip",
+    "hf_url": "https://huggingface.co/vinid/plip",
+    "paper_url": "https://doi.org/10.1038/s41591-023-02504-3",
+    "description": "Pathology Language-Image Pretraining (PLIP)",
+    "bib_key": "Huang2023-wi",
+    "license": "Non-commercial",
+    "commercial": false,
+    "param_size": "151.3M",
+    "encode_dim": null
+  },
+  {
+    "name": "Prism",
+    "keys": [
+      "prism"
+    ],
+    "is_gated": true,
+    "model_type": "multimodal",
+    "module": "Prism",
+    "github_url": null,
+    "hf_url": "https://huggingface.co/paige-ai/Prism",
+    "paper_url": "https://doi.org/10.48550/arXiv.2405.10254",
+    "description": "A multi-modal generative foundation model for slide-level histopathology, the Prism models encode slide-level embeddings from :class:`Virchow <lazyslide.models.vision.Virchow>`.",
+    "bib_key": "Shaikovski2024-kd",
+    "license": "CC-BY-NC-ND-4.0",
+    "commercial": false
+  },
+  {
+    "name": "Titan",
+    "keys": [
+      "titan",
+      "conch_v1.5"
+    ],
+    "is_gated": true,
+    "model_type": "multimodal",
+    "module": "Titan",
+    "github_url": "https://github.com/mahmoodlab/TITAN",
+    "hf_url": "https://huggingface.co/MahmoodLab/TITAN",
+    "paper_url": "https://doi.org/10.48550/arXiv.2411.19666",
+    "description": "Multimodal whole slide foundation model for pathology",
+    "bib_key": "Ding2024-pk",
+    "license": "CC-BY-NC-ND-4.0",
+    "commercial": false,
+    "param_size": "158.9M",
+    "encode_dim": 768
+  },
+  {
+    "name": "UNI",
+    "keys": [
+      "uni"
+    ],
+    "is_gated": true,
+    "model_type": "vision",
+    "module": "UNI",
+    "github_url": "https://github.com/mahmoodlab/UNI",
+    "hf_url": "https://huggingface.co/MahmoodLab/UNI",
+    "paper_url": "https://doi.org/10.1038/s41591-024-02857-3",
+    "description": "General-purpose self-supervised model for pathology",
+    "bib_key": "Chen2024-qt",
+    "license": "CC-BY-NC-ND-4.0",
+    "commercial": false,
+    "param_size": "303.4M",
+    "encode_dim": 1024
+  },
+  {
+    "name": "UNI2",
+    "keys": [
+      "uni2"
+    ],
+    "is_gated": true,
+    "model_type": "vision",
+    "module": "UNI2",
+    "github_url": "https://github.com/mahmoodlab/UNI",
+    "hf_url": "https://huggingface.co/MahmoodLab/UNI2-h",
+    "paper_url": "https://doi.org/10.1038/s41591-024-02857-3",
+    "description": "An improved version of UNI",
+    "bib_key": "Chen2024-qt",
+    "license": "CC-BY-NC-ND-4.0",
+    "commercial": false,
+    "param_size": "681.4M",
+    "encode_dim": 1536
+  },
+  {
+    "name": "GigaPath",
+    "keys": [
+      "gigapath"
+    ],
+    "is_gated": true,
+    "model_type": "vision",
+    "module": "GigaPath",
+    "github_url": "https://github.com/prov-gigapath/prov-gigapath",
+    "hf_url": "https://huggingface.co/prov-gigapath/prov-gigapath",
+    "paper_url": "https://doi.org/10.1038/s41586-024-07441-w",
+    "description": "A whole-slide foundation model for digital pathology",
+    "bib_key": "Xu2024-td",
+    "license": "Apache 2.0 with conditions",
+    "commercial": false,
+    "param_size": "1.13B",
+    "encode_dim": 1536
+  },
+  {
+    "name": "Virchow",
+    "keys": [
+      "virchow"
+    ],
+    "is_gated": true,
+    "model_type": "vision",
+    "module": "Virchow",
+    "github_url": null,
+    "hf_url": "https://huggingface.co/paige-ai/Virchow",
+    "paper_url": "https://doi.org/10.1038/s41591-024-03141-0",
+    "description": "A foundation model for clinical-grade computational pathology and rare cancers detection",
+    "bib_key": "Vorontsov2024-di",
+    "license": "Apache 2.0",
+    "commercial": true,
+    "param_size": "631.2M",
+    "encode_dim": 2560
+  },
+  {
+    "name": "Virchow2",
+    "keys": [
+      "virchow2"
+    ],
+    "is_gated": true,
+    "model_type": "vision",
+    "module": "Virchow2",
+    "github_url": null,
+    "hf_url": "https://huggingface.co/paige-ai/Virchow2",
+    "paper_url": "https://doi.org/10.48550/arXiv.2408.00738",
+    "description": "Scaling self-supervised mixed magnification models in pathology",
+    "bib_key": "Zimmermann2024-ya",
+    "license": "CC-BY-NC-ND-4.0",
+    "commercial": false,
+    "param_size": "631.2M",
+    "encode_dim": 2560
+  },
+  {
+    "name": "Phikon",
+    "keys": [
+      "phikon"
+    ],
+    "is_gated": false,
+    "model_type": "vision",
+    "module": "Phikon",
+    "github_url": "https://github.com/owkin/HistoSSLscaling/",
+    "hf_url": "https://huggingface.co/owkin/phikon",
+    "paper_url": "https://doi.org/10.1101/2023.07.21.23292757",
+    "description": "Scaling self-Supervised Learning for histopathology with Masked Image Modeling",
+    "bib_key": "Filiot2023-vg",
+    "license": "Owkin non-commercial license",
+    "license_url": "https://github.com/owkin/HistoSSLscaling/blob/main/LICENSE.txt",
+    "commercial": false,
+    "param_size": "85.8M",
+    "encode_dim": 768
+  },
+  {
+    "name": "PhikonV2",
+    "keys": [
+      "phikonv2"
+    ],
+    "is_gated": false,
+    "model_type": "vision",
+    "module": "PhikonV2",
+    "github_url": "https://github.com/owkin",
+    "hf_url": "https://huggingface.co/owkin/phikon-v2",
+    "paper_url": "https://doi.org/10.48550/arXiv.2409.09173",
+    "description": "A large and public feature extractor for biomarker prediction",
+    "bib_key": "Filiot2024-at",
+    "license": "Owkin non-commercial license",
+    "license_url": "https://huggingface.co/owkin/phikon-v2/blob/main/LICENSE.pdf",
+    "commercial": false,
+    "param_size": "303.4M",
+    "encode_dim": 1024
+  },
+  {
+    "name": "H-optimus-0",
+    "keys": [
+      "h-optimus-0"
+    ],
+    "is_gated": false,
+    "model_type": "vision",
+    "module": "HOptimus0",
+    "github_url": "https://github.com/bioptimus",
+    "hf_url": "https://huggingface.co/bioptimus/H-optimus-0",
+    "paper_url": null,
+    "description": "Vision foundation model",
+    "bib_key": "Saillard2024-ho",
+    "license": "Apache 2.0",
+    "commercial": true,
+    "param_size": "1.13B",
+    "encode_dim": 1536
+  },
+  {
+    "name": "H-optimus-1",
+    "keys": [
+      "h-optimus-1"
+    ],
+    "is_gated": true,
+    "model_type": "vision",
+    "module": "HOptimus1",
+    "github_url": "https://github.com/bioptimus",
+    "hf_url": "https://huggingface.co/bioptimus/H-optimus-1",
+    "paper_url": null,
+    "description": "Vision foundation model",
+    "bib_key": "Bioptimus2025-lj",
+    "license": "CC-BY-NC-ND-4.0",
+    "commercial": false,
+    "param_size": "1.13B",
+    "encode_dim": 1536
+  },
+  {
+    "name": "H0-mini",
+    "keys": [
+      "h0-mini"
+    ],
+    "is_gated": true,
+    "model_type": "vision",
+    "module": "H0Mini",
+    "github_url": "https://github.com/bioptimus",
+    "hf_url": "https://huggingface.co/bioptimus/H0-mini",
+    "paper_url": "https://doi.org/10.48550/arXiv.2501.16239",
+    "description": "A distilled version of H-optimus-0",
+    "bib_key": "Filiot2025-bn",
+    "license": "CC-BY-NC-ND-4.0",
+    "commercial": false,
+    "param_size": "85.7M",
+    "encode_dim": 1536
+  },
+  {
+    "name": "CONCHVision",
+    "keys": [
+      "conch_vision"
+    ],
+    "is_gated": true,
+    "model_type": "vision",
+    "module": "CONCHVision",
+    "github_url": "https://github.com/mahmoodlab/CONCH",
+    "hf_url": "https://huggingface.co/MahmoodLab/conch",
+    "paper_url": "https://doi.org/10.1038/s41591-024-02856-4",
+    "description": "CONtrastive learning from Captions for Histopathology (CONCH)",
+    "bib_key": "Lu2024-nu",
+    "license": "CC-BY-NC-ND-4.0",
+    "commercial": false,
+    "param_size": "395.2M",
+    "encode_dim": 512
+  },
+  {
+    "name": "PLIPVision",
+    "keys": [
+      "plip_vision"
+    ],
+    "is_gated": false,
+    "model_type": "vision",
+    "module": "PLIPVision",
+    "github_url": "https://github.com/PathologyFoundation/plip",
+    "hf_url": "https://huggingface.co/vinid/plip",
+    "paper_url": "https://doi.org/10.1038/s41591-023-02504-3",
+    "description": "Pathology Language-Image Pretraining (PLIP)",
+    "bib_key": "Huang2023-wi",
+    "license": "Non-commercial",
+    "commercial": false,
+    "param_size": "87.8M",
+    "encode_dim": 512
+  },
+  {
+    "name": "NuLite",
+    "keys": [
+      "nulite"
+    ],
+    "is_gated": false,
+    "model_type": "segmentation",
+    "module": "NuLite",
+    "github_url": "https://github.com/CosmoIknosLab/NuLite",
+    "hf_url": null,
+    "paper_url": "https://doi.org/10.48550/arXiv.2408.01797",
+    "description": "Nuclei instance segmentation and classification",
+    "bib_key": "Tommasino2024-tg",
+    "license": ["Apache 2.0", "CC-BY-NC-SA-4.0"],
+    "commercial": false,
+    "param_size": "47.9M"
+  },
+  {
+    "name": "InstanSeg",
+    "keys": [
+      "instanseg"
+    ],
+    "is_gated": false,
+    "model_type": "segmentation",
+    "module": "Instanseg",
+    "github_url": "https://github.com/instanseg/instanseg",
+    "hf_url": null,
+    "paper_url": "https://doi.org/10.48550/arXiv.2408.15954",
+    "description": "An embedding-based instance segmentation algorithm optimized for accurate, efficient and portable cell segmentation.",
+    "bib_key": "Goldsborough2024-oc",
+    "license": "Apache 2.0",
+    "commercial": true,
+    "param_size": "3.8M"
+  },
+  {
+    "name": "GrandQC-Tissue",
+    "keys": [
+      "grandqc-tissue"
+    ],
+    "is_gated": false,
+    "model_type": "segmentation",
+    "module": "GrandQCTissue",
+    "github_url": "https://github.com/cpath-ukk/grandqc",
+    "hf_url": null,
+    "paper_url": "https://doi.org/10.1038/s41467-024-54769-y",
+    "description": "Tissue segmentation model from GrandQC",
+    "bib_key": "Weng2024-jf",
+    "license": "CC-BY-NC-SA-4.0",
+    "commercial": false,
+    "param_size": "6.6M"
+  },
+  {
+    "name": "GrandQC-Artifact",
+    "keys": [
+      "grandqc-artifact"
+    ],
+    "is_gated": false,
+    "model_type": "segmentation",
+    "module": "GrandQCArtifact",
+    "github_url": "https://github.com/cpath-ukk/grandqc",
+    "hf_url": null,
+    "paper_url": "https://doi.org/10.1038/s41467-024-54769-y",
+    "description": "Artifact segmentation model from GrandQC",
+    "bib_key": "Weng2024-jf",
+    "license": "CC-BY-NC-SA-4.0",
+    "commercial": false,
+    "param_size": "6.3M"
+  },
+  {
+    "name": "Midnight",
+    "keys": [
+      "midnight"
+    ],
+    "is_gated": false,
+    "model_type": "vision",
+    "module": "Midnight",
+    "github_url": "https://github.com/kaiko-ai/midnight",
+    "hf_url": "https://huggingface.co/kaiko-ai/midnight",
+    "paper_url": "https://doi.org/10.48550/arXiv.2504.05186",
+    "description": "Training state-of-the-art pathology foundation models with orders of magnitude less data",
+    "bib_key": "Karasikov2025-wp",
+    "license": "MIT",
+    "commercial": true,
+    "param_size": "1.14B",
+    "encode_dim": 3072
+  },
+  {
+    "name": "HibouB",
+    "keys": [
+      "hibou-b"
+    ],
+    "is_gated": true,
+    "model_type": "vision",
+    "module": "HibouB",
+    "github_url": "https://github.com/HistAI/hibou/tree/main",
+    "hf_url": "https://huggingface.co/histai/hibou-b",
+    "paper_url": "https://doi.org/10.48550/arXiv.2406.05074",
+    "description": "A family of foundational vision transformers for pathology",
+    "bib_key": "Nechaev2024-wi",
+    "license": "Apache 2.0",
+    "commercial": true,
+    "param_size": "85.7M",
+    "encode_dim": 768
+  },
+  {
+    "name": "HibouL",
+    "keys": [
+      "hibou-l"
+    ],
+    "is_gated": true,
+    "model_type": "vision",
+    "module": "HibouL",
+    "github_url": "https://github.com/HistAI/hibou/tree/main",
+    "hf_url": "https://huggingface.co/histai/hibou-l",
+    "paper_url": "https://doi.org/10.48550/arXiv.2406.05074",
+    "description": "A family of foundational vision transformers for pathology",
+    "bib_key": "Nechaev2024-wi",
+    "license": "Apache 2.0",
+    "commercial": true,
+    "param_size": "303.7M",
+    "encode_dim": 1024
+  },
+  {
+    "name": "OmiCLIP",
+    "keys": [
+      "omiclip"
+    ],
+    "is_gated": true,
+    "model_type": "multimodal",
+    "module": "OmiCLIP",
+    "github_url": "https://github.com/GuangyuWangLab2021/Loki",
+    "hf_url": "https://huggingface.co/WangGuangyuLab/Loki",
+    "paper_url": "https://doi.org/10.1038/s41592-025-02707-1",
+    "description": "A visual-omics foundation model to bridge histopathology with spatial transcriptomics",
+    "bib_key": "Chen2025-ok",
+    "license": "BSD-3-Clause",
+    "commercial": true,
+    "param_size": "638.5M"
+  },
+  {
+    "name": "CTransPath",
+    "keys": [
+      "ctranspath"
+    ],
+    "is_gated": false,
+    "model_type": "vision",
+    "module": "CTransPath",
+    "github_url": "https://github.com/Xiyue-Wang/TransPath",
+    "hf_url": null,
+    "paper_url": "https://doi.org/10.1016/j.media.2022.102559",
+    "description": "Transformer-based unsupervised contrastive learning for histopathological image classification",
+    "bib_key": "Wang2022-rk",
+    "license": "GPL-3.0",
+    "commercial": false,
+    "param_size": "27.5M",
+    "encode_dim": 768
+  },
+  {
+    "name": "CHIEF",
+    "keys": [
+      "chief"
+    ],
+    "is_gated": false,
+    "model_type": "vision",
+    "module": "CHIEF",
+    "github_url": "https://github.com/hms-dbmi/CHIEF",
+    "hf_url": null,
+    "paper_url": "https://doi.org/10.1038/s41586-024-07894-z",
+    "description": "Clinical Histopathology Imaging Evaluation Foundation (CHIEF)",
+    "bib_key": "Wang2024-jb",
+    "license": "AGPL-3.0",
+    "commercial": false,
+    "param_size": "27.5M",
+    "encode_dim": 768
+  },
+  {
+    "name": "FocusLiteNN",
+    "keys": [
+      "focuslitenn", "focus"
+    ],
+    "is_gated": false,
+    "model_type": "tile_prediction",
+    "module": "FocusLiteNN",
+    "github_url": "https://github.com/icbcbicc/FocusLiteNN",
+    "hf_url": null,
+    "paper_url": "https://doi.org/10.48550/arXiv.2007.06565",
+    "description": "High efficiency Focus Quality Assessment for digital pathology",
+    "bib_key": "Wang2020-ku",
+    "license": "Prosperity Public License 3.0.0",
+    "commercial": false,
+    "param_size": "299"
+  },
+  {
+    "name": "PathProfilerQC",
+    "keys": [
+      "pathprofilerqc"
+    ],
+    "is_gated": false,
+    "model_type": "tile_prediction",
+    "module": "PathProfilerQC",
+    "github_url": "https://github.com/MaryamHaghighat/PathProfiler",
+    "hf_url": null,
+    "paper_url": "https://doi.org/10.1038/s41598-022-08351-5",
+    "description": "Quality assessment of histology images",
+    "bib_key": "Haghighat2022-sy",
+    "license": "GPL-3.0",
+    "commercial": false,
+    "param_size": "11.2M"
+  },
+  {
+    "name": "PathProfilerTissueSegmentation",
+    "keys": [
+      "pathprofiler"
+    ],
+    "is_gated": false,
+    "model_type": "segmentation",
+    "module": "PathProfilerTissueSegmentation",
+    "github_url": "https://github.com/MaryamHaghighat/PathProfiler",
+    "hf_url": null,
+    "paper_url": "https://doi.org/10.1038/s41598-022-08351-5",
+    "description": "Tissue segmentation model from PathProfiler",
+    "bib_key": "Haghighat2022-sy",
+    "license": "GPL-3.0",
+    "commercial": false,
+    "param_size": "50.3M"
+  },
+  {
+    "name": "SpiderBreast",
+    "keys": [
+      "spider-breast"
+    ],
+    "is_gated": true,
+    "model_type": "tile_prediction",
+    "module": "SpiderBreast",
+    "github_url": null,
+    "hf_url": "https://huggingface.co/collections/histai/spider-models-and-datasets-6814834eca365b006389c117",
+    "paper_url": null,
+    "description": "Tile prediction model on different organs",
+    "license": "CC BY-NC 4.0",
+    "commercial": false,
+    "param_size": "303.9M"
+  },
+  {
+    "name": "SpiderColorectal",
+    "keys": [
+      "spider-colorectal"
+    ],
+    "is_gated": true,
+    "model_type": "tile_prediction",
+    "module": "SpiderColorectal",
+    "github_url": null,
+    "hf_url": "https://huggingface.co/collections/histai/spider-models-and-datasets-6814834eca365b006389c117",
+    "paper_url": null,
+    "description": "Tile prediction model on different organs",
+    "license": "CC BY-NC 4.0",
+    "commercial": false,
+    "param_size": "303.9M"
+  },
+  {
+    "name": "SpiderSkin",
+    "keys": [
+      "spider-skin"
+    ],
+    "is_gated": true,
+    "model_type": "tile_prediction",
+    "module": "SpiderSkin",
+    "github_url": null,
+    "hf_url": "https://huggingface.co/collections/histai/spider-models-and-datasets-6814834eca365b006389c117",
+    "paper_url": null,
+    "description": "Tile prediction model on different organs",
+    "license": "CC BY-NC 4.0",
+    "commercial": false,
+    "param_size": "303.9M"
+  },
+  {
+    "name": "SpiderThorax",
+    "keys": [
+      "spider-thorax"
+    ],
+    "is_gated": true,
+    "model_type": "tile_prediction",
+    "module": "SpiderThorax",
+    "github_url": null,
+    "hf_url": "https://huggingface.co/collections/histai/spider-models-and-datasets-6814834eca365b006389c117",
+    "paper_url": null,
+    "description": "Tile prediction model on different organs",
+    "license": "CC BY-NC 4.0",
+    "commercial": false,
+    "param_size": "303.9M"
+  },
+  {
+    "name": "Cellpose",
+    "keys": [
+      "cellpose"
+    ],
+    "is_gated": false,
+    "model_type": "segmentation",
+    "module": "Cellpose",
+    "github_url": "https://github.com/MouseLand/cellpose",
+    "hf_url": "https://huggingface.co/mouseland/cellpose-sam",
+    "paper_url": "https://doi.org/10.1038/s41592-020-01018-x",
+    "description": "Cell segmentation model",
+    "bib_key": "Stringer2021-cx",
+    "license": "BSD-3-Clause",
+    "commercial": true,
+    "param_size": "0"
+  }
+]
