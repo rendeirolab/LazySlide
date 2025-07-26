@@ -20,7 +20,7 @@ from lazyslide.models.segmentation import GrandQCTissue, PathProfilerTissueSegme
 def tissue(
     wsi: WSIData,
     *,
-    model: Literal["grandqc", "pathprofiler"] = "grandqc",
+    model: Literal["grandqc", "pathprofiler"] = "pathprofiler",
     level: int = None,
     bbox_ratio: float = 0.05,
     min_area=1e-3,
@@ -31,12 +31,22 @@ def tissue(
     key_added: str = Key.tissue,
 ):
     """
-    Return a dataset for tissue segmentation.
+    Perform tissue segmentation powered by a deep learning model.
+
+    Supported models:
+        - "grandqc":
+          :class:`GrandQCTissue <lazyslide.models.segmentation.GrandQCTissue>`,
+          :cite:p:`Weng2024-jf`.
+        - "pathprofiler":
+          :class:`PathProfilerTissueSegmentation <lazyslide.models.segmentation.PathProfilerTissueSegmentation>`,
+          :cite:p:`Haghighat2022-sy`.
 
     Parameters
     ----------
     wsi : :class:`wsidata.WSIData`
         The whole slide image.
+    model : {"grandqc", "pathprofiler"}, default: "pathprofiler"
+        The model to use for tissue segmentation.
     level : int, default: None
         The level to segment the tissue.
     bbox_ratio : float, default: 0.05

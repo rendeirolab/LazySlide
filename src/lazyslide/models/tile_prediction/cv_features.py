@@ -68,6 +68,39 @@ class _CVFeatures(TilePredictionModel, ABC):
         return self._process_batch(image)
 
 
+class CVCompose(_CVFeatures):
+    """
+    Compose multiple CV features into a single feature.
+
+    This class allows you to combine multiple CV features into a single feature.
+    It is useful for creating a composite feature that includes multiple aspects
+    of the image, such as brightness, contrast, and color information.
+
+    Parameters
+    ----------
+    *models : list of _CVFeatures
+        List of CV feature instances to be composed.
+    """
+
+    def __init__(self, *models):
+        self.models = models
+
+    def _func(self, image):
+        pass
+
+    def predict(self, image):
+        image = np.asarray(image)
+        if image.ndim == 3:
+            # Batch it
+            image = np.expand_dims(image, 0)
+
+        results = {}
+        for model in self.models:
+            model_results = model.predict(image)
+            results.update(model_results)
+        return results
+
+
 class SplitRGB(_CVFeatures):
     """
     Calculate the RGB value of a tile.

@@ -450,9 +450,6 @@ def _encode_slide(
 
                 model = CHIEFSlideEncoder()
                 model.to(device)
-                # CHIEF slide encoder expects features of shape (B, N)
-                if fs.ndim == 3:
-                    fs = fs.squeeze(0)
                 agg_features = model.encode_slide(fs, cs)
     # Unknown encoder
     else:

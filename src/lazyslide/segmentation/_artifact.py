@@ -36,7 +36,7 @@ def artifact(
     """
     Artifact segmentation for the whole slide image.
 
-    Run GrandQC artifact segmentation model on the whole slide image.
+    Run GrandQC :cite:p:`Weng2024-jf` artifact segmentation model on the whole slide image.
     The model is trained on 512x512 tiles with mpp=1.5, 2, or 1.
 
     It can detect the following artifacts:

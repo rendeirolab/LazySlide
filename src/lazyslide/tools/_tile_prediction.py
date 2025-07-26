@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, List, Sequence, Union
+
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
@@ -10,10 +12,13 @@ from lazyslide._const import Key
 from lazyslide._utils import default_pbar, get_torch_device
 from lazyslide.models.base import TilePredictionModel
 
+if TYPE_CHECKING:
+    TP_MODEL = Union[str, TilePredictionModel]
+
 
 def tile_prediction(
     wsi: WSIData,
-    model: str | TilePredictionModel,
+    model: TP_MODEL,
     transform=None,
     batch_size: int = 16,
     num_workers: int = 0,
@@ -49,6 +54,7 @@ def tile_prediction(
         The predictions are added to the WSIData object.
 
     """
+    is_cv_features = False
     if isinstance(model, str):
         from lazyslide.models import MODEL_REGISTRY
         from lazyslide.models.tile_prediction import CV_FEATURES
@@ -60,7 +66,7 @@ def tile_prediction(
 
         if model in CV_FEATURES:
             model = CV_FEATURES[model]()
-            print(model)
+            is_cv_features = True
         else:
             card = MODEL_REGISTRY.get(model)
             if card is None:
@@ -95,9 +101,12 @@ def tile_prediction(
 
         with torch.inference_mode():
             for batch in dl:
-                output = model.predict(batch["image"])
+                images = batch["image"]
+                if not is_cv_features:
+                    images = images.to(device)
+                output = model.predict(images)
                 results.append(pd.DataFrame(output))
-                progress_bar.update(task, advance=len(batch["image"]))
+                progress_bar.update(task, advance=len(images))
             progress_bar.refresh()
     # Concatenate all results
     results = pd.concat(results).reset_index(drop=True)
@@ -106,5 +115,36 @@ def tile_prediction(
     update_shapes_data(wsi, tile_key, results)
 
 
-def get_cv_features(key):
-    from lazyslide.models.tile_prediction.cv_features import CV_FEATURES
+def _get_model(model: TP_MODEL) -> TilePredictionModel:
+    """
+    Get the tile prediction model from a string or a TilePredictionModel instance.
+
+    Parameters
+    ----------
+    model : str or TilePredictionModel
+        The model to get.
+
+    Returns
+    -------
+    TilePredictionModel
+        The tile prediction model instance.
+
+    """
+    if isinstance(model, str):
+        from lazyslide.models import MODEL_REGISTRY
+        from lazyslide.models.tile_prediction import CV_FEATURES
+
+        if model in CV_FEATURES:
+            return CV_FEATURES[model]()
+
+        card = MODEL_REGISTRY.get(model)
+        if card is None:
+            raise ValueError(f"Model '{model}' not found in the registry.")
+        return card.module()
+    elif isinstance(model, TilePredictionModel):
+        return model
+    else:
+        raise TypeError(
+            f"Cannot recognize {model}, "
+            f"model must be a string or a TilePredictionModel instance."
+        )
