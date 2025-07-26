@@ -9,18 +9,11 @@ import sys
 # Re-export the public API from wsidata
 from wsidata import agg_wsi, open_wsi
 
-from lazyslide._lazy import LazyLoader as _LazyLoader
-
-# Create lazy loaders for submodules
-cv = _LazyLoader("lazyslide.cv")
-datasets = _LazyLoader("lazyslide.datasets")
-io = _LazyLoader("lazyslide.io")
-metrics = _LazyLoader("lazyslide.metrics")
-models = _LazyLoader("lazyslide.models")
-pl = _LazyLoader("lazyslide.plotting")
-pp = _LazyLoader("lazyslide.preprocess")
-seg = _LazyLoader("lazyslide.segmentation")
-tl = _LazyLoader("lazyslide.tools")
+from . import cv, datasets, io, metrics, models
+from . import plotting as pl
+from . import preprocess as pp
+from . import segmentation as seg
+from . import tools as tl
 
 # Inject the aliases into the current module
 sys.modules.update({f"{__name__}.{m}": globals()[m] for m in ["tl", "pp", "pl", "seg"]})
