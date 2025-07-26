@@ -34,7 +34,12 @@ class CONCH(ImageTextModel):
             image = image.unsqueeze(0)
 
         # Move image to the same device as the model
-        image = image.to(self.model.device)
+        # Get the model device
+        try:
+            device = next(self.model.parameters()).device
+        except Exception:
+            device = torch.device("cpu")
+        image = image.to(device)
 
         image_feature = self.model.encode_image(
             image, normalize=True, proj_contrast=True
