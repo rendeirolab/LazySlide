@@ -1,9 +1,8 @@
+import json
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import List, Type
-
-import pandas as pd
 
 from . import multimodal, segmentation, tile_prediction, vision
 from .base import ModelBase
@@ -27,6 +26,7 @@ class ModelCard:
     paper_url: str = None
     description: str = None
     keys: List[str] = None
+    bib_key: str = None
 
     def __post_init__(self):
         try:
@@ -46,25 +46,28 @@ class ModelCard:
 
     def __str__(self):
         skeleton = (
-            ":octicon:`lock;1em;`"
+            ":octicon:`lock;1em;sd-text-danger;` "
             if self.is_gated
-            else ":octicon:`check-circle-fill;1em;`"
+            else ":octicon:`check-circle-fill;1em;sd-text-success;` "
         )
-        if self.github_url is not None:
-            skeleton += f":octicon:`mark-github;1em;` `GitHub <{self.github_url}>`__ \\"
         if self.hf_url is not None:
-            skeleton += f"🤗 `Hugging Face <{self.hf_url}>`__ \\"
+            skeleton += f":bdg-link-primary-line:`🤗Hugging Face <{self.hf_url}>` "
+        if self.github_url is not None:
+            skeleton += f":bdg-link-primary-line:`GitHub <{self.github_url}>` "
         if self.paper_url is not None:
-            skeleton += f" :octicon:`book;1em;` `Paper <{self.paper_url}>`__"
+            skeleton += f":bdg-link-primary-line:`Paper <{self.paper_url}>` "
+        if self.bib_key is not None:
+            skeleton += f":cite:p:`{self.bib_key}`"
         if self.description is not None:
-            skeleton += f"\n| {self.description}"
+            skeleton += f" {self.description}"
 
         return skeleton
 
 
 MODEL_REGISTRY = {}
 
-MODEL_DB = pd.read_csv(f"{Path(__file__).parent}/model_registry.csv")
+with open(f"{Path(__file__).parent}/model_registry.json", "r") as f:
+    MODEL_DB = json.load(f)
 _modules = {
     ModelTask.vision: vision,
     ModelTask.segmentation: segmentation,
@@ -72,19 +75,20 @@ _modules = {
     ModelTask.tile_prediction: tile_prediction,
 }
 
-for _, row in MODEL_DB.iterrows():
+for row in MODEL_DB:
     model_type = ModelTask(row["model_type"])
     card = ModelCard(
         name=row["name"],
-        is_gated=bool(row["is_gated"]),
+        is_gated=row["is_gated"],
         model_type=model_type,
         module=getattr(_modules[model_type], row["module"]),
-        github_url=None if pd.isna(row["github_url"]) else row["github_url"],
-        hf_url=None if pd.isna(row["hf_url"]) else row["hf_url"],
-        paper_url=None if pd.isna(row["paper_url"]) else row["paper_url"],
-        description=None if pd.isna(row["description"]) else row["description"],
+        github_url=row["github_url"],
+        hf_url=row["hf_url"],
+        paper_url=row["paper_url"],
+        description=row["description"],
+        bib_key=row.get("bib_key"),
     )
-    keys = [i.strip() for i in row["keys"].split(",")] if row["keys"] else []
+    keys = row["keys"]
     for key in keys:
         MODEL_REGISTRY[key] = card
 
