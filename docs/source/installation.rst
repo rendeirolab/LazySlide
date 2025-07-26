@@ -21,19 +21,11 @@ You can install :code:`lazyslide` with different package manager you prefer.
 
     .. tab-item:: Conda
 
-        .. warning::
-
-           Not available yet.
-
         .. code-block:: bash
 
-            conda install -c conda-forge lazyslide
+            conda install conda-forge::lazyslide
 
     .. tab-item:: Mamba
-
-        .. warning::
-
-           Not available yet.
 
         .. code-block:: bash
 
@@ -120,9 +112,5 @@ The reader will be automatically detected by `wsidata <https://wsidata.readthedo
     .. tab-item:: CuCIM
 
         `CuCIM <https://github.com/rapidsai/cucim>`_ is a GPU-accelerated image I/O library.
-
-        .. warning::
-
-            CuCIM support is not available yet.
 
         Please refer to the `CuCIM GitHub <https://github.com/rapidsai/cucim>`_.
