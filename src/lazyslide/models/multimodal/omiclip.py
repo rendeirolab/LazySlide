@@ -42,7 +42,11 @@ class OmiCLIP(ImageTextModel):
             image = self.processor(image)
 
         # Move image to the same device as the model
-        image = image.to(self.model.device)
+        try:
+            device = next(self.model.parameters()).device
+        except Exception:
+            device = torch.device("cpu")
+        image = image.to(device)
 
         # Generate the image features
         images_embedding = self.model.encode_image(image)
