@@ -28,7 +28,7 @@ Documentation = "https://lazyslide.readthedocs.io"
 repository = "https://github.com/rendeirolab/lazyslide"
 dynamic = ["version"]
 dependencies = [
-    "wsidata>=0.6.0",
+    "wsidata>=0.7.0",
     "scikit-learn>=1.0",
     "matplotlib>=3.9.0",
     "matplotlib-scalebar>=0.9.0",
@@ -112,8 +112,8 @@ ignore_missing_imports = true
 hello = "echo Hello, World!"
 test = "pytest tests --disable-warnings"
 test-ci = "python -X faulthandler -m pytest tests -v --tb=short --disable-warnings"
-doc-build = "sphinx-build -b html docs/source docs/build"
-doc-clean-build = "python docs/clean_up.py && sphinx-build -b html docs/source docs/build"
+doc-build = "sphinx-build -b html -j auto -T docs/source docs/build"
+doc-clean-build = "python docs/clean_up.py && sphinx-build -b html -j auto -T docs/source docs/build"
 doc-serve = "python -m http.server -d docs/build"
 fmt = "ruff format docs/source src/lazyslide tests"
 
@@ -138,7 +138,8 @@ dev = [
     "spatialdata-plot>=0.2.9",
     "scyjava>=1.12.0",
     "pandas-stubs>=2.2",
-    "scipy-stubs>=1.16.0.2; python_version > '3.10'"
+    "scipy-stubs>=1.16.0.2; python_version > '3.10'",
+    "hf-xet>=1.1.5",
 ]
 tests = [
     "pytest>=8.3.4",
@@ -159,6 +160,7 @@ docs = [
     "sphinx-book-theme>=1.1.3",
     "sphinx-contributors>=0.2.7",
     "sphinxcontrib-bibtex>=2.6.5",
+    "myst-sphinx-gallery>=0.3.0",
 ]
 tutorials = [
     "igraph>=0.11.8",

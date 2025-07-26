@@ -66,7 +66,45 @@ Segmentation Models
     NuLite
     GrandQCTissue
     GrandQCArtifact
+    PathProfilerTissueSegmentation
     SMPBase
+
+Tile Prediction Models
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. currentmodule:: lazyslide.models.tile_prediction
+
+.. autosummary::
+    :toctree: _autogen
+    :nosignatures:
+
+    SpiderBreast
+    SpiderColorectal
+    SpiderSkin
+    SpiderThorax
+
+
+Tile Prediction Models (Computer vision features)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+These models are based on OpenCV but provided with a model inferface.
+
+.. currentmodule:: lazyslide.models.tile_prediction
+
+.. autosummary::
+    :toctree: _autogen
+    :nosignatures:
+
+    Brightness
+    Canny
+    Contrast
+    Entropy
+    HaralickTexture
+    Saturation
+    Sharpness
+    Sobel
+    SplitRGB
+
 
 Base Models
 ~~~~~~~~~~~
@@ -82,4 +120,5 @@ Base Models
     ImageTextModel
     SegmentationModel
     SlideEncoderModel
+    TilePredictionModel
     TimmModel
