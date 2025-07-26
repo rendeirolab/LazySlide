@@ -44,9 +44,9 @@ Please make sure you have it installed before proceeding.
 
 4. Start an IPython/Jupyter session::
 
-   uv run --with ipython ipython
-   # or
-   uv run --with jupyter jupyter lab
+    uv run --with ipython ipython
+    # or
+    uv run --with jupyter jupyter lab
 
 5. Make your changes.
 

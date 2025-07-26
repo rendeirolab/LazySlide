@@ -16,7 +16,7 @@ Image Embedding
     tl.spatial_features
 
 Tissue/Tile Properties
-~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 
 .. currentmodule:: lazyslide
 
