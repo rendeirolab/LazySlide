@@ -15,12 +15,14 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.autosectionlabel",
-    "matplotlib.sphinxext.plot_directive",
     "sphinx.ext.intersphinx",
+    "sphinxcontrib.bibtex",
+    "matplotlib.sphinxext.plot_directive",
     "sphinx_design",
     "sphinx_copybutton",
-    "myst_nb",
     "sphinx_contributors",
+    "myst_nb",
+    "myst_sphinx_gallery",
 ]
 autoclass_content = "class"
 autodoc_docstring_signature = True
@@ -33,6 +35,7 @@ autodoc_default_options = {
     "class-doc-from": "class",
 }
 autodoc_typehints = "none"
+autosectionlabel_prefix_document = True
 # setting autosummary
 autosummary_generate = True
 numpydoc_show_class_members = False
@@ -41,6 +44,9 @@ add_module_names = False
 templates_path = ["_templates"]
 exclude_patterns = []
 
+bibtex_bibfiles = ["references.bib"]
+bibtex_default_style = "unsrt"
+bibtex_reference_style = "author_year"
 
 html_theme = "sphinx_book_theme"
 html_static_path = ["_static"]
@@ -54,7 +60,15 @@ html_theme_options = {
 # html_sidebars = {"installation": [], "cli": []}
 
 nb_output_stderr = "remove"
+nb_execution_in_temp = True
 nb_execution_mode = "off"
+nb_execution_excludepatterns = [
+    "02_feature_extraction.ipynb",
+    "03_multiple_slides.ipynb",
+    "04_genomics_integration.ipynb",
+    "05_cell_segmentation.ipynb",
+    "07_zero-shot-learning.ipynb",
+]
 nb_merge_streams = True
 myst_enable_extensions = [
     "colon_fence",
@@ -71,6 +85,14 @@ plot_html_show_formats = False
 plot_formats = [("png", 200)]
 
 nitpicky = True
+# Alternative approach - ignore specific references
+nitpick_ignore = [
+    ("py:class", "lazyslide.models.tile_prediction.cv_features._CVFeatures"),
+    ("py:class", "abc.ABC"),
+    ("py:class", "Scorer"),
+    ("py:class", "lazyslide.models.vision.hibou.Hibou"),
+]
+
 intersphinx_mapping = {
     "wsidata": ("https://wsidata.readthedocs.io/en/latest", None),
     "torch": ("https://pytorch.org/docs/stable/", None),

@@ -44,9 +44,11 @@ Whether you're a novice in digital pathology or an expert computational biologis
 
     installation
     tutorials/index
+    avail_models
     api/index
     contributing
     contributors
+    references
 
 
 .. grid:: 1 2 2 2
