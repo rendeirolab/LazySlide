@@ -62,7 +62,11 @@ class OmiCLIP(ImageTextModel):
         text_inputs = self.tokenizer(text)
 
         # Move tokenized text to the same device as the model
-        text_inputs = {k: v.to(self.model.device) for k, v in text_inputs.items()}
+        try:
+            device = next(self.model.parameters()).device
+        except Exception:
+            device = torch.device("cpu")
+        text_inputs = {k: v.to(device) for k, v in text_inputs.items()}
 
         feats = self.model.encode_text(text_inputs)  # (N, D)
         normalized_features = F.normalize(feats, p=2, dim=-1)  # (N, D)

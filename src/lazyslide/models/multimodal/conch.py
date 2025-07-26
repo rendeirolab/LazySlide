@@ -50,6 +50,11 @@ class CONCH(ImageTextModel):
     def encode_text(self, text):
         encode_texts = self.tokenize(text)
         # Move tokenized text to the same device as the model
-        encode_texts = encode_texts.to(self.model.device)
+        # Get the model device
+        try:
+            device = next(self.model.parameters()).device
+        except Exception:
+            device = torch.device("cpu")
+        encode_texts = encode_texts.to(device)
         text_feature = self.model.encode_text(encode_texts)
         return text_feature
