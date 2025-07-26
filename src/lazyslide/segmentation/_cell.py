@@ -28,12 +28,13 @@ def cells(
 ):
     """Cell segmentation for the whole slide image.
 
-    .. note::
-        Tiles should be prepared before segmentation.
+    Tiles should be prepared before segmentation, the tile size should be
+    reasonable (with mpp around 0.5) for the model to work properly
 
-        Recommended tile setting:
+    Supported models:
 
-        - **instanseg**: 512x512, mpp=0.5
+    - instanseg :cite:p:`Goldsborough2024-oc`
+    - cellpose :cite:p:`Stringer2021-cx`
 
     Parameters
     ----------
@@ -75,6 +76,9 @@ def cells(
         from lazyslide.models.segmentation import Cellpose
 
         model = Cellpose(**model_kwargs)
+    else:
+        if not isinstance(model, SegmentationModel):
+            raise ValueError(f"Unknown model: {model}")
 
     runner = CellSegmentationRunner(
         wsi,
@@ -106,12 +110,11 @@ def cell_types(
 ):
     """Cell type segmentation for the whole slide image.
 
-    .. note::
-        Tiles should be prepared before segmentation.
+    Tiles should be prepared before segmentation, the tile size should be
+    reasonable (with mpp around 0.5) for the model to work properly
 
-        Recommended tile setting:
-
-        - **nulite**: mpp=0.5 or 0.25
+    Supported models:
+        - nulite: :cite:p:`Tommasino2024-tg`
 
     Parameters
     ----------

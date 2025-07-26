@@ -541,13 +541,16 @@ class CellSegmentationRunner(Runner):
                     )
                     df = m.to_polygons(detect_holes=False)
                     if len(df) > 0:
-                        print(out.shape, self.tile_spec.height, self.tile_spec.width)
                         # Remove the polygons that are on the edge of the tile
-                        tile_box = box(
-                            0, 0, self.tile_spec.width, self.tile_spec.height
-                        ).buffer(-2).boundary
+                        tile_box = (
+                            box(0, 0, self.tile_spec.width, self.tile_spec.height)
+                            .buffer(-2)
+                            .boundary
+                        )
                         prepare(tile_box)
-                        sel = df["geometry"].apply(lambda geom: not tile_box.intersects(geom))
+                        sel = df["geometry"].apply(
+                            lambda geom: not tile_box.intersects(geom)
+                        )
                         df = df[sel]
                         # Move the polygons to the global coordinate
                         df["geometry"] = (

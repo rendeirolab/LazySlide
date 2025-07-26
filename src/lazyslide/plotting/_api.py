@@ -242,7 +242,7 @@ def tiles(
 
         >>> import lazyslide as zs
         >>> wsi = zs.datasets.sample()
-        >>> zs.pp.score_tiles(wsi, scorers=["contrast"])
+        >>> zs.tl.tile_prediction(wsi, "contrast")
         >>> zs.pl.tiles(wsi, tissue_id=0, color='contrast')
 
     """

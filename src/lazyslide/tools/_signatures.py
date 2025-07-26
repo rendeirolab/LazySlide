@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal
-
-# For type checking only
-if TYPE_CHECKING:
-    from anndata import AnnData
+from typing import Any, Literal
 
 
 class RNALinker:
@@ -24,19 +20,18 @@ class RNALinker:
 
     def __init__(
         self,
-        agg_features: AnnData,
-        others: AnnData,
+        agg_features: Any,
+        others: Any,
         gene_name: str | None = None,
     ):
         try:
             import scanpy as sc
+            from anndata import AnnData
         except ImportError:
             raise ImportError(
                 "To use MultimodalLinker, you need to install scanpy. You can install it using "
                 "`pip install scanpy."
             )
-
-        from anndata import AnnData
 
         if not isinstance(agg_features, AnnData) or not isinstance(others, AnnData):
             raise TypeError("agg_features and others must be AnnData objects")
