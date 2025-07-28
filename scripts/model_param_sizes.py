@@ -152,17 +152,12 @@ def update_model_registry(model_name, param_size=None, feature_dim=None):
     bool
         True if the registry was updated, False otherwise
     """
-    registry_path = (
-        Path(__file__).parent / "src" / "lazyslide" / "models" / "model_registry.json"
-    )
-
-    if not registry_path.exists():
-        # Try to find it relative to the current directory
-        registry_path = Path("src") / "lazyslide" / "models" / "model_registry.json"
-        if not registry_path.exists():
-            print(f"Could not find model_registry.json at {registry_path}")
-            return False
-
+    try:
+        from importlib.resources import files
+        registry_path = files("lazyslide.models").joinpath("model_registry.json")
+    except ImportError as e:
+        print(f"Error locating model_registry.json: {e}")
+        return False
     # Read the current registry
     with open(registry_path, "r") as f:
         registry = json.load(f)
