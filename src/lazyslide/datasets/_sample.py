@@ -29,15 +29,15 @@ def _load_dataset(slide_file, zarr_file, with_data=True, pbar=False):
         slide_zarr_zip = hf_hub_download(
             "RendeiroLab/LazySlide-data", zarr_file, repo_type="dataset"
         )
-        slide_zarr = slide_zarr_zip.replace(".zip", "")
+        slide_zarr = Path(slide_zarr_zip.replace(".zip", ""))
         # Unzip the zarr file if it is a zip file
         # But only if it is not already unzipped
-        if not Path(slide_zarr).exists():
+        if not slide_zarr.exists():
             from zipfile import ZipFile
 
             with ZipFile(slide_zarr_zip, "r") as zip_ref:
-                zip_ref.extractall(slide_zarr)
-    return open_wsi(slide, store=slide_zarr if with_data else None, pbar=pbar)
+                zip_ref.extractall(slide_zarr.parent)
+    return open_wsi(slide, store=str(slide_zarr) if with_data else None, pbar=pbar)
 
 
 def sample(with_data: bool = True, pbar: bool = False):
