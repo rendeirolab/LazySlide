@@ -996,3 +996,45 @@
   doi      = "10.1038/s41591-023-02504-3",
   language = "en"
 }
+
+@ARTICLE{Jaume2024-tq,
+  title         = "Multistain pretraining for slide representation learning in
+                   pathology",
+  author        = "Jaume, Guillaume and Vaidya, Anurag and Zhang, Andrew and
+                   Song, Andrew H and Chen, Richard J and Sahai, Sharifa and Mo,
+                   Dandan and Madrigal, Emilio and Le, Long Phi and Mahmood,
+                   Faisal",
+  journal       = "arXiv [eess.IV]",
+  abstract      = "Developing self-supervised learning (SSL) models that can
+                   learn universal and transferable representations of H\&E
+                   gigapixel whole-slide images (WSIs) is becoming increasingly
+                   valuable in computational pathology. These models hold the
+                   potential to advance critical tasks such as few-shot
+                   classification, slide retrieval, and patient stratification.
+                   Existing approaches for slide representation learning extend
+                   the principles of SSL from small images (e.g., 224 x 224
+                   patches) to entire slides, usually by aligning two different
+                   augmentations (or views) of the slide. Yet the resulting
+                   representation remains constrained by the limited clinical
+                   and biological diversity of the views. Instead, we postulate
+                   that slides stained with multiple markers, such as
+                   immunohistochemistry, can be used as different views to form
+                   a rich task-agnostic training signal. To this end, we
+                   introduce Madeleine, a multimodal pretraining strategy for
+                   slide representation learning. Madeleine is trained with a
+                   dual global-local cross-stain alignment objective on large
+                   cohorts of breast cancer samples (N=4,211 WSIs across five
+                   stains) and kidney transplant samples (N=12,070 WSIs across
+                   four stains). We demonstrate the quality of slide
+                   representations learned by Madeleine on various downstream
+                   evaluations, ranging from morphological and molecular
+                   classification to prognostic prediction, comprising 21 tasks
+                   using 7,299 WSIs from multiple medical centers. Code is
+                   available at https://github.com/mahmoodlab/MADELEINE.",
+  month         =  "5~" # aug,
+  year          =  2024,
+  url           = "http://arxiv.org/abs/2408.02859",
+  archivePrefix = "arXiv",
+  primaryClass  = "eess.IV",
+  keywords      = "LazySlide-doc-citations"
+}

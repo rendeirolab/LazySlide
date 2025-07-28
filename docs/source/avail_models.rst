@@ -46,6 +46,14 @@ You can list them with:
 
     timm_models = list_models()
 
+To retrive specific model class:
+
+.. code-block:: python
+
+    from lazyslide.models import MODEL_REGISTRY
+    model_card = MODEL_REGISTRY['instanseg']
+    model = model_card.module  # The model class
+    model = model()  # Initiate the model
 
 Get access to gated models
 ---------------------------
@@ -76,71 +84,4 @@ To access gated models, follow these steps:
 
 Below is a list of available models categorized by their type:
 
-Vision models
-~~~~~~~~~~~~~~~~~~
-
-.. currentmodule:: lazyslide.models.vision
-
-.. autosummary::
-    :nosignatures:
-
-    UNI
-    UNI2
-    GigaPath
-    PLIPVision
-    CONCHVision
-    Virchow
-    Virchow2
-    Phikon
-    PhikonV2
-    HOptimus0
-    HOptimus1
-    H0Mini
-    HibouB
-    HibouL
-
-
-Multimodal Models
-~~~~~~~~~~~~~~~~~
-
-.. currentmodule:: lazyslide.models.multimodal
-
-.. autosummary::
-    :nosignatures:
-
-    PLIP
-    CONCH
-    Titan
-    Prism
-    OmiCLIP
-
-
-Segmentation Models
-~~~~~~~~~~~~~~~~~~~
-
-.. currentmodule:: lazyslide.models.segmentation
-
-.. autosummary::
-    :nosignatures:
-
-    Instanseg
-    NuLite
-    GrandQCTissue
-    GrandQCArtifact
-    SMPBase
-
-Base Models
-~~~~~~~~~~~
-
-.. currentmodule:: lazyslide.models.base
-
-.. autosummary::
-    :nosignatures:
-
-    ModelBase
-    ImageModel
-    ImageTextModel
-    SegmentationModel
-    SlideEncoderModel
-    TimmModel
-
+.. include:: api/models.rst
