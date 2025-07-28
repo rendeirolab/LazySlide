@@ -309,6 +309,11 @@ for rec in MODEL_DB:
 
         # Get module
         mod, cls = rec["module"].split(".")
+        if mod not in ModelTask.__members__:
+            raise ValueError(
+                f"Invalid module task '{mod}' in record '{rec['name']}'. "
+                f"Valid tasks are: {', '.join(ModelTask.__members__.keys())}."
+            )
         module = getattr(_modules[ModelTask(mod)], cls)
 
         card = ModelCard(
