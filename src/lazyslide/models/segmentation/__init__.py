@@ -1,7 +1,7 @@
 from .cellpose import Cellpose
-from .cellvit import NuLite
 from .grandqc import GrandQCArtifact, GrandQCTissue
 from .instanseg import Instanseg
+from .nulite import NuLite
 from .pathprofiler import PathProfilerTissueSegmentation
 from .postprocess import (
     instanseg_postprocess,

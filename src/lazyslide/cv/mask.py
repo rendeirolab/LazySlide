@@ -208,9 +208,9 @@ class BinaryMask(Mask):
     ):
         assert mask.ndim == 2, "Binary mask must be 2D."
         if prob_map is not None:
-            assert (
-                prob_map.shape == mask.shape
-            ), "Probability mask must have the same shape as the binary mask."
+            assert prob_map.shape == mask.shape, (
+                "Probability mask must have the same shape as the binary mask."
+            )
         # Coerce the mask to binary (0 and 1)
         mask = np.asarray(mask > 0, dtype=np.uint8)
         super().__init__(mask, prob_map, class_names)
@@ -256,9 +256,9 @@ class MulticlassMask(Mask):
         assert mask.ndim == 2, "Multiclass mask must be 2D."
         assert self._is_integer_dtype(mask), "Multiclass mask must be of integer type."
         if prob_map is not None:
-            assert (
-                prob_map.shape == mask.shape
-            ), "Probability mask must have the same shape as the multiclass mask."
+            assert prob_map.shape == mask.shape, (
+                "Probability mask must have the same shape as the multiclass mask."
+            )
         super().__init__(mask, prob_map)
         self.classes = np.sort(np.unique(self.mask))
         self.n_classes = len(self.classes)
@@ -424,9 +424,9 @@ class InstanceMap(Mask):
     ):
         assert instance_map.ndim == 2, "Instance map must be 2D."
         # The map must be an integer type with unique values for each instance
-        assert np.issubdtype(
-            instance_map.dtype, np.integer
-        ), "Instance map must be of integer type."
+        assert np.issubdtype(instance_map.dtype, np.integer), (
+            "Instance map must be of integer type."
+        )
 
         self._is_classification = False
         if prob_map is not None:

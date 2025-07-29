@@ -16,9 +16,9 @@ from shapely.strtree import STRtree
 
 
 def polygon_groups(
-        polygons: List[Polygon], 
-        find_all=True,
-    ) -> Generator[NDArray[np.integer]]:
+    polygons: List[Polygon],
+    find_all=True,
+) -> Generator[NDArray[np.integer]]:
     """A generator that yields indexes of polygon that are intersected."""
     tree = STRtree(polygons)
     visited = set()
@@ -40,7 +40,13 @@ def polygon_groups(
                     new_groups_ix = set()
                     for ix in groups_ix:
                         c_groups_ix = tree.query(polygons[ix], predicate="intersects")
-                        c_groups_ix = [g for g in c_groups_ix if g not in visited]
+                        t_groups_ix = tree.query(polygons[ix], predicate="touches")
+                        # Intersects but not touches
+                        c_groups_ix = [
+                            g
+                            for g in c_groups_ix
+                            if (g not in visited) & (g not in t_groups_ix)
+                        ]
                         new_groups_ix.update(c_groups_ix)
                     groups_ix.update(new_groups_ix)
                     if len(groups_ix) == current_group_size:
