@@ -5,13 +5,10 @@ import geopandas as gpd
 import numpy as np
 import torch
 from scipy import ndimage
-from scipy.ndimage import measurements
-from scipy.ndimage.morphology import binary_fill_holes
+from scipy.ndimage import binary_fill_holes, measurements
 from skimage.segmentation import watershed
 
-from lazyslide.models.base import SegmentationModel
-
-from .nulite import NuLite as NuLiteModel
+from ..base import SegmentationModel
 
 
 class NuLite(SegmentationModel):
@@ -22,18 +19,10 @@ class NuLite(SegmentationModel):
         from huggingface_hub import hf_hub_download
 
         model_file = hf_hub_download(
-            "RendeiroLab/LazySlide-models", f"nulite/NuLite-{variant}-Weights.pth"
+            "RendeiroLab/LazySlide-models", f"nulite/NuLite_{variant}_jit.pt"
         )
 
-        weights = torch.load(model_file, map_location="cpu")
-
-        config = weights["config"]
-        self.model = NuLiteModel(
-            config["data.num_nuclei_classes"],
-            config["data.num_tissue_classes"],
-            config["model.backbone"],
-        )
-        self.model.load_state_dict(weights["model_state_dict"])
+        self.model = torch.jit.load(model_file, map_location="cpu")
 
     def get_transform(self):
         from torchvision.transforms.v2 import Compose, Normalize, ToDtype, ToImage
@@ -49,7 +38,7 @@ class NuLite(SegmentationModel):
     # @torch.inference_mode()
     def segment(self, image):
         with torch.inference_mode():
-            output = self.model.forward(image, retrieve_tokens=False)
+            output = self.model(image)
         # return output
         # postprocess the output
         flattened = [

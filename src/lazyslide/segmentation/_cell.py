@@ -105,6 +105,8 @@ def cell_types(
     batch_size=4,
     num_workers=0,
     device=None,
+    size_filter=False,
+    nucleus_size=(20, 1000),
     pbar=True,
     key_added="cell_types",
 ):
@@ -174,12 +176,17 @@ def cell_types(
         batch_size=batch_size,
         num_workers=num_workers,
         device=device,
+        size_filter=size_filter,
+        nucleus_size=nucleus_size,
         pbar=pbar,
         class_names=CLASS_MAPPING,
     )
     cells = runner.run()
     # Add cells to the WSIData
-    add_shapes(wsi, key=key_added, shapes=cells.explode().reset_index(drop=True))
+    # Exclude background
+    cells = cells[cells["class"] != "Background"]
+    cells = cells.explode().reset_index(drop=True)
+    add_shapes(wsi, key=key_added, shapes=cells)
 
 
 def nulite(
