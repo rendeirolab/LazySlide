@@ -958,10 +958,10 @@ class WSIViewer:
             colors = shapes[color_by]
             if isinstance(colors, pd.Categorical):
                 # If colors is categorical, convert to codes
-                colors = colors.codes
+                u_colors = colors.codes
             else:
-                colors = np.unique(colors)
-            palette = get_dict_palette(palette, colors)
+                u_colors = np.unique(colors)
+            palette = get_dict_palette(palette, u_colors)
             colors = [palette[c] for c in colors]
         else:
             # Set palette to None
