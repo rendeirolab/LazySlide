@@ -506,7 +506,7 @@ class CellSegmentationRunner(Runner):
             results = []
             # is_classification = "class_map" in self._supported_output
 
-            task = progress_bar.add_task("Processing tiles", total=len(tile_loader))
+            task = progress_bar.add_task("Processing tiles", total=len(tile_dataset))
 
             for chunk in tile_loader:
                 images = chunk["image"]
@@ -567,7 +567,7 @@ class CellSegmentationRunner(Runner):
                             df = df[df["geometry"].area.between(*self.nucleus_size)]
                         results.append(df)
                 progress_bar.update(task, advance=len(images))
-        progress_bar.refresh()
+            progress_bar.refresh()
         # Concatenate all results into a single GeoDataFrame
         cells = gpd.GeoDataFrame(pd.concat(results, ignore_index=True)).reset_index(
             drop=True
