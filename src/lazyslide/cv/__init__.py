@@ -6,4 +6,4 @@ from .mask import (
     MultilabelMask,
     ProbabilityMap,
 )
-from .tiles_merger import merge_polygons, preserve_largest_polygon
+from .tiles_merger import merge_connected_polygons, nms

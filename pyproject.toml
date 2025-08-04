@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "lazyslide"
-description = "Modularized and scalable whole slide image analysis"
+description = "Accessible and interoperable whole slide image analysis"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -161,6 +161,7 @@ docs = [
     "sphinx-contributors>=0.2.7",
     "sphinxcontrib-bibtex>=2.6.5",
     "myst-sphinx-gallery>=0.3.0",
+    "sphinxext-opengraph>=0.11.0",
 ]
 tutorials = [
     "igraph>=0.11.8",

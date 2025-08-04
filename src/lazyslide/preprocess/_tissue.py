@@ -25,7 +25,7 @@ from lazyslide.cv.transform import (
 
 from .._const import Key
 from .._utils import default_pbar, find_stack_level
-from ..cv import merge_polygons
+from ..cv import merge_connected_polygons
 from ._utils import Scorer, get_scorer
 
 
@@ -225,7 +225,7 @@ def find_tissues(
         tissues_gdf = gpd.GeoDataFrame(
             data={"geometry": refine_tissues},
         )
-        merged_tissue = merge_polygons(tissues_gdf)
+        merged_tissue = merge_connected_polygons(tissues_gdf)
         tissues = merged_tissue["geometry"]
 
     add_tissues(wsi, key=key_added, tissues=tissues)
