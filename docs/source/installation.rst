@@ -45,7 +45,7 @@ Installation of slide readers
 
 LazySlide uses `wsidata <https://wsidata.readthedocs.io>`_ to handle the IO with the slide files.
 To support different file formats, you need to install corresponding slide readers.
-The reader will be automatically detected by `wsidata <https://wsidata.readthedocs.io>`_` when you open the slide file.
+The reader will be automatically detected by `wsidata <https://wsidata.readthedocs.io>`_ when you open the slide file.
 
 
 .. tab-set::
