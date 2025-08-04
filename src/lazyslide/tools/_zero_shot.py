@@ -133,7 +133,7 @@ def zero_shot_score(
     for ix, f in enumerate(agg_info["features"]):
         f = torch.tensor(f).unsqueeze(0).to(device)
         probs = model.score(f, prompts=prompts)
-        all_probs.append(probs)
+        all_probs.append(probs.detach().cpu().numpy())
 
     all_probs = np.vstack(all_probs)
 
