@@ -80,7 +80,7 @@ To access gated models, follow these steps:
 
    .. code-block:: bash
 
-      huggingface-cli login --token YOUR_TOKEN
+      hf auth login --token YOUR_TOKEN
 
 Below is a list of available models categorized by their type:
 
