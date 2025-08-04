@@ -1,12 +1,7 @@
 from __future__ import annotations
 
-from typing import Generator, List
-
 import geopandas as gpd
 import numpy as np
-import pandas as pd
-from numpy.typing import NDArray
-from shapely.geometry import Polygon
 from shapely.ops import unary_union
 from shapely.strtree import STRtree
 
@@ -15,48 +10,10 @@ from shapely.strtree import STRtree
 # 2. For cell segmentation: Only preserve the largest polygon in each group of overlapping polygons.
 
 
-def polygon_groups(
-    polygons: List[Polygon],
-    find_all=True,
-) -> Generator[NDArray[np.integer]]:
-    """A generator that yields indexes of polygon that are intersected."""
-    tree = STRtree(polygons)
-    visited = set()
-
-    for geom in polygons:
-        if geom in visited:
-            continue
-
-        groups_ix = tree.query(geom, predicate="intersects")
-        groups_ix = set([g for g in groups_ix if g not in visited])
-        if len(groups_ix) == 0:
-            continue
-        else:
-            if find_all:
-                # continue finding other polygons that intersect with the group
-                # until the group size is stable
-                current_group_size = len(groups_ix)
-                while True:
-                    new_groups_ix = set()
-                    for ix in groups_ix:
-                        c_groups_ix = tree.query(polygons[ix], predicate="intersects")
-                        t_groups_ix = tree.query(polygons[ix], predicate="touches")
-                        # Intersects but not touches
-                        c_groups_ix = [
-                            g
-                            for g in c_groups_ix
-                            if (g not in visited) & (g not in t_groups_ix)
-                        ]
-                        new_groups_ix.update(c_groups_ix)
-                    groups_ix.update(new_groups_ix)
-                    if len(groups_ix) == current_group_size:
-                        break
-                    current_group_size = len(groups_ix)
-
-        # Sort the group index
-        groups_ix = np.sort(list(groups_ix))
-        visited.update(groups_ix)
-        yield groups_ix
+def iou(a, b):
+    inter = a.intersection(b).area
+    union = a.union(b).area
+    return inter / union if union != 0 else 0
 
 
 def preprocess_gdf(gdf: gpd.GeoDataFrame, buffer_px: float = 0) -> gpd.GeoDataFrame:
@@ -67,223 +24,81 @@ def preprocess_gdf(gdf: gpd.GeoDataFrame, buffer_px: float = 0) -> gpd.GeoDataFr
     return new_gdf[new_gdf["geometry"].is_valid & ~new_gdf["geometry"].is_empty]
 
 
-class PolygonMerger:
-    """
-    Merge polygons from different tiles.
-
-    If the polygons are overlapping/touching, the overlapping regions are merged.
-
-    If probabilities exist, the probabilities are averaged weighted by the area of the polygons.
-
-    Parameters
-    ----------
-    gdf : `GeoDataFrame <geopandas.GeoDataFrame>`
-        The GeoDataFrame containing the polygons.
-    class_col : str, default: None
-        The column that specify the names of the polygons.
-    prob_col : str, default: None
-        The column that specify the probabilities of the polygons.
-    buffer_px : float, default: 0
-        The buffer size for the polygons to test the intersection.
-
-    """
-
-    def __init__(
-        self,
-        gdf: gpd.GeoDataFrame,
-        class_col: str | None = None,
-        prob_col: str | None = None,
-        buffer_px: float = 0,
-    ):
-        self.gdf = gdf
-        self.class_col = class_col
-        self.prob_col = prob_col
-        self.buffer_px = buffer_px
-
-        self._has_class = class_col in gdf.columns if class_col else False
-        self._has_prob = prob_col in gdf.columns if prob_col else False
-        self._preprocessed_polygons = self._preprocess_polys()
-        self._merged_polygons = None
-
-    def _preprocess_polys(self):
-        """Preprocess the polygons."""
-        new_gdf = self.gdf.copy()
-        new_gdf["geometry"] = self.gdf["geometry"].buffer(self.buffer_px)
-        # Filter out invalid and empty geometries efficiently
-        return new_gdf[new_gdf["geometry"].is_valid & ~new_gdf["geometry"].is_empty]
-
-    def _merge_overlap(self, gdf: gpd.GeoDataFrame):
-        """
-        Merge the overlapping polygons recursively.
-
-        This function has no assumptions about the class or probability
-        """
-        pass
-
-    def _tree_merge(self, gdf: gpd.GeoDataFrame):
-        polygons = gdf["geometry"].tolist()
-        tree = STRtree(polygons)
-        visited = set()
-        merged = []
-
-        for geom in polygons:
-            if geom in visited:
-                continue
-
-            groups_ix = tree.query(geom, predicate="intersects")
-            groups_ix = set([g for g in groups_ix if g not in visited])
-            if len(groups_ix) == 0:
-                continue
-            else:
-                # continue finding other polygons that intersect with the group
-                # until the group size is stable
-                current_group_size = len(groups_ix)
-                while True:
-                    new_groups_ix = set()
-                    for ix in groups_ix:
-                        c_groups_ix = tree.query(polygons[ix], predicate="intersects")
-                        c_groups_ix = [g for g in c_groups_ix if g not in visited]
-                        new_groups_ix.update(c_groups_ix)
-                    groups_ix.update(new_groups_ix)
-                    if len(groups_ix) == current_group_size:
-                        break
-                    current_group_size = len(groups_ix)
-
-            # Sort the group index
-            groups_ix = np.sort(list(groups_ix))
-
-            # Merge the group
-            if len(groups_ix) == 1:
-                ix = groups_ix[0]
-                m_geom = polygons[ix]
-                if self.buffer_px > 0:
-                    m_geom = m_geom.buffer(-self.buffer_px).buffer(0)
-                else:
-                    m_geom = m_geom.buffer(0)
-                record = {"geometry": m_geom}
-                if self._has_prob:
-                    prob = gdf.iloc[ix][self.prob_col]
-                    record[self.prob_col] = prob
-                merged.append(record)
-            else:
-                m_geoms = [polygons[g] for g in groups_ix]
-                # if self._has_class:
-                #     ref_df = gpd.GeoDataFrame(
-                #         {
-                #             "names": [gdf[self.class_col].values[g] for g in groups_ix],
-                #             "index": groups_ix,
-                #             "geometry": m_geoms,
-                #         }
-                #     )
-                #
-                #     # {class_name: polygon}
-                #     named_polys = (
-                #         ref_df[["names", "geometry"]]
-                #         .groupby("names")
-                #         .apply(unary_union)
-                #         .to_dict()
-                #     )
-                #
-                #     if self.drop_overlap > 0:
-                #         # If the two classes instances are more than 90% overlapping
-                #         # The smaller one is removed
-                #         while len(named_polys) > 1:
-                #             names = list(named_polys.keys())
-                #             combs = combinations(names, 2)
-                #             for n1, n2 in combs:
-                #                 if n1 in named_polys and n2 in named_polys:
-                #                     p1, p2 = named_polys[n1], named_polys[n2]
-                #                     if p1.intersection(p2).is_empty:
-                #                         continue
-                #                     area, drop = (
-                #                         (p1.area, n1)
-                #                         if p1.area < p2.area
-                #                         else (p2.area, n2)
-                #                     )
-                #                     union = p1.union(p2).area
-                #                     overlap_ratio = union / area
-                #                     if overlap_ratio > self.drop_overlap:
-                #                         del named_polys[drop]
-                #             break
-                #     for n, p in named_polys.items():
-                #         gs = ref_df[ref_df["names"] == n]["index"].tolist()
-                #         merged_geoms.append((p, gs[0], gs))
-                # else:
-                m_geom = unary_union(m_geoms)
-                if self.buffer_px > 0:
-                    m_geom = m_geom.buffer(-self.buffer_px).buffer(0)
-                else:
-                    m_geom = m_geom.buffer(0)
-
-                if m_geom.is_valid & (m_geom.is_empty is False):
-                    record = {"geometry": m_geom}
-                    if self._has_prob:
-                        gs_gdf = gdf.iloc[groups_ix]
-                        prob = np.average(
-                            gs_gdf[self.prob_col], weights=gs_gdf["geometry"].area
-                        )
-                        record[self.prob_col] = prob
-                    merged.append(record)
-            visited.update(groups_ix)
-        return gpd.GeoDataFrame(merged)
-
-    def merge(self):
-        """Launch the merging process."""
-        results = []
-        if self._has_class:
-            for c, polys in self._preprocessed_polygons.groupby(self.class_col):
-                merged_polys = self._tree_merge(polys)
-                merged_polys[self.class_col] = c
-                results.append(merged_polys)
-        else:
-            merged_polys = self._tree_merge(self._preprocessed_polygons)
-            results.append(merged_polys)
-
-        self._merged_polygons = gpd.GeoDataFrame(
-            pd.concat(results, ignore_index=True)
-        ).reset_index(drop=True)
-
-    @property
-    def merged_polygons(self):
-        return self._merged_polygons
-
-
-def preserve_largest_polygon(
-    gdf: gpd.GeoDataFrame, buffer_px: float = 0
+def nms(
+    gdf: gpd.GeoDataFrame,
+    prob_col: str,
+    iou_threshold: float = 0.2,
+    buffer_px: float = 0,
 ) -> gpd.GeoDataFrame:
     """
-    Preserve the largest polygon in each group of overlapping polygons.
+    Performs non-maximum suppression (NMS) on a GeoDataFrame containing polygon geometries.
+
+    This function is primarily used to reduce overlapping polygons by selecting only the
+    most probable geometric shapes according to the specified probability column. NMS
+    process is guided by the intersection over union (IoU) threshold, buffering distance,
+    and probability values associated with polygons.
 
     Parameters
     ----------
-    gdf : :class:`GeoDataFrame <geopandas.GeoDataFrame>`
-        The GeoDataFrame containing the polygons.
-    buffer_px : float, default: 0
-        The buffer size for the polygons to test the intersection.
+    gdf : gpd.GeoDataFrame
+        A GeoDataFrame containing geometric data for processing.
+    prob_col : str
+        Column name containing the probability values that determine
+        the importance of each polygon.
+    iou_threshold : float
+        A threshold value that defines the minimum
+        IoU for polygons to be considered for suppression. Default is 0.2.
+    buffer_px : float
+        Buffer distance for polygons before performing
+        non-maximum suppression. Default is 0.
 
     Returns
     -------
-    :class:`GeoDataFrame <geopandas.GeoDataFrame>`
-        The GeoDataFrame with the largest polygons preserved.
+    gpd.GeoDataFrame
+        A new GeoDataFrame containing only the selected polygons
+        after applying non-maximum suppression.
     """
 
     pp_gdf = preprocess_gdf(gdf, buffer_px=buffer_px)
     polygons = pp_gdf["geometry"].tolist()
 
-    merged = []
-    for groups_ix in polygon_groups(polygons, find_all=False):
-        if len(groups_ix) == 1:
-            merged.append(gdf.iloc[groups_ix[0]])
-        else:
-            # Find the largest polygon in the group
-            areas = [gdf.iloc[ix].geometry.area for ix in groups_ix]
-            largest_ix = groups_ix[np.argmax(areas)]
-            merged.append(gdf.iloc[largest_ix])
+    tree = STRtree(polygons)
+    merged, suppressed = set(), set()
 
-    return gpd.GeoDataFrame(merged)
+    for geom in polygons:
+        if geom in suppressed:
+            continue
+        while True:
+            groups_ix = [
+                g
+                for g in tree.query(geom, predicate="intersects")
+                if g not in suppressed
+            ]
+            groups_ix = np.array(groups_ix)
+            if iou_threshold > 0:
+                ious = np.array([iou(geom, polygons[i]) for i in groups_ix])
+                groups_ix = groups_ix[ious > iou_threshold]
+            n_groups = len(groups_ix)
+            if n_groups == 0:
+                break
+            elif n_groups == 1:
+                merged.add(groups_ix[0])
+                break
+            else:
+                # Find the highest probability polygon in the group
+                probs = [pp_gdf.loc[ix, prob_col] for ix in groups_ix]
+                largest_ix = groups_ix[np.argmax(probs)]
+                merged.add(largest_ix)
+                # Remove largest ix from the group ix
+                groups_ix = list(groups_ix)
+                groups_ix.remove(largest_ix)
+                suppressed.update(groups_ix)
+                geom = polygons[largest_ix]
+
+    return gdf.iloc[list(merged)]
 
 
-def merge_polygons(
+def merge_connected_polygons(
     gdf: gpd.GeoDataFrame,
     prob_col: str = None,
     buffer_px: float = 0,
@@ -309,27 +124,60 @@ def merge_polygons(
     has_prob = prob_col in gdf.columns if prob_col else False
 
     polygons = pp_gdf["geometry"].tolist()
+    merged, probs = [], []
 
-    merged = []
-    probs = []
-    for groups_ix in polygon_groups(polygons):
-        # Merge the group
-        if len(groups_ix) == 1:
-            ix = groups_ix[0]
-            m_geom = polygons[ix]
-            merged.append(m_geom)
-            if has_prob:
-                prob = gdf.iloc[ix][prob_col]
-                probs.append(prob)
+    tree = STRtree(polygons)
+    visited = set()
+
+    for geom in polygons:
+        if geom in visited:
+            continue
+
+        groups_ix = set(
+            [g for g in tree.query(geom, predicate="intersects") if g not in visited]
+        )
+        if len(groups_ix) == 0:
+            continue
         else:
-            m_geoms = [polygons[g] for g in groups_ix]
-            m_geom = unary_union(m_geoms).buffer(0)
-            if m_geom.is_valid & (m_geom.is_empty is False):
+            # continue finding other polygons that intersect with the group
+            # until the group size is stable
+            current_group_size = len(groups_ix)
+            while True:
+                new_groups_ix = set()
+                for ix in groups_ix:
+                    c_groups_ix = tree.query(polygons[ix], predicate="intersects")
+                    # Intersects but not touches
+                    c_groups_ix = [g for g in c_groups_ix if g not in visited]
+                    new_groups_ix.update(c_groups_ix)
+                groups_ix.update(new_groups_ix)
+                if len(groups_ix) == current_group_size:
+                    break
+                current_group_size = len(groups_ix)
+
+            # Sort the group index
+            groups_ix = np.sort(list(groups_ix))
+            visited.update(groups_ix)
+
+            # Merge the group
+            if len(groups_ix) == 1:
+                ix = groups_ix[0]
+                m_geom = polygons[ix]
                 merged.append(m_geom)
                 if has_prob:
-                    gs_gdf = gdf.iloc[groups_ix]
-                    prob = np.average(gs_gdf[prob_col], weights=gs_gdf["geometry"].area)
+                    prob = gdf.iloc[ix][prob_col]
                     probs.append(prob)
+            else:
+                m_geoms = [polygons[g] for g in groups_ix]
+                m_geom = unary_union(m_geoms).buffer(0)
+                if m_geom.is_valid & (m_geom.is_empty is False):
+                    merged.append(m_geom)
+                    if has_prob:
+                        gs_gdf = gdf.iloc[groups_ix]
+                        prob = np.average(
+                            gs_gdf[prob_col], weights=gs_gdf["geometry"].area
+                        )
+                        probs.append(prob)
+
     data = {"geometry": merged}
     if has_prob:
         data[prob_col] = probs

@@ -18,8 +18,8 @@ from lazyslide._utils import default_pbar, get_torch_device
 from lazyslide.cv import (
     InstanceMap,
     ProbabilityMap,
-    merge_polygons,
-    preserve_largest_polygon,
+    merge_connected_polygons,
+    nms,
 )
 from lazyslide.models.base import SegmentationModel
 
@@ -441,7 +441,7 @@ class SemanticSegmentationRunner(Runner):
                     .buffer(0)
                 )
                 for class_id, class_group in seg_results.groupby("class"):
-                    merged = merge_polygons(
+                    merged = merge_connected_polygons(
                         class_group,
                         prob_col="prob",
                         buffer_px=self.buffer_px,
@@ -575,7 +575,7 @@ class CellSegmentationRunner(Runner):
         if len(cells) == 0:
             return gpd.GeoDataFrame(columns=["geometry"])
         # Drop the overlapping cells, preserving the largest one
-        cells = preserve_largest_polygon(cells)
+        cells = nms(cells, "prob")
         # Remove cells that are not in the tissue
         tissue_key = self.tile_spec.tissue_name
         tissues = self.wsi[tissue_key]  # GeoDataFrame

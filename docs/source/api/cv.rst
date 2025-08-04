@@ -44,5 +44,5 @@ Polygon merging
     :toctree: _autogen
     :nosignatures:
 
-    merge_polygons
-    preserve_largest_polygon
+    merge_connected_polygons
+    nms
