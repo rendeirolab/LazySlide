@@ -574,6 +574,8 @@ class CellSegmentationRunner(Runner):
         )
         if len(cells) == 0:
             return gpd.GeoDataFrame(columns=["geometry"])
+        if "prob" not in cells:
+            cells["prob"] = 1
         # Drop the overlapping cells, preserving the largest one
         cells = nms(cells, "prob")
         # Remove cells that are not in the tissue
