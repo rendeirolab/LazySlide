@@ -1177,7 +1177,7 @@ class WSIViewer:
                 is_categorical = True
 
         if is_categorical:
-            cats = np.unique(values)
+            cats = pd.unique(values)  # Set sorted=False to avoid NA in the data
             palette = get_dict_palette(palette, cats)
         container = dict(
             ds=self.tile_source[key],
