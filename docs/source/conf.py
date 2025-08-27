@@ -1,3 +1,7 @@
+import re
+import shutil
+import subprocess
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -19,6 +23,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.intersphinx",
+    "sphinxext.opengraph",
     "sphinxcontrib.bibtex",
     "matplotlib.sphinxext.plot_directive",
     "sphinx_design",
@@ -100,6 +105,84 @@ intersphinx_mapping = {
     "matplotlib": ("https://matplotlib.org/stable/", None),
     "anndata": ("https://anndata.readthedocs.io/en/latest/", None),
 }
+
+
+# -- Dynamic pulling tagged or the latest version of tutorials -------------
+def get_clean_version(version):
+    """
+    Extract the semantic version (X.Y.Z) from a version string,
+    removing any dev labels, post-release info, etc.
+
+    Example: "0.8.0.post10.dev0+9888929" -> "0.8.0"
+    """
+    # Match X.Y.Z pattern at the beginning of the version string
+    match = re.match(r"^(\d+\.\d+\.\d+)", version)
+    if match:
+        return match.group(1)
+    return version
+
+
+def pull_tutorials(app, config):
+    """
+    Pull tutorials from the lazyslide-tutorials repository based on the current version.
+    If a tag matching the current version exists, pull from that tag.
+    Otherwise, pull from the latest commit.
+    """
+    # Get the clean version
+    clean_version = get_clean_version(release)
+    print(f"LazySlide version: {release}, clean version: {clean_version}")
+
+    # Define paths
+    tutorials_repo_url = "https://github.com/rendeirolab/lazyslide-tutorials.git"
+    tutorials_dir = Path(app.srcdir) / "tutorials"
+
+    # Create a temporary directory for cloning
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir_path = Path(temp_dir)
+
+        # Clone the repository
+        print(f"Cloning {tutorials_repo_url} to {temp_dir_path}")
+        subprocess.run(
+            ["git", "clone", tutorials_repo_url, str(temp_dir_path)],
+            check=True,
+            capture_output=True,
+        )
+
+        # Check if a tag exists for the current version
+        result = subprocess.run(
+            ["git", "tag", "-l", f"v{clean_version}"],
+            cwd=str(temp_dir_path),
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        # If tag exists, checkout that tag
+        if result.stdout.strip():
+            tag = f"v{clean_version}"
+            print(f"Tag {tag} found, checking out")
+            subprocess.run(
+                ["git", "checkout", tag],
+                cwd=str(temp_dir_path),
+                check=True,
+                capture_output=True,
+            )
+        else:
+            print(f"No tag found for version {clean_version}, using latest commit")
+
+        # Copy tutorials to the docs directory
+        src_tutorials_dir = temp_dir_path / "tutorials"
+
+        # Create tutorials directory if it doesn't exist
+        tutorials_dir.mkdir(exist_ok=True)
+
+        # Copy all .ipynb files from the tutorials directory
+        for ipynb_file in src_tutorials_dir.rglob("*.ipynb"):
+            dest_file = tutorials_dir / ipynb_file.name
+            print(f"Copying {ipynb_file} to {dest_file}")
+            shutil.copy2(ipynb_file, dest_file)
+
+    print(f"Tutorials pulled successfully to {tutorials_dir}")
 
 
 # -- Dynamic documentation generation for models ---------------------------
@@ -208,68 +291,13 @@ def generate_models_rst(app, config):
     print(f"Generated {models_file}")
 
 
-def template_model_card(card):
-    content = [
-        f"   .. grid-item-card:: {card.name}",
-        "      :shadow: sm",  # Light shadow
-        "      :class-card: model-card",  # Custom class for card styling
-        "",
-        f"      {card._doc()}",
-    ]
-    return content
-
-
-def generate_model_table(app, config):
-    """Generate model table for avail_models.rst."""
-    # Import here to avoid circular imports
-    from lazyslide.models._model_registry import MODEL_REGISTRY
-
-    avail_models_file = Path(app.srcdir) / "avail_models.rst"
-    avail_models_skeleton_file = Path(app.srcdir) / "avail_models_skeleton.rst"
-
-    # Read existing content
-    with open(avail_models_skeleton_file, "r") as f:
-        content = f.read()
-
-    # Split content at the point where we want to insert the table
-    # This is after the section about accessing gated models
-    split_marker = "Below is a list of available models categorized by their type:"
-    if split_marker in content:
-        before, after = content.split(split_marker, 1)
-        before += split_marker + "\n\n"
-    else:
-        before = content
-        after = ""
-
-    # Generate model table
-    table_content = [
-        "Model cards",
-        "-----------",
-        "",
-        ".. grid:: 1 2 2 2",
-        "   :gutter: 3",  # Spacing between grid items
-        "",
-    ]
-
-    for key, card in MODEL_REGISTRY.items():
-        table_content.extend(template_model_card(card))
-
-    # Ensure there's an empty line after the grid directive for proper RST parsing
-    table_content.append("")
-
-    # Combine content
-    new_content = before + "\n".join(table_content) + "\n\n" + after
-
-    # Write to file
-    with open(avail_models_file, "w") as f:
-        f.write(new_content)
-
-    print(f"Updated {avail_models_file} with model table")
-
-
 def setup(app):
     """Set up Sphinx extension."""
     # Must hook into the very first event before autosummary executed
     app.connect("config-inited", generate_models_rst)
-    # app.connect('config-inited', generate_model_table)
+
+    # Connect the pull_tutorials function to the builder-inited event
+    # This ensures it runs after the configuration is initialized but before the build starts
+    app.connect("config-inited", pull_tutorials)
+
     return {"version": "0.1", "parallel_read_safe": True}
