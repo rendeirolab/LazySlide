@@ -66,6 +66,18 @@ Whether you're a novice in digital pathology or an expert computational biologis
 
       Get started with LazySlide
 
+   .. grid-item-card:: Model Zoo
+      :link: avail_models
+      :link-type: doc
+
+      Available models in LazySlide
+
+   .. grid-item-card:: API Reference
+      :link: tutorials/index
+      :link-type: doc
+
+      API reference in LazySlide
+
    .. grid-item-card:: Contributing
       :link: contributing
       :link-type: doc
