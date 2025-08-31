@@ -51,9 +51,8 @@ To retrive specific model class:
 .. code-block:: python
 
     from lazyslide.models import MODEL_REGISTRY
-    model_card = MODEL_REGISTRY['instanseg']
-    model = model_card.module  # The model class
-    model = model()  # Initiate the model
+    model_module = MODEL_REGISTRY['instanseg']
+    model = model_module()  # Initiate the model
 
 Get access to gated models
 ---------------------------
@@ -85,3 +84,27 @@ To access gated models, follow these steps:
 Below is a list of available models categorized by their type:
 
 .. include:: api/models.rst
+
+
+Use model in offline environment
+--------------------------------
+
+For huggingface gated models, to run in an environment without internet access.
+The model must be download first, for example, run the model initiation code on a HPC login node.
+
+.. code-block:: python
+
+    from lazyslide.models import MODEL_REGISTRY
+
+    # This will cache the model
+    model = MODEL_REGISTRY['uni']()
+
+When you submit a job to compute node without internet connection. Please set the environment variable
+:code:`HF_HUB_OFFLINE=1` so huggingface will not make any HTTP request.
+Alternatively, You can set it at the start of your python session
+
+.. code-block:: python
+
+    import os
+    os.environ['HF_HUB_OFFLINE'] = 1
+
