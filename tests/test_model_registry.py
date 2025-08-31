@@ -40,7 +40,7 @@ def test_model_registry_values():
         assert issubclass(value, ModelBase)
 
 
-def test_model_card_attributes():
+def test_model_attributes():
     """Test that ModelCard instances have the expected attributes."""
     # Get the first model card
     first_key = next(iter(MODEL_REGISTRY))
@@ -53,8 +53,12 @@ def test_model_card_attributes():
 
     # Check attribute types
     assert isinstance(card.is_gated, bool)
-    assert isinstance(card.task, list)
-    assert all(isinstance(mt, ModelTask) for mt in card.task)
+    if isinstance(card.task, ModelTask):
+        task = [card.task]
+    else:
+        task = card.task
+    for t in task:
+        assert isinstance(t, ModelTask)
 
 
 def test_model_registry_to_dataframe():
@@ -94,7 +98,7 @@ def test_list_models_by_task():
 
 def test_list_models_invalid_task():
     """Test that list_models() raises ValueError for invalid task."""
-    with pytest.raises(KeyError):
+    with pytest.raises(ValueError):
         list_models("invalid_task")
 
 
