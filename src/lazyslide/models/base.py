@@ -62,13 +62,11 @@ class ModelBase(ABC):
         if cls.task != ModelTask.cv_feature:
             cls._field_validate()
 
-    def __post_init__(self):
-        self._field_validate()
-        old_doc = self.__doc__
+        old_doc = cls.__doc__
         if old_doc is None:
             old_doc = ""
-        inject_doc = model_doc(self)
-        self.__doc__ = old_doc + inject_doc
+        inject_doc = model_doc(cls)
+        cls.__doc__ = old_doc + inject_doc
 
     def _repr_html_(self):
         return model_repr_html(self)
