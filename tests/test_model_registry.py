@@ -10,8 +10,7 @@ from collections.abc import MutableMapping
 import pandas as pd
 import pytest
 
-from lazyslide.models import MODEL_REGISTRY, list_models
-from lazyslide.models._model_registry import ModelCard, ModelTask
+from lazyslide.models import MODEL_REGISTRY, ModelBase, ModelTask, list_models
 
 
 def test_model_registry_import():
@@ -38,7 +37,7 @@ def test_model_registry_keys():
 def test_model_registry_values():
     """Test that MODEL_REGISTRY values are ModelCard instances."""
     for value in MODEL_REGISTRY.values():
-        assert isinstance(value, ModelCard)
+        assert issubclass(value, ModelBase)
 
 
 def test_model_card_attributes():
@@ -50,14 +49,13 @@ def test_model_card_attributes():
     # Check required attributes
     assert hasattr(card, "name")
     assert hasattr(card, "is_gated")
-    assert hasattr(card, "model_type")
-    assert hasattr(card, "module")
+    assert hasattr(card, "task")
 
     # Check attribute types
     assert isinstance(card.name, str)
     assert isinstance(card.is_gated, bool)
-    assert isinstance(card.model_type, list)
-    assert all(isinstance(mt, ModelTask) for mt in card.model_type)
+    assert isinstance(card.task, list)
+    assert all(isinstance(mt, ModelTask) for mt in card.task)
 
 
 def test_model_registry_to_dataframe():
@@ -88,7 +86,7 @@ def test_list_models_by_task():
         # Verify that all returned models have the specified task
         for model_key in models:
             model = MODEL_REGISTRY[model_key]
-            assert task in model.model_type
+            assert task in model.task
 
 
 def test_list_models_invalid_task():

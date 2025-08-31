@@ -24,7 +24,7 @@ class TestTextEmbedding:
     def test_text_embedding_invalid_model(self):
         """Test text_embedding with an invalid model."""
         texts = ["This is a test", "Another test text"]
-        with pytest.raises(ValueError, match="Invalid model"):
+        with pytest.raises(KeyError):
             zs.tl.text_embedding(texts, model="invalid_model")
 
 
