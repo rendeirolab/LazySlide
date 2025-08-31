@@ -2,11 +2,21 @@ import numpy as np
 import torch
 
 from .._utils import hf_access
-from ..base import ImageModel
+from ..base import ImageModel, ModelTask
 
 
-class Titan(ImageModel):
-    name = "titan"
+class Titan(ImageModel, key=["titan", "conch_v1.5"]):
+    is_gated = True
+    task = [ModelTask.multimodal, ModelTask.slide_encoder]
+    license = "CC-BY-NC-ND-4.0"
+    description = "Multimodal whole slide foundation model for pathology"
+    commercial = False
+    github_url = "https://github.com/mahmoodlab/TITAN"
+    hf_url = "https://huggingface.co/MahmoodLab/TITAN"
+    paper_url = "https://doi.org/10.48550/arXiv.2411.19666"
+    bib_key = "Ding2024-pk"
+    param_size = "158.9M"
+    encode_dim = 768
 
     TEMPLATES = [
         "CLASSNAME.",

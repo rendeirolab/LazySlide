@@ -8,7 +8,7 @@ from lazyslide.models.base import SegmentationModel
 from lazyslide.models.segmentation.postprocess import semanticseg_postprocess
 
 
-class SMPBase(SegmentationModel):
+class SMPBase(SegmentationModel, abstract=True):
     """This is a base class for any models from segmentation models pytorch"""
 
     def __init__(

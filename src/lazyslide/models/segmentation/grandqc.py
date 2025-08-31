@@ -2,12 +2,20 @@ from typing import Literal
 
 import torch
 
-from lazyslide.models.base import SegmentationModel
+from lazyslide.models.base import ModelTask, SegmentationModel
 from lazyslide.models.segmentation.postprocess import semanticseg_postprocess
 from lazyslide.models.segmentation.smp import SMPBase
 
 
-class GrandQCArtifact(SegmentationModel):
+class GrandQCArtifact(SegmentationModel, key="grandqc-artifact"):
+    task = ModelTask.segmentation
+    license = "CC-BY-NC-SA-4.0"
+    description = "Artifact segmentation model from GrandQC"
+    commercial = False
+    github_url = "https://github.com/cpath-ukk/grandqc"
+    paper_url = "https://doi.org/10.1038/s41467-024-54769-y"
+    bib_key = "Weng2024-jf"
+    param_size = "6.3M"
     CLASS_MAPPING = {
         0: "Background",
         1: "Normal Tissue",
@@ -19,7 +27,7 @@ class GrandQCArtifact(SegmentationModel):
         7: "Background",
     }
 
-    def __init__(self, model: Literal["5x", "7x", "10x"] = "7x"):
+    def __init__(self, variant: Literal["5x", "7x", "10x"] = "7x"):
         from huggingface_hub import hf_hub_download
 
         weights_map = {
@@ -28,7 +36,7 @@ class GrandQCArtifact(SegmentationModel):
             "10x": "GrandQC_MPP1_jit.pt",
         }
         weights = hf_hub_download(
-            "RendeiroLab/LazySlide-models", f"GrandQC/{weights_map[model]}"
+            "RendeiroLab/LazySlide-models", f"GrandQC/{weights_map[variant]}"
         )
 
         self.model = torch.jit.load(weights)
@@ -60,41 +68,16 @@ class GrandQCArtifact(SegmentationModel):
         return ("probability_map",)
 
 
-# class GrandQCTissue(SMPBase):
-#     CLASS_MAPPING = {
-#         0: "Background",
-#         1: "Tissue",
-#     }
-#
-#     def __init__(self):
-#         from huggingface_hub import hf_hub_download
-#
-#         weights = hf_hub_download(
-#             "RendeiroLab/LazySlide-models", "grandqc/Tissue_Detection_MPP10.pth"
-#         )
-#
-#         super().__init__(
-#             arch="unetplusplus",
-#             encoder_name="timm-efficientnet-b0",
-#             encoder_weights="imagenet",
-#             in_channels=3,
-#             classes=2,
-#             activation=None,
-#         )
-#         self.model.load_state_dict(
-#             torch.load(weights, map_location=torch.device("cpu"), weights_only=True)
-#         )
-#         self.model.eval()
-#
-#     @torch.inference_mode()
-#     def segment(self, image):
-#         return {"probability_map": self.model.predict(image).softmax(dim=1)}
-#
-#     def supported_output(self):
-#         return ("probability_map",)
+class GrandQCTissue(SegmentationModel, key="grandqc-tissue"):
+    task = ModelTask.segmentation
+    license = "CC-BY-NC-SA-4.0"
+    description = "Tissue segmentation model from GrandQC"
+    commercial = False
+    github_url = "https://github.com/cpath-ukk/grandqc"
+    paper_url = "https://doi.org/10.1038/s41467-024-54769-y"
+    bib_key = "Weng2024-jf"
+    param_size = "6.6M"
 
-
-class GrandQCTissue(SegmentationModel):
     CLASS_MAPPING = {
         0: "Background",
         1: "Tissue",

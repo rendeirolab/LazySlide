@@ -1,11 +1,27 @@
 import torch
 
 from lazyslide.models._utils import hf_access
-from lazyslide.models.base import ImageModel
+from lazyslide.models.base import ImageModel, ModelTask
 
 
-class CONCHVision(ImageModel):
+class CONCHVision(ImageModel, key="conch_vision"):
+    is_gated = True
+    task = ModelTask.vision
+    license = "CC-BY-NC-ND-4.0"
+    description = "CONtrastive learning from Captions for Histopathology (CONCH)"
+    commercial = False
+    hf_url = "https://huggingface.co/MahmoodLab/conch"
+    github_url = "https://github.com/mahmoodlab/CONCH"
+    paper_url = "https://doi.org/10.1038/s41591-024-02856-4"
+    bib_key = "Lu2024-nu"
+    param_size = "395.2M"
+    encode_dim = 512
+
     def __init__(self, model_path=None, token=None):
+        raise Exception(
+            "conch_vision is deprecated and will be removed in v0.10.0. "
+            "Use conch directly instead."
+        )
         try:
             from conch.open_clip_custom import create_model_from_pretrained
         except ImportError:

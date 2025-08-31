@@ -1,11 +1,26 @@
 import torch
 
 from lazyslide.models._utils import hf_access
-from lazyslide.models.base import ImageModel
+from lazyslide.models.base import ImageModel, ModelTask
 
 
-class PLIPVision(ImageModel):
+class PLIPVision(ImageModel, key="plip_vision"):
+    task = ModelTask.vision
+    license = "Non-commercial"
+    description = "Pathology Language-Image Pretraining (PLIP)"
+    commercial = False
+    hf_url = "https://huggingface.co/vinid/plip"
+    github_url = "https://github.com/PathologyFoundation/plip"
+    paper_url = "https://doi.org/10.1038/s41591-023-02504-3"
+    bib_key = "Huang2023-wi"
+    param_size = "87.8M"
+    encode_dim = 512
+
     def __init__(self, model_path=None, token=None):
+        raise Exception(
+            "plip_vision is deprecated and will be removed in v0.10.0. "
+            "Use plip directly instead."
+        )
         try:
             from transformers import CLIPProcessor, CLIPVisionModelWithProjection
         except ImportError:

@@ -1,10 +1,18 @@
 import torch
 
-from lazyslide.models.base import ImageModel, SlideEncoderModel
+from lazyslide.models.base import ImageModel, ModelTask, SlideEncoderModel
 
 
-class CHIEF(ImageModel):
-    name = "chief"
+class CHIEF(ImageModel, key="chief"):
+    task = ModelTask.vision
+    license = "AGPL-3.0"
+    description = "Clinical Histopathology Imaging Evaluation Foundation (CHIEF)"
+    commercial = False
+    github_url = "https://github.com/hms-dbmi/CHIEF"
+    paper_url = "https://doi.org/10.1038/s41586-024-07894-z"
+    bib_key = "Wang2024-jb"
+    param_size = "27.5M"
+    encode_dim = 768
 
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download
@@ -25,7 +33,16 @@ class CHIEF(ImageModel):
             return output
 
 
-class CHIEFSlideEncoder(SlideEncoderModel):
+class CHIEFSlideEncoder(SlideEncoderModel, key="chief-slide-encoder"):
+    task = ModelTask.slide_encoder
+    license = "AGPL-3.0"
+    description = "Clinical Histopathology Imaging Evaluation Foundation (CHIEF)"
+    commercial = False
+    github_url = "https://github.com/hms-dbmi/CHIEF"
+    paper_url = "https://doi.org/10.1038/s41586-024-07894-z"
+    bib_key = "Wang2024-jb"
+    param_size = "1.2M"
+
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download
 

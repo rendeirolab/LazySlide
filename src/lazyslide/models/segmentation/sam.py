@@ -1,9 +1,16 @@
 import torch
 
-from ..base import SegmentationModel
+from ..base import ModelTask, SegmentationModel
 
 
-class SAM(SegmentationModel):
+class SAM(SegmentationModel, key="sam"):
+    task = ModelTask.segmentation
+    commercial = True
+    license = "Apache 2.0"
+    description = "SAM model for image segmentation"
+    github_url = "https://github.com/facebookresearch/segment-anything"
+    paper_url = "https://arxiv.org/abs/2304.02643"
+
     SAM_VARIENTS = [
         "facebook/sam-vit-base",
         "facebook/sam-vit-large",
@@ -20,6 +27,7 @@ class SAM(SegmentationModel):
         self.variant = variant
         if variant in self.SAM_VARIENTS:
             from transformers import SamModel, SamProcessor
+            # from ultralytics import SAM
 
             self.model = SamModel.from_pretrained(variant, use_auth_token=token)
             self.processor = SamProcessor.from_pretrained(variant, use_auth_token=token)

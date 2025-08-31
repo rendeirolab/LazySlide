@@ -1,13 +1,32 @@
 # Modified from https://github.com/PathologyFoundation/plip/blob/main/plip.py
+import warnings
 
 import torch
 
+from ..._utils import find_stack_level
 from .._utils import hf_access
-from ..base import ImageTextModel
+from ..base import ImageTextModel, ModelTask
 
 
-class PLIP(ImageTextModel):
+class PLIP(ImageTextModel, key="plip"):
+    task = ModelTask.multimodal
+    license = "Non-commercial"
+    description = "Pathology Language-Image Pretraining (PLIP)"
+    commercial = False
+    hf_url = "https://huggingface.co/vinid/plip"
+    github_url = "https://github.com/PathologyFoundation/plip"
+    paper_url = "https://doi.org/10.1038/s41591-023-02504-3"
+    bib_key = "Huang2023-wi"
+    param_size = "87.8M"
+    encode_dim = 512
+
     def __init__(self, model_path=None, token=None):
+        warnings.warn(
+            "As from v0.8.2, Normalization will not be applied to image embedding of PLIP model anymore."
+            "A `normalize=True` argument is added to the `text_image_similarity` method."
+            "If you only use the image embedding for text image similarity, you can safely ignore this warning.",
+            stacklevel=find_stack_level(),
+        )
         try:
             from transformers import CLIPModel, CLIPProcessor
         except ImportError:
@@ -32,7 +51,7 @@ class PLIP(ImageTextModel):
         inputs = self.processor(images=image, return_tensors="pt")
         inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
         image_features = self.model.get_image_features(**inputs)
-        image_features = torch.nn.functional.normalize(image_features, p=2, dim=-1)
+        # image_features = torch.nn.functional.normalize(image_features, p=2, dim=-1)
         return image_features
 
     @torch.inference_mode()

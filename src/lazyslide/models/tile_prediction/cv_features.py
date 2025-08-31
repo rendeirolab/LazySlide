@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 
 from ...cv.scorer.utils import dtype_limits
-from ..base import TilePredictionModel
+from ..base import ModelTask, TilePredictionModel
 
 __all__ = [
     "SplitRGB",
@@ -28,8 +28,10 @@ def _correct_image_format(image):
     return image
 
 
-class _CVFeatures(TilePredictionModel, ABC):
-    key: str = "cv_feature"
+class _CVFeatures(TilePredictionModel, ABC, abstract=True):
+    task = ModelTask.cv_feature
+    commercial = False
+    license = None
 
     def to(self, device):
         pass
@@ -68,7 +70,7 @@ class _CVFeatures(TilePredictionModel, ABC):
         return self._process_batch(image)
 
 
-class CVCompose(_CVFeatures):
+class CVCompose(_CVFeatures, abstract=True):
     """
     Compose multiple CV features into a single feature.
 
@@ -101,7 +103,7 @@ class CVCompose(_CVFeatures):
         return results
 
 
-class SplitRGB(_CVFeatures):
+class SplitRGB(_CVFeatures, key="split_rgb"):
     """
     Calculate the RGB value of a tile.
 
@@ -126,20 +128,18 @@ class SplitRGB(_CVFeatures):
         return {"red": c_int[0], "green": c_int[1], "blue": c_int[2]}
 
 
-class Brightness(_CVFeatures):
+class Brightness(_CVFeatures, key="brightness"):
     """
     Calculate the brightness of a tile.
 
     The tile can be in shape (H, W, C) for a single image or (B, C, H, W) for a batch of images.
     """
 
-    key: str = "brightness"
-
     def _func(self, image):
         return image.mean()
 
 
-class Contrast(_CVFeatures):
+class Contrast(_CVFeatures, key="contrast"):
     """
     Calculate the contrast of a tile.
 
@@ -154,8 +154,6 @@ class Contrast(_CVFeatures):
     upper_percentile : float
         Upper percentile for contrast calculation.
     """
-
-    key = "contrast"
 
     def __init__(
         self,
@@ -174,7 +172,7 @@ class Contrast(_CVFeatures):
         return ratio
 
 
-class Sharpness(_CVFeatures):
+class Sharpness(_CVFeatures, key="sharpness"):
     """
     Calculate the sharpness of a tile.
 
@@ -186,8 +184,6 @@ class Sharpness(_CVFeatures):
     The tile can be in shape (H, W, C) for a single image or (B, C, H, W) for a batch of images.
     """
 
-    key = "sharpness"
-
     def _func(self, image):
         gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         # Apply Laplacian operator
@@ -195,7 +191,7 @@ class Sharpness(_CVFeatures):
         return laplacian.var()
 
 
-class Sobel(_CVFeatures):
+class Sobel(_CVFeatures, key="sobel"):
     """
     Calculate the sobel of a tile.
 
@@ -207,8 +203,6 @@ class Sobel(_CVFeatures):
 
     The tile can be in shape (H, W, C) for a single image or (B, C, H, W) for a batch of images.
     """
-
-    key = "sobel"
 
     def __init__(self, ksize=3):
         self.ksize = ksize
@@ -226,7 +220,7 @@ class Sobel(_CVFeatures):
         return magnitude.var()
 
 
-class Canny(_CVFeatures):
+class Canny(_CVFeatures, key="canny"):
     """
     Calculate the canny edge detection score of a tile.
 
@@ -244,8 +238,6 @@ class Canny(_CVFeatures):
         Higher threshold for the hysteresis procedure in Canny edge detection.
     """
 
-    key = "canny"
-
     def __init__(self, low_threshold=100, high_threshold=200):
         self.low_threshold = low_threshold
         self.high_threshold = high_threshold
@@ -262,7 +254,7 @@ class Canny(_CVFeatures):
         return edges.var()
 
 
-class Entropy(_CVFeatures):
+class Entropy(_CVFeatures, key="entropy"):
     """
     Calculate the entropy of a tile.
 
@@ -272,8 +264,6 @@ class Entropy(_CVFeatures):
 
     The tile can be in shape (H, W, C) for a single image or (B, C, H, W) for a batch of images.
     """
-
-    key = "entropy"
 
     def _func(self, image):
         # Convert to grayscale if the image is in color
@@ -294,7 +284,7 @@ class Entropy(_CVFeatures):
         return entropy_value
 
 
-class Saturation(_CVFeatures):
+class Saturation(_CVFeatures, key="saturation"):
     """
     Calculate the color saturation of a tile.
 
@@ -304,8 +294,6 @@ class Saturation(_CVFeatures):
 
     The tile can be in shape (H, W, C) for a single image or (B, C, H, W) for a batch of images.
     """
-
-    key = "saturation"
 
     def _func(self, image):
         hsv_image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
@@ -319,7 +307,7 @@ class Saturation(_CVFeatures):
         return mean_saturation
 
 
-class HaralickTexture(_CVFeatures):
+class HaralickTexture(_CVFeatures, key="haralick_texture"):
     """
     Calculate texture features using Gray Level Co-occurrence Matrix (GLCM).
 
