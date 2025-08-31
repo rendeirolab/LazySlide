@@ -11,16 +11,14 @@ from wsidata.io import add_features
 
 from lazyslide._const import Key
 from lazyslide._utils import default_pbar, get_torch_device
-from lazyslide.models import MODEL_REGISTRY, ImageModel
+from lazyslide.models import MODEL_REGISTRY, ImageModel, list_models
 
 
 def load_models(model_name: str, model_path=None, token=None, **kwargs):
     """Load a model with timm or torch.hub.load"""
 
     if model_name in MODEL_REGISTRY:
-        model = MODEL_REGISTRY[model_name].module(
-            model_path=model_path, token=token, **kwargs
-        )
+        model = MODEL_REGISTRY[model_name](model_path=model_path, token=token, **kwargs)
     else:
         from lazyslide.models import TimmModel
 
@@ -416,41 +414,32 @@ def _encode_slide(
 
     # Simple statistical aggregation methods
     # Model-based encoding methods
-    if encoder in {"prism", "titan", "madeleine", "chief"}:
+    slide_encoders = set(list_models("slide_encoder"))
+    slide_encoders.update(("chief", "gigapath"))
+    if encoder in slide_encoders:
         # Convert features and coordinates to PyTorch tensors
         fs = torch.tensor(features, dtype=torch.float32).unsqueeze(0).to(device)
         cs = torch.tensor(coords.values, dtype=torch.long).unsqueeze(0).to(device)
         amp_ctx = nullcontext() if not amp else torch.autocast(device, autocast_dtype)
         with amp_ctx, torch.inference_mode():
+            if encoder in {"chief", "chief-slide-encoder"}:
+                key = "chief-slide-encoder"
+            elif encoder in {"gigapath", "gigapath-slide-encoder"}:
+                key = "gigapath-slide-encoder"
+            else:
+                key = encoder
+            model = MODEL_REGISTRY[key]()
+            model.to(device)
             if encoder == "prism":
-                from lazyslide.models.multimodal import Prism
-
-                model = Prism()
-                model.to(device)
-                slide_reprs = model.encode_slide(fs, cs)
+                slide_reprs = model.encode_slide(fs)
                 agg_features = slide_reprs["image_embedding"].cpu().detach().numpy()
                 img_latents = slide_reprs["image_latents"].cpu().detach().numpy()
                 result_dict["latents"] = img_latents
             elif encoder == "titan":
-                from lazyslide.models.multimodal import Titan
-
-                model = Titan()
-                model.to(device)
                 agg_features = model.encode_slide(fs, cs, tile_spec.base_width)
-
-            elif encoder == "madeleine":
-                from lazyslide.models.vision import MadeleineSlideEncoder
-
-                model = MadeleineSlideEncoder()
-                model.to(device)
+            else:
                 agg_features = model.encode_slide(fs, cs)
 
-            elif encoder == "chief":
-                from lazyslide.models.vision import CHIEFSlideEncoder
-
-                model = CHIEFSlideEncoder()
-                model.to(device)
-                agg_features = model.encode_slide(fs, cs)
     # Unknown encoder
     else:
         func = getattr(np, encoder, None)

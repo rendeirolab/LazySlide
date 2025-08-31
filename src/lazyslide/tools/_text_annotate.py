@@ -1,17 +1,23 @@
-from typing import List, Literal
+import warnings
+from contextlib import nullcontext
+from typing import Callable, List, Literal
 
 import numpy as np
 import pandas as pd
+import torch
 from wsidata import WSIData
 from wsidata.io import add_features
 
 from lazyslide._const import Key
-from lazyslide._utils import get_torch_device
+from lazyslide._utils import find_stack_level, get_torch_device
+from lazyslide.models import MODEL_REGISTRY
 
 
 def text_embedding(
     texts: List[str],
     model: Literal["plip", "conch", "omiclip"] = "plip",
+    amp: bool = False,
+    autocast_dtype: torch.dtype = torch.float16,
     device: str = None,
 ):
     """Embed the text into a vector in the text-vision co-embedding using
@@ -26,6 +32,10 @@ def text_embedding(
         The list of texts.
     model : Literal["plip", "conch", "omiclip"], default: "plip"
         The text embedding model
+    amp : bool, default: False
+        Whether to use automatic mixed precision (AMP) for inference.
+    autocast_dtype : torch.dtype, default: torch.float16
+        The dtype for automatic mixed precision.
     device : str, optional
         The device to use for computation (e.g., 'cpu', 'cuda', 'mps').
         If None, will use CUDA if available, otherwise CPU.
@@ -49,33 +59,18 @@ def text_embedding(
         >>> zs.tl.text_embedding(terms, model="plip")
 
     """
-    import torch
 
     # Determine device
     if device is None:
         device = get_torch_device()
 
-    if model == "plip":
-        from lazyslide.models.multimodal import PLIP
+    model = MODEL_REGISTRY[model]()
+    model.to(device)
 
-        model_ins = PLIP()
-    elif model == "conch":
-        from lazyslide.models.multimodal import CONCH
-
-        model_ins = CONCH()
-    elif model == "omiclip":
-        from lazyslide.models.multimodal import OmiCLIP
-
-        model_ins = OmiCLIP()
-    else:
-        raise ValueError(f"Invalid model: {model}")
-
-    # Move model to the specified device
-    model_ins.to(device)
-
-    # use numpy record array to store the embeddings
-    with torch.inference_mode():
-        embeddings = model_ins.encode_text(texts).detach().cpu().numpy()
+    amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()
+    with amp_ctx, torch.inference_mode():
+        # use numpy record array to store the embeddings
+        embeddings = model.encode_text(texts).detach().cpu().numpy()
     return pd.DataFrame(embeddings, index=texts)
 
 
@@ -86,8 +81,9 @@ def text_image_similarity(
     tile_key: str = Key.tiles,
     feature_key: str = None,
     key_added: str = None,
+    normalize: bool = True,
     softmax=False,
-    scoring_func: callable = None,
+    scoring_func: Callable = None,
 ):
     """
     Compute the similarity between text and image.
@@ -115,6 +111,9 @@ def text_image_similarity(
     key_added : str
         The key to store the similarity scores. If None, defaults to
         '{feature_key}_text_similarity'.
+    normalize : bool, default: True
+        Apply L2 normalization to the tile features before computing the
+        similarity score to the text embeddings.
     softmax : bool, default: False
         Whether to apply softmax to the similarity scores.
     distance_metric : str or callable, optional
@@ -167,6 +166,18 @@ def text_image_similarity(
     key_added = key_added or f"{feature_key}_text_similarity"
 
     feature_X = wsi.tables[feature_key].X
+    if normalize:
+        msg = (
+            "As of v0.8.2, the image embedding from image text model is not normalized "
+            "after feature extraction by default. The normalization is applied here (text_image_similarity),"
+            "if your features are extracted in previous versions, consider setting normalize=False."
+        )
+        warnings.warn(msg, stacklevel=find_stack_level())
+        warnings.filterwarnings("once", message=msg)  # only show once
+        # Use default parameters from torch.nn.functional.normalize
+        eps = 1e-12
+        norm = np.linalg.norm(feature_X, ord=2, axis=1, keepdims=True)
+        feature_X = feature_X / np.maximum(norm, eps)
 
     if scoring_func is not None:
         if callable(scoring_func):
