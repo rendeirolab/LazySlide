@@ -23,3 +23,4 @@ please read `wsidata tutorials <https://wsidata.readthedocs.io/en/stable/intro/>
    multiple_slides
    genomics_integration
    zero-shot-learning
+   survival_prediction
