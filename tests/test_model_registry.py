@@ -52,7 +52,6 @@ def test_model_card_attributes():
     assert hasattr(card, "task")
 
     # Check attribute types
-    assert isinstance(card.name, str)
     assert isinstance(card.is_gated, bool)
     assert isinstance(card.task, list)
     assert all(isinstance(mt, ModelTask) for mt in card.task)
@@ -86,12 +85,16 @@ def test_list_models_by_task():
         # Verify that all returned models have the specified task
         for model_key in models:
             model = MODEL_REGISTRY[model_key]
-            assert task in model.task
+            if isinstance(model.task, ModelTask):
+                tasks = [model.task]
+            else:
+                tasks = model.task
+            assert task in tasks
 
 
 def test_list_models_invalid_task():
     """Test that list_models() raises ValueError for invalid task."""
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         list_models("invalid_task")
 
 

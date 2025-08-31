@@ -34,12 +34,13 @@ def list_models(task: ModelTask | str = None):
     if task is None:
         return list(MODEL_REGISTRY.keys())
     if task is not None:
-        if task not in ModelTask:
+        try:
+            task = ModelTask(task)
+        except ValueError:
             raise ValueError(
                 f"Unknown task: {task}. "
                 f"Available tasks are: {', '.join([t.value for t in ModelTask])}."
             )
-        task = ModelTask(task)
         models = []
         for name, model in MODEL_REGISTRY.items():
             model_task = model.task
