@@ -8,10 +8,19 @@ from scipy import ndimage
 from scipy.ndimage import binary_fill_holes, measurements
 from skimage.segmentation import watershed
 
-from ..base import SegmentationModel
+from ..base import ModelTask, SegmentationModel
 
 
-class NuLite(SegmentationModel):
+class NuLite(SegmentationModel, key="nulite"):
+    task = ModelTask.segmentation
+    license = ["Apache 2.0", "CC-BY-NC-SA-4.0"]
+    description = "Nuclei instance segmentation and classification"
+    commercial = False
+    github_url = "https://github.com/CosmoIknosLab/NuLite"
+    paper_url = "https://doi.org/10.48550/arXiv.2408.01797"
+    bib_key = "Tommasino2024-tg"
+    param_size = "47.9M"
+
     def __init__(
         self,
         variant: Literal["H", "M", "T"] = "H",

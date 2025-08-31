@@ -1,9 +1,18 @@
 import numpy as np
 
-from lazyslide.models.base import SegmentationModel
+from lazyslide.models.base import ModelTask, SegmentationModel
 
 
-class Cellpose(SegmentationModel):
+class Cellpose(SegmentationModel, key="cellpose"):
+    task = ModelTask.segmentation
+    license = "BSD-3-Clause"
+    description = "Cell segmentation model"
+    commercial = True
+    github_url = "https://github.com/MouseLand/cellpose"
+    hf_url = "https://huggingface.co/mouseland/cellpose-sam"
+    paper_url = "https://doi.org/10.1038/s41592-020-01018-x"
+    bib_key = "Stringer2021-cx"
+
     def __init__(
         self,
         diam_mean=None,

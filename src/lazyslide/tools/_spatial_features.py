@@ -78,27 +78,3 @@ def spatial_features(
     A_spatial = np.transpose(feature_X) @ A_norm
     A_spatial = np.transpose(A_spatial)
     wsi.tables[feature_key].layers[layer_key] = np.asarray(A_spatial)
-
-
-def feature_utag(
-    wsi: WSIData,
-    feature_key: str,
-    tile_key: str = Key.tiles,
-    graph_key: str = None,
-):
-    """
-    Deprecated. Use :func:`spatial_features` instead.
-    """
-    warnings.warn(
-        "`tl.feature_utag` is deprecated and will be removed after 0.8.0, "
-        "please use `tl.spatial_features` instead.",
-        stacklevel=find_stack_level(),
-    )
-    return spatial_features(
-        wsi,
-        feature_key,
-        method="smoothing",
-        tile_key=tile_key,
-        graph_key=graph_key,
-        layer_key="spatial_features",
-    )

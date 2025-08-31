@@ -3,10 +3,24 @@ import warnings
 import torch
 
 from .._utils import hf_access
-from ..base import ModelBase
+from ..base import ModelBase, ModelTask
 
 
-class Prism(ModelBase):
+class Prism(ModelBase, key="prism"):
+    is_gated = True
+    task = [ModelTask.multimodal, ModelTask.slide_encoder]
+    license = "CC-BY-NC-ND-4.0"
+    description = (
+        "A multi-modal generative foundation model for slide-level histopathology, "
+        "the Prism models encode slide-level embeddings "
+        "from :class:`Virchow <lazyslide.models.vision.Virchow>`."
+    )
+    commercial = False
+    hf_url = "https://huggingface.co/paige-ai/Prism"
+    paper_url = "https://doi.org/10.48550/arXiv.2405.10254"
+    bib_key = "Shaikovski2024-kd"
+    param_size = "557.7M"
+
     def __init__(self, model_path=None, token=None):
         from transformers import AutoModel
 

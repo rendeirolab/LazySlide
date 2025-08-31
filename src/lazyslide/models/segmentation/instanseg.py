@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import torch
 
-from lazyslide.models.base import SegmentationModel
+from lazyslide.models.base import ModelTask, SegmentationModel
 
 
 class PercentileNormalize:
@@ -19,8 +19,17 @@ class PercentileNormalize:
         return self.__class__.__name__ + "()"
 
 
-class Instanseg(SegmentationModel):
+class Instanseg(SegmentationModel, key="instanseg"):
     """Apply the InstaSeg model to the input image."""
+
+    task = ModelTask.segmentation
+    license = "Apache 2.0"
+    description = "An embedding-based instance segmentation algorithm optimized for accurate, efficient and portable cell segmentation."
+    commercial = True
+    github_url = "https://github.com/instanseg/instanseg"
+    paper_url = "https://doi.org/10.48550/arXiv.2408.15954"
+    bib_key = "Goldsborough2024-oc"
+    param_size = "3.8M"
 
     _base_mpp = 0.5
 

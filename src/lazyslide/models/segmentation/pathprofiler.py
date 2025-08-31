@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import torch
 
-from ..base import SegmentationModel
+from ..base import ModelTask, SegmentationModel
 
 
 class CLAHE:
@@ -23,11 +23,20 @@ class CLAHE:
         return torch.tensor(img)
 
 
-class PathProfilerTissueSegmentation(SegmentationModel):
+class PathProfilerTissueSegmentation(SegmentationModel, key="pathprofiler"):
     """
     Tissue segmentation model from PathProfiler.
     This model works at mpp=2.5 or 1.25
     """
+
+    task = ModelTask.segmentation
+    license = "GPL-3.0"
+    description = "Tissue segmentation model from PathProfiler"
+    commercial = False
+    github_url = "https://github.com/MaryamHaghighat/PathProfiler"
+    paper_url = "https://doi.org/10.1038/s41598-022-08351-5"
+    bib_key = "Haghighat2022-sy"
+    param_size = "50.3M"
 
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download

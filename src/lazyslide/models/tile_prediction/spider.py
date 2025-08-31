@@ -3,7 +3,7 @@ from typing import Literal
 import numpy as np
 import torch
 
-from ..base import TilePredictionModel
+from ..base import ModelTask, TilePredictionModel
 
 SPIDER_VARIANTS = Literal[
     "breast",
@@ -13,7 +13,14 @@ SPIDER_VARIANTS = Literal[
 ]
 
 
-class Spider(TilePredictionModel):
+class Spider(TilePredictionModel, abstract=True):
+    is_gated = True
+    task = ModelTask.tile_prediction
+    license = "CC BY-NC 4.0"
+    commercial = False
+    hf_url = "https://huggingface.co/collections/histai/spider-models-and-datasets-6814834eca365b006389c117"
+    param_size = "303.9M"
+
     def __init__(self, variants: SPIDER_VARIANTS, model_path=None, token=None):
         from transformers import AutoModel, AutoProcessor
 
@@ -40,21 +47,29 @@ class Spider(TilePredictionModel):
             }
 
 
-class SpiderBreast(Spider):
+class SpiderBreast(Spider, key="spider-breast"):
+    description = "Tile classification for breast"
+
     def __init__(self, model_path=None, token=None):
         super().__init__(variants="breast", model_path=model_path, token=token)
 
 
-class SpiderColorectal(Spider):
+class SpiderColorectal(Spider, key="spider-colorectal"):
+    description = "Tile classification for colorectal"
+
     def __init__(self, model_path=None, token=None):
         super().__init__(variants="colorectal", model_path=model_path, token=token)
 
 
-class SpiderSkin(Spider):
+class SpiderSkin(Spider, key="spider-skin"):
+    description = "Tile classification for skin"
+
     def __init__(self, model_path=None, token=None):
         super().__init__(variants="skin", model_path=model_path, token=token)
 
 
-class SpiderThorax(Spider):
+class SpiderThorax(Spider, key="spider-thorax"):
+    description = "Tile classification for thorax"
+
     def __init__(self, model_path=None, token=None):
         super().__init__(variants="thorax", model_path=model_path, token=token)

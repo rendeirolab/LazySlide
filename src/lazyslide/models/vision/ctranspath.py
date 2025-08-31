@@ -1,10 +1,18 @@
 import torch
 
-from lazyslide.models.base import ImageModel
+from lazyslide.models.base import ImageModel, ModelTask
 
 
-class CTransPath(ImageModel):
-    name = "ctranspath"
+class CTransPath(ImageModel, key="ctranspath"):
+    task = ModelTask.vision
+    license = "GPL-3.0"
+    description = "Transformer-based unsupervised contrastive learning for histopathological image classification"
+    commercial = False
+    github_url = "https://github.com/Xiyue-Wang/TransPath"
+    paper_url = "https://doi.org/10.1016/j.media.2022.102559"
+    bib_key = "Wang2022-rk"
+    param_size = "27.5M"
+    encode_dim = 768
 
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download

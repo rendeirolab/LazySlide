@@ -46,7 +46,7 @@ Whether you're a novice in digital pathology or an expert computational biologis
     tutorials/index
     avail_models
     api/index
-    contributing
+    contributing/index
     contributors
     references
 

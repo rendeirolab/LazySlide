@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Sequence, Union
+from contextlib import nullcontext
+from typing import TYPE_CHECKING, Union
 
 import pandas as pd
 import torch
@@ -23,6 +24,8 @@ def tile_prediction(
     batch_size: int = 16,
     num_workers: int = 0,
     tile_key: str = Key.tiles,
+    amp: bool = False,
+    autocast_dtype: torch.dtype = torch.float16,
     device: str | None = None,
     pbar: bool = True,
 ):
@@ -68,7 +71,7 @@ def tile_prediction(
             model = CV_FEATURES[model]()
             is_cv_features = True
         else:
-            card = MODEL_REGISTRY.get(model)
+            card = MODEL_REGISTRY[model]
             if card is None:
                 raise ValueError(f"Model '{model}' not found in the registry.")
             model = card.module()
@@ -99,7 +102,8 @@ def tile_prediction(
             f"Predicting tiles with {model_name}", total=len(ds)
         )
 
-        with torch.inference_mode():
+        amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()
+        with amp_ctx, torch.inference_mode():
             for batch in dl:
                 images = batch["image"]
                 if not is_cv_features:

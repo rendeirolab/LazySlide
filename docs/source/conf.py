@@ -239,10 +239,10 @@ def generate_models_rst(app, config):
         ),
         "tile_prediction": ("Tile prediction models", "tile_prediction", set()),
         "slide_encoder": ("Slide encoder models", None, set()),
-        "cv_features": (
-            "Tile prediction models (CV Features)",
+        "cv_feature": (
+            "Computer vision features",
             "tile_prediction.cv_features",
-            list(CV_FEATURES.values()),
+            set(),
         ),
         "base": (
             "Base model class",
@@ -260,8 +260,12 @@ def generate_models_rst(app, config):
     }
 
     for _, v in MODEL_REGISTRY.items():
-        for m in v.model_type:
-            model_sections[m.value][-1].add(v.module)
+        if isinstance(v.task, mb.ModelTask):
+            task = [v.task]
+        else:
+            task = v.task
+        for m in task:
+            model_sections[m.value][-1].add(v)
 
     template = [
         ".. _models-section:",

@@ -1,12 +1,32 @@
+import warnings
+
 import torch
 import torch.nn.functional as F
 
+from ..._utils import find_stack_level
 from .._utils import hf_access
-from ..base import ImageTextModel
+from ..base import ImageTextModel, ModelTask
 
 
-class OmiCLIP(ImageTextModel):
+class OmiCLIP(ImageTextModel, key="omiclip"):
+    is_gated = True
+    task = ModelTask.multimodal
+    license = "BSD-3-Clause"
+    description = "A visual-omics foundation model to bridge histopathology with spatial transcriptomics"
+    commercial = True
+    hf_url = "https://huggingface.co/WangGuangyuLab/Loki"
+    github_url = "https://github.com/GuangyuWangLab2021/Loki"
+    paper_url = "https://doi.org/10.1038/s41592-025-02707-1"
+    bib_key = "Chen2025-ok"
+    param_size = "638.5M"
+
     def __init__(self, model_path=None, token=None):
+        warnings.warn(
+            "As from v0.8.2, Normalization will not be applied to image embedding of OmiCLIP model anymore."
+            "A `normalize=True` argument is added to the `text_image_similarity` method."
+            "If you only use the image embedding for text image similarity, you can safely ignore this warning.",
+            stacklevel=find_stack_level(),
+        )
         try:
             from huggingface_hub import hf_hub_download
             from open_clip import create_model_from_pretrained, get_tokenizer
@@ -52,9 +72,9 @@ class OmiCLIP(ImageTextModel):
         images_embedding = self.model.encode_image(image)
 
         # Normalize all embeddings across the feature dimension (L2 normalization)
-        image_embeddings = F.normalize(images_embedding, p=2, dim=-1)
+        # image_embeddings = F.normalize(images_embedding, p=2, dim=-1)
 
-        return image_embeddings
+        return images_embedding
 
     @torch.inference_mode()
     def encode_text(self, text):

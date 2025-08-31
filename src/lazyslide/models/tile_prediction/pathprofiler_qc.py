@@ -1,10 +1,19 @@
 import numpy as np
 import torch
 
-from ..base import TilePredictionModel
+from ..base import ModelTask, TilePredictionModel
 
 
-class PathProfilerQC(TilePredictionModel):
+class PathProfilerQC(TilePredictionModel, key="pathprofilerqc"):
+    task = ModelTask.tile_prediction
+    license = "GPL-3.0"
+    description = "Quality assessment of histology images"
+    commercial = False
+    github_url = "https://github.com/MaryamHaghighat/PathProfiler"
+    paper_url = "https://doi.org/10.1038/s41598-022-08351-5"
+    bib_key = "Haghighat2022-sy"
+    param_size = "11.2M"
+
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download
 

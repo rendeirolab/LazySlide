@@ -1,15 +1,29 @@
 import torch
 
-from lazyslide.models.base import SlideEncoderModel
+from lazyslide.models._utils import hf_access
+from lazyslide.models.base import ModelTask, SlideEncoderModel
 
 
-class MadeleineSlideEncoder(SlideEncoderModel):
+class MadeleineSlideEncoder(SlideEncoderModel, key="madeleine"):
+    task = ModelTask.slide_encoder
+    license = "CC BY-NC-ND 4.0"
+    description = (
+        "Multistain Pretraining for Slide Representation Learning in Pathology"
+    )
+    commercial = False
+    hf_url = "https://huggingface.co/MahmoodLab/madeleine"
+    github_url = "https://github.com/mahmoodlab/MADELEINE"
+    paper_url = "http://arxiv.org/abs/2408.02859"
+    bib_key = "Jaume2024-tq"
+    param_size = "3.2M"
+
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download
 
-        model_file = hf_hub_download(
-            "RendeiroLab/LazySlide-models", "MADELEINE/madeleine_jit.pt"
-        )
+        with hf_access("MahmoodLab/madeleine"):
+            model_file = hf_hub_download(
+                "RendeiroLab/LazySlide-models", "MADELEINE/madeleine_jit.pt"
+            )
 
         self.model = torch.jit.load(model_file, map_location="cpu")
 
