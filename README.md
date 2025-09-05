@@ -29,6 +29,16 @@ intuitive, interoperable, and reproducible workflows for histological analysis. 
 preprocessing to advanced deep learning applications, facilitating the integration of histopathology into modern
 computational biology.
 
+<p align="center">
+  <img src="https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=for-the-badge" alt="Contributions Welcome" />
+</p>
+<p align="left">
+  💬 We warmly welcome contributions for <strong>documentation</strong>, 
+<strong>tests</strong>, or even <strong>suggestions</strong> on what to add!
+Start by submitting an issue or pull request!
+</p>
+
+
 ## Key features
 
 - **Interoperability**: Built on top of SpatialData, ensuring compatibility with scverse tools like scanpy, anndata, and
@@ -98,8 +108,8 @@ wsi = open_wsi("path_to_slide")
 
 ## Contributing
 
-We welcome contributions from the community. Please refer to our [contributing guide](CONTRIBUTING.md) for guidelines on
-how to contribute.
+We welcome contributions from the community. Please refer to our 
+[contributing guide](https://lazyslide.readthedocs.io/en/latest/contributing/index.html) for guidelines on how to contribute.
 
 ## Licence
 
