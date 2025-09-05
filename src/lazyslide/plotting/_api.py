@@ -363,6 +363,7 @@ def annotations(
     tissue_id=None,
     zoom=None,
     fill=True,
+    linewidth=0.5,
     palette=None,
     alpha=0.5,
     legend_kws=None,
@@ -404,6 +405,8 @@ def annotations(
         (xmin, xmax, ymin, ymax) for zooming into a region.
     fill : bool, default: True
         Whether to fill the annotation polygons.
+    linewidth : float, default: 0.5
+        The line width of the annotation polygons.
     palette : str, optional
         The color palette to use.
     alpha : float, default: 0.5
@@ -493,6 +496,7 @@ def annotations(
                 alpha=alpha,
                 legend=legend,
                 legend_kws=legend_kws,
+                linewidth=linewidth,
             )
         else:
             viewer.add_contours(
@@ -502,6 +506,7 @@ def annotations(
                 palette=palette,
                 legend=legend,
                 legend_kws=legend_kws,
+                linewidth=linewidth,
             )
 
         if zoom is not None:
