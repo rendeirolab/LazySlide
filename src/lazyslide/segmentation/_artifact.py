@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from typing import Literal
 
 from wsidata import WSIData
 from wsidata.io import add_shapes
@@ -28,6 +29,11 @@ def artifact(
     tile_key: str,
     model: str = "grandqc",
     variant: str = "7x",
+    mode: Literal["constant", "gaussian"] = "gaussian",
+    sigma_scale: float = None,
+    low_memory: bool = False,
+    threshold: float = 0.8,
+    buffer_px: int = 2,
     batch_size: int = 4,
     num_workers: int = 0,
     device: str | None = None,
@@ -58,6 +64,18 @@ def artifact(
         The model to use for artifact segmentation.
     variant : str, default: "7x"
         The model variants, grandqc has variants 5x, 7x and 10x.
+    mode : {"constant", "gaussian"}, default: "gaussian"
+        The probability distribution to apply for the prediction map.
+        If "constant", uses uniform weights, "gaussian" applies a Gaussian weighting.
+    sigma_scale : float
+        The scale of the Gaussian sigma for the importance map if mode is "gaussian".
+        If None, the scale is calculated based on the overlap of the tiles.
+    low_memory : bool, default: False
+        Whether to use a low-memory mode for processing large slides.
+    threshold : float, default: 0.8
+        The probability threshold to consider a pixel as an artifact.
+    buffer_px : int, default: 2
+        The buffer in pixels to apply when merging polygons.
     batch_size : int, default: 4
         The batch size for segmentation.
     num_workers : int, default: 0
@@ -97,6 +115,14 @@ def artifact(
             )
         if spec.width != 512 or spec.height != 512:
             raise ValueError("Tile should be 512x512.")
+        if sigma_scale is None:
+            sigma_scale = spec.overlap_y * 0.5  # simple heuristic
+        if spec.overlap_x == 0 or spec.overlap_y == 0:
+            mode = "constant"
+            warnings.warn(
+                "The tiles has no overlap, using constant mode instead. "
+                "Please consider rerun pp.tile_tissue to create overlapping tiles."
+            )
 
     model = GrandQCArtifact(variant=variant)
 
@@ -107,8 +133,18 @@ def artifact(
         batch_size=batch_size,
         num_workers=num_workers,
         device=device,
+        mode=mode,
+        sigma_scale=sigma_scale,
+        low_memory=low_memory,
+        threshold=threshold,
+        buffer_px=buffer_px,
         class_names=CLASS_MAPPING,
     )
     arts = runner.run()
+    arts = arts[~arts["class"].isin(["Background", "Normal Tissue"])]
     arts = arts.explode().reset_index(drop=True)
+    if len(arts) == 0:
+        print("No artifacts detected.")
+        return
+
     add_shapes(wsi, key=key_added, shapes=arts)
