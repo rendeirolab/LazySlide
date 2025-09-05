@@ -79,7 +79,7 @@ Whether you're a novice in digital pathology or an expert computational biologis
       API reference in LazySlide
 
    .. grid-item-card:: Contributing
-      :link: contributing
+      :link: contributing/index
       :link-type: doc
 
       Contribute to Lazyslide
