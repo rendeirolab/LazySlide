@@ -74,7 +74,7 @@ def tile_prediction(
             card = MODEL_REGISTRY[model]
             if card is None:
                 raise ValueError(f"Model '{model}' not found in the registry.")
-            model = card.module()
+            model = card()
 
     if device is None:
         device = get_torch_device()
@@ -144,7 +144,7 @@ def _get_model(model: TP_MODEL) -> TilePredictionModel:
         card = MODEL_REGISTRY.get(model)
         if card is None:
             raise ValueError(f"Model '{model}' not found in the registry.")
-        return card.module()
+        return card()
     elif isinstance(model, TilePredictionModel):
         return model
     else:
