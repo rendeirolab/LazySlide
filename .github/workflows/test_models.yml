@@ -24,7 +24,7 @@ jobs:
         run: uv sync --dev
       - name: Login to Hugging Face
         run: |
-          uv run hf login --token ${{ secrets.HF_TOKEN }}
+          uv run hf auth login --token ${{ secrets.HF_TOKEN }}
       - name: Tests # TODO: Add tests for models
         run: |
           uv run pytest tests/models -n auto --cov=src/lazyslide/models --cov-report=xml --cov-report=html
