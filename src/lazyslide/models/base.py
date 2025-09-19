@@ -116,6 +116,15 @@ class ModelBase(ABC):
     def name(self):
         return self.__class__.__name__
 
+    def check_input_tile(self, mpp, size_x=None, size_y=None) -> bool:  # noqa
+        """
+        A helper function to check if the input tile size is valid.
+
+        Return True if the input tile size is valid. And the model will be executed.
+        Add a warning here if the input is not optimal but still can be executed.
+        """
+        return True
+
 
 class ImageModel(ModelBase, abstract=True):
     # TODO: Add a config that specify the recommended input tile size and mpp
@@ -236,4 +245,14 @@ class TilePredictionModel(ModelBase, abstract=True):
         """The output should always be a dict of numpy arrays
         to allow multiple outputs.
         """
+        raise NotImplementedError
+
+
+class StyleTransferModel(ModelBase, abstract=True):
+    @abstractmethod
+    def predict(self, image):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_channel_names(self):
         raise NotImplementedError
