@@ -47,6 +47,7 @@ class GigaPathSlideEncoder(SlideEncoderModel, key="gigapath-slide-encoder"):
     github_url = "https://github.com/prov-gigapath/prov-gigapath"
     paper_url = "https://doi.org/10.1038/s41586-024-07441-w"
     bib_key = "Xu2024-td"
+    vision_encoder = "gigapath"
 
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import login

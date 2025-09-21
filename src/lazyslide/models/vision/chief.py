@@ -42,6 +42,7 @@ class CHIEFSlideEncoder(SlideEncoderModel, key="chief-slide-encoder"):
     paper_url = "https://doi.org/10.1038/s41586-024-07894-z"
     bib_key = "Wang2024-jb"
     param_size = "1.2M"
+    vision_encoder = "chief"
 
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download
@@ -51,6 +52,7 @@ class CHIEFSlideEncoder(SlideEncoderModel, key="chief-slide-encoder"):
         )
 
         self.model = torch.jit.load(model_file, map_location="cpu")
+        self.model.eval()
 
     def encode_slide(self, embeddings, coords=None, **kwargs):
         """

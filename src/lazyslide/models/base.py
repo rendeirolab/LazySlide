@@ -31,7 +31,7 @@ class ModelBase(ABC):
     github_url: str = None
     hf_url: str = None
     paper_url: str = None
-    license: str = (None,)
+    license: str = None
     license_url: str = None
     bib_key: str = None
     commercial: bool = None
@@ -78,12 +78,6 @@ class ModelBase(ABC):
         self.model.to(device)
         return self
 
-    @staticmethod
-    def load_weights(url, progress=True):
-        from timm.models.hub import download_cached_file
-
-        return Path(download_cached_file(url, progress=progress))
-
     def estimate_param_size(self):
         """Count the number of parameters in a model."""
         model = self.model
@@ -93,7 +87,7 @@ class ModelBase(ABC):
                 model = model.model
             except (AttributeError, TypeError):
                 return None
-        return sum(p.numel() for p in self.model.parameters())
+        return sum(p.numel() for p in model.parameters())
 
     @classmethod
     def _field_validate(cls):

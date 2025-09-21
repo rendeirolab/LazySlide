@@ -32,6 +32,7 @@ class NuLite(SegmentationModel, key="nulite"):
         )
 
         self.model = torch.jit.load(model_file, map_location="cpu")
+        self.model.eval()
 
     def get_transform(self):
         from torchvision.transforms.v2 import Compose, Normalize, ToDtype, ToImage

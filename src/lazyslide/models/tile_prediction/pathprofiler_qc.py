@@ -23,6 +23,7 @@ class PathProfilerQC(TilePredictionModel, key="pathprofilerqc"):
         )
 
         self.model = torch.jit.load(model_file, map_location="cpu")
+        self.model.eval()
 
     def get_transform(self):
         from torchvision.transforms import InterpolationMode

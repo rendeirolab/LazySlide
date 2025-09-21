@@ -22,6 +22,7 @@ class CTransPath(ImageModel, key="ctranspath"):
         )
 
         self.model = torch.jit.load(model_file, map_location="cpu")
+        self.model.eval()
 
     def encode_image(self, image):
         """
