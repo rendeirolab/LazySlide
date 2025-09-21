@@ -8,6 +8,7 @@ from lazyslide.models import MODEL_REGISTRY, ModelTask
 MODELS = list(MODEL_REGISTRY.keys())
 
 
+@pytest.mark.large_runner
 @pytest.mark.parametrize("model_name", MODELS)
 def test_model_init(model_name):
     # Initialize the model
