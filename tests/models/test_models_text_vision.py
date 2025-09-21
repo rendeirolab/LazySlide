@@ -12,7 +12,7 @@ MULTIMODAL_MODELS = list_models(task="multimodal")
 MULTIMODAL_MODELS.remove("conch_v1.5")  # Duplicated model name as titan
 
 
-@pytest.mark.gpu
+@pytest.mark.large_runner
 @pytest.mark.parametrize("model_name", MULTIMODAL_MODELS)
 def test_multimodal_model(model_name):
     """Run all tests for a multimodal model.

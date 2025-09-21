@@ -14,12 +14,11 @@ class TestFeatureExtraction:
     def test_load_jit_model(self, wsi_small, torch_jit_file):
         zs.tl.feature_extraction(wsi_small, model_path=torch_jit_file)
 
-    @pytest.mark.skip_on_ci
     def test_timm_model(self, wsi_small):
         zs.tl.feature_extraction(wsi_small, model=TIMM_MODEL)
 
 
-@pytest.mark.gpu
+@pytest.mark.large_runner
 class TestSlideEncoders:
     """Tests for all slide encoder models in lazyslide."""
 

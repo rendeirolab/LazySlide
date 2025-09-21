@@ -11,7 +11,7 @@ VISION_MODELS = list_models(task="vision")
 SLIDE_ENCODER_MODELS = list_models(task="slide_encoder")
 
 
-@pytest.mark.gpu
+@pytest.mark.large_runner
 @pytest.mark.parametrize("model_name", VISION_MODELS)
 def test_vision_encoder_model(model_name):
     """Run all tests for a vision encoder model."""
@@ -67,7 +67,7 @@ def test_vision_encoder_model(model_name):
     del model
 
 
-@pytest.mark.gpu
+@pytest.mark.large_runner
 @pytest.mark.parametrize("slide_encoder", SLIDE_ENCODER_MODELS)
 def test_slide_encoder_model(slide_encoder):
     """Test a slide encoder model.

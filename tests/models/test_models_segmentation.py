@@ -10,7 +10,7 @@ from lazyslide.models.base import SegmentationModel
 SEGMENTATION_MODELS = list_models(task="segmentation")
 
 
-@pytest.mark.gpu
+@pytest.mark.large_runner
 @pytest.mark.parametrize("model_name", SEGMENTATION_MODELS)
 def test_segmentation_model(model_name):
     """Run all tests for a segmentation model.

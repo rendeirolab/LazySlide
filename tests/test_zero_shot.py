@@ -6,7 +6,7 @@ import lazyslide as zs
 
 
 class TestZeroShotClassification:
-    @pytest.mark.skip_on_ci
+    @pytest.mark.large_runner
     def test_zero_shot_with_real_prism(self, wsi):
         """Test zero-shot classification with actual Prism model.
 

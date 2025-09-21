@@ -126,11 +126,3 @@ def wsi_with_annotations(wsi):
 #             print(f"Cleaned up temporary HF_HOME directory: {config.hf_home_dir}")
 #         except Exception as e:
 #             print(f"Failed to clean up temporary HF_HOME directory: {e}")
-
-
-def pytest_collection_modifyitems(config, items):
-    if os.getenv("GITHUB_ACTIONS") == "true":
-        skip_on_ci = pytest.mark.skip(reason="Skipped on GitHub CI")
-        for item in items:
-            if "skip_on_ci" in item.keywords:
-                item.add_marker(skip_on_ci)

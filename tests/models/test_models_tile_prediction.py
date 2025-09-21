@@ -12,7 +12,7 @@ CV_FEATURE_MODELS = list_models(task="cv_feature")
 TILE_PRED_MODELS = list_models(task="tile_prediction")
 
 
-@pytest.mark.gpu
+@pytest.mark.large_runner
 @pytest.mark.parametrize("model_name", CV_FEATURE_MODELS)
 def test_cv_feature_model(model_name):
     """Run all tests for a CV feature model.
@@ -59,7 +59,7 @@ def test_cv_feature_model(model_name):
     del model
 
 
-@pytest.mark.gpu
+@pytest.mark.large_runner
 @pytest.mark.parametrize("model_name", TILE_PRED_MODELS)
 def test_tile_prediction_model(model_name):
     """Run all tests for a Hugging Face model.

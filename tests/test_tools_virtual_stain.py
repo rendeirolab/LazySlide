@@ -6,6 +6,7 @@ from lazyslide.models import MODEL_REGISTRY, list_models
 from lazyslide.tools import virtual_stain
 
 
+@pytest.mark.large_runner
 def test_virtual_stain_rosie(wsi):
     """Test virtual staining with ROSIE model."""
     # Skip if token required

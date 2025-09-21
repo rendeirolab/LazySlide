@@ -10,7 +10,7 @@ from lazyslide.models.base import StyleTransferModel
 STYLE_TRANSFER_MODELS = list_models(task="style_transfer")
 
 
-@pytest.mark.gpu
+@pytest.mark.large_runner
 @pytest.mark.parametrize("model_name", STYLE_TRANSFER_MODELS)
 def test_style_transfer_model(model_name):
     # Initialize the model
