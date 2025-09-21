@@ -1,32 +1,26 @@
 import numpy as np
 import pytest
+from huggingface_hub.errors import GatedRepoError
 
-from lazyslide.models.style_transfer import ROSIE
+from lazyslide.models import MODEL_REGISTRY, list_models
 from lazyslide.tools import virtual_stain
-
-# Import get_token to check if user is logged in to HuggingFace
-try:
-    from huggingface_hub.utils._auth import get_token
-
-    HF_TOKEN_AVAILABLE = get_token() is not None
-except ImportError:
-    HF_TOKEN_AVAILABLE = False
-
-
-# Define a function to conditionally skip tests if HF token is not available
-def skip_if_no_token(*model_class):
-    """Skip test if no HuggingFace token is available for gated models."""
-    if not HF_TOKEN_AVAILABLE:
-        return pytest.param(
-            *model_class, marks=pytest.mark.skip(reason="Requires HF token")
-        )
-    return pytest.param(*model_class)
 
 
 def test_virtual_stain_rosie(wsi):
     """Test virtual staining with ROSIE model."""
     # Skip if token required
-    skip_if_no_token(ROSIE)
+    model_name = "rosie"
+    try:
+        _ = MODEL_REGISTRY[model_name]()
+    except GatedRepoError:
+        pytest.skip(f"{model_name} is not available.")
+        return
+    except ModuleNotFoundError:
+        pytest.skip(f"{model_name} has dependencies that are not installed.")
+        return
+    except NotImplementedError:
+        pytest.skip(f"{model_name} maybe deprecated or not supported yet.")
+        return
 
     # Test virtual staining function
     virtual_stain(
@@ -56,6 +50,16 @@ def test_virtual_stain_rosie(wsi):
     # Check transformations exist
     assert "global" in rosie_image.attrs.get("transform", {})
 
+    # Check that values are in expected range (0-255 for uint8)
+    assert rosie_image.values.min() >= 0
+    assert rosie_image.values.max() <= 255
+
+    # Check data type is uint8 (result of postprocessing)
+    assert rosie_image.dtype == np.uint8
+
+    # Check that image has been processed (not all zeros)
+    assert not np.all(rosie_image.values == 0)
+
 
 def test_virtual_stain_unsupported_model(wsi):
     """Test virtual staining with unsupported model raises error."""
@@ -67,31 +71,3 @@ def test_virtual_stain_unsupported_model(wsi):
             num_workers=0,
             pbar=False,
         )
-
-
-def test_virtual_stain_postprocessing(wsi):
-    """Test that virtual staining applies proper postprocessing."""
-    # Skip if token required
-    skip_if_no_token(ROSIE)
-
-    # Run virtual staining
-    virtual_stain(
-        wsi=wsi,
-        model="rosie",
-        batch_size=2,
-        num_workers=0,
-        pbar=False,
-    )
-
-    # Get the result
-    rosie_image = wsi.images["rosie_prediction"]
-
-    # Check that values are in expected range (0-255 for uint8)
-    assert rosie_image.values.min() >= 0
-    assert rosie_image.values.max() <= 255
-
-    # Check data type is uint8 (result of postprocessing)
-    assert rosie_image.dtype == np.uint8
-
-    # Check that image has been processed (not all zeros)
-    assert not np.all(rosie_image.values == 0)
