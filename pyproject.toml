@@ -110,7 +110,7 @@ ignore_missing_imports = true
 
 [tool.taskipy.tasks]
 hello = "echo Hello, World!"
-test = "pytest tests --disable-warnings"
+test = "pytest tests -n 4 -v --tb=short --cov=src/lazyslide --cov-report=xml --cov-report=html"
 test-ci = "python -X faulthandler -m pytest tests -v --tb=short --disable-warnings"
 doc-build = "sphinx-build -b html -j auto -T docs/source docs/build"
 doc-clean-build = "python docs/clean_up.py && sphinx-build -b html -j auto -T docs/source docs/build"
