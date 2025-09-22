@@ -244,6 +244,7 @@ def generate_models_rst(app, config):
             "tile_prediction.cv_features",
             set(),
         ),
+        "style_transfer": ("Style transfer models", "style_transfer", set()),
         "base": (
             "Base model class",
             "base",
@@ -254,6 +255,7 @@ def generate_models_rst(app, config):
                 mb.SegmentationModel,
                 mb.SlideEncoderModel,
                 mb.TilePredictionModel,
+                mb.StyleTransferModel,
                 mb.TimmModel,
             ],
         ),
