@@ -1,7 +1,3 @@
-import os
-import tempfile
-import uuid
-
 import pytest
 import torch
 

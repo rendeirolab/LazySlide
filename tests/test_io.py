@@ -1,9 +1,6 @@
 import json
-import tempfile
-from pathlib import Path
 
 import geopandas as gpd
-import pandas as pd
 import pytest
 from shapely.geometry import Polygon
 
