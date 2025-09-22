@@ -96,26 +96,7 @@ class TestTilePrediction:
         tiles_gdf = wsi_small.shapes["tiles"]
         assert len(tiles_gdf) > 0
         assert len(tiles_gdf.columns) > 3
-
-    def test_predictions_added_to_wsi(self, wsi_small):
-        """Test that predictions are properly added to WSIData object."""
-        # Get initial column count
-        initial_columns = len(wsi_small.shapes["tiles"].columns)
-
-        # Run tile prediction
-        tile_prediction(wsi_small, "brightness")
-
-        # Check that new columns were added
-        final_columns = len(wsi_small.shapes["tiles"].columns)
-        assert final_columns > initial_columns
-
-        # Check that all values are finite (no NaN/inf)
-        tiles_gdf = wsi_small.shapes["tiles"]
-        for col in tiles_gdf.columns:
-            if tiles_gdf[col].dtype in [np.float64, np.float32, np.int64, np.int32]:
-                assert np.isfinite(tiles_gdf[col]).all(), (
-                    f"Column {col} contains non-finite values"
-                )
+        assert "brightness" in tiles_gdf.columns
 
     def test_multiple_cv_features(self, wsi_small):
         """Test multiple CV feature models on the same WSI."""

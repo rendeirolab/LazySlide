@@ -37,3 +37,6 @@ def test_model_init(model_name):
     # Test the to device function
     model_on_device = model.to("cpu")
     assert model_on_device is model  # Should return self
+
+    # Test estimation of param size
+    _ = model.estimate_param_size()
