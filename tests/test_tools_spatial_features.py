@@ -12,6 +12,9 @@ class TestSpatialFeatures:
         """Test basic spatial features functionality."""
         # Prepare WSI with necessary data
         # wsi has feature extracted with resnet50
+        zs.pp.find_tissues(wsi)
+        zs.pp.tile_tissues(wsi, 256, mpp=0.5)
+        zs.tl.feature_extraction(wsi, "resnet50")
         zs.pp.tile_graph(wsi)
 
         # Run spatial features
