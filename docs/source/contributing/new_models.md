@@ -2,7 +2,7 @@
 
 If you developed a new model or you find a new model that you want to add to LazySlide, here are the instructions.
 
-## Submit an issue :code:`[New Model]`
+## Submit an issue with `[New Model]`
 
 Before you actually work on the new model, please submit an issue saying that you want to integrate
 a new model and provide information on the model. We will then decide if that model should be integrated or not.
