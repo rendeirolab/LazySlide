@@ -10,14 +10,25 @@ class MockNet(torch.nn.Module):
         return torch.zeros(x.shape[0], 1000)
 
 
-@pytest.fixture(scope="class", autouse=True)
+def cache_test_datasets():
+    import lazyslide as zs
+
+    zs.datasets.gtex_artery()
+    zs.datasets.sample()
+
+
+def pytest_sessionstart(session):
+    cache_test_datasets()
+
+
+@pytest.fixture(scope="session")
 def wsi():
     import lazyslide as zs
 
     return zs.datasets.gtex_artery()
 
 
-@pytest.fixture(scope="class", autouse=True)
+@pytest.fixture(scope="class")
 def wsi_small():
     import lazyslide as zs
 
@@ -29,31 +40,29 @@ def tmp_path_session(tmp_path_factory):
     return tmp_path_factory.mktemp("session_tmp")
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def torch_model_file(tmp_path_session):
     model = MockNet()
     torch.save(model, tmp_path_session / "model.pt")
     return tmp_path_session / "model.pt"
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def torch_jit_file(tmp_path_session):
     model = MockNet()
     torch.jit.script(model).save(tmp_path_session / "jit_model.pt")
     return tmp_path_session / "jit_model.pt"
 
 
-@pytest.fixture
-def wsi_with_annotations(wsi):
+@pytest.fixture(scope="session")
+def wsi_with_annotations():
     """Fixture that provides a WSI with annotations for testing."""
     import geopandas as gpd
     from shapely.geometry import Polygon
 
     import lazyslide as zs
 
-    # Ensure tissues are segmented
-    if "tissues" not in wsi.shapes:
-        zs.pp.find_tissues(wsi)
+    wsi = zs.datasets.gtex_artery()
 
     # Create some simple annotations if they don't exist
     if "annotations" not in wsi.shapes:
