@@ -20,6 +20,7 @@ class Prism(ModelBase, key="prism"):
     paper_url = "https://doi.org/10.48550/arXiv.2405.10254"
     bib_key = "Shaikovski2024-kd"
     param_size = "557.7M"
+    vision_encoder = "virchow"
 
     def __init__(self, model_path=None, token=None):
         from transformers import AutoModel
@@ -33,9 +34,10 @@ class Prism(ModelBase, key="prism"):
                 trust_remote_code=True,
                 token=token,
             )
+            self.model.eval()
 
     @torch.inference_mode()
-    def encode_slide(self, embeddings, coords=None) -> dict:
+    def encode_slide(self, embeddings, coords=None, **kwargs) -> dict:
         return self.model.slide_representations(embeddings)
 
     @torch.inference_mode()

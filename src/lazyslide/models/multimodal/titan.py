@@ -17,6 +17,7 @@ class Titan(ImageModel, key=["titan", "conch_v1.5"]):
     bib_key = "Ding2024-pk"
     param_size = "158.9M"
     encode_dim = 768
+    vision_encoder = "titan"
 
     TEMPLATES = [
         "CLASSNAME.",
@@ -54,7 +55,9 @@ class Titan(ImageModel, key=["titan", "conch_v1.5"]):
                 use_auth_token=token,
                 trust_remote_code=True,
             )
+            self.model.eval()
             self.conch, self.conch_transform = self.model.return_conch()
+            self.conch.eval()
 
     def to(self, device):
         super().to(device)

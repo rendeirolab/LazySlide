@@ -27,6 +27,7 @@ class Spider(TilePredictionModel, abstract=True):
         self.model = AutoModel.from_pretrained(
             f"histai/SPIDER-{variants}-model", trust_remote_code=True, token=token
         )
+        self.model.eval()
         self.processor = AutoProcessor.from_pretrained(
             f"histai/SPIDER-{variants}-model", trust_remote_code=True, token=token
         )

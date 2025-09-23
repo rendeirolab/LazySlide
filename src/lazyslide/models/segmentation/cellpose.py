@@ -24,7 +24,7 @@ class Cellpose(SegmentationModel, key="cellpose"):
         except ModuleNotFoundError:
             raise ModuleNotFoundError("Please install cellpose>=4.0.0")
 
-        self.cellpose_model = models.CellposeModel(
+        self.model = models.CellposeModel(
             pretrained_model=model_path if model_path is not None else "cpsam",
             diam_mean=diam_mean,
             gpu=True,
@@ -34,7 +34,8 @@ class Cellpose(SegmentationModel, key="cellpose"):
     def to(self, device):
         import torch
 
-        self.cellpose_model.device = torch.device(device)
+        self.model.device = torch.device(device)
+        return self
 
     def get_transform(self):
         return None
@@ -44,9 +45,7 @@ class Cellpose(SegmentationModel, key="cellpose"):
             # If the image is a batch, we need to make it into a list of images
             image = [img.detach().cpu().numpy() for img in image]
 
-        masks, _, _ = self.cellpose_model.eval(
-            image, batch_size=len(image), **self.eval_kwargs
-        )
+        masks, _, _ = self.model.eval(image, batch_size=len(image), **self.eval_kwargs)
         if isinstance(masks, list):
             # If the masks are a list, we need to convert them to a numpy array
             masks = np.array(masks)

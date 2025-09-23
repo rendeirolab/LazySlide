@@ -34,7 +34,7 @@ class _CVFeatures(TilePredictionModel, ABC, abstract=True):
     license = None
 
     def to(self, device):
-        pass
+        return self
 
     def get_transform(self):
         return None

@@ -1,14 +1,10 @@
-import pytest
-
 import lazyslide as zs
 
 
-@pytest.mark.skip_on_ci
 def test_tissue_segmentation(wsi):
     zs.seg.tissue(wsi, key_added="tissues")
 
 
-@pytest.mark.skip_on_ci
 class TestCellSegmentation:
     def test_cell_segmentation(self, wsi):
         zs.pp.tile_tissues(wsi, tile_px=512, mpp=0.5, key_added="cell_tiles")
@@ -21,7 +17,6 @@ class TestCellSegmentation:
         zs.seg.cell_types(wsi, "nulite", tile_key="cell_tiles", key_added="cell_types")
 
 
-@pytest.mark.skip_on_ci
 class TestSemanticSegmentation:
     def test_semantic_segmentation(self, wsi):
         zs.pp.tile_tissues(wsi, tile_px=512, mpp=1.5, key_added="semantic_tiles")

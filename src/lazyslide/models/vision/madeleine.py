@@ -16,6 +16,7 @@ class MadeleineSlideEncoder(SlideEncoderModel, key="madeleine"):
     paper_url = "http://arxiv.org/abs/2408.02859"
     bib_key = "Jaume2024-tq"
     param_size = "3.2M"
+    vision_encoder = "conch"
 
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download

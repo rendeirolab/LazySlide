@@ -1,5 +1,5 @@
 from ._artifact import artifact
-from ._cell import cell_types, cells, nulite
+from ._cell import cell_types, cells
 from ._seg_runner import (
     CellSegmentationRunner,
     SemanticSegmentationRunner,

@@ -77,7 +77,8 @@ def tile_shaper(
     key_added: str = "domain_shapes",
 ):
     """
-    Return the domain shapes of the WSI
+    Return the domain shapes of the WSI by merging tiles with the same types
+    that are spatially aggregated into polygons using geopandas dissolve.
 
     Parameters
     ----------
@@ -106,48 +107,37 @@ def tile_shaper(
 
     """
     import geopandas as gpd
-    from shapely.affinity import scale, translate
-
-    from lazyslide.cv import BinaryMask
-
-    result = []
+    from shapely.geometry import box
 
     tile_table = wsi[tile_key]
 
-    spec = wsi.tile_spec(tile_key)
+    # Create box geometries from tile bounds
+    geometries = []
+    for _, row in tile_table.iterrows():
+        geom = box(
+            row.bounds["minx"],
+            row.bounds["miny"],
+            row.bounds["maxx"],
+            row.bounds["maxy"],
+        )
+        geometries.append(geom)
 
-    # To avoid large memory allocation of mask, get domain in each tissue
-    for _, tissue_group in tile_table.groupby("tissue_id"):
-        for name, group in tissue_group.groupby(groupby):
-            bounds = (group.bounds / spec.base_height).astype(int)
-            minx, miny, maxx, maxy = (
-                bounds["minx"].min(),
-                bounds["miny"].min(),
-                bounds["maxx"].max(),
-                bounds["maxy"].max(),
-            )
-            w, h = int(maxx - minx), int(maxy - miny)
-            mask = np.zeros((h, w), dtype=np.uint8)
-            for _, row in bounds.iterrows():
-                mask[row["miny"] - miny, row["minx"] - minx] = 1
-            polys = BinaryMask(mask).to_polygons()
-            # scale back
-            polys = [
-                scale(
-                    poly, xfact=spec.base_height, yfact=spec.base_height, origin=(0, 0)
-                )
-                for poly in polys
-            ]
-            # translate
-            polys = [
-                translate(
-                    poly, xoff=minx * spec.base_height, yoff=miny * spec.base_height
-                )
-                for poly in polys
-            ]
-            for poly in polys:
-                result.append([name, poly])
+    # Create GeoDataFrame with tile geometries and groupby column
+    tiles_gdf = gpd.GeoDataFrame(
+        {
+            groupby: tile_table[groupby],
+            "tissue_id": tile_table["tissue_id"],
+            "geometry": geometries,
+        }
+    )
 
-    domain_shapes = gpd.GeoDataFrame(data=result, columns=[groupby, "geometry"])
+    # Group by tissue_id and groupby column, then dissolve to merge adjacent tiles
+    domain_shapes = (
+        tiles_gdf.dissolve(by=[groupby, "tissue_id"]).explode().reset_index(drop=True)
+    )
+
+    # Keep only the groupby column and geometry
+    domain_shapes = domain_shapes[[groupby, "geometry"]]
+
     add_shapes(wsi, key_added, domain_shapes)
     # return domain_shapes

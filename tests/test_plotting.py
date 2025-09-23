@@ -1,10 +1,12 @@
+import matplotlib as mpl
 import matplotlib.pyplot as plt
-import numpy as np
 import pytest
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 import lazyslide as zs
+
+mpl.use("Agg")
 
 
 class TestPlTissue:

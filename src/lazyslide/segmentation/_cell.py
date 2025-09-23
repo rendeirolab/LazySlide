@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import warnings
 
+import torch
 from wsidata import WSIData
 from wsidata.io import add_shapes
 
 from lazyslide.models import SegmentationModel
 
 from .._const import Key
-from .._utils import find_stack_level
 from ._seg_runner import CellSegmentationRunner
 
 
@@ -20,6 +20,8 @@ def cells(
     batch_size=4,
     num_workers=0,
     device=None,
+    amp: bool = False,
+    autocast_dtype: torch.dtype = torch.float16,
     size_filter=False,
     nucleus_size=(20, 1000),
     pbar=True,
@@ -90,6 +92,8 @@ def cells(
         size_filter=size_filter,
         nucleus_size=nucleus_size,
         device=device,
+        amp=amp,
+        autocast_dtype=autocast_dtype,
         pbar=pbar,
     )
     cells = runner.run()
@@ -105,6 +109,8 @@ def cell_types(
     batch_size=4,
     num_workers=0,
     device=None,
+    amp: bool = False,
+    autocast_dtype: torch.dtype = torch.float16,
     size_filter=False,
     nucleus_size=(20, 1000),
     pbar=True,
@@ -178,6 +184,8 @@ def cell_types(
         device=device,
         size_filter=size_filter,
         nucleus_size=nucleus_size,
+        amp=amp,
+        autocast_dtype=autocast_dtype,
         pbar=pbar,
         class_names=CLASS_MAPPING,
     )
@@ -187,54 +195,3 @@ def cell_types(
     cells = cells[cells["class"] != "Background"]
     cells = cells.explode().reset_index(drop=True)
     add_shapes(wsi, key=key_added, shapes=cells)
-
-
-def nulite(
-    wsi: WSIData,
-    tile_key="tiles",
-    transform=None,
-    batch_size=4,
-    num_workers=0,
-    device=None,
-    key_added="cell_types",
-):
-    """Cell type segmentation for the whole slide image.
-
-    Tiles should be prepared before segmentation.
-
-    Recommended tile setting:
-    - **nulite**: 512x512, mpp=0.5
-
-    Parameters
-    ----------
-    wsi : :class:`WSIData <wsidata.WSIData>`
-        The WSIData object to work on.
-    tile_key : str, default: "tiles"
-        The key of the tile table.
-    transform : callable, default: None
-        The transformation for the input tiles.
-    batch_size : int, default: 4
-        The batch size for segmentation.
-    num_workers : int, default: 0
-        The number of workers for data loading.
-    device : str, default: None
-        The device for the model.
-    key_added : str, default: "cell_types"
-        The key for the added cell type shapes.
-
-    """
-    warnings.warn(
-        "Deprecated since v0.7.0 and will be removed in v0.8: Use `cell_types` instead.",
-        DeprecationWarning,
-        stacklevel=find_stack_level(),
-    )
-
-    return cell_types(
-        wsi,
-        model="nulite",
-        tile_key=tile_key,
-        transform=transform,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        device=device,
-    )

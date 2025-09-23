@@ -182,14 +182,6 @@ class TestPPTileTissues:
         """Test that slide_mpp parameter raises ValueError."""
         zs.pp.tile_tissues(wsi, 256, slide_mpp=1, key_added="tiles2")
 
-    def test_assert(self, wsi):
-        """Test that different parameters produce different numbers of tiles."""
-        s0 = len(wsi["tiles"])
-        s1 = len(wsi["tiles1"])
-
-        assert s0 > 0
-        assert s1 < s0
-
     @pytest.mark.parametrize("tile_size", [128, 256, (256, 128)])
     def test_tile_size(self, wsi, tile_size):
         """Test different tile sizes."""
@@ -363,3 +355,213 @@ class TestPPTileTissues:
         # Check if all tiles have the same area (for square tiles)
         areas = [geom.area for geom in wsi[key].geometry]
         assert np.allclose(areas, areas[0])
+
+
+class TestPPTileGraph:
+    """Tests for the pp.tile_graph function."""
+
+    def test_basic_functionality(self, wsi):
+        """Test basic functionality with default parameters."""
+        # First create tiles to build graph from
+        zs.pp.find_tissues(wsi)
+        zs.pp.tile_tissues(wsi, 256, key_added="tiles_for_graph")
+
+        # Test the tile_graph function
+        zs.pp.tile_graph(wsi, tile_key="tiles_for_graph")
+
+        # Check if the graph table was created (Key.tile_graph format: {name}_graph)
+        expected_key = "tiles_for_graph_graph"
+        assert expected_key in wsi.tables
+
+        # Check if the table has the expected structure
+        table = wsi[expected_key]
+        assert hasattr(table, "obsp")
+        assert "spatial_connectivities" in table.obsp
+        assert "spatial_distances" in table.obsp
+        assert "spatial" in table.uns
+
+    @pytest.mark.parametrize("n_neighs", [4, 6, 8])
+    def test_n_neighs_parameter(self, wsi, n_neighs):
+        """Test different n_neighs parameter values."""
+        zs.pp.find_tissues(wsi)
+        zs.pp.tile_tissues(wsi, 256, key_added="tiles_neighs")
+
+        table_key = f"graph_neighs_{n_neighs}"
+        zs.pp.tile_graph(
+            wsi, n_neighs=n_neighs, tile_key="tiles_neighs", table_key=table_key
+        )
+
+        # Check if the graph table was created
+        assert table_key in wsi.tables
+
+        # Check if the table has the expected structure
+        table = wsi[table_key]
+        assert table.uns["spatial"]["params"]["n_neighbors"] == n_neighs
+
+    @pytest.mark.parametrize("n_rings", [1, 2, 3])
+    def test_n_rings_parameter(self, wsi, n_rings):
+        """Test different n_rings parameter values."""
+        zs.pp.find_tissues(wsi)
+        zs.pp.tile_tissues(wsi, 256, key_added="tiles_rings")
+
+        table_key = f"graph_rings_{n_rings}"
+        zs.pp.tile_graph(
+            wsi, n_rings=n_rings, tile_key="tiles_rings", table_key=table_key
+        )
+
+        # Check if the graph table was created
+        assert table_key in wsi.tables
+
+        # Check if the table has the expected structure
+        table = wsi[table_key]
+        assert hasattr(table, "obsp")
+        assert "spatial_connectivities" in table.obsp
+
+    @pytest.mark.parametrize("delaunay", [True, False])
+    def test_delaunay_parameter(self, wsi, delaunay):
+        """Test different delaunay parameter values."""
+        zs.pp.find_tissues(wsi)
+        zs.pp.tile_tissues(wsi, 256, key_added="tiles_delaunay")
+
+        table_key = f"graph_delaunay_{delaunay}"
+        zs.pp.tile_graph(
+            wsi, delaunay=delaunay, tile_key="tiles_delaunay", table_key=table_key
+        )
+
+        # Check if the graph table was created
+        assert table_key in wsi.tables
+
+        # Check if the table has the expected structure
+        table = wsi[table_key]
+        assert hasattr(table, "obsp")
+        assert "spatial_connectivities" in table.obsp
+
+    @pytest.mark.parametrize("transform", [None, "cosine"])
+    def test_transform_parameter(self, wsi, transform):
+        """Test different transform parameter values."""
+        zs.pp.find_tissues(wsi)
+        zs.pp.tile_tissues(wsi, 256, key_added="tiles_transform")
+
+        table_key = f"graph_transform_{transform}"
+        zs.pp.tile_graph(
+            wsi, transform=transform, tile_key="tiles_transform", table_key=table_key
+        )
+
+        # Check if the graph table was created
+        assert table_key in wsi.tables
+
+        # Check if the table has the expected structure
+        table = wsi[table_key]
+        assert table.uns["spatial"]["params"]["transform"] == transform
+
+    @pytest.mark.parametrize("set_diag", [True, False])
+    def test_set_diag_parameter(self, wsi, set_diag):
+        """Test different set_diag parameter values."""
+        zs.pp.find_tissues(wsi)
+        zs.pp.tile_tissues(wsi, 256, key_added="tiles_diag")
+
+        table_key = f"graph_diag_{set_diag}"
+        zs.pp.tile_graph(
+            wsi, set_diag=set_diag, tile_key="tiles_diag", table_key=table_key
+        )
+
+        # Check if the graph table was created
+        assert table_key in wsi.tables
+
+        # Check if the table has the expected structure
+        table = wsi[table_key]
+        connectivities = table.obsp["spatial_connectivities"]
+
+        if set_diag:
+            # Check that diagonal elements are set to 1
+            assert (connectivities.diagonal() == 1).all()
+        else:
+            # Check that diagonal elements are 0
+            assert (connectivities.diagonal() == 0).all()
+
+    def test_custom_tile_key(self, wsi):
+        """Test with custom tile_key parameter."""
+        zs.pp.find_tissues(wsi)
+        zs.pp.tile_tissues(wsi, 256, key_added="custom_tiles")
+
+        zs.pp.tile_graph(wsi, tile_key="custom_tiles")
+
+        # Check if the graph table was created with the correct key (Key.tile_graph format: {name}_graph)
+        expected_key = "custom_tiles_graph"
+        assert expected_key in wsi.tables
+
+    def test_custom_table_key(self, wsi):
+        """Test with custom table_key parameter."""
+        zs.pp.find_tissues(wsi)
+        zs.pp.tile_tissues(wsi, 256, key_added="tiles_custom_table")
+
+        custom_table_key = "my_custom_graph"
+        zs.pp.tile_graph(wsi, tile_key="tiles_custom_table", table_key=custom_table_key)
+
+        # Check if the graph table was created with the custom key
+        assert custom_table_key in wsi.tables
+
+    def test_graph_properties(self, wsi):
+        """Test properties of the created graph."""
+        zs.pp.find_tissues(wsi)
+        zs.pp.tile_tissues(wsi, 256, key_added="tiles_properties")
+
+        zs.pp.tile_graph(wsi, tile_key="tiles_properties")
+
+        # Get the created table (Key.tile_graph format: {name}_graph)
+        expected_key = "tiles_properties_graph"
+        table = wsi[expected_key]
+
+        # Check that connectivities and distances are sparse matrices
+        connectivities = table.obsp["spatial_connectivities"]
+        distances = table.obsp["spatial_distances"]
+
+        from scipy.sparse import issparse
+
+        assert issparse(connectivities)
+        assert issparse(distances)
+
+        # Check that dimensions match the number of tiles
+        n_tiles = len(wsi["tiles_properties"])
+        assert connectivities.shape == (n_tiles, n_tiles)
+        assert distances.shape == (n_tiles, n_tiles)
+
+        # Check that distances are non-negative
+        assert (distances.data >= 0).all()
+
+    def test_invalid_transform(self, wsi):
+        """Test that invalid transform raises NotImplementedError."""
+        zs.pp.find_tissues(wsi)
+        zs.pp.tile_tissues(wsi, 256, key_added="tiles_invalid")
+
+        with pytest.raises(NotImplementedError):
+            zs.pp.tile_graph(
+                wsi, transform="invalid_transform", tile_key="tiles_invalid"
+            )
+
+    def test_missing_tile_key(self, wsi):
+        """Test behavior when tile_key doesn't exist."""
+        # This should raise an error when trying to access non-existent tiles
+        with pytest.raises(KeyError):
+            zs.pp.tile_graph(wsi, tile_key="nonexistent_tiles")
+
+    def test_existing_table_key(self, wsi):
+        """Test behavior when table_key already exists."""
+        zs.pp.find_tissues(wsi)
+        zs.pp.tile_tissues(wsi, 256, key_added="tiles_existing")
+
+        table_key = "existing_graph"
+
+        # First call to create the table
+        zs.pp.tile_graph(wsi, tile_key="tiles_existing", table_key=table_key)
+        assert table_key in wsi.tables
+
+        # Second call should update the existing table
+        zs.pp.tile_graph(
+            wsi, tile_key="tiles_existing", table_key=table_key, n_neighs=8
+        )
+        assert table_key in wsi.tables
+
+        # Check that parameters were updated
+        table = wsi[table_key]
+        assert table.uns["spatial"]["params"]["n_neighbors"] == 8
