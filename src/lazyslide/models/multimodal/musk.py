@@ -95,14 +95,23 @@ class MUSK(ImageTextModel, key="musk"):
         except Exception:
             device = torch.device("cpu")
 
-        txt_ids, pad = utils.xlm_tokenizer(text, self.tokenizer, max_len=100)
-        txt_ids = torch.tensor(txt_ids).unsqueeze(0).to(device)
-        paddings = torch.tensor(pad).unsqueeze(0).to(device)
+        if isinstance(text, str):
+            text = [text]
+
+        text_ids = []
+        paddings = []
+        for txt in text:
+            txt_ids, pad = utils.xlm_tokenizer(txt, self.tokenizer, max_len=100)
+            text_ids.append(torch.tensor(txt_ids).unsqueeze(0))
+            paddings.append(torch.tensor(pad).unsqueeze(0))
+
+        text_ids = torch.cat(text_ids).to(device)
+        paddings = torch.cat(paddings).to(device)
 
         text_feature = self.model(
-            text_description=txt_ids,
+            text_description=text_ids,
             padding_mask=paddings,
             with_head=self.with_head,
-            out_norm=False,
-        )
+            out_norm=True,
+        )[1]
         return text_feature
