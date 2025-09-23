@@ -43,17 +43,15 @@ def torch_jit_file(tmp_path_session):
     return tmp_path_session / "jit_model.pt"
 
 
-@pytest.fixture
-def wsi_with_annotations(wsi):
+@pytest.fixture(scope="class", autouse=True)
+def wsi_with_annotations():
     """Fixture that provides a WSI with annotations for testing."""
     import geopandas as gpd
     from shapely.geometry import Polygon
 
     import lazyslide as zs
 
-    # Ensure tissues are segmented
-    if "tissues" not in wsi.shapes:
-        zs.pp.find_tissues(wsi)
+    wsi = zs.datasets.gtex_artery()
 
     # Create some simple annotations if they don't exist
     if "annotations" not in wsi.shapes:
