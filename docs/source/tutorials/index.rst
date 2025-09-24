@@ -24,3 +24,5 @@ please read `wsidata tutorials <https://wsidata.readthedocs.io/en/stable/intro/>
    genomics_integration
    zero-shot-learning
    survival_prediction
+   build_tile_model
+   virtual_staining
