@@ -12,6 +12,7 @@ API Reference
     io
     models
     cv
+    metrics
 
 
 .. grid:: 1 2 2 2
@@ -58,3 +59,9 @@ API Reference
       :link-type: doc
 
       IO for annotations
+
+   .. grid-item-card:: Metrics
+      :link: metrics
+      :link-type: doc
+
+      Metrics for scoring or evaluation
