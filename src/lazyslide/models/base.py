@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import textwrap
 from abc import ABC, abstractmethod
 from enum import Enum
-from pathlib import Path
 from typing import Any, List
 
 import torch
@@ -65,8 +65,10 @@ class ModelBase(ABC):
         old_doc = cls.__doc__
         if old_doc is None:
             old_doc = ""
+        else:
+            old_doc = textwrap.dedent(old_doc)
         inject_doc = model_doc(cls)
-        cls.__doc__ = old_doc + inject_doc
+        cls.__doc__ = inject_doc + "\n" + old_doc
 
     def _repr_html_(self):
         return model_repr_html(self)

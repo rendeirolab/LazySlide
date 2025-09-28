@@ -5,7 +5,6 @@ from itertools import chain
 
 import numpy as np
 import pandas as pd
-from anndata import AnnData
 from numba import njit
 from scipy.sparse import SparseEfficiencyWarning, csr_matrix, isspmatrix_csr, spmatrix
 from scipy.spatial import Delaunay
@@ -65,6 +64,8 @@ def tile_graph(
 
 
     """
+    from anndata import AnnData
+
     coords = wsi[tile_key].bounds[["minx", "miny"]].values
     Adj, Dst = _spatial_neighbor(
         coords, n_neighs, delaunay, n_rings, transform, set_diag

@@ -1,10 +1,7 @@
-import warnings
-
 import numpy as np
 from wsidata import WSIData
 
 from lazyslide._const import Key
-from lazyslide._utils import find_stack_level
 
 
 def spatial_features(
