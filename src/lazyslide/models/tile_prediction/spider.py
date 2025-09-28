@@ -42,10 +42,7 @@ class Spider(TilePredictionModel, abstract=True):
             outputs = self.model(**inputs)
             predicted_class_names = outputs.predicted_class_names
             prob = outputs.logits.softmax(-1).detach().cpu().numpy()
-            return {
-                "class": np.asarray(predicted_class_names),
-                "prob": prob[:, outputs.label],
-            }
+            return {"class": np.asarray(predicted_class_names), "prob": prob.max(1)}
 
 
 class SpiderBreast(Spider, key="spider-breast"):
