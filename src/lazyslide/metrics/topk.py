@@ -1,9 +1,13 @@
+from typing import TYPE_CHECKING, Union
+
+if TYPE_CHECKING:
+    from anndata import AnnData
+
 import numpy as np
-from anndata import AnnData
 
 
 def topk_score(
-    matrix: np.ndarray | AnnData,
+    matrix: Union[np.ndarray, "AnnData"],
     k: int = 5,
     agg_method: str = "max",
 ) -> np.ndarray:
@@ -26,6 +30,8 @@ def topk_score(
         The top k scores.
 
     """
+    from anndata import AnnData
+
     if isinstance(matrix, AnnData):
         matrix = matrix.X
 
