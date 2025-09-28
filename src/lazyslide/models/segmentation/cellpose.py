@@ -4,6 +4,22 @@ from lazyslide.models.base import ModelTask, SegmentationModel
 
 
 class Cellpose(SegmentationModel, key="cellpose"):
+    """
+    Only supports cellpose>=4.0.0
+
+    If you want to fine-tune the cellpose model, please take a look at the following resources:
+
+    - https://github.com/MouseLand/cellpose/blob/main/notebooks/train_Cellpose-SAM.ipynb
+    - https://cellpose.readthedocs.io/en/latest/train.html
+
+    To run a fine-tuned model, pass the `model_path` argument pointing to the fine-tuned weights.
+
+    .. code-block:: python
+
+       >>> zs.seg.cells(wsi, model="cellpose", model_path="fine-tuned-checkpoint.pth")
+
+    """
+
     task = ModelTask.segmentation
     license = "BSD-3-Clause"
     description = "Cell segmentation model"
