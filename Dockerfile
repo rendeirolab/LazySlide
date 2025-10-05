@@ -43,21 +43,21 @@ RUN pip install --no-cache-dir uv
 FROM base AS deps
 WORKDIR /app
 
-# Copy only dependency files first for better caching
-COPY pyproject.toml uv.lock ./
+# Copy git directory first for version detection
+COPY .git/ ./.git/
+
+# Copy dependency files and README (required for package metadata)
+COPY pyproject.toml uv.lock README.md ./
 
 # Install dependencies without the project
 RUN uv sync --group tests --group dev --extra all --extra models --no-install-project
 
 # Install Jupyter Lab and IPython for interactive use
-RUN uv pip install jupyterlab ipython
+RUN uv pip install jupyterlab ipython  numcodecs
 
 # Build stage - install the project
 FROM deps AS builder
 WORKDIR /app
-
-# Copy git directory for version detection
-COPY .git/ ./.git/
 
 # Copy source code, tests, and README
 COPY src/ ./src/
