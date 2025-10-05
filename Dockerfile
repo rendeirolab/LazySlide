@@ -5,7 +5,7 @@
 # IPython usage: docker run -it --rm lazyslide ipython
 
 # Use a smaller base image for runtime
-FROM python:3.11-slim AS base
+FROM python:3.13-slim AS base
 
 # Set environment variables for faster builds and better performance
 ENV PYTHONUNBUFFERED=1
@@ -68,7 +68,7 @@ COPY README.md ./
 RUN uv run pip install -e .
 
 # Runtime stage - minimal image
-FROM python:3.11-slim AS runtime
+FROM python:3.13-slim AS runtime
 
 # Install only runtime system dependencies
 RUN apt-get update && apt-get install -y \
