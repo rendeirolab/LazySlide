@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import textwrap
 from abc import ABC, abstractmethod
 from enum import Enum
-from pathlib import Path
 from typing import Any, List
 
 import torch
@@ -31,7 +31,7 @@ class ModelBase(ABC):
     github_url: str = None
     hf_url: str = None
     paper_url: str = None
-    license: str = (None,)
+    license: str = None
     license_url: str = None
     bib_key: str = None
     commercial: bool = None
@@ -65,8 +65,10 @@ class ModelBase(ABC):
         old_doc = cls.__doc__
         if old_doc is None:
             old_doc = ""
+        else:
+            old_doc = textwrap.dedent(old_doc)
         inject_doc = model_doc(cls)
-        cls.__doc__ = old_doc + inject_doc
+        cls.__doc__ = inject_doc + "\n" + old_doc
 
     def _repr_html_(self):
         return model_repr_html(self)
@@ -78,12 +80,6 @@ class ModelBase(ABC):
         self.model.to(device)
         return self
 
-    @staticmethod
-    def load_weights(url, progress=True):
-        from timm.models.hub import download_cached_file
-
-        return Path(download_cached_file(url, progress=progress))
-
     def estimate_param_size(self):
         """Count the number of parameters in a model."""
         model = self.model
@@ -93,7 +89,7 @@ class ModelBase(ABC):
                 model = model.model
             except (AttributeError, TypeError):
                 return None
-        return sum(p.numel() for p in self.model.parameters())
+        return sum(p.numel() for p in model.parameters())
 
     @classmethod
     def _field_validate(cls):
@@ -115,6 +111,15 @@ class ModelBase(ABC):
     @property
     def name(self):
         return self.__class__.__name__
+
+    def check_input_tile(self, mpp, size_x=None, size_y=None) -> bool:  # noqa
+        """
+        A helper function to check if the input tile size is valid.
+
+        Return True if the input tile size is valid. And the model will be executed.
+        Add a warning here if the input is not optimal but still can be executed.
+        """
+        return True
 
 
 class ImageModel(ModelBase, abstract=True):
@@ -236,4 +241,14 @@ class TilePredictionModel(ModelBase, abstract=True):
         """The output should always be a dict of numpy arrays
         to allow multiple outputs.
         """
+        raise NotImplementedError
+
+
+class StyleTransferModel(ModelBase, abstract=True):
+    @abstractmethod
+    def predict(self, image):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_channel_names(self):
         raise NotImplementedError

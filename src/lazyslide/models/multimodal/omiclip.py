@@ -46,6 +46,7 @@ class OmiCLIP(ImageTextModel, key="omiclip"):
             "coca_ViT-L-14", pretrained=model_path, load_weights_only=False
         )
         self.tokenizer = get_tokenizer("coca_ViT-L-14")
+        self.model.eval()
 
     @torch.inference_mode()
     def encode_image(
@@ -90,8 +91,7 @@ class OmiCLIP(ImageTextModel, key="omiclip"):
             device = next(self.model.parameters()).device
         except Exception:
             device = torch.device("cpu")
-        text_inputs = {k: v.to(device) for k, v in text_inputs.items()}
 
-        feats = self.model.encode_text(text_inputs)  # (N, D)
-        normalized_features = F.normalize(feats, p=2, dim=-1)  # (N, D)
+        feats = self.model.encode_text(text_inputs.to(device))
+        normalized_features = F.normalize(feats, p=2, dim=-1)
         return normalized_features

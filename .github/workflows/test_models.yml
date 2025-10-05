@@ -24,10 +24,10 @@ jobs:
         run: uv sync --dev
       - name: Login to Hugging Face
         run: |
-          uv run huggingface-cli login --token ${{ secrets.HF_TOKEN }}
+          uv run hf auth login --token ${{ secrets.HF_TOKEN }}
       - name: Tests # TODO: Add tests for models
         run: |
-          uv run pytest tests/models -n auto --cov=src/lazyslide/models --cov-report=xml --cov-report=html
+          uv run pytest tests/models -n auto --maxfail=1 --dist=loadfile --cov=src/lazyslide/models --cov-report=xml --cov-report=html
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:

@@ -5,7 +5,6 @@ from itertools import chain
 
 import numpy as np
 import pandas as pd
-from anndata import AnnData
 from numba import njit
 from scipy.sparse import SparseEfficiencyWarning, csr_matrix, isspmatrix_csr, spmatrix
 from scipy.spatial import Delaunay
@@ -65,6 +64,8 @@ def tile_graph(
 
 
     """
+    from anndata import AnnData
+
     coords = wsi[tile_key].bounds[["minx", "miny"]].values
     Adj, Dst = _spatial_neighbor(
         coords, n_neighs, delaunay, n_rings, transform, set_diag
@@ -92,9 +93,23 @@ def tile_graph(
         add_table(wsi, table_key, table)
     else:
         table = wsi[table_key]
-        table.obsp[conns_key] = Adj
-        table.obsp[dists_key] = Dst
-        table.uns["spatial"] = neighbors_dict
+        # Check if dimensions match, if not recreate the table
+        expected_n_obs = coords.shape[0]
+        if table.n_obs != expected_n_obs:
+            # Dimensions don't match, recreate the table
+            table = AnnData(
+                obs=pd.DataFrame(
+                    index=np.arange(expected_n_obs, dtype=int).astype(str)
+                ),
+                obsp={conns_key: Adj, dists_key: Dst},
+                uns={"spatial": neighbors_dict},
+            )
+            add_table(wsi, table_key, table)
+        else:
+            # Dimensions match, safe to update
+            table.obsp[conns_key] = Adj
+            table.obsp[dists_key] = Dst
+            table.uns["spatial"] = neighbors_dict
 
 
 def _spatial_neighbor(

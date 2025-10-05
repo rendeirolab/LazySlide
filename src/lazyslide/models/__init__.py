@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from . import multimodal, segmentation, tile_prediction, vision
+from . import (
+    multimodal,
+    segmentation,
+    style_transfer,
+    tile_prediction,
+    vision,
+)
 from ._utils import hf_access
 from .base import (
     ImageModel,
@@ -9,6 +15,7 @@ from .base import (
     ModelTask,
     SegmentationModel,
     SlideEncoderModel,
+    StyleTransferModel,
     TimmModel,
 )
 

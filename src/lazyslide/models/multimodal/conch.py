@@ -45,6 +45,7 @@ class CONCH(ImageTextModel, key="conch"):
             self.model, self.processor = create_model_from_pretrained(
                 "conch_ViT-B-16", model_path, hf_auth_token=token
             )
+            self.model.eval()
             self.tokenizer = get_tokenizer()
 
     @torch.inference_mode()

@@ -1038,3 +1038,142 @@
   primaryClass  = "eess.IV",
   keywords      = "LazySlide-doc-citations"
 }
+
+@ARTICLE{Andani2025-jq,
+  title     = "Histopathology-based protein multiplex generation using deep
+               learning",
+  author    = "Andani, Sonali and Chen, Boqi and Ficek-Pascual, Joanna and
+               Heinke, Simon and Casanova, Ruben and Hild, Bernard Friedrich and
+               Sobottka, Bettina and Bodenmiller, Bernd and {Tumor Profiler
+               Consortium} and Koelzer, Viktor H and Rätsch, Gunnar",
+  journal   = "Nat. Mach. Intell.",
+  publisher = "Springer Science and Business Media LLC",
+  volume    =  7,
+  number    =  8,
+  pages     = "1292--1307",
+  abstract  = "Multiplexed protein imaging offers valuable insights into
+               interactions between tumours and their surrounding tumour
+               microenvironment, but its widespread use is limited by cost, time
+               and tissue availability. Here we present HistoPlexer, a deep
+               learning framework that generates spatially resolved protein
+               multiplexes directly from standard haematoxylin and eosin (H\&E)
+               histopathology images. HistoPlexer jointly predicts multiple
+               tumour and immune markers using a conditional generative
+               adversarial architecture with custom loss functions designed to
+               ensure pixel- and embedding-level similarity while mitigating
+               slice-to-slice variations. A comprehensive evaluation of
+               metastatic melanoma samples demonstrates that
+               HistoPlexer-generated protein maps closely resemble real maps, as
+               validated by expert assessment. They preserve crucial biological
+               relationships by capturing spatial co-localization patterns among
+               proteins. The spatial distribution of immune infiltration from
+               HistoPlexer-generated protein multiplex enables stratification of
+               tumours into immune subtypes. In an independent cohort,
+               integration of HistoPlexer-derived features into predictive
+               models enhances performance in survival prediction and immune
+               subtype classification compared to models using H\&E features
+               alone. To assess broader applicability, we benchmarked
+               HistoPlexer on publicly available pixel-aligned datasets from
+               different cancer types. In all settings, HistoPlexer consistently
+               outperformed baseline methods, demonstrating robustness across
+               diverse tissue types and imaging conditions. By enabling
+               whole-slide protein multiplex generation from routine H\&E
+               images, HistoPlexer offers a cost- and time-efficient approach to
+               tumour microenvironment characterization with strong potential to
+               advance precision oncology.",
+  month     =  "4~" # aug,
+  year      =  2025,
+  url       = "http://dx.doi.org/10.1038/s42256-025-01074-y",
+  keywords  = "Computational models; Machine learning;
+               Melanoma;LazySlide-doc-citations",
+  doi       = "10.1038/s42256-025-01074-y",
+  language  = "en"
+}
+
+
+@ARTICLE{Wu2025-kv,
+  title     = "{ROSIE}: {AI} generation of multiplex immunofluorescence staining
+               from histopathology images",
+  author    = "Wu, Eric and Bieniosek, Matthew and Wu, Zhenqin and Thakkar,
+               Nitya and Charville, Gregory W and Makky, Ahmad and Schürch,
+               Christian M and Huyghe, Jeroen R and Peters, Ulrike and Li,
+               Christopher I and Li, Li and Giba, Hannah and Behera, Vivek and
+               Raman, Arjun and Trevino, Alexandro E and Mayer, Aaron T and Zou,
+               James",
+  journal   = "Nat. Commun.",
+  publisher = "Nature Publishing Group",
+  volume    =  16,
+  number    =  1,
+  pages     =  7633,
+  abstract  = "Hematoxylin and eosin (H\&E) is a common and inexpensive
+               histopathology assay. Though widely used and information-rich, it
+               cannot directly inform about specific molecular markers, which
+               require additional experiments to assess. To address this gap, we
+               present ROSIE, a deep-learning framework that computationally
+               imputes the expression and localization of dozens of proteins
+               from H\&E images. Our model is trained on a dataset of over 1300
+               paired and aligned H\&E and multiplex immunofluorescence (mIF)
+               samples from over a dozen tissues and disease conditions,
+               spanning over 16 million cells. Validation of our in silico mIF
+               staining method on held-out H\&E samples demonstrates that the
+               predicted biomarkers are effective in identifying cell
+               phenotypes, particularly distinguishing lymphocytes such as B
+               cells and T cells, which are not readily discernible with H\&E
+               staining alone. Additionally, ROSIE facilitates the robust
+               identification of stromal and epithelial microenvironments and
+               immune cell subtypes like tumor-infiltrating lymphocytes (TILs),
+               which are important for understanding tumor-immune interactions
+               and can help inform treatment strategies in cancer research.",
+  month     =  "16~" # aug,
+  year      =  2025,
+  url       = "http://dx.doi.org/10.1038/s41467-025-62346-0",
+  keywords  = "LazySlide-doc-citations",
+  doi       = "10.1038/s41467-025-62346-0",
+  language  = "en"
+}
+
+@ARTICLE{Xiang2025-fd,
+  title     = "A vision-language foundation model for precision oncology",
+  author    = "Xiang, Jinxi and Wang, Xiyue and Zhang, Xiaoming and Xi, Yinghua
+               and Eweje, Feyisope and Chen, Yijiang and Li, Yuchen and
+               Bergstrom, Colin and Gopaulchan, Matthew and Kim, Ted and Yu,
+               Kun-Hsing and Willens, Sierra and Olguin, Francesca Maria and
+               Nirschl, Jeffrey J and Neal, Joel and Diehn, Maximilian and Yang,
+               Sen and Li, Ruijiang",
+  journal   = "Nature",
+  publisher = "Springer Science and Business Media LLC",
+  volume    =  638,
+  number    =  8051,
+  pages     = "769--778",
+  abstract  = "Clinical decision-making is driven by multimodal data, including
+               clinical notes and pathological characteristics. Artificial
+               intelligence approaches that can effectively integrate multimodal
+               data hold significant promise in advancing clinical care1,2.
+               However, the scarcity of well-annotated multimodal datasets in
+               clinical settings has hindered the development of useful models.
+               In this study, we developed the Multimodal transformer with
+               Unified maSKed modeling (MUSK), a vision-language foundation
+               model designed to leverage large-scale, unlabelled, unpaired
+               image and text data. MUSK was pretrained on 50 million pathology
+               images from 11,577 patients and one billion pathology-related
+               text tokens using unified masked modelling. It was further
+               pretrained on one million pathology image-text pairs to
+               efficiently align the vision and language features. With minimal
+               or no further training, MUSK was tested in a wide range of
+               applications and demonstrated superior performance across 23
+               patch-level and slide-level benchmarks, including image-to-text
+               and text-to-image retrieval, visual question answering, image
+               classification and molecular biomarker prediction. Furthermore,
+               MUSK showed strong performance in outcome prediction, including
+               melanoma relapse prediction, pan-cancer prognosis prediction and
+               immunotherapy response prediction in lung and gastro-oesophageal
+               cancers. MUSK effectively combined complementary information from
+               pathology images and clinical reports and could potentially
+               improve diagnosis and precision in cancer therapy.",
+  month     =  "8~" # feb,
+  year      =  2025,
+  url       = "http://dx.doi.org/10.1038/s41586-024-08378-w",
+  keywords  = "LazySlide-doc-citations",
+  doi       = "10.1038/s41586-024-08378-w",
+  language  = "en"
+}

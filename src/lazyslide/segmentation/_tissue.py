@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from contextlib import nullcontext
 from typing import Literal
 
 import cv2
@@ -22,12 +23,15 @@ def tissue(
     *,
     model: Literal["grandqc", "pathprofiler"] = "pathprofiler",
     level: int = None,
+    mpp: float = None,
     bbox_ratio: float = 0.05,
     min_area=1e-3,
     min_hole_area=1e-5,
     detect_holes: bool = True,
     threshold: float = 0.5,
     device: str | None = None,
+    amp: bool = False,
+    autocast_dtype: torch.dtype = torch.float16,
     key_added: str = Key.tissue,
 ):
     """
@@ -36,10 +40,12 @@ def tissue(
     Supported models:
         - "grandqc":
           :class:`GrandQCTissue <lazyslide.models.segmentation.GrandQCTissue>`,
-          :cite:p:`Weng2024-jf`.
+          :cite:p:`Weng2024-jf`. Runs on mpp=10.
         - "pathprofiler":
           :class:`PathProfilerTissueSegmentation <lazyslide.models.segmentation.PathProfilerTissueSegmentation>`,
-          :cite:p:`Haghighat2022-sy`.
+          :cite:p:`Haghighat2022-sy`. Runs on mpp=2.5.
+
+    If you encounter a memory issue, please set a higher `mpp` value.
 
     Parameters
     ----------
@@ -48,7 +54,9 @@ def tissue(
     model : {"grandqc", "pathprofiler"}, default: "pathprofiler"
         The model to use for tissue segmentation.
     level : int, default: None
-        The level to segment the tissue.
+        The level to segment the tissue, mutually exclusive with mpp.
+    mpp : float, default: None
+        The mpp level to segment the tissue, mutually exclusive with level.
     bbox_ratio : float, default: 0.05
         The ratio of the bounding box to filter
         the false positive tissue polygons.
@@ -90,6 +98,10 @@ def tissue(
     model.to(device)
 
     props = wsi.properties
+    if mpp is not None and level is not None:
+        raise ValueError("Please specify either level or mpp, not both.")
+    if mpp is not None:
+        target_mpp = mpp
     if level is None:
         level_mpp = np.array(props.level_downsample) * props.mpp
         # Get the nearest level that towards target mpp
@@ -153,7 +165,9 @@ def tissue(
 
     img_t = transform(img).unsqueeze(0)
     img_t = img_t.to(device)
-    pred = model.segment(img_t)
+    amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()
+    with amp_ctx, torch.inference_mode():
+        pred = model.segment(img_t)
     pred = pred["probability_map"]
 
     pred = pred.squeeze(0).detach().cpu().numpy()

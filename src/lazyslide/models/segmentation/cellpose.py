@@ -4,6 +4,22 @@ from lazyslide.models.base import ModelTask, SegmentationModel
 
 
 class Cellpose(SegmentationModel, key="cellpose"):
+    """
+    Only supports cellpose>=4.0.0
+
+    If you want to fine-tune the cellpose model, please take a look at the following resources:
+
+    - https://github.com/MouseLand/cellpose/blob/main/notebooks/train_Cellpose-SAM.ipynb
+    - https://cellpose.readthedocs.io/en/latest/train.html
+
+    To run a fine-tuned model, pass the `model_path` argument pointing to the fine-tuned weights.
+
+    .. code-block:: python
+
+       >>> zs.seg.cells(wsi, model="cellpose", model_path="fine-tuned-checkpoint.pth")
+
+    """
+
     task = ModelTask.segmentation
     license = "BSD-3-Clause"
     description = "Cell segmentation model"
@@ -24,7 +40,7 @@ class Cellpose(SegmentationModel, key="cellpose"):
         except ModuleNotFoundError:
             raise ModuleNotFoundError("Please install cellpose>=4.0.0")
 
-        self.cellpose_model = models.CellposeModel(
+        self.model = models.CellposeModel(
             pretrained_model=model_path if model_path is not None else "cpsam",
             diam_mean=diam_mean,
             gpu=True,
@@ -34,7 +50,8 @@ class Cellpose(SegmentationModel, key="cellpose"):
     def to(self, device):
         import torch
 
-        self.cellpose_model.device = torch.device(device)
+        self.model.device = torch.device(device)
+        return self
 
     def get_transform(self):
         return None
@@ -44,9 +61,7 @@ class Cellpose(SegmentationModel, key="cellpose"):
             # If the image is a batch, we need to make it into a list of images
             image = [img.detach().cpu().numpy() for img in image]
 
-        masks, _, _ = self.cellpose_model.eval(
-            image, batch_size=len(image), **self.eval_kwargs
-        )
+        masks, _, _ = self.model.eval(image, batch_size=len(image), **self.eval_kwargs)
         if isinstance(masks, list):
             # If the masks are a list, we need to convert them to a numpy array
             masks = np.array(masks)

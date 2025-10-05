@@ -3,6 +3,7 @@ from __future__ import annotations
 import warnings
 from typing import Literal
 
+import torch
 from wsidata import WSIData
 from wsidata.io import add_shapes
 
@@ -37,6 +38,8 @@ def artifact(
     batch_size: int = 4,
     num_workers: int = 0,
     device: str | None = None,
+    amp: bool = False,
+    autocast_dtype: torch.dtype = torch.float16,
     key_added: str = "artifacts",
     *args,
 ):
@@ -133,6 +136,8 @@ def artifact(
         batch_size=batch_size,
         num_workers=num_workers,
         device=device,
+        amp=amp,
+        autocast_dtype=autocast_dtype,
         mode=mode,
         sigma_scale=sigma_scale,
         low_memory=low_memory,

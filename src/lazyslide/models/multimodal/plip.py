@@ -39,6 +39,7 @@ class PLIP(ImageTextModel, key="plip"):
 
         with hf_access(model_path):
             self.model = CLIPModel.from_pretrained(model_path, use_auth_token=token)
+            self.model.eval()
             self.processor = CLIPProcessor.from_pretrained(
                 model_path, use_auth_token=token
             )

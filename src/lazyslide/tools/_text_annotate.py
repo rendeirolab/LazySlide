@@ -18,7 +18,7 @@ def text_embedding(
     model: Literal["plip", "conch", "omiclip"] = "plip",
     amp: bool = False,
     autocast_dtype: torch.dtype = torch.float16,
-    device: str = None,
+    device: str = "cpu",
 ):
     """Embed the text into a vector in the text-vision co-embedding using
 
@@ -36,9 +36,8 @@ def text_embedding(
         Whether to use automatic mixed precision (AMP) for inference.
     autocast_dtype : torch.dtype, default: torch.float16
         The dtype for automatic mixed precision.
-    device : str, optional
+    device : str, default: "cpu"
         The device to use for computation (e.g., 'cpu', 'cuda', 'mps').
-        If None, will use CUDA if available, otherwise CPU.
 
     Returns
     -------

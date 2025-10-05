@@ -66,3 +66,15 @@ Zero-shot Learning
 
     tl.zero_shot_score
     tl.slide_caption
+
+
+Virtual staining
+~~~~~~~~~~~~~~~~
+
+.. currentmodule:: lazyslide
+
+.. autosummary::
+    :toctree: _autogen
+    :nosignatures:
+
+    tl.virtual_stain

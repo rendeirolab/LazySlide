@@ -37,9 +37,12 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - name: Install project
         run: uv sync --dev
+      - name: Login to Hugging Face
+        run: |
+          uv run hf auth login --token ${{ secrets.HF_TOKEN }}
       - name: Tests
         run: |
-          uv run pytest tests -n auto -m "not gpu" --cov=src/lazyslide --cov-report=xml --cov-report=html
+          uv run pytest tests -n auto -m "not large_runner" --cov=src/lazyslide --cov-report=xml --cov-report=html
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:

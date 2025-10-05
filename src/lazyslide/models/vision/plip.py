@@ -17,7 +17,7 @@ class PLIPVision(ImageModel, key="plip_vision"):
     encode_dim = 512
 
     def __init__(self, model_path=None, token=None):
-        raise Exception(
+        raise NotImplementedError(
             "plip_vision is deprecated and will be removed in v0.10.0. "
             "Use plip directly instead."
         )

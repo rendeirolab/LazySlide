@@ -5,4 +5,5 @@ from ._spatial_features import spatial_features
 from ._text_annotate import text_embedding, text_image_similarity
 from ._tile_prediction import tile_prediction
 from ._tissue_props import tissue_props
+from ._virtual_staining import virtual_stain
 from ._zero_shot import slide_caption, zero_shot_score

@@ -1,0 +1,1 @@
+from .rosie import ROSIE

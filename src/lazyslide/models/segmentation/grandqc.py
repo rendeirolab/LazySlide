@@ -40,6 +40,7 @@ class GrandQCArtifact(SegmentationModel, key="grandqc-artifact"):
         )
 
         self.model = torch.jit.load(weights)
+        self.model.eval()
 
     def get_transform(self):
         import torch
