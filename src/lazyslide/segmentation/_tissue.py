@@ -15,13 +15,12 @@ from wsidata.io import add_tissues
 from lazyslide._const import Key
 from lazyslide._utils import get_torch_device
 from lazyslide.cv import BinaryMask
-from lazyslide.models.segmentation import GrandQCTissue, PathProfilerTissueSegmentation
 
 
 def tissue(
     wsi: WSIData,
     *,
-    model: Literal["grandqc", "pathprofiler"] = "pathprofiler",
+    model: Literal["grandqc", "pathprofiler", "hest"] = "pathprofiler",
     level: int = None,
     mpp: float = None,
     bbox_ratio: float = 0.05,
@@ -51,7 +50,7 @@ def tissue(
     ----------
     wsi : :class:`wsidata.WSIData`
         The whole slide image.
-    model : {"grandqc", "pathprofiler"}, default: "pathprofiler"
+    model : {"grandqc", "pathprofiler", "hest"}, default: "pathprofiler"
         The model to use for tissue segmentation.
     level : int, default: None
         The level to segment the tissue, mutually exclusive with mpp.
@@ -81,18 +80,29 @@ def tissue(
     # Load the model
     model_name = model
     if model == "grandqc":
+        from lazyslide.models.segmentation import GrandQCTissue
+
         model = GrandQCTissue()
         target_mpp = 10
         min_size = 32
         divider = 32
     elif model == "pathprofiler":
+        from lazyslide.models.segmentation import PathProfilerTissueSegmentation
+
         model = PathProfilerTissueSegmentation()
         target_mpp = 2.5
         divider = 64
         min_size = 128
+    elif model == "hest":
+        from lazyslide.models.segmentation import HESTTissueSegmentation
+
+        model = HESTTissueSegmentation()
+        target_mpp = 1
+        divider = 8
+        min_size = 8
     else:
         raise ValueError(
-            f"Unknown model: {model}, choose from 'grandqc' or 'pathprofiler'."
+            f"Unknown model: {model}, choose from 'grandqc', 'pathprofiler' and 'hest'."
         )
     transform = model.get_transform()
     model.to(device)

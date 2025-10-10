@@ -1,5 +1,6 @@
 from .cellpose import Cellpose
 from .grandqc import GrandQCArtifact, GrandQCTissue
+from .hest import HESTTissueSegmentation
 from .instanseg import Instanseg
 from .nulite import NuLite
 from .pathprofiler import PathProfilerTissueSegmentation
