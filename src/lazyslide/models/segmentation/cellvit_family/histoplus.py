@@ -12,12 +12,13 @@ from torch import nn
 from torch.nn import functional as F
 from torch.nn.parameter import Parameter
 
+from ..._utils import hf_access
 from ...base import ModelTask, SegmentationModel
 from .blocks import (
     CellViTNeck,
     DecoderBranch,
 )
-from .postprocess import cellvit_postprocess, np_hv_postprocess
+from .postprocess import np_hv_postprocess
 
 BIOPTIMUS_MEAN = (0.707223, 0.578729, 0.703617)
 BIOPTIMUS_STD = (0.211883, 0.230117, 0.177517)
@@ -375,11 +376,11 @@ class HistoPLUS(SegmentationModel, key="histoplus"):
             inference_image_size=tile_size,
             backbone_tile_size=self._backbone_tile_size[variant],
         )
-
-        weights = hf_hub_download(
-            "Owkin-Bioptimus/histoplus",
-            f"histoplus_cellvit_segmentor_{variant}.pt",
-        )
+        with hf_access("Owkin-Bioptimus/histoplus"):
+            weights = hf_hub_download(
+                "Owkin-Bioptimus/histoplus",
+                f"histoplus_cellvit_segmentor_{variant}.pt",
+            )
         state_dict = torch.load(weights, map_location="cpu")
         state_dict = remap_state_dict(state_dict)
         self.model.load_state_dict(state_dict)
