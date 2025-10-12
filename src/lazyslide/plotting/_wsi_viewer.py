@@ -963,6 +963,7 @@ class WSIViewer:
                 u_colors = np.unique(colors)
             palette = get_dict_palette(palette, u_colors)
             colors = [palette[c] for c in colors]
+
         else:
             # Set palette to None
             palette = None
@@ -1504,7 +1505,10 @@ def get_dict_palette(palette: PaletteType, category: list) -> Dict:
     The category must be a sequence of unique values.
     """
     if palette is None:
-        palette = LAZYSLIDE_PALETTE
+        if len(category) <= len(LAZYSLIDE_PALETTE):
+            palette = LAZYSLIDE_PALETTE
+        else:
+            palette = "tab20"
 
     if isinstance(palette, dict):
         return palette
@@ -1518,7 +1522,7 @@ def get_dict_palette(palette: PaletteType, category: list) -> Dict:
         colors = cmap(sel)
         return dict(zip(category, colors))
     elif isinstance(palette, Sequence):
-        return dict(zip(category, palette))
+        return dict(zip(category, cycle(palette)))
     elif is_color_like(palette):
         return {cat: to_rgba(palette) for cat in category}
     else:
