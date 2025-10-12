@@ -20,6 +20,7 @@ class NuLite(SegmentationModel, key="nulite"):
     def __init__(
         self,
         variant: Literal["H", "M", "T"] = "H",
+        magnification="20x",
     ):
         from huggingface_hub import hf_hub_download
 
@@ -29,6 +30,7 @@ class NuLite(SegmentationModel, key="nulite"):
 
         self.model = torch.jit.load(model_file, map_location="cpu")
         self.model.eval()
+        self.magnification = magnification
 
     def get_transform(self):
         from torchvision.transforms.v2 import Compose, Normalize, ToDtype, ToImage
@@ -58,6 +60,7 @@ class NuLite(SegmentationModel, key="nulite"):
             instance_map = np_hv_postprocess(
                 batch["nuclei_binary_map"].softmax(0).detach().cpu().numpy()[1],
                 batch["hv_map"].detach().cpu().numpy(),
+                variant=self.magnification,
             )
             prob_map = (
                 batch["nuclei_type_map"].softmax(0).detach().cpu().numpy()

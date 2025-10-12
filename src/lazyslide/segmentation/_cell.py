@@ -147,28 +147,46 @@ def cell_types(
 
     """
 
+    tile_spec = wsi.tile_spec(tile_key)
+    check_mpp = tile_spec.mpp == 0.5 or tile_spec.mpp == 0.25
+    magnification = wsi.properties.magnification
+    if magnification == 20:
+        magnification = "20x"
+    elif magnification == 40:
+        magnification = "40x"
+    else:
+        raise ValueError(f"Magnification {magnification} not supported.")
+
     if model == "nulite":
         from lazyslide.models.segmentation import NuLite
 
-        model = NuLite()
-        # Run tile check
-        tile_spec = wsi.tile_spec(tile_key)
-        check_mpp = tile_spec.mpp == 0.5 or tile_spec.mpp == 0.25
-        # check_size = tile_spec.height == 102 and tile_spec.width == 512
         if not check_mpp:
             warnings.warn(
                 f"To optimize the performance of NuLite model, "
                 f"the tiles should be created at the mpp=0.5 or 0.25. "
                 f"Current tile size is {tile_spec.width}x{tile_spec.height} with {tile_spec.mpp} mpp."
             )
-        CLASS_MAPPING = {
-            0: "Background",
-            1: "Neoplastic",
-            2: "Inflammatory",
-            3: "Connective",
-            4: "Dead",
-            5: "Epithelial",
-        }
+        model = NuLite(magnification=magnification)
+        CLASS_MAPPING = model.get_classes()
+    elif model == "histoplus":
+        from lazyslide.models.segmentation import HistoPLUS
+
+        assert tile_spec.height == tile_spec.width, (
+            "HistoPLUS model only supports square tiles."
+        )
+        # Tile size must be divisible by 14
+        assert tile_spec.height % 14 == 0, "Tile size must be divisible by 14."
+        assert tile_spec.width % 14 == 0, "Tile size must be divisible by 14."
+        if not check_mpp:
+            warnings.warn(
+                f"To optimize the performance of HistoPLUS model, "
+                f"the tiles should be created at the mpp=0.5 or 0.25. "
+                f"Current tile size is {tile_spec.width}x{tile_spec.height} with {tile_spec.mpp} mpp."
+            )
+
+        model = HistoPLUS(tile_spec.height, variant=magnification)
+        CLASS_MAPPING = model.get_classes()
+
     else:
         raise ValueError(
             "Currently only 'nulite' model is supported for cell type segmentation."
