@@ -46,6 +46,7 @@ def test_segmentation_model(model_name):
     # Create test images
     if model_name == "histoplus":
         mock_image = np.random.randint(0, 255, (280, 280, 3), dtype=np.uint8)
+        model = MODEL_REGISTRY["histoplus"](280)
     else:
         mock_image = np.random.randint(0, 255, (256, 256, 3), dtype=np.uint8)
 
