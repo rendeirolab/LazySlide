@@ -44,7 +44,10 @@ def test_segmentation_model(model_name):
     assert set(model.supported_output()).issubset(SUPPORTED_OUTPUTS)
 
     # Create test images
-    mock_image = np.random.randint(0, 255, (256, 256, 3), dtype=np.uint8)
+    if model_name == "histoplus":
+        mock_image = np.random.randint(0, 255, (280, 280, 3), dtype=np.uint8)
+    else:
+        mock_image = np.random.randint(0, 255, (256, 256, 3), dtype=np.uint8)
 
     # Apply transform if available
     transform = model.get_transform()
