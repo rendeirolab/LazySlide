@@ -1,25 +1,33 @@
 # Multi-stage Dockerfile for LazySlide
-# Build: docker build -t lazyslide .
+# Build: DOCKER_BUILDKIT=1 docker build -t lazyslide .
 # CLI usage: docker run -it --rm lazyslide python
 # Jupyter usage: docker run -it --rm -p 8888:8888 lazyslide jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root
 # IPython usage: docker run -it --rm lazyslide ipython
 
 # Use a smaller base image for runtime
-FROM python:3.13-slim AS base
+FROM python:3.13-slim AS builder
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Set environment variables for faster builds and better performance
-ENV PYTHONUNBUFFERED=1
-ENV CFLAGS="-O2 -march=native"
-ENV CXXFLAGS="-O2 -march=native"
-ENV MAX_JOBS=4
-ENV PIP_NO_CACHE_DIR=1
-ENV PIP_DISABLE_PIP_VERSION_CHECK=1
-ENV PYTORCH_ENABLE_MPS_FALLBACK=1
-ENV HF_HOME=/tmp/hf_home
-ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1 \
+    CFLAGS="-O2 -march=native" \
+    CXXFLAGS="-O2 -march=native" \
+    MAX_JOBS=4 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTORCH_ENABLE_MPS_FALLBACK=1 \
+    HF_HOME=/tmp/hf_home \
+    DEBIAN_FRONTEND=noninteractive \
+    UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    JAVA_HOME=/usr/lib/jvm/default-java \
+    PATH="/usr/lib/jvm/default-java/bin:$PATH"
 
 # Install system dependencies in a single layer
 RUN apt-get update && apt-get install -y \
+    default-jdk \
+    maven \
     build-essential \
     gcc \
     g++ \
@@ -36,11 +44,6 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Install uv for faster Python package management
-RUN pip install --no-cache-dir uv
-
-# Dependencies stage - install Python packages
-FROM base AS deps
 WORKDIR /app
 
 # Copy git directory first for version detection
@@ -50,28 +53,35 @@ COPY .git/ ./.git/
 COPY pyproject.toml uv.lock README.md ./
 
 # Install dependencies without the project
-RUN uv sync --group tests --group dev --extra all --extra models --no-install-project
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --extra all --extra models --no-install-project
 
 # Install Jupyter Lab and IPython for interactive use
-RUN uv pip install jupyterlab ipython  numcodecs
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install jupyterlab ipython \
+    torchstain scanpy spatialdata-plot scyjava cucim hf-xet \
+    igraph ipywidgets marsilea mpl-fontkit
 
-# Build stage - install the project
-FROM deps AS builder
+# Build stage - build wheel and install the project
 WORKDIR /app
 
-# Copy source code, tests, and README
+# Copy source code and README
 COPY src/ ./src/
-COPY tests/ ./tests/
 COPY README.md ./
 
-# Install the project in development mode
-RUN uv run pip install -e .
+# Build wheel first
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv build --wheel && uv pip install dist/*.whl
 
 # Runtime stage - minimal image
 FROM python:3.13-slim AS runtime
+# Include uv in case user wants to use it
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
 # Install only runtime system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    default-jre-headless \
+    maven \
     libgl1-mesa-dri \
     libglib2.0-0 \
     libsm6 \
@@ -83,23 +93,20 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean
 
 # Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV PYTORCH_ENABLE_MPS_FALLBACK=1
-ENV HF_HOME=/tmp/hf_home
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1 \
+    PYTORCH_ENABLE_MPS_FALLBACK=1 \
+    HF_HOME=/tmp/hf_home \
+    JAVA_HOME=/usr/lib/jvm/default-java \
+    PATH="/app/.venv/bin:/usr/lib/jvm/default-java/bin:$PATH"
 
 WORKDIR /app
 
 # Copy the virtual environment from builder
 COPY --from=builder /app/.venv /app/.venv
 
-# Copy only necessary files
-COPY --from=builder /app/src/ ./src/
-COPY --from=builder /app/tests/ ./tests/
-COPY pyproject.toml ./
-
 # Verify installation
-RUN python -c "import lazyslide as zs; print(f'LazySlide version: {zs.__version__}')"
+RUN python -c "import lazyslide as zs; import scyjava; import cucim; \
+    print(f'LazySlide version: {zs.__version__}')"
 
 # Default command - provide a shell for manual execution
 CMD ["/bin/bash"]
