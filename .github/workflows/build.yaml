@@ -25,6 +25,9 @@ on:
       - 'pyproject.toml'
 
 jobs:
+  # This job demonstrates secure HF authentication for pull_request_target events.
+  # It runs in the base repo context with access to secrets but does not check out
+  # untrusted PR code, making it safe for operations requiring secrets.
   hf-auth-safe:
     if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
@@ -37,7 +40,7 @@ jobs:
             echo "Error: HF_TOKEN is not set"
             exit 1
           fi
-          echo "HF_TOKEN is present (length: ${#HF_TOKEN})"
+          echo "HF_TOKEN is configured"
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
       - name: Login to Hugging Face
@@ -63,14 +66,15 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - name: Install project
         run: uv sync --dev
-      - name: Login to Hugging Face
+      - name: Skip HF auth for pull_request
+        if: github.event_name == 'pull_request'
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "Skipping HF auth for pull_request (use pull_request_target job for secret ops)."
-          else
-            test -n "${{ secrets.HF_TOKEN }}" || { echo "HF_TOKEN missing"; exit 1; }
-            uv run hf auth login --token "${{ secrets.HF_TOKEN }}"
-          fi
+          echo "Skipping HF auth for pull_request (use pull_request_target job for secret ops)."
+      - name: Login to Hugging Face
+        if: github.event_name != 'pull_request'
+        run: |
+          test -n "${{ secrets.HF_TOKEN }}" || { echo "HF_TOKEN missing"; exit 1; }
+          uv run hf auth login --token "${{ secrets.HF_TOKEN }}"
       - name: Tests
         run: |
           uv run pytest tests -n auto -m "not large_runner" --cov=src/lazyslide --cov-report=xml --cov-report=html
