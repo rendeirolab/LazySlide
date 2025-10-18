@@ -31,6 +31,8 @@ jobs:
   hf-auth-safe:
     if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
+    permissions:
+      contents: none
     steps:
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
@@ -56,6 +58,8 @@ jobs:
         python-version: ['3.11', '3.12', '3.13']
 
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Set up uv
