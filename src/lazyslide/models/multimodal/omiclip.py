@@ -28,8 +28,11 @@ class OmiCLIP(ImageTextModel, key="omiclip"):
             stacklevel=find_stack_level(),
         )
         try:
+            from importlib.metadata import version
+
             from huggingface_hub import hf_hub_download
             from open_clip import create_model_from_pretrained, get_tokenizer
+            from packaging.version import Version
         except ImportError:
             raise ImportError(
                 "open_clip is not installed. You can install it using "
@@ -42,8 +45,14 @@ class OmiCLIP(ImageTextModel, key="omiclip"):
                     "WangGuangyuLab/Loki", "checkpoint.pt", token=token
                 )
 
+        opts = dict(pretrained=model_path)
+        if Version(version("open_clip_torch")) >= Version("3.0.0"):
+            opts["weights_only"] = False
+        else:
+            opts["load_weights_only"] = False
+
         self.model, self.preprocess = create_model_from_pretrained(
-            "coca_ViT-L-14", pretrained=model_path, load_weights_only=False
+            "coca_ViT-L-14", **opts
         )
         self.tokenizer = get_tokenizer("coca_ViT-L-14")
         self.model.eval()
