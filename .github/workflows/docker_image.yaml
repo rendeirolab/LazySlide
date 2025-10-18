@@ -29,8 +29,11 @@ jobs:
       contents: read
       packages: write
       id-token: write
-      attestation: write
+      attestations: write
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
       - name: Log in to Github Container Registry
         uses: docker/login-action@v3
         with:
@@ -45,23 +48,29 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          cache-from: type=local,src=/tmp/.buildx-cache
           images: ghcr.io/${{ github.repository_owner }}/lazyslide
           tags: |
+            type=ref,event=branch
+            type=ref,event=pr
             type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
       
       - name: Build and push Docker image
+        id: push
         uses: docker/build-push-action@v6
         with:
+          context: .
           push: ${{ github.event_name == 'release' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       
       - name: Generate artifact attestation
         if: github.event_name == 'release'
         uses: actions/attest-build-provenance@v3
         with:
-          subject-name: ghcr.io/${{ github.repository }}
+          subject-name: ghcr.io/${{ github.repository_owner }}/lazyslide
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
 
