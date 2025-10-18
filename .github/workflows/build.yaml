@@ -17,8 +17,34 @@ on:
       - 'src/lazyslide/**'
       - 'tests/**'
       - 'pyproject.toml'
+  pull_request_target:
+    paths:
+      - '.github/**'
+      - 'src/lazyslide/**'
+      - 'tests/**'
+      - 'pyproject.toml'
 
 jobs:
+  hf-auth-safe:
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+      - name: Verify HF_TOKEN is present
+        run: |
+          if [ -z "${{ secrets.HF_TOKEN }}" ]; then
+            echo "Error: HF_TOKEN is not set"
+            exit 1
+          fi
+          echo "HF_TOKEN is present (length: ${#HF_TOKEN})"
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      - name: Login to Hugging Face
+        run: |
+          uv run hf auth login --token "${{ secrets.HF_TOKEN }}"
+          echo "Successfully authenticated with Hugging Face"
+
   Test:
     strategy:
       fail-fast: false
@@ -39,7 +65,12 @@ jobs:
         run: uv sync --dev
       - name: Login to Hugging Face
         run: |
-          uv run hf auth login --token ${{ secrets.HF_TOKEN }}
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "Skipping HF auth for pull_request (use pull_request_target job for secret ops)."
+          else
+            test -n "${{ secrets.HF_TOKEN }}" || { echo "HF_TOKEN missing"; exit 1; }
+            uv run hf auth login --token "${{ secrets.HF_TOKEN }}"
+          fi
       - name: Tests
         run: |
           uv run pytest tests -n auto -m "not large_runner" --cov=src/lazyslide --cov-report=xml --cov-report=html
