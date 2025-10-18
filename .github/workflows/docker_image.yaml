@@ -24,7 +24,7 @@ on:
 
 jobs:
   Build_and_Push_Docker_Image:
-    runs-on: ubuntu-latest
+    runs-on: linux-docker-build # Use a paid runner with 150G disk space
     permissions:
       contents: read
       packages: write
