@@ -28,11 +28,15 @@ jobs:
   # This job demonstrates secure HF authentication for pull_request_target events.
   # It runs in the base repo context with access to secrets but does not check out
   # untrusted PR code, making it safe for operations requiring secrets.
+  # Note: This is a standalone demonstration job. In practice, you would integrate
+  # HF authentication with other operations that need it (e.g., model downloads).
   hf-auth-safe:
     if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
     permissions:
       contents: none
+      actions: none
+      packages: none
     steps:
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
