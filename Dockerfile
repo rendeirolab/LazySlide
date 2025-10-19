@@ -11,38 +11,21 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Set environment variables for faster builds and better performance
 ENV PYTHONUNBUFFERED=1 \
-    CFLAGS="-O2 -march=native" \
-    CXXFLAGS="-O2 -march=native" \
     MAX_JOBS=4 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTORCH_ENABLE_MPS_FALLBACK=1 \
     HF_HOME=/tmp/hf_home \
     DEBIAN_FRONTEND=noninteractive \
     UV_LINK_MODE=copy \
-    UV_COMPILE_BYTECODE=1 \
+    UV_COMPILE_BYTECODE=0 \
     JAVA_HOME=/usr/lib/jvm/default-java \
     PATH="/usr/lib/jvm/default-java/bin:$PATH"
 
 # Install system dependencies in a single layer
 RUN apt-get update && apt-get install -y \
     default-jdk \
-    maven \
     build-essential \
-    gcc \
-    g++ \
     git \
-    wget \
-    curl \
-    libgl1-mesa-dri \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender1 \
-    libgomp1 \
-    libgcc-s1 \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -62,16 +45,20 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     torchstain scanpy spatialdata-plot scyjava cucim hf-xet \
     igraph ipywidgets marsilea mpl-fontkit
 
-# Build stage - build wheel and install the project
-WORKDIR /app
-
-# Copy source code and README
+# Copy source and build
 COPY src/ ./src/
-COPY README.md ./
+COPY tests/ ./tests/
 
-# Build wheel first
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv build --wheel && uv pip install dist/*.whl
+
+# Run tests in builder stage (results discarded, only validates build)
+RUN .venv/bin/pytest -n 4 -v --tb=short \
+    tests/test_io.py \
+    tests/test_preprocessing.py \
+    tests/test_datasets.py \
+    tests/test_model_registry.py \
+    tests/test_mask.py
 
 # Runtime stage - minimal image
 FROM python:3.13-slim AS runtime
@@ -81,14 +68,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 # Install only runtime system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     default-jre-headless \
-    maven \
-    libgl1-mesa-dri \
+    libgl1 \
     libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender1 \
     libgomp1 \
-    libgcc-s1 \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
