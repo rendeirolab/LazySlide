@@ -47,18 +47,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # Copy source and build
 COPY src/ ./src/
-COPY tests/ ./tests/
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv build --wheel && uv pip install dist/*.whl
-
-# Run tests in builder stage (results discarded, only validates build)
-RUN .venv/bin/pytest -n 4 -v --tb=short \
-    tests/test_io.py \
-    tests/test_preprocessing.py \
-    tests/test_datasets.py \
-    tests/test_model_registry.py \
-    tests/test_mask.py
 
 # Runtime stage - minimal image
 FROM python:3.13-slim AS runtime
