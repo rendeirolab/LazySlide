@@ -17,8 +17,45 @@ on:
       - 'src/lazyslide/**'
       - 'tests/**'
       - 'pyproject.toml'
+  pull_request_target:
+    paths:
+      - '.github/**'
+      - 'src/lazyslide/**'
+      - 'tests/**'
+      - 'pyproject.toml'
 
 jobs:
+  # This job demonstrates secure HF authentication for pull_request_target events.
+  # It runs in the base repo context with access to secrets but does not check out
+  # untrusted PR code, making it safe for operations requiring secrets.
+  # Note: This is a standalone demonstration job. In practice, you would integrate
+  # HF authentication with other operations that need it (e.g., model downloads).
+  hf-auth-safe:
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: none
+      actions: none
+      packages: none
+    steps:
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+      - name: Verify HF_TOKEN is present
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "Error: HF_TOKEN is not set"
+            exit 1
+          fi
+          echo "HF_TOKEN is configured"
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      - name: Login to Hugging Face
+        run: |
+          uv run hf auth login --token "$HF_TOKEN"
+          echo "Successfully authenticated with Hugging Face"
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+
   Test:
     strategy:
       fail-fast: false
@@ -27,6 +64,8 @@ jobs:
         python-version: ['3.11', '3.12', '3.13']
 
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Set up uv
@@ -37,9 +76,17 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - name: Install project
         run: uv sync --dev
-      - name: Login to Hugging Face
+      - name: Skip HF auth for pull_request
+        if: github.event_name == 'pull_request'
         run: |
-          uv run hf auth login --token ${{ secrets.HF_TOKEN }}
+          echo "Skipping HF auth for pull_request (use pull_request_target job for secret ops)."
+      - name: Login to Hugging Face
+        if: github.event_name != 'pull_request'
+        run: |
+          test -n "$HF_TOKEN" || { echo "HF_TOKEN missing"; exit 1; }
+          uv run hf auth login --token "$HF_TOKEN"
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
       - name: Tests
         run: |
           uv run pytest tests -n auto -m "not large_runner" --cov=src/lazyslide --cov-report=xml --cov-report=html
