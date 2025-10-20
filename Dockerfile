@@ -16,7 +16,7 @@ ENV PYTHONUNBUFFERED=1 \
     HF_HOME=/tmp/hf_home \
     DEBIAN_FRONTEND=noninteractive \
     UV_LINK_MODE=copy \
-    UV_COMPILE_BYTECODE=0 \
+    UV_COMPILE_BYTECODE=1 \
     JAVA_HOME=/usr/lib/jvm/default-java \
     PATH="/usr/lib/jvm/default-java/bin:$PATH"
 
