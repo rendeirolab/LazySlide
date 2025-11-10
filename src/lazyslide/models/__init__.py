@@ -7,6 +7,7 @@ from . import (
     tile_prediction,
     vision,
 )
+from ._model_registry import MODEL_REGISTRY, register
 from ._utils import hf_access
 from .base import (
     ImageModel,
@@ -18,8 +19,6 @@ from .base import (
     StyleTransferModel,
     TimmModel,
 )
-
-MODEL_REGISTRY = ModelBase.registry
 
 
 def list_models(task: ModelTask | str = None):

@@ -3,23 +3,26 @@ import warnings
 import torch
 
 from ..._utils import find_stack_level
+from .._model_registry import register
 from .._utils import hf_access
 from ..base import ImageTextModel, ModelTask
 
 
-class CONCH(ImageTextModel, key="conch"):
-    is_gated = True
-    task = ModelTask.multimodal
-    license = "CC-BY-NC-ND-4.0"
-    description = "CONtrastive learning from Captions for Histopathology (CONCH)"
-    commercial = False
-    hf_url = "https://huggingface.co/MahmoodLab/conch"
-    github_url = "https://github.com/mahmoodlab/CONCH"
-    paper_url = "https://doi.org/10.1038/s41591-024-02856-4"
-    bib_key = "Lu2024-nu"
-    param_size = "395.2M"
-    encode_dim = 512
-
+@register(
+    key="conch",
+    is_gated=True,
+    task=ModelTask.multimodal,
+    license="CC-BY-NC-ND-4.0",
+    description="CONtrastive learning from Captions for Histopathology (CONCH)",
+    commercial=False,
+    hf_url="https://huggingface.co/MahmoodLab/conch",
+    github_url="https://github.com/mahmoodlab/CONCH",
+    paper_url="https://doi.org/10.1038/s41591-024-02856-4",
+    bib_key="Lu2024-nu",
+    param_size="395.2M",
+    encode_dim=512,
+)
+class CONCH(ImageTextModel):
     def __init__(self, model_path=None, token=None):
         warnings.warn(
             "As from v0.8.2, Normalization will not be applied to image embedding of CONCH model anymore."

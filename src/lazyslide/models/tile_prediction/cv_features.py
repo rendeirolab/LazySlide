@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 
 from ...cv.scorer.utils import dtype_limits
+from .._model_registry import register
 from ..base import ModelTask, TilePredictionModel
 
 __all__ = [
@@ -28,11 +29,7 @@ def _correct_image_format(image):
     return image
 
 
-class _CVFeatures(TilePredictionModel, ABC, abstract=True):
-    task = ModelTask.cv_feature
-    commercial = False
-    license = None
-
+class _CVFeatures(TilePredictionModel, ABC):
     def to(self, device):
         return self
 
@@ -60,7 +57,7 @@ class _CVFeatures(TilePredictionModel, ABC, abstract=True):
             }
             return batch_results
         else:
-            return {self.key: np.array(results)}
+            return {self.__class__.__name__.lower(): np.array(results)}
 
     def predict(self, image):
         image = np.asarray(image)
@@ -70,7 +67,7 @@ class _CVFeatures(TilePredictionModel, ABC, abstract=True):
         return self._process_batch(image)
 
 
-class CVCompose(_CVFeatures, abstract=True):
+class CVCompose(_CVFeatures):
     """
     Compose multiple CV features into a single feature.
 
@@ -103,7 +100,11 @@ class CVCompose(_CVFeatures, abstract=True):
         return results
 
 
-class SplitRGB(_CVFeatures, key="split_rgb"):
+@register(
+    key="split_rgb",
+    task=ModelTask.cv_feature,
+)
+class SplitRGB(_CVFeatures):
     """
     Calculate the RGB value of a tile.
 
@@ -128,7 +129,11 @@ class SplitRGB(_CVFeatures, key="split_rgb"):
         return {"red": c_int[0], "green": c_int[1], "blue": c_int[2]}
 
 
-class Brightness(_CVFeatures, key="brightness"):
+@register(
+    key="brightness",
+    task=ModelTask.cv_feature,
+)
+class Brightness(_CVFeatures):
     """
     Calculate the brightness of a tile.
 
@@ -139,7 +144,11 @@ class Brightness(_CVFeatures, key="brightness"):
         return image.mean()
 
 
-class Contrast(_CVFeatures, key="contrast"):
+@register(
+    key="contrast",
+    task=ModelTask.cv_feature,
+)
+class Contrast(_CVFeatures):
     """
     Calculate the contrast of a tile.
 
@@ -172,7 +181,11 @@ class Contrast(_CVFeatures, key="contrast"):
         return ratio
 
 
-class Sharpness(_CVFeatures, key="sharpness"):
+@register(
+    key="sharpness",
+    task=ModelTask.cv_feature,
+)
+class Sharpness(_CVFeatures):
     """
     Calculate the sharpness of a tile.
 
@@ -191,7 +204,11 @@ class Sharpness(_CVFeatures, key="sharpness"):
         return laplacian.var()
 
 
-class Sobel(_CVFeatures, key="sobel"):
+@register(
+    key="sobel",
+    task=ModelTask.cv_feature,
+)
+class Sobel(_CVFeatures):
     """
     Calculate the sobel of a tile.
 
@@ -220,7 +237,11 @@ class Sobel(_CVFeatures, key="sobel"):
         return magnitude.var()
 
 
-class Canny(_CVFeatures, key="canny"):
+@register(
+    key="canny",
+    task=ModelTask.cv_feature,
+)
+class Canny(_CVFeatures):
     """
     Calculate the canny edge detection score of a tile.
 
@@ -254,7 +275,11 @@ class Canny(_CVFeatures, key="canny"):
         return edges.var()
 
 
-class Entropy(_CVFeatures, key="entropy"):
+@register(
+    key="entropy",
+    task=ModelTask.cv_feature,
+)
+class Entropy(_CVFeatures):
     """
     Calculate the entropy of a tile.
 
@@ -284,7 +309,11 @@ class Entropy(_CVFeatures, key="entropy"):
         return entropy_value
 
 
-class Saturation(_CVFeatures, key="saturation"):
+@register(
+    key="saturation",
+    task=ModelTask.cv_feature,
+)
+class Saturation(_CVFeatures):
     """
     Calculate the color saturation of a tile.
 
@@ -307,7 +336,11 @@ class Saturation(_CVFeatures, key="saturation"):
         return mean_saturation
 
 
-class HaralickTexture(_CVFeatures, key="haralick_texture"):
+@register(
+    key="haralick_texture",
+    task=ModelTask.cv_feature,
+)
+class HaralickTexture(_CVFeatures):
     """
     Calculate texture features using Gray Level Co-occurrence Matrix (GLCM).
 

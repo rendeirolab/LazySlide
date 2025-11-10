@@ -1,22 +1,28 @@
+import warnings
 from typing import Literal
 
 import numpy as np
 import torch
 
+from lazyslide._utils import find_stack_level
+
+from ..._model_registry import register
 from ...base import ModelTask, SegmentationModel
 from .postprocess import np_hv_postprocess
 
 
-class NuLite(SegmentationModel, key="nulite"):
-    task = ModelTask.segmentation
-    license = ["Apache 2.0", "CC-BY-NC-SA-4.0"]
-    description = "Nuclei instance segmentation and classification"
-    commercial = False
-    github_url = "https://github.com/CosmoIknosLab/NuLite"
-    paper_url = "https://doi.org/10.48550/arXiv.2408.01797"
-    bib_key = "Tommasino2024-tg"
-    param_size = "47.9M"
-
+@register(
+    key="nulite",
+    task=ModelTask.segmentation,
+    license=["Apache 2.0", "CC-BY-NC-SA-4.0"],
+    description="Nuclei instance segmentation and classification",
+    commercial=False,
+    github_url="https://github.com/CosmoIknosLab/NuLite",
+    paper_url="https://doi.org/10.48550/arXiv.2408.01797",
+    bib_key="Tommasino2024-tg",
+    param_size="47.9M",
+)
+class NuLite(SegmentationModel):
     def __init__(
         self,
         variant: Literal["H", "M", "T"] = "H",
@@ -76,7 +82,8 @@ class NuLite(SegmentationModel, key="nulite"):
     def supported_output(self):
         return ["instance_map", "class_map"]
 
-    def get_classes(self):
+    @staticmethod
+    def get_classes():
         return {
             0: "Background",
             1: "Neoplastic",
@@ -85,3 +92,14 @@ class NuLite(SegmentationModel, key="nulite"):
             4: "Dead",
             5: "Epithelial",
         }
+
+    @classmethod
+    def check_input_tile(cls, tile_spec) -> bool:
+        if tile_spec.mpp != 0.5 or tile_spec.mpp != 0.25:
+            warnings.warn(
+                f"To optimize the performance of NuLite model, "
+                f"the tiles should be created at the mpp=0.5 or 0.25. "
+                f"Current tile size is {tile_spec.width}x{tile_spec.height} with {tile_spec.mpp} mpp.",
+                stacklevel=find_stack_level(),
+            )
+        return True

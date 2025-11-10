@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-import textwrap
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, List
+from typing import TYPE_CHECKING, Any
 
 import torch
 
-from ._model_registry import ModelRegistry
-from ._repr import model_doc, model_repr_html
+from ._repr import model_repr_html
 from ._utils import get_default_transform, hf_access
+
+if TYPE_CHECKING:
+    from wsidata import TileSpec
 
 
 class ModelTask(Enum):
@@ -25,50 +26,6 @@ class ModelTask(Enum):
 
 class ModelBase(ABC):
     model: Any
-    task: ModelTask | List[ModelTask]
-    is_gated: bool = False
-    description: str = None
-    github_url: str = None
-    hf_url: str = None
-    paper_url: str = None
-    license: str = None
-    license_url: str = None
-    bib_key: str = None
-    commercial: bool = None
-    param_size: int | str = None
-    encode_dim: int = None
-
-    registry = ModelRegistry()
-
-    def __init_subclass__(
-        cls,
-        key=None,
-        abstract=False,
-    ):
-        if abstract:
-            return
-        if key is None:
-            raise ValueError(
-                f"{cls.__name__} doesn't define `key` in class definition."
-            )
-        cls.key = key
-        # Allow multiple names
-        if isinstance(key, str):
-            key = list([key])
-        for k in key:
-            if k in cls.registry:
-                raise ValueError(f"Model name {key} already registered.")
-            cls.registry[k] = cls
-        if cls.task != ModelTask.cv_feature:
-            cls._field_validate()
-
-        old_doc = cls.__doc__
-        if old_doc is None:
-            old_doc = ""
-        else:
-            old_doc = textwrap.dedent(old_doc)
-        inject_doc = model_doc(cls)
-        cls.__doc__ = inject_doc + "\n" + old_doc
 
     def _repr_html_(self):
         return model_repr_html(self)
@@ -80,7 +37,7 @@ class ModelBase(ABC):
         self.model.to(device)
         return self
 
-    def estimate_param_size(self):
+    def estimate_param_size(self) -> int | None:
         """Count the number of parameters in a model."""
         model = self.model
         if not isinstance(model, torch.nn.Module):
@@ -91,28 +48,12 @@ class ModelBase(ABC):
                 return None
         return sum(p.numel() for p in model.parameters())
 
-    @classmethod
-    def _field_validate(cls):
-        attrs = {
-            "task": cls.task,
-            "description": cls.description,
-            "license": cls.license,
-            "commercial": cls.commercial,
-        }
-        missing_attrs = []
-        for k, v in attrs.items():
-            if v is None:
-                missing_attrs.append(k)
-        if len(missing_attrs) > 0:
-            raise ValueError(
-                f"Attributes {', '.join(missing_attrs)} is missing for {cls.__name__}."
-            )
-
     @property
     def name(self):
         return self.__class__.__name__
 
-    def check_input_tile(self, mpp, size_x=None, size_y=None) -> bool:  # noqa
+    @classmethod
+    def check_input_tile(cls, tile_spec: "TileSpec") -> bool:
         """
         A helper function to check if the input tile size is valid.
 
@@ -122,7 +63,7 @@ class ModelBase(ABC):
         return True
 
 
-class ImageModel(ModelBase, abstract=True):
+class ImageModel(ModelBase):
     # TODO: Add a config that specify the recommended input tile size and mpp
 
     def get_transform(self):
@@ -152,7 +93,7 @@ class ImageModel(ModelBase, abstract=True):
         return self.encode_image(image)
 
 
-class TimmModel(ImageModel, abstract=True):
+class TimmModel(ImageModel):
     def __init__(self, name, token=None, compile=False, compile_kws=None, **kwargs):
         import timm
         from huggingface_hub import login
@@ -180,13 +121,13 @@ class TimmModel(ImageModel, abstract=True):
             return self.model(image)
 
 
-class SlideEncoderModel(ModelBase, abstract=True):
+class SlideEncoderModel(ModelBase):
     @abstractmethod
     def encode_slide(self, embeddings, coords=None, **kwargs):
         raise NotImplementedError
 
 
-class ImageTextModel(ImageModel, abstract=True):
+class ImageTextModel(ImageModel):
     @abstractmethod
     def encode_image(self, image):
         """This should return the image feature before normalize."""
@@ -200,7 +141,7 @@ class ImageTextModel(ImageModel, abstract=True):
         raise NotImplementedError
 
 
-class SegmentationModel(ModelBase, abstract=True):
+class SegmentationModel(ModelBase):
     probability_map_key = "probability_map"
     instance_map_key = "instance_map"
     class_map_key = "class_map"
@@ -219,7 +160,7 @@ class SegmentationModel(ModelBase, abstract=True):
         )
 
     @abstractmethod
-    def segment(self, image):
+    def segment(self, image) -> dict[str, Any]:
         raise NotImplementedError
 
     @abstractmethod
@@ -231,11 +172,12 @@ class SegmentationModel(ModelBase, abstract=True):
             "token_map",
         )
 
-    def get_classes(self):
+    @staticmethod
+    def get_classes():
         return None
 
 
-class TilePredictionModel(ModelBase, abstract=True):
+class TilePredictionModel(ModelBase):
     @abstractmethod
     def predict(self, image):
         """The output should always be a dict of numpy arrays
@@ -244,7 +186,7 @@ class TilePredictionModel(ModelBase, abstract=True):
         raise NotImplementedError
 
 
-class StyleTransferModel(ModelBase, abstract=True):
+class StyleTransferModel(ModelBase):
     @abstractmethod
     def predict(self, image):
         raise NotImplementedError

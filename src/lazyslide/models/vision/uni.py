@@ -2,20 +2,24 @@ import torch
 
 from lazyslide.models.base import ModelTask, TimmModel
 
+from .._model_registry import register
 
-class UNI(TimmModel, key="uni"):
-    is_gated = True
-    task = ModelTask.vision
-    license = "CC-BY-NC-ND-4.0"
-    description = "General-purpose self-supervised model for pathology"
-    commercial = False
-    hf_url = "https://huggingface.co/MahmoodLab/UNI"
-    github_url = "https://github.com/mahmoodlab/UNI"
-    paper_url = "https://doi.org/10.1038/s41591-024-02857-3"
-    bib_key = "Chen2024-qt"
-    param_size = "303.4M"
-    encode_dim = 1024
 
+@register(
+    key="uni",
+    is_gated=True,
+    task=ModelTask.vision,
+    license="CC-BY-NC-ND-4.0",
+    description="General-purpose self-supervised model for pathology",
+    commercial=False,
+    hf_url="https://huggingface.co/MahmoodLab/UNI",
+    github_url="https://github.com/mahmoodlab/UNI",
+    paper_url="https://doi.org/10.1038/s41591-024-02857-3",
+    bib_key="Chen2024-qt",
+    param_size="303.4M",
+    encode_dim=1024,
+)
+class UNI(TimmModel):
     def __init__(self, model_path=None, token=None):
         # from huggingface_hub import hf_hub_download
         # model_path = hf_hub_download("MahmoodLab/UNI", filename="pytorch_model.bin")
@@ -41,19 +45,21 @@ class UNI(TimmModel, key="uni"):
             )
 
 
-class UNI2(TimmModel, key="uni2"):
-    is_gated = True
-    task = ModelTask.vision
-    license = "CC-BY-NC-ND-4.0"
-    description = "An improved version of UNI"
-    commercial = False
-    hf_url = "https://huggingface.co/MahmoodLab/UNI2-h"
-    github_url = "https://github.com/mahmoodlab/UNI"
-    paper_url = "https://doi.org/10.1038/s41591-024-02857-3"
-    bib_key = "Chen2024-qt"
-    param_size = "681.4M"
-    encode_dim = 1536
-
+@register(
+    key="uni2",
+    is_gated=True,
+    task=ModelTask.vision,
+    license="CC-BY-NC-ND-4.0",
+    description="An improved version of UNI",
+    commercial=False,
+    hf_url="https://huggingface.co/MahmoodLab/UNI2-h",
+    github_url="https://github.com/mahmoodlab/UNI",
+    paper_url="https://doi.org/10.1038/s41591-024-02857-3",
+    bib_key="Chen2024-qt",
+    param_size="681.4M",
+    encode_dim=1536,
+)
+class UNI2(TimmModel):
     def __init__(self, model_path=None, token=None):
         import timm
 

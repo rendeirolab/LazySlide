@@ -2,6 +2,8 @@ import torch
 
 from lazyslide.models.base import ModelTask, TimmModel
 
+from .._model_registry import register
+
 
 def get_hoptimus_transform():
     from torchvision.transforms import InterpolationMode
@@ -32,17 +34,21 @@ def get_hoptimus_transform():
     )
 
 
-class HOptimus0(TimmModel, key="h-optimus-0"):
-    task = ModelTask.vision
-    license = "Apache 2.0"
-    description = "Vision foundation model"
-    commercial = True
-    hf_url = "https://huggingface.co/bioptimus/H-optimus-0"
-    github_url = "https://github.com/bioptimus"
-    bib_key = "Saillard2024-ho"
-    param_size = "1.13B"
-    encode_dim = 1536
-
+@register(
+    key="h-optimus-0",
+    task=ModelTask.vision,
+    license="Apache 2.0",
+    description="Vision foundation model",
+    commercial=True,
+    hf_url="https://huggingface.co/bioptimus/H-optimus-0",
+    github_url="https://github.com/bioptimus",
+    bib_key="Saillard2024-ho",
+    param_size="1.13B",
+    encode_dim=1536,
+)
+class HOptimus0(
+    TimmModel,
+):
     def __init__(self, model_path=None, token=None):
         super().__init__(
             "hf-hub:bioptimus/H-optimus-0",
@@ -56,18 +62,20 @@ class HOptimus0(TimmModel, key="h-optimus-0"):
         return get_hoptimus_transform()
 
 
-class HOptimus1(TimmModel, key="h-optimus-1"):
-    is_gated = True
-    task = ModelTask.vision
-    license = "CC-BY-NC-ND-4.0"
-    description = "Vision foundation model"
-    commercial = False
-    hf_url = "https://huggingface.co/bioptimus/H-optimus-1"
-    github_url = "https://github.com/bioptimus"
-    bib_key = "Bioptimus2025-lj"
-    param_size = "1.13B"
-    encode_dim = 1536
-
+@register(
+    key="h-optimus-1",
+    is_gated=True,
+    task=ModelTask.vision,
+    license="CC-BY-NC-ND-4.0",
+    description="Vision foundation model",
+    commercial=False,
+    hf_url="https://huggingface.co/bioptimus/H-optimus-1",
+    github_url="https://github.com/bioptimus",
+    bib_key="Bioptimus2025-lj",
+    param_size="1.13B",
+    encode_dim=1536,
+)
+class HOptimus1(TimmModel):
     def __init__(self, model_path=None, token=None):
         super().__init__(
             "hf-hub:bioptimus/H-optimus-1",
@@ -81,19 +89,21 @@ class HOptimus1(TimmModel, key="h-optimus-1"):
         return get_hoptimus_transform()
 
 
-class H0Mini(TimmModel, key="h0-mini"):
-    is_gated = True
-    task = ModelTask.vision
-    license = "CC-BY-NC-ND-4.0"
-    description = "A distilled version of H-optimus-0"
-    commercial = False
-    hf_url = "https://huggingface.co/bioptimus/H0-mini"
-    github_url = "https://github.com/bioptimus"
-    paper_url = "https://doi.org/10.48550/arXiv.2501.16239"
-    bib_key = "Filiot2025-bn"
-    param_size = "85.7M"
-    encode_dim = 1536
-
+@register(
+    key="h0-mini",
+    is_gated=True,
+    task=ModelTask.vision,
+    license="CC-BY-NC-ND-4.0",
+    description="A distilled version of H-optimus-0",
+    commercial=False,
+    hf_url="https://huggingface.co/bioptimus/H0-mini",
+    github_url="https://github.com/bioptimus",
+    paper_url="https://doi.org/10.48550/arXiv.2501.16239",
+    bib_key="Filiot2025-bn",
+    param_size="85.7M",
+    encode_dim=1536,
+)
+class H0Mini(TimmModel):
     def __init__(self, model_path=None, token=None):
         import timm
 

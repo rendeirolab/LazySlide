@@ -1,22 +1,27 @@
 import torch
 
+from .._model_registry import register
 from .._utils import hf_access
 from ..base import ImageTextModel, ModelTask
 
 
-class MUSK(ImageTextModel, key="musk"):
-    is_gated = True
-    task = ModelTask.multimodal
-    license = "CC-BY-NC-ND-4.0"
-    description = "A Vision-Language Foundation Model for Precision Oncology"
-    commercial = False
-    hf_url = "https://huggingface.co/xiangjx/musk"
-    github_url = "https://github.com/lilab-stanford/MUSK"
-    paper_url = "https://doi.org/10.1038/s41591-024-02856-4"
-    bib_key = "Xiang2025-fd"
-    param_size = "675.2M"
-    encode_dim = 1024
-
+@register(
+    key="musk",
+    is_gated=True,
+    task=ModelTask.multimodal,
+    license="CC-BY-NC-ND-4.0",
+    description="A Vision-Language Foundation Model for Precision Oncology",
+    commercial=False,
+    hf_url="https://huggingface.co/xiangjx/musk",
+    github_url="https://github.com/lilab-stanford/MUSK",
+    paper_url="https://doi.org/10.1038/s41591-024-02856-4",
+    bib_key="Xiang2025-fd",
+    param_size="675.2M",
+    encode_dim=1024,
+)
+class MUSK(
+    ImageTextModel,
+):
     def __init__(
         self,
         model_path=None,

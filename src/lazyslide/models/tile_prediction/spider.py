@@ -3,6 +3,7 @@ from typing import Literal
 import numpy as np
 import torch
 
+from .._model_registry import register
 from ..base import ModelTask, TilePredictionModel
 
 SPIDER_VARIANTS = Literal[
@@ -13,14 +14,7 @@ SPIDER_VARIANTS = Literal[
 ]
 
 
-class Spider(TilePredictionModel, abstract=True):
-    is_gated = True
-    task = ModelTask.tile_prediction
-    license = "CC BY-NC 4.0"
-    commercial = False
-    hf_url = "https://huggingface.co/collections/histai/spider-models-and-datasets-6814834eca365b006389c117"
-    param_size = "303.9M"
-
+class Spider(TilePredictionModel):
     def __init__(self, variants: SPIDER_VARIANTS, model_path=None, token=None):
         from transformers import AutoModel, AutoProcessor
 
@@ -45,29 +39,51 @@ class Spider(TilePredictionModel, abstract=True):
             return {"class": np.asarray(predicted_class_names), "prob": prob.max(1)}
 
 
-class SpiderBreast(Spider, key="spider-breast"):
-    description = "Tile classification for breast"
+shared_info = dict(
+    is_gated=True,
+    task=ModelTask.tile_prediction,
+    license="CC BY-NC 4.0",
+    commercial=False,
+    hf_url="https://huggingface.co/collections/histai/spider-models-and-datasets-6814834eca365b006389c117",
+    param_size="303.9M",
+)
 
+
+@register(
+    key="spider-breast",
+    description="Tile classification for breast",
+    **shared_info,
+)
+class SpiderBreast(Spider):
     def __init__(self, model_path=None, token=None):
         super().__init__(variants="breast", model_path=model_path, token=token)
 
 
-class SpiderColorectal(Spider, key="spider-colorectal"):
-    description = "Tile classification for colorectal"
-
+@register(
+    key="spider-colorectal",
+    description="Tile classification for colorectal",
+    **shared_info,
+)
+class SpiderColorectal(Spider):
     def __init__(self, model_path=None, token=None):
         super().__init__(variants="colorectal", model_path=model_path, token=token)
 
 
-class SpiderSkin(Spider, key="spider-skin"):
-    description = "Tile classification for skin"
-
+@register(
+    key="spider-skin",
+    description="Tile classification for skin",
+    **shared_info,
+)
+class SpiderSkin(Spider):
     def __init__(self, model_path=None, token=None):
         super().__init__(variants="skin", model_path=model_path, token=token)
 
 
-class SpiderThorax(Spider, key="spider-thorax"):
-    description = "Tile classification for thorax"
-
+@register(
+    key="spider-thorax",
+    description="Tile classification for thorax",
+    **shared_info,
+)
+class SpiderThorax(Spider):
     def __init__(self, model_path=None, token=None):
         super().__init__(variants="thorax", model_path=model_path, token=token)

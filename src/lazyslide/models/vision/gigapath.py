@@ -2,20 +2,24 @@ from platformdirs import user_cache_path
 
 from lazyslide.models.base import ModelTask, SlideEncoderModel, TimmModel
 
+from .._model_registry import register
 
-class GigaPath(TimmModel, key="gigapath"):
-    is_gated = True
-    task = ModelTask.vision
-    license = "Apache 2.0 with conditions"
-    description = "A whole-slide foundation model for digital pathology"
-    commercial = False
-    hf_url = "https://huggingface.co/prov-gigapath/prov-gigapath"
-    github_url = "https://github.com/prov-gigapath/prov-gigapath"
-    paper_url = "https://doi.org/10.1038/s41586-024-07441-w"
-    bib_key = "Xu2024-td"
-    param_size = "1.13B"
-    encode_dim = 1536
 
+@register(
+    key="gigapath",
+    is_gated=True,
+    task=ModelTask.vision,
+    license="Apache 2.0 with conditions",
+    description="A whole-slide foundation model for digital pathology",
+    commercial=False,
+    hf_url="https://huggingface.co/prov-gigapath/prov-gigapath",
+    github_url="https://github.com/prov-gigapath/prov-gigapath",
+    paper_url="https://doi.org/10.1038/s41586-024-07441-w",
+    bib_key="Xu2024-td",
+    param_size="1.13B",
+    encode_dim=1536,
+)
+class GigaPath(TimmModel):
     def __init__(self, model_path=None, token=None):
         # Version check
         import timm
@@ -37,18 +41,20 @@ class GigaPath(TimmModel, key="gigapath"):
         super().__init__("hf_hub:prov-gigapath/prov-gigapath", token=token)
 
 
-class GigaPathSlideEncoder(SlideEncoderModel, key="gigapath-slide-encoder"):
-    is_gated = True
-    task = ModelTask.slide_encoder
-    license = "Apache 2.0 with conditions"
-    description = "A whole-slide foundation model for digital pathology"
-    commercial = False
-    hf_url = "https://huggingface.co/prov-gigapath/prov-gigapath"
-    github_url = "https://github.com/prov-gigapath/prov-gigapath"
-    paper_url = "https://doi.org/10.1038/s41586-024-07441-w"
-    bib_key = "Xu2024-td"
-    vision_encoder = "gigapath"
-
+@register(
+    key="gigapath-slide-encoder",
+    is_gated=True,
+    task=ModelTask.slide_encoder,
+    license="Apache 2.0 with conditions",
+    description="A whole-slide foundation model for digital pathology",
+    commercial=False,
+    hf_url="https://huggingface.co/prov-gigapath/prov-gigapath",
+    github_url="https://github.com/prov-gigapath/prov-gigapath",
+    paper_url="https://doi.org/10.1038/s41586-024-07441-w",
+    bib_key="Xu2024-td",
+    vision_encoder="gigapath",
+)
+class GigaPathSlideEncoder(SlideEncoderModel):
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import login
 

@@ -3,19 +3,22 @@ from typing import Literal
 import torch
 
 from lazyslide.models.base import ModelTask, SegmentationModel
-from lazyslide.models.segmentation.postprocess import semanticseg_postprocess
-from lazyslide.models.segmentation.smp import SMPBase
+
+from .._model_registry import register
 
 
-class GrandQCArtifact(SegmentationModel, key="grandqc-artifact"):
-    task = ModelTask.segmentation
-    license = "CC-BY-NC-SA-4.0"
-    description = "Artifact segmentation model from GrandQC"
-    commercial = False
-    github_url = "https://github.com/cpath-ukk/grandqc"
-    paper_url = "https://doi.org/10.1038/s41467-024-54769-y"
-    bib_key = "Weng2024-jf"
-    param_size = "6.3M"
+@register(
+    key="grandqc-artifact",
+    task=ModelTask.segmentation,
+    license="CC-BY-NC-SA-4.0",
+    description="Artifact segmentation model from GrandQC",
+    commercial=False,
+    github_url="https://github.com/cpath-ukk/grandqc",
+    paper_url="https://doi.org/10.1038/s41467-024-54769-y",
+    bib_key="Weng2024-jf",
+    param_size="6.3M",
+)
+class GrandQCArtifact(SegmentationModel):
     CLASS_MAPPING = {
         0: "Background",
         1: "Normal Tissue",
@@ -69,16 +72,20 @@ class GrandQCArtifact(SegmentationModel, key="grandqc-artifact"):
         return ("probability_map",)
 
 
-class GrandQCTissue(SegmentationModel, key="grandqc-tissue"):
-    task = ModelTask.segmentation
-    license = "CC-BY-NC-SA-4.0"
-    description = "Tissue segmentation model from GrandQC"
-    commercial = False
-    github_url = "https://github.com/cpath-ukk/grandqc"
-    paper_url = "https://doi.org/10.1038/s41467-024-54769-y"
-    bib_key = "Weng2024-jf"
-    param_size = "6.6M"
-
+@register(
+    key="grandqc-tissue",
+    task=ModelTask.segmentation,
+    license="CC-BY-NC-SA-4.0",
+    description="Tissue segmentation model from GrandQC",
+    commercial=False,
+    github_url="https://github.com/cpath-ukk/grandqc",
+    paper_url="https://doi.org/10.1038/s41467-024-54769-y",
+    bib_key="Weng2024-jf",
+    param_size="6.6M",
+)
+class GrandQCTissue(
+    SegmentationModel,
+):
     CLASS_MAPPING = {
         0: "Background",
         1: "Tissue",

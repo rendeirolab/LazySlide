@@ -2,8 +2,21 @@ import numpy as np
 
 from lazyslide.models.base import ModelTask, SegmentationModel
 
+from .._model_registry import register
 
-class Cellpose(SegmentationModel, key="cellpose"):
+
+@register(
+    key="cellpose",
+    task=ModelTask.segmentation,
+    license="BSD-3-Clause",
+    description="Cell segmentation model",
+    commercial=True,
+    github_url="https://github.com/MouseLand/cellpose",
+    hf_url="https://huggingface.co/mouseland/cellpose-sam",
+    paper_url="https://doi.org/10.1038/s41592-020-01018-x",
+    bib_key="Stringer2021-cx",
+)
+class Cellpose(SegmentationModel):
     """
     Only supports cellpose>=4.0.0
 
@@ -19,15 +32,6 @@ class Cellpose(SegmentationModel, key="cellpose"):
        >>> zs.seg.cells(wsi, model="cellpose", model_path="fine-tuned-checkpoint.pth")
 
     """
-
-    task = ModelTask.segmentation
-    license = "BSD-3-Clause"
-    description = "Cell segmentation model"
-    commercial = True
-    github_url = "https://github.com/MouseLand/cellpose"
-    hf_url = "https://huggingface.co/mouseland/cellpose-sam"
-    paper_url = "https://doi.org/10.1038/s41592-020-01018-x"
-    bib_key = "Stringer2021-cx"
 
     def __init__(
         self,

@@ -1,24 +1,30 @@
 import numpy as np
 import torch
+import torch.nn.functional as F
 
+from .._model_registry import register
 from .._utils import hf_access
 from ..base import ImageModel, ModelTask
 
 
-class Titan(ImageModel, key=["titan", "conch_v1.5"]):
-    is_gated = True
-    task = [ModelTask.multimodal, ModelTask.slide_encoder]
-    license = "CC-BY-NC-ND-4.0"
-    description = "Multimodal whole slide foundation model for pathology"
-    commercial = False
-    github_url = "https://github.com/mahmoodlab/TITAN"
-    hf_url = "https://huggingface.co/MahmoodLab/TITAN"
-    paper_url = "https://doi.org/10.48550/arXiv.2411.19666"
-    bib_key = "Ding2024-pk"
-    param_size = "158.9M"
-    encode_dim = 768
-    vision_encoder = "titan"
-
+@register(
+    key=["titan", "conch_v1.5"],
+    is_gated=True,
+    task=[ModelTask.multimodal, ModelTask.slide_encoder],
+    license="CC-BY-NC-ND-4.0",
+    description="Multimodal whole slide foundation model for pathology",
+    commercial=False,
+    github_url="https://github.com/mahmoodlab/TITAN",
+    hf_url="https://huggingface.co/MahmoodLab/TITAN",
+    paper_url="https://doi.org/10.48550/arXiv.2411.19666",
+    bib_key="Ding2024-pk",
+    param_size="158.9M",
+    encode_dim=768,
+    vision_encoder="titan",
+)
+class Titan(
+    ImageModel,
+):
     TEMPLATES = [
         "CLASSNAME.",
         "an image of CLASSNAME.",
@@ -46,7 +52,7 @@ class Titan(ImageModel, key=["titan", "conch_v1.5"]):
     ]
 
     def __init__(self, model_path=None, token=None):
-        from transformers import AutoModel
+        from transformers import AutoModel, PreTrainedTokenizerFast
 
         with hf_access(model_path):
             self.model = AutoModel.from_pretrained(
@@ -58,6 +64,8 @@ class Titan(ImageModel, key=["titan", "conch_v1.5"]):
             self.model.eval()
             self.conch, self.conch_transform = self.model.return_conch()
             self.conch.eval()
+            self.tokenizer = PreTrainedTokenizerFast.from_pretrained("MahmoodLab/TITAN")
+            self.tokenizer.context_length = 128
 
     def to(self, device):
         super().to(device)
@@ -89,6 +97,26 @@ class Titan(ImageModel, key=["titan", "conch_v1.5"]):
     def encode_image(self, image):
         image_feature = self.conch(image)
         return image_feature
+
+    @torch.inference_mode()
+    def encode_text(self, text):
+        tokens = self.tokenizer.batch_encode_plus(
+            text,
+            max_length=127,
+            add_special_tokens=True,
+            return_token_type_ids=False,
+            truncation=True,
+            padding="max_length",
+            return_tensors="pt",
+        )
+        tokens = F.pad(tokens["input_ids"], (0, 1), value=self.tokenizer.pad_token_id)
+        try:
+            device = next(self.model.parameters()).device
+        except Exception:
+            device = torch.device("cpu")
+        encode_texts = tokens.to(device)
+        text_feature = self.model.encode_text(encode_texts)
+        return text_feature
 
     @torch.inference_mode()
     def encode_slide(self, embeddings, coords=None, base_tile_size=None, **kwargs):
