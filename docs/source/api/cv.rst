@@ -1,22 +1,6 @@
 Computer vision utilities
 -------------------------
 
-Scorers
-~~~~~~~
-
-.. currentmodule:: lazyslide.cv.scorer
-
-.. autosummary::
-    :toctree: _autogen
-    :nosignatures:
-
-    FocusLite
-    Contrast
-    SplitRGB
-    Redness
-    Brightness
-    ScorerBase
-
 
 Mask
 ~~~~
