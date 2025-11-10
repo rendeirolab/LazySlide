@@ -1,5 +1,5 @@
-__all__ = ["find_tissues", "score_tissues", "tile_tissues", "score_tiles"]
+__all__ = ["find_tissues", "tile_tissues"]
 
 from ._graph import tile_graph
-from ._tiles import score_tiles, tile_tissues
-from ._tissue import find_tissues, score_tissues
+from ._tiles import tile_tissues
+from ._tissue import find_tissues
