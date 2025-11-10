@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 
 import cv2
 import numpy as np
+from skimage.util import dtype_limits
 
-from ...cv.scorer.utils import dtype_limits
 from .._model_registry import register
 from ..base import ModelTask, TilePredictionModel
 
