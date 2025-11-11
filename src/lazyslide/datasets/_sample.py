@@ -32,7 +32,7 @@ def _load_dataset(slide_file, zarr_file, with_data=True, pbar=False):
             stacklevel=find_stack_level(),
         )
 
-    slide = hf_hub_download(REPO_ID, slide_file, repo_type="dataset")
+    slide = hf_hub_download(REPO_ID, slide_file, repo_type="dataset", revision=tag)
     slide_zarr = None
     if with_data:
         slide_zarr_zip = hf_hub_download(
