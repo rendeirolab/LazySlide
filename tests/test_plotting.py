@@ -159,7 +159,7 @@ class TestPlTiles:
             zs.pp.tile_tissues(wsi, 256)
 
         # Generate some features for visualization
-        zs.pp.score_tiles(wsi, scorers=["contrast"])
+        zs.tl.tile_prediction(wsi, model="contrast")
 
         # Call the function
         fig = plt.figure()
@@ -197,7 +197,8 @@ class TestPlTiles:
             zs.pp.tile_tissues(wsi, 256)
 
         # Generate some features for visualization
-        zs.pp.score_tiles(wsi, scorers=["contrast", "brightness"])
+        zs.tl.tile_prediction(wsi, model="contrast")
+        zs.tl.tile_prediction(wsi, model="brightness")
 
         # Call the function with different color features
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
@@ -336,7 +337,7 @@ class TestWSIViewer:
             zs.pp.tile_tissues(wsi, 256)
 
         # Generate some features for visualization
-        zs.pp.score_tiles(wsi, scorers=["contrast"])
+        zs.tl.tile_prediction(wsi, model="contrast")
 
         # Create a viewer
         viewer = zs.pl.WSIViewer(wsi)
