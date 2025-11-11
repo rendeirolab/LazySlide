@@ -4,22 +4,25 @@ import torch
 import torch.nn.functional as F
 
 from ..._utils import find_stack_level
+from .._model_registry import register
 from .._utils import hf_access
 from ..base import ImageTextModel, ModelTask
 
 
-class OmiCLIP(ImageTextModel, key="omiclip"):
-    is_gated = True
-    task = ModelTask.multimodal
-    license = "BSD-3-Clause"
-    description = "A visual-omics foundation model to bridge histopathology with spatial transcriptomics"
-    commercial = True
-    hf_url = "https://huggingface.co/WangGuangyuLab/Loki"
-    github_url = "https://github.com/GuangyuWangLab2021/Loki"
-    paper_url = "https://doi.org/10.1038/s41592-025-02707-1"
-    bib_key = "Chen2025-ok"
-    param_size = "638.5M"
-
+@register(
+    key="omiclip",
+    is_gated=True,
+    task=ModelTask.multimodal,
+    license="BSD-3-Clause",
+    description="A visual-omics foundation model to bridge histopathology with spatial transcriptomics",
+    commercial=True,
+    hf_url="https://huggingface.co/WangGuangyuLab/Loki",
+    github_url="https://github.com/GuangyuWangLab2021/Loki",
+    paper_url="https://doi.org/10.1038/s41592-025-02707-1",
+    bib_key="Chen2025-ok",
+    param_size="638.5M",
+)
+class OmiCLIP(ImageTextModel):
     def __init__(self, model_path=None, token=None):
         warnings.warn(
             "As from v0.8.2, Normalization will not be applied to image embedding of OmiCLIP model anymore."

@@ -19,7 +19,23 @@ There are different types of models in LazySlide:
 - Tile prediction model
 
 You should find all the base class definition in `src/lazyslide/models/base.py`, and all models should 
-inherit from one of the base class. A key field is required during the class definition.
+inherit from one of the base class. If you want the model like `model='cellpose'` in the LazySlide functions, 
+please use the `register` decorator to register the model in LazySlide. 
+
+```python
+zs.seg.cells(wsi, model='cellpose')  # 'cellpose' must be registered
+```
+
+Otherwise, you can simply pass the model instance as parameter.
+
+```python
+cellpose_instance = Cellpose()
+
+zs.seg.cells(wsi, model=cellpose_instance)
+```
+    
+
+A key field is required to defined the name of the model.
 Please refer to the actual model definition to see how a model class is constructed.
 Different model types will require different methods to be implemented.
 
@@ -34,7 +50,7 @@ the encoded feature.
 
 Here is an example of a **vision model**:
 
-You can have many information related to the model defined as the class attributes.
+You can have much information related to the model defined.
 Some of them are required, some are optional. If it's optional, you don't have to define it.
 
 If the model comes with a publication, please also add a bib entry in `docs/source/references.bib` and add the 
@@ -43,36 +59,41 @@ key to the `bib_key` field.
 ```python
 import torch
 
+from lazyslide.models import hf_access, register
 from lazyslide.models.base import ImageModel, ModelTask
-from lazyslide.models import hf_access
+
 
 # A key must be defined to register the model
-class MyGreatModel(ImageModel, key="the key of the model"):
-    is_gated = False  # Optional, by default is False, is the model gated on huggingface?
-    task = ModelTask.vision  # Required, can be a list
-    license = "MIT"  # Required
-    description = "The greatest model ever"
-    commercial = True  # Required, can the model be used for commercial purpose?
-    hf_url = "https://huggingface.co/xxx"  # Optional
-    github_url = "https://github.com/xxx/xxx"  # Optional
-    paper_url = "https://doi.org/xxx/xxx"  # Optional
-    bib_key = "xxx"  # Optional, Add the bib entry to docs/source/references.bib
-    param_size = "87.8M"  # Optional
-    encode_dim = 512  # Optional
+@register(
+    key="the key of the model",
+    is_gated=False,  # Optional, by default is False, is the model gated on huggingface?
+    task=ModelTask.vision,  # Required, can be a list
+    license="MIT",  # Required
+    description="The greatest model ever",
+    commercial=True,  # Required, can the model be used for commercial purpose?
+    hf_url="https://huggingface.co/xxx",  # Optional
+    github_url="https://github.com/xxx/xxx",  # Optional
+    paper_url="https://doi.org/xxx/xxx",  # Optional
+    bib_key="xxx",  # Optional, Add the bib entry to docs/source/references.bib
+    param_size="87.8M",  # Optional
+    encode_dim=512,  # Optional
+)
+class MyGreatModel(ImageModel):
 
     def __init__(self):
         from huggingface_hub import hf_hub_download
-        
+
         # Use this context manager if your model is gated on huggingface
         with hf_access("my-repo/my-great-model"):
             model_file = hf_hub_download("my-repo/my-great-model", "model.pt")
-        
+
         self.model = torch.jit.load(model_file, map_location="cpu")
-    
+        self.model.eval()
+
     # Define the transformation here, will automatically be applied
     def get_transform(self):
         return self.model.get_custom_transform()
-    
+
     @torch.inference_mode()
     def encode_image(self, image):
         """
@@ -92,30 +113,35 @@ Image text model will require implementing
 Here is an example of an **image-text multimodal model**:
 
 ```python
-import torch    
+import torch
 
+from lazyslide.models import hf_access, register
 from lazyslide.models.base import ImageTextModel, ModelTask
-from lazyslide.models import hf_access
 
-class MyGreatImageTextModel(ImageTextModel, key="the key of the model"):
-    task = ModelTask.vision  # Required, can be a list
-    license = "MIT"  # Required
-    description = "The greatest model ever"
-    commercial = True  # Required, can the model be used for commercial purpose?
-    
+
+@register(
+    key="the key of the model",
+    task=ModelTask.vision,  # Required, can be a list
+    license="MIT",  # Required
+    description="The greatest model ever",
+    commercial=True,  # Required, can the model be used for commercial purpose?
+)
+class MyGreatImageTextModel(ImageTextModel):
+
     def __init__(self):
         from huggingface_hub import hf_hub_download
-        
+
         # Use this context manager if your model is gated on huggingface
         with hf_access("my-repo/my-great-image-text-model"):
             model_file = hf_hub_download("my-repo/my-great-image-text-model", "model.pt")
-        
+
         self.model = torch.jit.load(model_file, map_location="cpu")
-    
+        self.model.eval()
+
     @torch.inference_mode()
     def encode_image(self, image):
         return self.model.encode_image(image)
-    
+
     @torch.inference_mode()
     def encode_text(self, text):
         return self.model.encode_text(text, normalize=True)
@@ -133,13 +159,17 @@ set the output type in `supported_output(self)` method.
 import torch
 
 from lazyslide.models.base import SegmentationModel, ModelTask
+from lazyslide.models import register
 
-class MySuperSegmentation(SegmentationModel, key="super-segmentation"):
+
+@register(
+    key="super-segmentation",
+    task=ModelTask.segmentation,
+    license="Apache 2.0",
+    commercial=True,
+)
+class MySuperSegmentation(SegmentationModel):
     """Apply the InstaSeg model to the input image."""
-
-    task = ModelTask.segmentation
-    license = "Apache 2.0"
-    commercial = True
 
     def __init__(self):
         from huggingface_hub import hf_hub_download
@@ -147,6 +177,7 @@ class MySuperSegmentation(SegmentationModel, key="super-segmentation"):
         model_file = hf_hub_download("my-repo/my-super-segmentation", "model.pt")
 
         self.model = torch.jit.load(model_file, map_location="cpu")
+        self.model.eval()
 
     @torch.inference_mode()
     def segment(self, image):
@@ -167,8 +198,14 @@ Tile prediction model will require implementing
 import torch
 
 from lazyslide.models.base import TilePredictionModel, ModelTask
+from lazyslide.models import register
 
-class MySuperTilePrediction(TilePredictionModel, key="super-tile-prediction"):
+
+@register(
+    key="super-tile-prediction",
+    ... # Other Parameters
+)
+class MySuperTilePrediction(TilePredictionModel, ):
     
     def __init__(self):
         from huggingface_hub import hf_hub_download
@@ -176,6 +213,7 @@ class MySuperTilePrediction(TilePredictionModel, key="super-tile-prediction"):
         model_file = hf_hub_download("my-repo/my-super-tile-prediction", "model.pt")
         
         self.model = torch.jit.load(model_file, map_location="cpu")
+        self.model.eval()
     
     @torch.inference_mode()
     def predict(self, image):
@@ -198,9 +236,9 @@ from lazyslide.models import MODEL_REGISTRY, list_models
 model_name = "your model name"
 assert model_name in list_models()
 model_class = MODEL_REGISTRY[model_name]
+model_instance = model_class()  # You must call the model to initiate an instance
 
 ```
-
 To make the model available to user, you will also need to go to the respective function to add your model logic.
 If it's only for feature extraction, you don't need to do anything.
 

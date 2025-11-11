@@ -2,18 +2,22 @@ import torch
 
 from lazyslide.models.base import ImageModel, ModelTask, SlideEncoderModel
 
+from .._model_registry import register
 
-class CHIEF(ImageModel, key="chief"):
-    task = ModelTask.vision
-    license = "AGPL-3.0"
-    description = "Clinical Histopathology Imaging Evaluation Foundation (CHIEF)"
-    commercial = False
-    github_url = "https://github.com/hms-dbmi/CHIEF"
-    paper_url = "https://doi.org/10.1038/s41586-024-07894-z"
-    bib_key = "Wang2024-jb"
-    param_size = "27.5M"
-    encode_dim = 768
 
+@register(
+    key="chief",
+    task=ModelTask.vision,
+    license="AGPL-3.0",
+    description="Clinical Histopathology Imaging Evaluation Foundation (CHIEF)",
+    commercial=False,
+    github_url="https://github.com/hms-dbmi/CHIEF",
+    paper_url="https://doi.org/10.1038/s41586-024-07894-z",
+    bib_key="Wang2024-jb",
+    param_size="27.5M",
+    encode_dim=768,
+)
+class CHIEF(ImageModel):
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download
 
@@ -33,17 +37,19 @@ class CHIEF(ImageModel, key="chief"):
             return output
 
 
-class CHIEFSlideEncoder(SlideEncoderModel, key="chief-slide-encoder"):
-    task = ModelTask.slide_encoder
-    license = "AGPL-3.0"
-    description = "Clinical Histopathology Imaging Evaluation Foundation (CHIEF)"
-    commercial = False
-    github_url = "https://github.com/hms-dbmi/CHIEF"
-    paper_url = "https://doi.org/10.1038/s41586-024-07894-z"
-    bib_key = "Wang2024-jb"
-    param_size = "1.2M"
-    vision_encoder = "chief"
-
+@register(
+    key="chief-slide-encoder",
+    task=ModelTask.slide_encoder,
+    license="AGPL-3.0",
+    description="Clinical Histopathology Imaging Evaluation Foundation (CHIEF)",
+    commercial=False,
+    github_url="https://github.com/hms-dbmi/CHIEF",
+    paper_url="https://doi.org/10.1038/s41586-024-07894-z",
+    bib_key="Wang2024-jb",
+    param_size="1.2M",
+    vision_encoder="chief",
+)
+class CHIEFSlideEncoder(SlideEncoderModel):
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download
 

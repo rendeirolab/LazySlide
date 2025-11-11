@@ -1,21 +1,24 @@
 import torch
 
+from .._model_registry import register
 from ..base import ModelTask, SegmentationModel
 
 
-class HESTTissueSegmentation(SegmentationModel, key="hest-tissue-segmentation"):
+@register(
+    key="hest-tissue-segmentation",
+    task=ModelTask.segmentation,
+    license="CC-BY-NC-SA-4.0",
+    description="DeepLabV3 model finetuned on HEST-1k and Acrobat for IHC/H&E tissue segmentation.",
+    commercial=False,
+    hf_url="https://huggingface.co/MahmoodLab/hest-tissue-seg",
+    param_size="39.6M",
+)
+class HESTTissueSegmentation(SegmentationModel):
     """
     Tissue segmentation model from HEST.
 
     512x512 with mpp=1 or 2
     """
-
-    task = ModelTask.segmentation
-    license = "CC-BY-NC-SA-4.0"
-    description = "DeepLabV3 model finetuned on HEST-1k and Acrobat for IHC/H&E tissue segmentation."
-    commercial = False
-    hf_url = "https://huggingface.co/MahmoodLab/hest-tissue-seg"
-    param_size = "39.6M"
 
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download

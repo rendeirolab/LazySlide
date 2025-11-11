@@ -1,19 +1,21 @@
-import numpy as np
 import torch
 
+from .._model_registry import register
 from ..base import ModelTask, TilePredictionModel
 
 
-class PathProfilerQC(TilePredictionModel, key="pathprofilerqc"):
-    task = ModelTask.tile_prediction
-    license = "GPL-3.0"
-    description = "Quality assessment of histology images"
-    commercial = False
-    github_url = "https://github.com/MaryamHaghighat/PathProfiler"
-    paper_url = "https://doi.org/10.1038/s41598-022-08351-5"
-    bib_key = "Haghighat2022-sy"
-    param_size = "11.2M"
-
+@register(
+    key="pathprofilerqc",
+    task=ModelTask.tile_prediction,
+    license="GPL-3.0",
+    description="Quality assessment of histology images",
+    commercial=False,
+    github_url="https://github.com/MaryamHaghighat/PathProfiler",
+    paper_url="https://doi.org/10.1038/s41598-022-08351-5",
+    bib_key="Haghighat2022-sy",
+    param_size="11.2M",
+)
+class PathProfilerQC(TilePredictionModel):
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download
 
@@ -51,14 +53,21 @@ class PathProfilerQC(TilePredictionModel, key="pathprofilerqc"):
         Predict the class of the input image using the PathProfiler model.
         The model expects a tensor of shape [B, C, H, W].
 
-        | **Suggested Name**       | **Description**                                                    |
-        | ------------------------ | ------------------------------------------------------------------ |
-        | `diagnostic_quality`     | Whether the image is usable for diagnosis (1 = good quality)       |
-        | `visual_cleanliness`     | Whether the image appears normal and free of artefacts (1 = clean) |
-        | `focus_issue`            | Degree of focus issue (1 = severe, 0.5 = slight, 0 = none)         |
-        | `staining_issue`       | Degree of staining issue (1 = severe, 0.5 = slight, 0 = none)      |
-        | `tissue_folding_present` | Whether tissue folding is present (1 = present)                    |
-        | `misc_artifacts_present` | Whether other artefacts are present (1 = present)                  |
+        +------------------------+---------------------------------------------------------------+
+        | **Suggested Name**     | **Description**                                               |
+        +========================+===============================================================+
+        | diagnostic_quality     | Whether usable for diagnosis (1=good)                         |
+        +------------------------+---------------------------------------------------------------+
+        | visual_cleanliness     | Normal & artefact-free (1=clean)                              |
+        +------------------------+---------------------------------------------------------------+
+        | focus_issue            | Focus issue: 1=severe, 0.5=slight, 0=none                     |
+        +------------------------+---------------------------------------------------------------+
+        | staining_issue         | Staining issue: 1=severe, 0.5=slight, 0=none                  |
+        +------------------------+---------------------------------------------------------------+
+        | tissue_folding_present | Tissue folding present (1=yes)                                |
+        +------------------------+---------------------------------------------------------------+
+        | misc_artifacts_present | Other artefacts present (1=yes)                               |
+        +------------------------+---------------------------------------------------------------+
 
         """
         names = [

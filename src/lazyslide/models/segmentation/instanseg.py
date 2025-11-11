@@ -1,8 +1,17 @@
 from __future__ import annotations
 
+import warnings
+from typing import TYPE_CHECKING
+
 import torch
 
 from lazyslide.models.base import ModelTask, SegmentationModel
+
+from ..._utils import find_stack_level
+from .._model_registry import register
+
+if TYPE_CHECKING:
+    from wsidata import TileSpec
 
 
 class PercentileNormalize:
@@ -19,17 +28,22 @@ class PercentileNormalize:
         return self.__class__.__name__ + "()"
 
 
-class Instanseg(SegmentationModel, key="instanseg"):
+@register(
+    key="instanseg",
+    task=ModelTask.segmentation,
+    license="Apache 2.0",
+    description="An embedding-based instance segmentation algorithm optimized for accurate, "
+    "efficient and portable cell segmentation.",
+    commercial=True,
+    github_url="https://github.com/instanseg/instanseg",
+    paper_url="https://doi.org/10.48550/arXiv.2408.15954",
+    bib_key="Goldsborough2024-oc",
+    param_size="3.8M",
+)
+class Instanseg(
+    SegmentationModel,
+):
     """Apply the InstaSeg model to the input image."""
-
-    task = ModelTask.segmentation
-    license = "Apache 2.0"
-    description = "An embedding-based instance segmentation algorithm optimized for accurate, efficient and portable cell segmentation."
-    commercial = True
-    github_url = "https://github.com/instanseg/instanseg"
-    paper_url = "https://doi.org/10.48550/arXiv.2408.15954"
-    bib_key = "Goldsborough2024-oc"
-    param_size = "3.8M"
 
     _base_mpp = 0.5
 
@@ -64,3 +78,14 @@ class Instanseg(SegmentationModel, key="instanseg"):
 
     def supported_output(self):
         return ("instance_map",)
+
+    def check_input_tile(self, tile_spec: "TileSpec") -> bool:
+        check_mpp = tile_spec.mpp == 0.5
+        check_size = tile_spec.height == 512 and tile_spec.width == 512
+        if not check_mpp or not check_size:
+            warnings.warn(
+                f"To optimize the performance of Instanseg model, "
+                f"the tile size should be 512x512 and the mpp should be 0.5. "
+                f"Current tile size is {tile_spec.width}x{tile_spec.height} with {tile_spec.mpp} mpp."
+            )
+        return True

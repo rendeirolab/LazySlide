@@ -1,19 +1,22 @@
 import numpy as np
 import torch
 
+from .._model_registry import register
 from ..base import ModelTask, TilePredictionModel
 
 
-class FocusLiteNN(TilePredictionModel, key=["focuslitenn", "focus"]):
-    task = ModelTask.tile_prediction
-    license = "Prosperity Public License 3.0.0"
-    description = "High efficiency Focus Quality Assessment for digital pathology"
-    commercial = False
-    github_url = "https://github.com/icbcbicc/FocusLiteNN"
-    paper_url = "https://doi.org/10.48550/arXiv.2007.06565"
-    bib_key = "Wang2020-ku"
-    param_size = "299"
-
+@register(
+    key=["focuslitenn", "focus"],
+    task=ModelTask.tile_prediction,
+    license="Prosperity Public License 3.0.0",
+    description="High efficiency Focus Quality Assessment for digital pathology",
+    commercial=False,
+    github_url="https://github.com/icbcbicc/FocusLiteNN",
+    paper_url="https://doi.org/10.48550/arXiv.2007.06565",
+    bib_key="Wang2020-ku",
+    param_size="299",
+)
+class FocusLiteNN(TilePredictionModel):
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download
 

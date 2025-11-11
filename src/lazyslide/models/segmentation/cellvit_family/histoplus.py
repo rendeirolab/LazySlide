@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections import OrderedDict
 from typing import Any, Callable, Literal
 
@@ -12,6 +13,9 @@ from torch import nn
 from torch.nn import functional as F
 from torch.nn.parameter import Parameter
 
+from lazyslide._utils import find_stack_level
+
+from ..._model_registry import register
 from ..._utils import hf_access
 from ...base import ModelTask, SegmentationModel
 from .blocks import (
@@ -345,18 +349,20 @@ class HistoPLUSModel(nn.Module):
         return out_dict
 
 
-class HistoPLUS(SegmentationModel, key="histoplus"):
-    is_gated = True
-    task = ModelTask.segmentation
-    license = "CC-BY-NC-ND-4.0"
-    description = "Towards Comprehensive Cellular Characterisation of H&E slides"
-    commercial = False
-    github_url = "https://github.com/owkin/histoplus"
-    hf_url = "https://huggingface.co/Owkin-Bioptimus/histoplus"
-    paper_url = "https://doi.org/10.48550/arXiv.2508.09926"
-    bib_key = "Adjadj2025-hn"
-    param_size = "47.9M"
-
+@register(
+    key="histoplus",
+    is_gated=True,
+    task=ModelTask.segmentation,
+    license="CC-BY-NC-ND-4.0",
+    description="Towards Comprehensive Cellular Characterisation of H&E slides",
+    commercial=False,
+    github_url="https://github.com/owkin/histoplus",
+    hf_url="https://huggingface.co/Owkin-Bioptimus/histoplus",
+    paper_url="https://doi.org/10.48550/arXiv.2508.09926",
+    bib_key="Adjadj2025-hn",
+    param_size="47.9M",
+)
+class HistoPLUS(SegmentationModel):
     _backbone_tile_size = {
         "20x": 224,
         "40x": 448,
@@ -365,21 +371,21 @@ class HistoPLUS(SegmentationModel, key="histoplus"):
     def __init__(
         self,
         tile_size: int = 840,
-        variant: Literal["20x", "40x"] = "20x",
+        magnification: Literal["20x", "40x"] = "20x",
         model_path=None,
         token=None,
     ):
         from huggingface_hub import hf_hub_download
 
-        self.variant = variant
+        self.variant = magnification
         self.model = HistoPLUSModel(
             inference_image_size=tile_size,
-            backbone_tile_size=self._backbone_tile_size[variant],
+            backbone_tile_size=self._backbone_tile_size[magnification],
         )
         with hf_access("Owkin-Bioptimus/histoplus"):
             weights = hf_hub_download(
                 "Owkin-Bioptimus/histoplus",
-                f"histoplus_cellvit_segmentor_{variant}.pt",
+                f"histoplus_cellvit_segmentor_{magnification}.pt",
             )
         state_dict = torch.load(weights, map_location="cpu")
         state_dict = remap_state_dict(state_dict)
@@ -426,7 +432,8 @@ class HistoPLUS(SegmentationModel, key="histoplus"):
     def supported_output(self):
         return ["instance_map", "class_map"]
 
-    def get_classes(self):
+    @staticmethod
+    def get_classes():
         return {
             0: "Background",
             1: "Cancer cell",
@@ -444,6 +451,24 @@ class HistoPLUS(SegmentationModel, key="histoplus"):
             13: "Mitotic Figures",
             14: "Minor Stromal Cell",
         }
+
+    @classmethod
+    def check_input_tile(cls, tile_spec) -> bool:
+        check_mpp = tile_spec.mpp == 0.5 or tile_spec.mpp == 0.25
+        assert tile_spec.height == tile_spec.width, (
+            "HistoPLUS model only supports square tiles."
+        )
+        # Tile size must be divisible by 14
+        assert tile_spec.height % 14 == 0, "Tile size must be divisible by 14."
+        assert tile_spec.width % 14 == 0, "Tile size must be divisible by 14."
+        if not check_mpp:
+            warnings.warn(
+                f"To optimize the performance of HistoPLUS model, "
+                f"the tiles should be created at the mpp=0.5 or 0.25. "
+                f"Current tile size is {tile_spec.width}x{tile_spec.height} with {tile_spec.mpp} mpp.",
+                stacklevel=find_stack_level(),
+            )
+        return True
 
 
 def remap_state_dict(state_dict):

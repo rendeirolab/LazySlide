@@ -3,21 +3,23 @@ import torch
 from lazyslide.models._utils import hf_access
 from lazyslide.models.base import ModelTask, SlideEncoderModel
 
+from .._model_registry import register
 
-class MadeleineSlideEncoder(SlideEncoderModel, key="madeleine"):
-    task = ModelTask.slide_encoder
-    license = "CC BY-NC-ND 4.0"
-    description = (
-        "Multistain Pretraining for Slide Representation Learning in Pathology"
-    )
-    commercial = False
-    hf_url = "https://huggingface.co/MahmoodLab/madeleine"
-    github_url = "https://github.com/mahmoodlab/MADELEINE"
-    paper_url = "http://arxiv.org/abs/2408.02859"
-    bib_key = "Jaume2024-tq"
-    param_size = "3.2M"
-    vision_encoder = "conch"
 
+@register(
+    key="madeleine",
+    task=ModelTask.slide_encoder,
+    license="CC BY-NC-ND 4.0",
+    description="Multistain Pretraining for Slide Representation Learning in Pathology",
+    commercial=False,
+    hf_url="https://huggingface.co/MahmoodLab/madeleine",
+    github_url="https://github.com/mahmoodlab/MADELEINE",
+    paper_url="http://arxiv.org/abs/2408.02859",
+    bib_key="Jaume2024-tq",
+    param_size="3.2M",
+    vision_encoder="conch",
+)
+class MadeleineSlideEncoder(SlideEncoderModel):
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download
 

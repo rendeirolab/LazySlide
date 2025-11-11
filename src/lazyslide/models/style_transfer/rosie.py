@@ -3,21 +3,24 @@ import warnings
 import torch
 import torch.nn as nn
 
-from lazyslide.models._utils import hf_access
-from lazyslide.models.base import ModelTask, StyleTransferModel
+from .._model_registry import register
+from .._utils import hf_access
+from ..base import ModelTask, StyleTransferModel
 
 
-class ROSIE(StyleTransferModel, key="rosie"):
-    task = ModelTask.style_transfer
-    is_gated = True
-    license = "CC-BY-NC-4.0"
-    description = "AI generation of multiplex immunofluorescence staining from histopathology images"
-    commercial = False
-    github_url = "https://gitlab.com/enable-medicine-public/rosie"
-    paper_url = "https://doi.org/10.1038/s41467-025-62346-0"
-    bib_key = "Wu2025-kv"
-    param_size = "50M"
-
+@register(
+    key="rosie",
+    task=ModelTask.style_transfer,
+    is_gated=True,
+    license="CC-BY-NC-4.0",
+    description="AI generation of multiplex immunofluorescence staining from histopathology images",
+    commercial=False,
+    github_url="https://gitlab.com/enable-medicine-public/rosie",
+    paper_url="https://doi.org/10.1038/s41467-025-62346-0",
+    bib_key="Wu2025-kv",
+    param_size="50M",
+)
+class ROSIE(StyleTransferModel):
     def __init__(self, model_path: str = None, token: str = None):
         import torchvision.models as models
         from huggingface_hub import hf_hub_download

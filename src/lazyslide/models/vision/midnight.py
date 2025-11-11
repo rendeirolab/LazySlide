@@ -3,20 +3,24 @@ import torch
 from lazyslide.models._utils import hf_access
 from lazyslide.models.base import ImageModel, ModelTask
 
+from .._model_registry import register
 
-class Midnight(ImageModel, key="midnight"):
-    is_gated = True
-    task = ModelTask.vision
-    license = "MIT"
-    description = "Training state-of-the-art pathology foundation models with orders of magnitude less data"
-    commercial = True
-    hf_url = "https://huggingface.co/kaiko-ai/midnight"
-    github_url = "https://github.com/kaiko-ai/midnight"
-    paper_url = "https://doi.org/10.48550/arXiv.2504.05186"
-    bib_key = "Karasikov2025-wp"
-    param_size = "1.14B"
-    encode_dim = 3072
 
+@register(
+    key="midnight",
+    is_gated=True,
+    task=ModelTask.vision,
+    license="MIT",
+    description="Training state-of-the-art pathology foundation models with orders of magnitude less data",
+    commercial=True,
+    hf_url="https://huggingface.co/kaiko-ai/midnight",
+    github_url="https://github.com/kaiko-ai/midnight",
+    paper_url="https://doi.org/10.48550/arXiv.2504.05186",
+    bib_key="Karasikov2025-wp",
+    param_size="1.14B",
+    encode_dim=3072,
+)
+class Midnight(ImageModel):
     def __init__(self, model_path=None, token=None):
         try:
             from transformers import AutoImageProcessor, AutoModel

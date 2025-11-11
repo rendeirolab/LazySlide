@@ -1,16 +1,19 @@
 import torch
 
+from .._model_registry import register
 from ..base import ModelTask, SegmentationModel
 
 
-class SAM(SegmentationModel, key="sam"):
-    task = ModelTask.segmentation
-    commercial = True
-    license = "Apache 2.0"
-    description = "SAM model for image segmentation"
-    github_url = "https://github.com/facebookresearch/segment-anything"
-    paper_url = "https://arxiv.org/abs/2304.02643"
-
+@register(
+    key="sam",
+    task=ModelTask.segmentation,
+    commercial=True,
+    license="Apache 2.0",
+    description="SAM model for image segmentation",
+    github_url="https://github.com/facebookresearch/segment-anything",
+    paper_url="https://arxiv.org/abs/2304.02643",
+)
+class SAM(SegmentationModel):
     SAM_VARIENTS = [
         "facebook/sam-vit-base",
         "facebook/sam-vit-large",

@@ -2,18 +2,23 @@ import torch
 
 from lazyslide.models.base import ModelTask, TimmModel
 
+from .._model_registry import register
 
-class Virchow(TimmModel, key="virchow"):
-    is_gated = True
-    task = ModelTask.vision
-    license = "Apache 2.0"
-    description = "A foundation model for clinical-grade computational pathology and rare cancers detection"
-    commercial = True
-    hf_url = "https://huggingface.co/paige-ai/Virchow"
-    paper_url = "https://doi.org/10.1038/s41591-024-03141-0"
-    bib_key = "Vorontsov2024-di"
-    param_size = "631.2M"
-    encode_dim = 2560
+
+@register(
+    key="virchow",
+    is_gated=True,
+    task=ModelTask.vision,
+    license="Apache 2.0",
+    description="A foundation model for clinical-grade computational pathology and rare cancers detection",
+    commercial=True,
+    hf_url="https://huggingface.co/paige-ai/Virchow",
+    paper_url="https://doi.org/10.1038/s41591-024-03141-0",
+    bib_key="Vorontsov2024-di",
+    param_size="631.2M",
+    encode_dim=2560,
+)
+class Virchow(TimmModel):
     _hf_hub_id = "paige-ai/Virchow"
 
     def __init__(self, model_path=None, token=None):
@@ -37,7 +42,7 @@ class Virchow(TimmModel, key="virchow"):
         return torch.cat((cls_features, patch_features.mean(1)), dim=-1)
 
 
-class Virchow2(Virchow, key="virchow2"):
+class Virchow2(Virchow):
     hf_url = "https://huggingface.co/paige-ai/Virchow2"
     paper_url = "https://doi.org/10.48550/arXiv.2408.00738"
     description = "Scaling self-supervised mixed magnification models in pathology"

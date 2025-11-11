@@ -3,18 +3,10 @@ import torch
 from lazyslide.models._utils import hf_access
 from lazyslide.models.base import ImageModel, ModelTask
 
+from .._model_registry import register
 
-class Hibou(ImageModel, abstract=True):
-    is_gated = True
-    task = ModelTask.vision
-    license = "Apache 2.0"
-    description = "A family of foundational vision transformers for pathology"
-    commercial = True
-    hf_url = "https://huggingface.co/histai/hibou-b"
-    github_url = "https://github.com/HistAI/hibou/"
-    paper_url = "https://doi.org/10.48550/arXiv.2406.05074"
-    bib_key = "Nechaev2024-wi"
 
+class Hibou(ImageModel):
     def __init__(self, variant: str, model_path=None, token=None):
         try:
             from transformers import AutoModel
@@ -63,17 +55,36 @@ class Hibou(ImageModel, abstract=True):
         return image_features.pooler_output
 
 
-class HibouB(Hibou, key="hibou-b"):
-    param_size = "85.7M"
-    encode_dim = 768
+shared_info = dict(
+    is_gated=True,
+    task=ModelTask.vision,
+    license="Apache 2.0",
+    description="A family of foundational vision transformers for pathology",
+    commercial=True,
+    hf_url="https://huggingface.co/histai/hibou-b",
+    github_url="https://github.com/HistAI/hibou/",
+    paper_url="https://doi.org/10.48550/arXiv.2406.05074",
+    bib_key="Nechaev2024-wi",
+)
 
+
+@register(
+    key="hibou-b",
+    **shared_info,
+    param_size="85.7M",
+    encode_dim=768,
+)
+class HibouB(Hibou):
     def __init__(self, token=None, model_path=None):
         super().__init__(variant="hibou-b", token=token)
 
 
-class HibouL(Hibou, key="hibou-l"):
-    param_size = "303.7M"
-    encode_dim = 1024
-
+@register(
+    key="hibou-l",
+    **shared_info,
+    param_size="303.7M",
+    encode_dim=1024,
+)
+class HibouL(Hibou):
     def __init__(self, token=None, model_path=None):
         super().__init__(variant="hibou-l", token=token)

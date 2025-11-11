@@ -224,7 +224,6 @@ def generate_models_rst(app, config):
     from lazyslide.models import MODEL_REGISTRY
     from lazyslide.models import base as mb
     from lazyslide.models.segmentation import SMPBase
-    from lazyslide.models.tile_prediction import CV_FEATURES
 
     # Define model lists manually based on the current models.rst file
     model_sections = {

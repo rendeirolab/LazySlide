@@ -26,7 +26,6 @@ from lazyslide.cv.transform import (
 from .._const import Key
 from .._utils import default_pbar, find_stack_level
 from ..cv import merge_connected_polygons
-from ._utils import Scorer, get_scorer
 
 
 def _tissue_mask(
@@ -229,99 +228,6 @@ def find_tissues(
         tissues = merged_tissue["geometry"]
 
     add_tissues(wsi, key=key_added, tissues=tissues)
-
-
-def score_tissues(
-    wsi: WSIData,
-    scorers: Scorer | Sequence[Scorer] = None,
-    num_workers: int = 1,
-    pbar: bool = False,
-    tissue_key: str = Key.tissue,
-):
-    """Score tissue regions in the WSI for QC
-
-    This is useful to filter out artifacts or non-tissue regions.
-
-    .. deprecated:: 0.7.2
-
-    Parameters
-    ----------
-    wsi : :class:`WSIData <wsidata.WSIData>`
-        The WSIData object to work on.
-    scorers : :class:`Scorer` or array of :class:`Scorer`
-        :class:`Scorer` to use for scoring tissue regions.:
-
-        - redness: The redness of the tissue.
-        - brightness: The brightness of the tissue.
-    num_workers : int, optional, default: 1
-        Number of workers to use for scoring.
-    pbar : bool, optional, default: False
-        Show progress bar.
-    tissue_key : str, optional, default: 'tissue'
-        Key of the tissue data in the :bdg-danger:`shapes` slot.
-
-    Returns
-    -------
-    None
-
-    .. note::
-        The scores will be added to the :code:`tissues | {tissue_key}` table in the WSIData object.
-        The columns will be named after the scorers, e.g. `redness`, `brightness`.
-
-    Examples
-    --------
-
-    .. code::
-
-        >>> import lazyslide as zs
-        >>> wsi = zs.datasets.sample(with_data=False)
-        >>> zs.pp.find_tissues(wsi)
-        >>> zs.pp.score_tiles(wsi, ["redness", "brightness"])
-        >>> wsi["tissues"]
-
-
-    """
-
-    warnings.warn(
-        "This function is deprecated and will be removed after v0.9.0",
-        stacklevel=find_stack_level(),
-    )
-
-    if scorers is None:
-        scorers = ["redness", "brightness"]
-    compose_scorer = get_scorer(scorers)
-
-    with default_pbar(disable=not pbar) as progress_bar:
-        task = progress_bar.add_task(
-            "Scoring tissue", total=wsi.fetch.n_tissue(tissue_key)
-        )
-        scores = []
-        qc = []
-
-        if num_workers == 1:
-            for tissue in wsi.iter.tissue_images(tissue_key, mask_bg=True):
-                result = compose_scorer(tissue.image, mask=tissue.mask)
-                scores.append(result.scores)
-                qc.append(result.qc)
-                progress_bar.update(task, advance=1)
-        else:
-            with ProcessPoolExecutor(max_workers=num_workers) as executor:
-                # map is used to keep the order of the results
-                jobs = []
-                for tissue in wsi.iter.tissue_images(tissue_key, mask_bg=True):
-                    jobs.append(
-                        executor.submit(compose_scorer, tissue.image, mask=tissue.mask)
-                    )
-
-                for job in jobs:
-                    result = job.result()
-                    scores.append(result.scores)
-                    qc.append(result.qc)
-                    progress_bar.update(task, advance=1)
-        progress_bar.refresh()
-
-    scores = pd.DataFrame(scores)  # .assign(**{qc_key: qc})
-    update_shapes_data(wsi, key=tissue_key, data=scores)
 
 
 def _get_optimal_level(metadata, in_bounds=True, proportion=0.8):

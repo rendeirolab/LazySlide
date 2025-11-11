@@ -4,22 +4,25 @@ import warnings
 import torch
 
 from ..._utils import find_stack_level
+from .._model_registry import register
 from .._utils import hf_access
 from ..base import ImageTextModel, ModelTask
 
 
-class PLIP(ImageTextModel, key="plip"):
-    task = ModelTask.multimodal
-    license = "Non-commercial"
-    description = "Pathology Language-Image Pretraining (PLIP)"
-    commercial = False
-    hf_url = "https://huggingface.co/vinid/plip"
-    github_url = "https://github.com/PathologyFoundation/plip"
-    paper_url = "https://doi.org/10.1038/s41591-023-02504-3"
-    bib_key = "Huang2023-wi"
-    param_size = "87.8M"
-    encode_dim = 512
-
+@register(
+    key="plip",
+    task=ModelTask.multimodal,
+    license="Non-commercial",
+    description="Pathology Language-Image Pretraining (PLIP)",
+    commercial=False,
+    hf_url="https://huggingface.co/vinid/plip",
+    github_url="https://github.com/PathologyFoundation/plip",
+    paper_url="https://doi.org/10.1038/s41591-023-02504-3",
+    bib_key="Huang2023-wi",
+    param_size="87.8M",
+    encode_dim=512,
+)
+class PLIP(ImageTextModel):
     def __init__(self, model_path=None, token=None):
         warnings.warn(
             "As from v0.8.2, Normalization will not be applied to image embedding of PLIP model anymore."

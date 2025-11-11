@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import textwrap
+import warnings
 from collections.abc import MutableMapping
+from enum import Enum
 from typing import TYPE_CHECKING, Dict, Iterator
 
 import pandas as pd
 
-from ._repr import model_registry_repr_html
+from .._utils import find_stack_level
+from ._repr import model_doc, model_registry_repr_html
 
 if TYPE_CHECKING:
     from .base import ModelBase
@@ -66,12 +70,12 @@ class ModelRegistry(MutableMapping):
                     "key": [key],
                     "name": model.__name__,
                     "model_type": "; ".join(task),
-                    "is_gated": model.is_gated,
-                    "github_url": model.github_url,
-                    "hf_url": model.hf_url,
-                    "paper_url": model.paper_url,
-                    "description": model.description,
-                    "bib_key": model.bib_key,
+                    "is_gated": getattr(model, "is_gated", None),
+                    "github_url": getattr(model, "github_url", None),
+                    "hf_url": getattr(model, "hf_url", None),
+                    "paper_url": getattr(model, "paper_url", None),
+                    "description": getattr(model, "description", None),
+                    "bib_key": getattr(model, "bib_key", None),
                 }
         for k, record in data.items():
             record["key"] = "; ".join(record["key"])
@@ -97,3 +101,81 @@ class ModelRegistry(MutableMapping):
             HTML representation of the registry.
         """
         return model_registry_repr_html(self)
+
+
+# Global instance
+MODEL_REGISTRY = ModelRegistry()
+
+
+class ModelTask(Enum):
+    vision = "vision"
+    segmentation = "segmentation"
+    multimodal = "multimodal"
+    slide_encoder = "slide_encoder"
+    tile_prediction = "tile_prediction"
+    feature_prediction = "feature_prediction"
+    style_transfer = "style_transfer"
+    cv_feature = "cv_feature"
+
+
+def register(
+    key: str | list[str],
+    task: ModelTask | list[ModelTask] = None,
+    is_gated: bool = False,
+    license: str | list[str] = None,
+    license_url: str | list[str] = None,
+    description: str = None,
+    commercial: bool = None,
+    github_url: str = None,
+    hf_url: str = None,
+    paper_url: str = None,
+    bib_key: str = None,
+    param_size: int | str = None,
+    encode_dim: int = None,
+    vision_encoder: str = None,
+    **information,
+):
+    """Register a model class with additional information."""
+
+    def decorator(cls: type[ModelBase]):
+        # Allow multiple names
+        keys = key if isinstance(key, list) else [key]
+        for k in keys:
+            if k in MODEL_REGISTRY:
+                warnings.warn(
+                    f"Model name {k} already registered, consider using another name.",
+                    stacklevel=find_stack_level(),
+                )
+            MODEL_REGISTRY[k] = cls
+        if task is None:
+            raise ValueError("task must be specified when registering a model class.")
+        # Set model attributes
+        cls.task = task
+        cls.is_gated = is_gated
+        cls.license = license
+        cls.license_url = license_url
+        cls.description = description
+        cls.commercial = commercial
+        cls.github_url = github_url
+        cls.hf_url = hf_url
+        cls.paper_url = paper_url
+        cls.bib_key = bib_key
+        cls.param_size = param_size
+        cls.encode_dim = encode_dim
+        cls.vision_encoder = vision_encoder
+
+        # Set any additional information
+        for info_key, info_value in information.items():
+            setattr(cls, info_key, info_value)
+
+        old_doc = cls.__doc__
+        if old_doc is None:
+            old_doc = ""
+        else:
+            old_doc = textwrap.dedent(old_doc)
+        inject_doc = model_doc(cls)
+        cls.__doc__ = inject_doc + "\n" + old_doc
+
+        return cls
+
+    return decorator
