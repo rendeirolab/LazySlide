@@ -6,9 +6,10 @@ import torch
 from wsidata import WSIData
 from wsidata.io import add_shapes
 
-from lazyslide.models import SegmentationModel
+from lazyslide.models import MODEL_REGISTRY, SegmentationModel
 
 from .._const import Key
+from .._utils import find_stack_level
 from ._seg_runner import CellSegmentationRunner
 
 
@@ -60,51 +61,45 @@ def cells(
         The key for the added cell shapes.
 
     """
-    if model == "instanseg":
-        from lazyslide.models.segmentation import Instanseg
 
-        model = Instanseg(**model_kwargs)
-        # Run tile check
-        tile_spec = wsi.tile_spec(tile_key)
-        check_mpp = tile_spec.mpp == 0.5
-        check_size = tile_spec.height == 512 and tile_spec.width == 512
-        if not check_mpp or not check_size:
-            warnings.warn(
-                f"To optimize the performance of Instanseg model, "
-                f"the tile size should be 512x512 and the mpp should be 0.5. "
-                f"Current tile size is {tile_spec.width}x{tile_spec.height} with {tile_spec.mpp} mpp."
-            )
-    elif model == "cellpose":
-        from lazyslide.models.segmentation import Cellpose
-
-        model = Cellpose(**model_kwargs)
+    if isinstance(model, SegmentationModel):
+        model_instance = model
     else:
-        if not isinstance(model, SegmentationModel):
+        model = MODEL_REGISTRY.get(model)
+        if model is None:
             raise ValueError(f"Unknown model: {model}")
-
-    runner = CellSegmentationRunner(
-        wsi,
-        model,
-        tile_key,
-        transform=transform,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        size_filter=size_filter,
-        nucleus_size=nucleus_size,
-        device=device,
-        amp=amp,
-        autocast_dtype=autocast_dtype,
-        pbar=pbar,
-    )
-    cells = runner.run()
-    # Add cells to the WSIData
-    add_shapes(wsi, key=key_added, shapes=cells.explode().reset_index(drop=True))
+        model_instance = model(**model_kwargs)
+    # Run tile check
+    tile_spec = wsi.tile_spec(tile_key)
+    if tile_spec is None:
+        raise ValueError(
+            f"Tiles for {tile_key} not found. Did you forget to run zs.pp.tile_tissues ?"
+        )
+    if model_instance.check_input_tile(tile_spec):
+        runner = CellSegmentationRunner(
+            wsi,
+            model_instance,
+            tile_key,
+            transform=transform,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            size_filter=size_filter,
+            nucleus_size=nucleus_size,
+            device=device,
+            amp=amp,
+            autocast_dtype=autocast_dtype,
+            pbar=pbar,
+        )
+        cells = runner.run()
+        # Add cells to the WSIData
+        add_shapes(wsi, key=key_added, shapes=cells.explode().reset_index(drop=True))
 
 
 def cell_types(
     wsi: WSIData,
     model: str | SegmentationModel = "nulite",
     tile_key=Key.tiles,
+    magnification: str | None = None,
     transform=None,
     batch_size=4,
     num_workers=0,
@@ -123,6 +118,7 @@ def cell_types(
 
     Supported models:
         - nulite: :cite:p:`Tommasino2024-tg`
+        - histoplus: :cite:p:`Adjadj2025-hn`
 
     Parameters
     ----------
@@ -132,6 +128,8 @@ def cell_types(
         The cell type segmentation model.
     tile_key : str, default: "tiles"
         The key of the tile table.
+    magnification : str, default: None
+        The magnification of the model.
     transform : callable, default: None
         The transformation for the input tiles.
     batch_size : int, default: 4
@@ -148,68 +146,65 @@ def cell_types(
     """
 
     tile_spec = wsi.tile_spec(tile_key)
-    check_mpp = tile_spec.mpp == 0.5 or tile_spec.mpp == 0.25
-    magnification = wsi.properties.magnification
-    if magnification == 20:
-        magnification = "20x"
-    elif magnification == 40:
-        magnification = "40x"
-    else:
-        raise ValueError(f"Magnification {magnification} not supported.")
-
-    if model == "nulite":
-        from lazyslide.models.segmentation import NuLite
-
-        if not check_mpp:
-            warnings.warn(
-                f"To optimize the performance of NuLite model, "
-                f"the tiles should be created at the mpp=0.5 or 0.25. "
-                f"Current tile size is {tile_spec.width}x{tile_spec.height} with {tile_spec.mpp} mpp."
-            )
-        model = NuLite(magnification=magnification)
-        CLASS_MAPPING = model.get_classes()
-    elif model == "histoplus":
-        from lazyslide.models.segmentation import HistoPLUS
-
-        assert tile_spec.height == tile_spec.width, (
-            "HistoPLUS model only supports square tiles."
-        )
-        # Tile size must be divisible by 14
-        assert tile_spec.height % 14 == 0, "Tile size must be divisible by 14."
-        assert tile_spec.width % 14 == 0, "Tile size must be divisible by 14."
-        if not check_mpp:
-            warnings.warn(
-                f"To optimize the performance of HistoPLUS model, "
-                f"the tiles should be created at the mpp=0.5 or 0.25. "
-                f"Current tile size is {tile_spec.width}x{tile_spec.height} with {tile_spec.mpp} mpp."
-            )
-
-        model = HistoPLUS(tile_spec.height, variant=magnification)
-        CLASS_MAPPING = model.get_classes()
-
-    else:
+    if tile_spec is None:
         raise ValueError(
-            "Currently only 'nulite' model is supported for cell type segmentation."
+            f"Tiles for {tile_key} not found. Did you forget to run zs.pp.tile_tissues ?"
         )
 
-    runner = CellSegmentationRunner(
-        wsi,
-        model,
-        tile_key,
-        transform=transform,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        device=device,
-        size_filter=size_filter,
-        nucleus_size=nucleus_size,
-        amp=amp,
-        autocast_dtype=autocast_dtype,
-        pbar=pbar,
-        class_names=CLASS_MAPPING,
+    if magnification is None:
+        if tile_spec.mpp is None:
+            warnings.warn(
+                f"Mpp not found for {tile_key}. Will use model trained at magnification 20x.",
+                stacklevel=find_stack_level(),
+            )
+            magnification = "20x"
+        elif 0.6 >= tile_spec.mpp >= 0.4:  # Heuristic
+            magnification = "20x"
+        elif 0.3 >= tile_spec.mpp >= 0.1:  # Heuristic
+            magnification = "40x"
+        else:
+            raise ValueError(
+                f"Requested tiles are generated at {tile_spec.mpp} mpp, "
+                f"only magnifications 20x (mpp=0.5) and 40x (mpp=0.25) are supported."
+                f"You can either generate new tiles or pass `magnification='20x'/'40x'` to select "
+                f"which model to use."
+            )
+    assert magnification in {"20x", "40x"}, (
+        f"Unsupported magnification: {magnification}, use '20x' or '40x'"
     )
-    cells = runner.run()
-    # Add cells to the WSIData
-    # Exclude background
-    cells = cells[cells["class"] != "Background"]
-    cells = cells.explode().reset_index(drop=True)
-    add_shapes(wsi, key=key_added, shapes=cells)
+
+    if isinstance(model, SegmentationModel):
+        model_instance = model
+    else:
+        model_kwargs = dict(magnification=magnification)
+        if model == "histoplus":
+            model_kwargs["tile_size"] = tile_spec.height
+        model = MODEL_REGISTRY.get(model)
+        if model is None:
+            raise ValueError(f"Unknown model: {model}")
+
+        model_instance = model(magnification=magnification)
+
+    CLASS_MAPPING = model.get_classes()
+    if model_instance.check_input_tile(tile_spec):
+        runner = CellSegmentationRunner(
+            wsi,
+            model_instance,
+            tile_key,
+            transform=transform,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            device=device,
+            size_filter=size_filter,
+            nucleus_size=nucleus_size,
+            amp=amp,
+            autocast_dtype=autocast_dtype,
+            pbar=pbar,
+            class_names=CLASS_MAPPING,
+        )
+        cells = runner.run()
+        # Add cells to the WSIData
+        # Exclude background
+        cells = cells[cells["class"] != "Background"]
+        cells = cells.explode().reset_index(drop=True)
+        add_shapes(wsi, key=key_added, shapes=cells)

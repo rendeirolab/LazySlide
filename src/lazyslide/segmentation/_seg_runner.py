@@ -333,7 +333,8 @@ class SemanticSegmentationRunner(Runner):
 
                     # Create masks for 1) the output probabilities, 2) the count map
                     prob_mask = None
-                    count_mask = torch.zeros((height, width), dtype=torch.float)
+                    # keep types consistent (numpy) to avoid subtle torch/numpy mixing issues
+                    count_mask = np.zeros((height, width), dtype=np.float32)
 
                     # Get tiles within the tissue bounds
                     if self.has_tissue:
@@ -421,10 +422,10 @@ class SemanticSegmentationRunner(Runner):
                             progress_bar.update(task, advance=len(images))
                             progress_bar.refresh()
                     # Normalize the probability mask by the count mask
-                    prob_mask /= count_mask.unsqueeze(0).clamp(min=1e-6)
+                    prob_mask /= np.clip(count_mask, 1e-6, None)[None, ...]
                     prob_mask[prob_mask < 1e-3] = 0
                     # Chunk the probability mask into PATCHES to avoid large memory allocation
-                    np_mask = prob_mask.detach().cpu().numpy()
+                    np_mask = prob_mask
                     seg_objects = []
 
                     for tile, (i, i_end, j, j_end) in self.tiler(
@@ -459,15 +460,23 @@ class SemanticSegmentationRunner(Runner):
                         .buffer(0)
                     )
                     for class_id, class_group in seg_results.groupby("class"):
-                        merged = merge_connected_polygons(
-                            class_group,
-                            prob_col="prob",
-                            buffer_px=self.buffer_px,
+                        # Robust per-class dissolve to remove chunk seams:
+                        # buffer -> union -> unbuffer, with tolerance in base-pixel units
+                        tol = max(1.0, float(self.buffer_px) * float(self.downsample))
+                        buffered = class_group.geometry.buffer(tol)
+                        united = buffered.unary_union
+                        cleaned = gpd.GeoDataFrame(geometry=[united.buffer(-tol)])
+                        # Explode multi-geometries back to rows
+                        cleaned = cleaned.explode(index_parts=False).reset_index(
+                            drop=True
                         )
                         # Filter out polygons that are outside the tissue bounds
-                        merged = merged[merged.intersects(tissue)]
-                        merged["class"] = class_id
-                        results.append(merged)
+                        cleaned = cleaned[cleaned.intersects(tissue)]
+                        cleaned["class"] = class_id
+                        if "prob" in class_group:
+                            # Use the max class confidence as representative for merged parts
+                            cleaned["prob"] = float(class_group["prob"].max())
+                        results.append(cleaned)
             progress_bar.refresh()
         # Concatenate all results into a single GeoDataFrame
         if len(results) == 0:

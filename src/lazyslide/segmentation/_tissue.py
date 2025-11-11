@@ -37,12 +37,9 @@ def tissue(
     Perform tissue segmentation powered by a deep learning model.
 
     Supported models:
-        - "grandqc":
-          :class:`GrandQCTissue <lazyslide.models.segmentation.GrandQCTissue>`,
-          :cite:p:`Weng2024-jf`. Runs on mpp=10.
-        - "pathprofiler":
-          :class:`PathProfilerTissueSegmentation <lazyslide.models.segmentation.PathProfilerTissueSegmentation>`,
-          :cite:p:`Haghighat2022-sy`. Runs on mpp=2.5.
+        - "grandqc": :cite:p:`Weng2024-jf`. Runs on mpp=10.
+        - "pathprofiler": :cite:p:`Haghighat2022-sy`. Runs on mpp=2.5.
+        - "hest": "https://huggingface.co/MahmoodLab/hest-tissue-seg". Runs on mpp=1.
 
     If you encounter a memory issue, please set a higher `mpp` value.
 
