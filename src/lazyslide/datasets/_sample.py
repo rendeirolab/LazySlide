@@ -1,19 +1,30 @@
 import warnings
 from pathlib import Path
 
-from huggingface_hub import hf_hub_download
+from huggingface_hub import HfApi, hf_hub_download
 from wsidata import open_wsi
 
 from lazyslide._utils import find_stack_level
 
-REGISTRY = [
-    "sample.svs",
-    "GTEX-1117F-0526.svs",
-    "lung_carcinoma.ndpi",
-]
-
 
 def _load_dataset(slide_file, zarr_file, with_data=True, pbar=False):
+    # Get the current version
+    from packaging.version import Version
+
+    from lazyslide import __version__
+
+    version = Version(__version__)
+    # Get clean version
+    tag = f"v{version.base_version}"
+
+    # Get all the tags from huggingface repo
+    REPO_ID = "RendeiroLab/LazySlide-data"
+    api = HfApi()
+    refs = api.list_repo_refs(REPO_ID, repo_type="dataset")
+    tags = [t.name for t in refs.tags]
+    if tag not in tags:
+        tag = None
+
     if pbar:
         warnings.warn(
             "pbar is deprecated in datasets",
@@ -21,13 +32,11 @@ def _load_dataset(slide_file, zarr_file, with_data=True, pbar=False):
             stacklevel=find_stack_level(),
         )
 
-    slide = hf_hub_download(
-        "RendeiroLab/LazySlide-data", slide_file, repo_type="dataset"
-    )
+    slide = hf_hub_download(REPO_ID, slide_file, repo_type="dataset")
     slide_zarr = None
     if with_data:
         slide_zarr_zip = hf_hub_download(
-            "RendeiroLab/LazySlide-data", zarr_file, repo_type="dataset"
+            REPO_ID, zarr_file, repo_type="dataset", revision=tag
         )
         slide_zarr = Path(slide_zarr_zip.replace(".zip", ""))
         # Unzip the zarr file if it is a zip file

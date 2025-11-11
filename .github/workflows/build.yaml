@@ -48,8 +48,32 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
+  Pre_release:
+    runs-on: ubuntu-latest
+    needs: Test
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Tag huggingface dataset
+        run: |
+          VERSION=${{ github.ref_name }}
+          echo "Detected version: $VERSION"
+          uv run scripts/tag_datasets.py create RendeiroLab/LazySlide-data "$VERSION"
+      - name: Tag LazySlide-tutorials
+        run: |
+          TAG=${{ github.ref_name }}
+          echo "Tagging tutorials repo with $TAG"
+          gh release create "$TAG" --repo RendeiroLab/LazySlide-tutorials --notes "New release: $TAG"
+
   Upload_to_pypi:
     runs-on: ubuntu-latest
+    needs: Pre_release
     permissions:
       id-token: write
     steps:
