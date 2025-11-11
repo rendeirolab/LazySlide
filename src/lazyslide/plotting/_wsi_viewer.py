@@ -15,11 +15,11 @@ from legendkit import cat_legend, colorart, vstack
 from matplotlib import pyplot as plt
 from matplotlib.artist import Artist
 from matplotlib.cm import ScalarMappable, get_cmap
-from matplotlib.collections import PatchCollection, PathCollection
+from matplotlib.collections import PatchCollection
 from matplotlib.colors import ListedColormap, is_color_like, to_rgba
 from matplotlib.patches import Patch, Rectangle
 from matplotlib.typing import ColorType
-from shapely import MultiPolygon, Polygon, box
+from shapely import MultiPolygon, Polygon, box, get_parts
 from wsidata import TileSpec, WSIData
 from wsidata.reader import ReaderBase
 
@@ -540,7 +540,7 @@ class PolygonMixin(RenderPlan):
         ax.annotate(name, (0.5, 1 + pad), xycoords=patch, **options)
 
     @staticmethod
-    def _filled_polygon_patch(polygon: Polygon, **kwargs):
+    def _filled_polygon_patch(polygon: Polygon | MultiPolygon, **kwargs):
         """
         Create a matplotlib patch from a shapely polygon.
 
@@ -548,14 +548,24 @@ class PolygonMixin(RenderPlan):
         from matplotlib.patches import PathPatch
         from matplotlib.path import Path
 
-        path = Path.make_compound_path(
-            Path(np.asarray(polygon.exterior.coords)[:, :2]),
-            *[Path(np.asarray(ring.coords)[:, :2]) for ring in polygon.interiors],
-        )
-        return PathPatch(path, **kwargs)
+        if isinstance(polygon, MultiPolygon):
+            polys = get_parts(polygon, return_index=False)
+        else:
+            polys = [polygon]
+
+        patches = []
+        for p in polys:
+            path = Path.make_compound_path(
+                Path(np.asarray(p.exterior.coords)[:, :2]),
+                *[Path(np.asarray(ring.coords)[:, :2]) for ring in p.interiors],
+            )
+            patches.append(PathPatch(path, **kwargs))
+        return patches
 
     @staticmethod
-    def _contour_polygon_patch(polygon: Polygon, outline_kwargs=None, hole_kwargs=None):
+    def _contour_polygon_patch(
+        polygon: Polygon | MultiPolygon, outline_kwargs=None, hole_kwargs=None
+    ):
         """
         Create a matplotlib patch from a shapely polygon.
 
@@ -565,15 +575,23 @@ class PolygonMixin(RenderPlan):
         outline_kwargs = {} if outline_kwargs is None else outline_kwargs
         hole_kwargs = {} if hole_kwargs is None else hole_kwargs
 
-        outer = np.asarray(polygon.exterior.coords)[:, :2]
-        inner = [np.asarray(ring.coords)[:, :2] for ring in polygon.interiors]
+        if isinstance(polygon, MultiPolygon):
+            polys = get_parts(polygon, return_index=False)
+        else:
+            polys = [polygon]
 
-        return PolygonPatch(outer, **outline_kwargs), [
-            PolygonPatch(h, **hole_kwargs) for h in inner
-        ]
+        outlines = []
+        holes = []
+        for p in polys:
+            outer = np.asarray(p.exterior.coords)[:, :2]
+            inner = [np.asarray(ring.coords)[:, :2] for ring in p.interiors]
+
+            outlines.append(PolygonPatch(outer, **outline_kwargs))
+            holes.extend([PolygonPatch(h, **hole_kwargs) for h in inner])
+        return outlines, holes
 
     @staticmethod
-    def _bbox_polygon_patch(polygon: Polygon, **kwargs):
+    def _bbox_polygon_patch(polygon: Polygon | MultiPolygon, **kwargs):
         """
         Create a matplotlib patch from the bbox of a shapely polygon.
 
@@ -620,15 +638,16 @@ class ContourRenderPlan(PolygonMixin):
             outline_kwargs = self.outline_kws.copy()
             if colors is not None:
                 outline_kwargs["edgecolor"] = colors[ix]
-            outline, holes = self._contour_polygon_patch(
+            outlines, holes = self._contour_polygon_patch(
                 contour, outline_kwargs=self.outline_kws, hole_kwargs=self.hole_kws
             )
-            ax.add_patch(outline)
+            for outline in outlines:
+                ax.add_patch(outline)
+                if labels is not None:
+                    self._label_patch(ax, outline, labels[ix])
             for hole in holes:
                 ax.add_patch(hole)
 
-            if labels is not None:
-                self._label_patch(ax, outline, labels[ix])
         if (self.palette is not None) & (not self.on_zoom_view):
             self.legend = cat_legend(
                 colors=self.palette.values(),
@@ -674,11 +693,11 @@ class FilledPolygonRenderPlan(PolygonMixin):
                 c = colors[ix]
                 kwargs["facecolor"] = c
                 kwargs["edgecolor"] = c
-            patch = self._filled_polygon_patch(contour, **kwargs)
-            ax.add_patch(patch)
-
-            if labels is not None:
-                self._label_patch(ax, patch, labels[ix])
+            patches = self._filled_polygon_patch(contour, **kwargs)
+            for patch in patches:
+                ax.add_patch(patch)
+                if labels is not None:
+                    self._label_patch(ax, patch, labels[ix])
 
         if (self.palette is not None) & (not self.on_zoom_view):
             self.legend = cat_legend(
