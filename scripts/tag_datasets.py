@@ -1,5 +1,5 @@
 from cyclopts import App
-from huggingface_hub import HfApi, create_tag, delete_tag, get_dataset_tags
+from huggingface_hub import HfApi, create_tag, delete_tag
 
 app = App()
 
