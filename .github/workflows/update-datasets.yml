@@ -24,5 +24,5 @@ jobs:
       - name: Upload to Hugging Face
         run: |
           for file in generated_zarr_zip/*.zarr.zip; do
-            uv run hf upload RendeiroLab/LazySlide-data "$file"
+            uv run hf upload RendeiroLab/LazySlide-data "$file" --repo-type dataset
           done
