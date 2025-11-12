@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "lazyslide"
 description = "Accessible and interoperable whole slide image analysis"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "MIT"
 authors = [
     {name = "Yimin Zheng", email = "yzheng@cemm.at"},
@@ -39,6 +39,7 @@ dependencies = [
     "torch>=2.0.0",
     "seaborn>=0.12.2",
     "psutil>=5.9.0",
+    "scikit-image>=0.23.1",
 ]
 
 [project.optional-dependencies]
@@ -140,6 +141,7 @@ dev = [
     "pandas-stubs>=2.2",
     "scipy-stubs>=1.16.0.2; python_version > '3.10'",
     "hf-xet>=1.1.5",
+    "datashader>=0.18.0",
 ]
 tests = [
     "pytest>=8.3.4",

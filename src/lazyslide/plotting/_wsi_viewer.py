@@ -8,18 +8,18 @@ from numbers import Number
 from typing import Any, Dict, List, Literal, Sequence, Union
 
 import cv2
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-from geopandas import points_from_xy
 from legendkit import cat_legend, colorart, vstack
 from matplotlib import pyplot as plt
 from matplotlib.artist import Artist
 from matplotlib.cm import ScalarMappable, get_cmap
-from matplotlib.collections import PatchCollection, PathCollection
-from matplotlib.colors import ListedColormap, is_color_like, to_rgba
+from matplotlib.collections import PatchCollection
+from matplotlib.colors import ListedColormap, is_color_like, to_hex, to_rgba
 from matplotlib.patches import Patch, Rectangle
 from matplotlib.typing import ColorType
-from shapely import MultiPolygon, Polygon, box
+from shapely import MultiPolygon, Polygon, box, get_parts
 from wsidata import TileSpec, WSIData
 from wsidata.reader import ReaderBase
 
@@ -173,26 +173,21 @@ class ImageDataSource(DataSource):
 
 class TileDataSource(DataSource):
     def __init__(self, tiles: np.ndarray, tile_spec: TileSpec):
-        self._tiles = tiles
-        # Place the points at the center of the tiles
-        self._points = points_from_xy(tiles[:, 0], tiles[:, 1])
+        # tiles are expected as top-left coordinates at level 0 (base) in pixels
+        self._tiles = np.asarray(tiles, dtype=int)
         self.tile_spec = tile_spec
-        self._sel = np.ones_like(tiles, dtype=bool)
-        self._render_tiles = tiles
+        self._sel = np.ones(len(self._tiles), dtype=bool)
+        self._render_tiles = self._tiles
 
     def set_viewport_hook(self):
-        box = self.viewport.box
-        # scale_f = 1 / self.viewport.downsample
-
-        render_tiles = self._points
-        # render_tiles = render_tiles.scale(xfact=scale_f, yfact=scale_f, origin=(0, 0))
-        sel = box.intersects(render_tiles)
-        render_tiles = render_tiles[sel]
+        # Fast bbox culling without shapely for tile rectangles against viewport box
+        xmin, ymin, xmax, ymax = self.viewport.box.bounds
+        W0, H0 = self.tile_shape_base
+        X = self._tiles[:, 0]
+        Y = self._tiles[:, 1]
+        sel = (X < xmax) & (X + W0 > xmin) & (Y < ymax) & (Y + H0 > ymin)
         self._sel = sel
-        # Get the xy coordinates in numpy array
-        self._render_tiles = np.ceil(
-            np.asarray([[p.x, p.y] for p in render_tiles])
-        ).astype(int)
+        self._render_tiles = self._tiles[sel].astype(int)
 
     @property
     def tiles(self):
@@ -540,7 +535,7 @@ class PolygonMixin(RenderPlan):
         ax.annotate(name, (0.5, 1 + pad), xycoords=patch, **options)
 
     @staticmethod
-    def _filled_polygon_patch(polygon: Polygon, **kwargs):
+    def _filled_polygon_patch(polygon: Polygon | MultiPolygon, **kwargs):
         """
         Create a matplotlib patch from a shapely polygon.
 
@@ -548,14 +543,24 @@ class PolygonMixin(RenderPlan):
         from matplotlib.patches import PathPatch
         from matplotlib.path import Path
 
-        path = Path.make_compound_path(
-            Path(np.asarray(polygon.exterior.coords)[:, :2]),
-            *[Path(np.asarray(ring.coords)[:, :2]) for ring in polygon.interiors],
-        )
-        return PathPatch(path, **kwargs)
+        if isinstance(polygon, MultiPolygon):
+            polys = get_parts(polygon, return_index=False)
+        else:
+            polys = [polygon]
+
+        patches = []
+        for p in polys:
+            path = Path.make_compound_path(
+                Path(np.asarray(p.exterior.coords)[:, :2]),
+                *[Path(np.asarray(ring.coords)[:, :2]) for ring in p.interiors],
+            )
+            patches.append(PathPatch(path, **kwargs))
+        return patches
 
     @staticmethod
-    def _contour_polygon_patch(polygon: Polygon, outline_kwargs=None, hole_kwargs=None):
+    def _contour_polygon_patch(
+        polygon: Polygon | MultiPolygon, outline_kwargs=None, hole_kwargs=None
+    ):
         """
         Create a matplotlib patch from a shapely polygon.
 
@@ -565,15 +570,23 @@ class PolygonMixin(RenderPlan):
         outline_kwargs = {} if outline_kwargs is None else outline_kwargs
         hole_kwargs = {} if hole_kwargs is None else hole_kwargs
 
-        outer = np.asarray(polygon.exterior.coords)[:, :2]
-        inner = [np.asarray(ring.coords)[:, :2] for ring in polygon.interiors]
+        if isinstance(polygon, MultiPolygon):
+            polys = get_parts(polygon, return_index=False)
+        else:
+            polys = [polygon]
 
-        return PolygonPatch(outer, **outline_kwargs), [
-            PolygonPatch(h, **hole_kwargs) for h in inner
-        ]
+        outlines = []
+        holes = []
+        for p in polys:
+            outer = np.asarray(p.exterior.coords)[:, :2]
+            inner = [np.asarray(ring.coords)[:, :2] for ring in p.interiors]
+
+            outlines.append(PolygonPatch(outer, **outline_kwargs))
+            holes.extend([PolygonPatch(h, **hole_kwargs) for h in inner])
+        return outlines, holes
 
     @staticmethod
-    def _bbox_polygon_patch(polygon: Polygon, **kwargs):
+    def _bbox_polygon_patch(polygon: Polygon | MultiPolygon, **kwargs):
         """
         Create a matplotlib patch from the bbox of a shapely polygon.
 
@@ -620,15 +633,16 @@ class ContourRenderPlan(PolygonMixin):
             outline_kwargs = self.outline_kws.copy()
             if colors is not None:
                 outline_kwargs["edgecolor"] = colors[ix]
-            outline, holes = self._contour_polygon_patch(
+            outlines, holes = self._contour_polygon_patch(
                 contour, outline_kwargs=self.outline_kws, hole_kwargs=self.hole_kws
             )
-            ax.add_patch(outline)
+            for outline in outlines:
+                ax.add_patch(outline)
+                if labels is not None:
+                    self._label_patch(ax, outline, labels[ix])
             for hole in holes:
                 ax.add_patch(hole)
 
-            if labels is not None:
-                self._label_patch(ax, outline, labels[ix])
         if (self.palette is not None) & (not self.on_zoom_view):
             self.legend = cat_legend(
                 colors=self.palette.values(),
@@ -674,11 +688,11 @@ class FilledPolygonRenderPlan(PolygonMixin):
                 c = colors[ix]
                 kwargs["facecolor"] = c
                 kwargs["edgecolor"] = c
-            patch = self._filled_polygon_patch(contour, **kwargs)
-            ax.add_patch(patch)
-
-            if labels is not None:
-                self._label_patch(ax, patch, labels[ix])
+            patches = self._filled_polygon_patch(contour, **kwargs)
+            for patch in patches:
+                ax.add_patch(patch)
+                if labels is not None:
+                    self._label_patch(ax, patch, labels[ix])
 
         if (self.palette is not None) & (not self.on_zoom_view):
             self.legend = cat_legend(
@@ -686,6 +700,126 @@ class FilledPolygonRenderPlan(PolygonMixin):
                 labels=self.palette.keys(),
                 **self.legend_kws,
             )
+
+
+class ZoomOnlyFilledPolygonRenderPlan(FilledPolygonRenderPlan):
+    """A filled polygon plan that only renders inside a zoom view."""
+
+    def render(self, ax):
+        if not self.on_zoom_view:
+            return
+        super().render(ax)
+
+
+class DatashaderFilledPolygonRenderPlan(RenderPlan):
+    """
+    Rasterize filled polygons using Datashader for performance on large datasets.
+
+    Notes
+    -----
+    - Draws an RGBA image via `imshow` at the current viewport extent.
+    - Supports uniform color fill or categorical `color_by` using a `palette` mapping.
+    - Intended for base view only; combine with `ZoomOnlyFilledPolygonRenderPlan` for zoom.
+    """
+
+    def __init__(
+        self,
+        shapes: gpd.GeoDataFrame,
+        image_datasource: ImageDataSource,
+        color_by: str | None = None,
+        palette: Dict | None = None,
+        color: ColorType = "#5CE65C",
+        alpha: float = 1,
+        legend_kws: Dict | None = None,
+    ):
+        self.shapes = shapes
+        self.image_datasource = image_datasource
+        self.color_by = color_by
+        self.palette = palette
+        self.color = color
+        self.alpha = 1
+        self.legend_kws = legend_kws or {}
+        self.legend = None
+
+    def render(self, ax):
+        try:
+            import datashader as ds
+            from datashader import transfer_functions as tf
+        except Exception:  # pragma: no cover - optional dependency
+            warnings.warn(
+                "Datashader is not installed; falling back to vector polygons.",
+                stacklevel=find_stack_level(),
+            )
+            return
+
+        # Canvas dimensions and extent based on current image viewport
+        extent = self.image_datasource.get_extent()
+        x0, x1, y1, y0 = extent  # note: extent is [xmin, xmax, ymax, ymin]
+        w, h = self.image_datasource.get_image_size()
+
+        # Safety caps for extremely large canvases
+        max_px = 4096
+        if w > max_px or h > max_px:
+            scale = max(w / max_px, h / max_px)
+            w = max(1, int(round(w / scale)))
+            h = max(1, int(round(h / scale)))
+
+        cvs = ds.Canvas(
+            plot_width=int(w),
+            plot_height=int(h),
+            x_range=(x0, x1),
+            y_range=(y0, y1),
+        )
+
+        gdf = self.shapes
+        if (self.color_by is None) or (self.palette is None):
+            agg = cvs.polygons(gdf, geometry="geometry", agg=ds.count())
+            fg_hex = to_hex(self.color, keep_alpha=False)
+            # For uniform color: treat any coverage as 1 and background as NaN so shading yields a solid color
+            # Mask background to NaN and keep NaNs to identify background later
+            agg = agg.where(agg > 0)
+            # Set all foreground pixels to 1 (keep NaNs for background)
+            agg = agg * 0 + 1
+            # Use a single-color cmap and linear shading so every foreground pixel is exactly fg_hex
+            cmap = [fg_hex, fg_hex]
+            img = tf.shade(
+                agg,
+                cmap=cmap,
+                how="linear",
+                alpha=int(round(self.alpha * 255)),
+                min_alpha=0,
+            )
+        else:
+            # categorical coloring using count_cat
+            # Ensure the column is categorical; Datashader's count_cat requires Categorical dtype.
+            col = self.color_by
+            gdf[col] = gdf[col].astype("category")
+            agg = cvs.polygons(gdf, geometry="geometry", agg=ds.by(col, ds.count()))
+            # Datashader expects 6-digit hex; we control polygon alpha via the shade alpha param
+            color_key = (
+                {k: to_hex(v, keep_alpha=False) for k, v in self.palette.items()}
+                if self.palette is not None
+                else None
+            )
+            img = tf.shade(
+                agg,
+                color_key=color_key,
+                how="linear",
+                alpha=int(round(self.alpha * 255)),
+                min_alpha=255,
+            )
+
+            # set legend for base view only
+            if not self.on_zoom_view and self.palette is not None:
+                self.legend = cat_legend(
+                    colors=self.palette.values(),
+                    labels=self.palette.keys(),
+                    **self.legend_kws,
+                )
+
+        # Convert polygon image to numpy array and draw
+        arr = np.asarray(img.to_pil())
+        ax.imshow(arr, extent=extent, origin="lower", zorder=-50)
 
 
 class ZoomMixin:
@@ -1060,13 +1194,14 @@ class WSIViewer:
         label_by: str = None,
         color_by: str = None,
         palette: PaletteType = None,
-        alpha: float = 0.3,
-        color: ColorType = "#FFE31A",
+        alpha: float = 0.9,
+        color: ColorType = "#D3F527",
         linewidth: int = 1,
         legend_kws: Dict = None,
         legend: bool = True,
         in_zoom: bool = True,
         cache=True,
+        backend=None,
         **kwargs,
     ):
         """Add filled polygons to the plot.
@@ -1100,28 +1235,98 @@ class WSIViewer:
             Whether the polygons are rendered in the zoom view.
         legend : bool, default: True
             Whether to show the legend.
+        cache : bool, default: True
+            The plan will be cached if True.
+        backend : str, {'matplotlib', 'datashader'}
+            The backend to use for plotting.
 
         """
         polygons, labels, colors, palette = self._process_polygons(
             key, label_by, color_by, palette
         )
-        plan = FilledPolygonRenderPlan(
-            polygons,
-            labels=labels,
-            colors=colors,
-            palette=palette,
-            alpha=alpha,
-            color=color,
-            linewidth=linewidth,
-            legend_kws=legend_kws,
-            **kwargs,
-        )
-        plan.zoom_view_visible = in_zoom
-        plan.legend_visible = legend
-        if cache:
-            self._render_plans.append(plan)
+
+        # Decide whether to use Datashader for the base view
+        user_requested = backend == "datashader"
+        use_datashader = user_requested or len(polygons.polygons) > 10000
+        if use_datashader:
+            try:
+                import datashader
+            except ModuleNotFoundError:
+                use_datashader = False
+                warnings.warn(
+                    "Datashader is not installed. "
+                    "Falling back to matplotlib for the base view.",
+                    stacklevel=find_stack_level(),
+                )
+
+        if use_datashader:
+            warnings.warn(
+                "Datashader rendering is experimental. "
+                "If you find any bugs please report an issue:"
+                "https://github.com/rendeirolab/LazySlide/issues",
+                stacklevel=find_stack_level(),
+            )
+            # Subset shapes to viewport for better performance
+            shapes_df = self.wsi[key]
+            viewport_box = self._viewport.box
+            mask = shapes_df.geometry.intersects(viewport_box)
+            shapes_subset = shapes_df[mask]
+
+            # Base view: datashader raster
+            ds_plan = DatashaderFilledPolygonRenderPlan(
+                shapes=shapes_subset,
+                image_datasource=self.image_source,
+                color_by=color_by,
+                palette=palette,
+                color=color,
+                alpha=alpha,
+                legend_kws=legend_kws,
+            )
+            ds_plan.zoom_view_visible = False
+            ds_plan.legend_visible = legend
+
+            # Zoom view: vector rendering for details
+            zoom_plan = ZoomOnlyFilledPolygonRenderPlan(
+                polygons,
+                labels=labels,
+                colors=colors,
+                palette=palette,
+                alpha=alpha,
+                color=color,
+                linewidth=linewidth,
+                legend_kws=legend_kws,
+                **kwargs,
+            )
+            zoom_plan.zoom_view_visible = in_zoom
+            zoom_plan.legend_visible = (
+                False  # legend shown by base view plan if requested
+            )
+
+            if cache:
+                self._render_plans.append(ds_plan)
+                self._render_plans.append(zoom_plan)
+            else:
+                self._temp_render_plans.append(ds_plan)
+                self._temp_render_plans.append(zoom_plan)
         else:
-            self._temp_render_plans.append(plan)
+            # Regular vector rendering for both base and zoom views
+            plan = FilledPolygonRenderPlan(
+                polygons,
+                labels=labels,
+                colors=colors,
+                palette=palette,
+                alpha=alpha,
+                color=color,
+                linewidth=linewidth,
+                legend_kws=legend_kws,
+                **kwargs,
+            )
+            plan.zoom_view_visible = in_zoom
+            plan.legend_visible = legend
+            if cache:
+                self._render_plans.append(plan)
+            else:
+                self._temp_render_plans.append(plan)
 
         return self
 
