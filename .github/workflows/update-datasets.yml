@@ -2,7 +2,7 @@ name: Generate sample datasets
 on: workflow_dispatch
 
 jobs:
-  pre-release:
+  Generate-datasets:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,8 +21,8 @@ jobs:
       - name: List generated datasets
         run: |
           ls generated_zarr_zip/
-#      - name: Upload to Hugging Face
-#        run: |
-#          for file in generated_zarr_zip/*.zarr.zip; do
-#            uv run hf upload RendeiroLab/LazySlide-data "$file"
-#          done
+      - name: Upload to Hugging Face
+        run: |
+          for file in generated_zarr_zip/*.zarr.zip; do
+            uv run hf upload RendeiroLab/LazySlide-data "$file"
+          done
