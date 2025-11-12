@@ -1246,12 +1246,18 @@ class WSIViewer:
         )
 
         # Decide whether to use Datashader for the base view
-        use_datashader = backend == "datashader" or len(polygons.polygons) > 10000
+        user_requested = backend == "datashader"
+        use_datashader = user_requested or len(polygons.polygons) > 10000
         if use_datashader:
             try:
                 import datashader
             except ModuleNotFoundError:
                 use_datashader = False
+                warnings.warn(
+                    "Datashader is not installed. "
+                    "Falling back to matplotlib for the base view.",
+                    stacklevel=find_stack_level(),
+                )
 
         if use_datashader:
             warnings.warn(
