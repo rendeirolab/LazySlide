@@ -365,7 +365,7 @@ def annotations(
     fill=True,
     linewidth=0.5,
     palette=None,
-    alpha=0.5,
+    alpha=0.9,
     legend_kws=None,
     legend=True,
     title=None,
@@ -373,6 +373,7 @@ def annotations(
     wspace=0.5,
     hspace=0.5,
     ax=None,
+    backend=None,
 ):
     """
     Display the annotations.
@@ -425,6 +426,9 @@ def annotations(
         Height space between subplots.
     ax : matplotlib.axes.Axes, optional
         The axes to plot on.
+    backend : str, {'matplotlib', 'datashader'}
+        The backend to use for plotting. Will automatically use datashader when
+        there are too many polygons.
 
     Returns
     -------
@@ -497,6 +501,7 @@ def annotations(
                 legend=legend,
                 legend_kws=legend_kws,
                 linewidth=linewidth,
+                backend=backend,
             )
         else:
             viewer.add_contours(
