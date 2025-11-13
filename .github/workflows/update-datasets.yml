@@ -3,7 +3,7 @@ on: workflow_dispatch
 
 jobs:
   Generate-datasets:
-    runs-on: ubuntu-latest
+    runs-on: linux-gpu-runner
     steps:
       - uses: actions/checkout@v4
       - name: Set up uv
@@ -14,7 +14,7 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - name: Login to Hugging Face
         run: |
-          uv run hf auth login --token ${{ secrets.HF_TOKEN }}
+          uv run hf auth login --token ${{ secrets.HF_UPLOAD_DATASET_TOKEN }}
       - name: Generate datasets
         run: |
           uv run scripts/update_datasets.py
