@@ -78,7 +78,7 @@ jobs:
       - name: Tag LazySlide-tutorials
         if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.TUTORIAL_RELEASE_TOKEN }}
         run: |
           TAG=${{ github.ref_name }}
           echo "Tagging tutorials repo with $TAG"
