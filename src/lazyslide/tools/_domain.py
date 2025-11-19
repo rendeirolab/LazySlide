@@ -50,8 +50,8 @@ def spatial_domain(
         >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
         >>> zs.tl.feature_extraction(wsi, "resnet50")
         >>> zs.pp.tile_graph(wsi)
-        >>> zs.tl.spatial_features(wsi)
-        >>> zs.tl.spatial_domain(wsi, layer="spatial_features", feature_key="resnet", resolution=0.3)
+        >>> zs.tl.spatial_features(wsi, "resnet50")
+        >>> zs.tl.spatial_domain(wsi, layer="spatial_features", feature_key="resnet50", resolution=0.3)
 
     """
     try:
