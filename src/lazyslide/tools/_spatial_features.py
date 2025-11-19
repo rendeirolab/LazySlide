@@ -47,7 +47,7 @@ def spatial_features(
         >>> zs.tl.feature_extraction(wsi, "resnet50")
         >>> zs.pp.tile_graph(wsi)
         >>> zs.tl.spatial_features(wsi, "resnet50")
-        >>> wsi["resnet50"].layers["spatial_features"]
+        >>> wsi["resnet50_tiles"].layers["spatial_features"]
 
     """
     if method != "smoothing":
