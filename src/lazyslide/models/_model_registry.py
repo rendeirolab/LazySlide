@@ -49,6 +49,10 @@ class ModelRegistry(MutableMapping):
         """Get the number of models in the registry."""
         return len(self._data)
 
+    def __contains__(self, key: str) -> bool:
+        """Check if a model card exists in the registry."""
+        return key in self._data
+
     def to_dataframe(self) -> pd.DataFrame:
         """Convert the registry to a pandas DataFrame.
 
