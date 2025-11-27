@@ -28,6 +28,15 @@ class Prism(ModelBase):
     def __init__(self, model_path=None, token=None):
         from transformers import AutoModel
 
+        try:
+            import environs
+            import sacremoses
+        except ModuleNotFoundError:
+            raise ModuleNotFoundError(
+                "To run PRISM model, 'environs' and 'sacremoses' must be installed, try "
+                "`pip install environs sacremoses`."
+            )
+
         # Suppress warnings from transformers
         with warnings.catch_warnings(), hf_access(model_path):
             warnings.simplefilter("ignore")
