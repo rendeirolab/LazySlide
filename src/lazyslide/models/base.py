@@ -106,6 +106,10 @@ class TimmModel(ImageModel):
 
         with hf_access(name):
             self.model = timm.create_model(name, **default_kws)
+            try:
+                self.model.eval()
+            except AttributeError:
+                pass
 
         if compile:
             if compile_kws is None:

@@ -5,6 +5,7 @@ from .h_optimus import H0Mini, HOptimus0, HOptimus1
 from .hibou import HibouB, HibouL
 from .madeleine import MadeleineSlideEncoder
 from .midnight import Midnight
+from .path_orchestra import PathOrchestra
 from .phikon import Phikon, PhikonV2
 from .uni import UNI, UNI2
 from .virchow import Virchow, Virchow2
