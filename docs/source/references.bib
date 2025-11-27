@@ -1214,3 +1214,122 @@
   keywords      = "LazySlide-doc-citations",
   doi           = "10.48550/arXiv.2508.09926"
 }
+
+@ARTICLE{Yan2025-nc,
+  title     = "{PathOrchestra}: a comprehensive foundation model for
+               computational pathology with over 100 diverse clinical-grade
+               tasks",
+  author    = "Yan, Fang and Wu, Jianfeng and Li, Jiawen and Wang, Wei and Chen,
+               Yirong and Wei, Linda and Lu, Jiaxuan and Chen, Wen and Gao,
+               Zizhao and Li, Jianan and Li, Heng and Yan, Hong and Ma, Jiabo
+               and Chen, Minda and Lu, Yang and Chen, Qing and Wang, Yizhi and
+               Ling, Xitong and Wang, Xuenian and Wang, Zihan and Huang, Qiang
+               and Hua, Shengyi and Liu, Mianxin and Ma, Lei and Shen, Tian and
+               Zhang, Xiaofan and He, Yonghong and Chen, Hao and Zhang, Shaoting
+               and Wang, Zhe",
+  journal   = "NPJ Digit. Med.",
+  publisher = "Springer Science and Business Media LLC",
+  volume    =  8,
+  number    =  1,
+  pages     =  695,
+  abstract  = "The complexity and variability of high-resolution pathological
+               images present significant challenges in computational pathology.
+               While AI-driven pathology foundation models have advanced the
+               field, they require large-scale datasets, substantial storage,
+               and significant computational resources, as well as rigorous
+               validation for clinical applicability. We present PathOrchestra,
+               a versatile pathology foundation model trained on 287,424 slides
+               from 21 tissue types across three centers. Evaluated on 112 tasks
+               from 61 private and 51 public datasets, covering digital slide
+               preprocessing, pan-cancer classification, lesion identification,
+               multi-cancer subtype classification, biomarker assessment, gene
+               expression prediction, and structured report generation. Across
+               27,755 whole slide images and 9,415,729 region-of-interest
+               images, it achieved over 0.950 accuracy in 47 tasks, including
+               pan-cancer classification, lymphoma subtyping, and bladder cancer
+               screening. It is the first to generate structured reports for
+               colorectal cancer and lymphoma. Overall, PathOrchestra
+               demonstrates the clinical readiness of large-scale
+               self-supervised pathology foundation models, achieving high
+               accuracy and offering potential to digital medicine integration.",
+  month     =  "19~" # nov,
+  year      =  2025,
+  url       = "http://dx.doi.org/10.1038/s41746-025-02027-w",
+  keywords  = "LazySlide-doc-citations",
+  doi       = "10.1038/s41746-025-02027-w",
+  language  = "en"
+}
+
+@ARTICLE{Sellergren2025-qq,
+  title         = "{MedGemma} Technical Report",
+  author        = "Sellergren, Andrew and Kazemzadeh, Sahar and Jaroensri, Tiam
+                   and Kiraly, Atilla and Traverse, Madeleine and Kohlberger,
+                   Timo and Xu, Shawn and Jamil, Fayaz and Hughes, Cían and Lau,
+                   Charles and Chen, Justin and Mahvar, Fereshteh and Yatziv,
+                   Liron and Chen, Tiffany and Sterling, Bram and Baby, Stefanie
+                   Anna and Baby, Susanna Maria and Lai, Jeremy and Schmidgall,
+                   Samuel and Yang, Lu and Chen, Kejia and Bjornsson, Per and
+                   Reddy, Shashir and Brush, Ryan and Philbrick, Kenneth and
+                   Asiedu, Mercy and Mezerreg, Ines and Hu, Howard and Yang,
+                   Howard and Tiwari, Richa and Jansen, Sunny and Singh, Preeti
+                   and Liu, Yun and Azizi, Shekoofeh and Kamath, Aishwarya and
+                   Ferret, Johan and Pathak, Shreya and Vieillard, Nino and
+                   Merhej, Ramona and Perrin, Sarah and Matejovicova, Tatiana
+                   and Ramé, Alexandre and Riviere, Morgane and Rouillard, Louis
+                   and Mesnard, Thomas and Cideron, Geoffrey and Grill,
+                   Jean-Bastien and Ramos, Sabela and Yvinec, Edouard and
+                   Casbon, Michelle and Buchatskaya, Elena and Alayrac,
+                   Jean-Baptiste and Lepikhin, Dmitry and Feinberg, Vlad and
+                   Borgeaud, Sebastian and Andreev, Alek and Hardin, Cassidy and
+                   Dadashi, Robert and Hussenot, Léonard and Joulin, Armand and
+                   Bachem, Olivier and Matias, Yossi and Chou, Katherine and
+                   Hassidim, Avinatan and Goel, Kavi and Farabet, Clement and
+                   Barral, Joelle and Warkentin, Tris and Shlens, Jonathon and
+                   Fleet, David and Cotruta, Victor and Sanseviero, Omar and
+                   Martins, Gus and Kirk, Phoebe and Rao, Anand and Shetty,
+                   Shravya and Steiner, David F and Kirmizibayrak, Can and
+                   Pilgrim, Rory and Golden, Daniel and Yang, Lin",
+  journal       = "arXiv [cs.AI]",
+  abstract      = "Artificial intelligence (AI) has significant potential in
+                   healthcare applications, but its training and deployment
+                   faces challenges due to healthcare's diverse data, complex
+                   tasks, and the need to preserve privacy. Foundation models
+                   that perform well on medical tasks and require less
+                   task-specific tuning data are critical to accelerate the
+                   development of healthcare AI applications. We introduce
+                   MedGemma, a collection of medical vision-language foundation
+                   models based on Gemma 3 4B and 27B. MedGemma demonstrates
+                   advanced medical understanding and reasoning on images and
+                   text, significantly exceeding the performance of
+                   similar-sized generative models and approaching the
+                   performance of task-specific models, while maintaining the
+                   general capabilities of the Gemma 3 base models. For
+                   out-of-distribution tasks, MedGemma achieves 2.6-10\%
+                   improvement on medical multimodal question answering,
+                   15.5-18.1\% improvement on chest X-ray finding
+                   classification, and 10.8\% improvement on agentic evaluations
+                   compared to the base models. Fine-tuning MedGemma further
+                   improves performance in subdomains, reducing errors in
+                   electronic health record information retrieval by 50\% and
+                   reaching comparable performance to existing specialized
+                   state-of-the-art methods for pneumothorax classification and
+                   histopathology patch classification. We additionally
+                   introduce MedSigLIP, a medically-tuned vision encoder derived
+                   from SigLIP. MedSigLIP powers the visual understanding
+                   capabilities of MedGemma and as an encoder achieves
+                   comparable or better performance than specialized medical
+                   image encoders. Taken together, the MedGemma collection
+                   provides a strong foundation of medical image and text
+                   capabilities, with potential to significantly accelerate
+                   medical research and development of downstream applications.
+                   The MedGemma collection, including tutorials and model
+                   weights, can be found at https://goo.gle/medgemma.",
+  month         =  "12~" # jul,
+  year          =  2025,
+  url           = "http://arxiv.org/abs/2507.05201",
+  archivePrefix = "arXiv",
+  primaryClass  = "cs.AI",
+  keywords      = "LazySlide-doc-citations",
+  doi           = "10.48550/arXiv.2507.05201"
+}
+
