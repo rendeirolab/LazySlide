@@ -69,4 +69,5 @@ class PLIP(ImageTextModel):
         )
         inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
         text_features = self.model.get_text_features(**inputs)
+        text_features = torch.nn.functional.normalize(text_features, p=2, dim=-1)
         return text_features
