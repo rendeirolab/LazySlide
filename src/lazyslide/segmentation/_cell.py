@@ -183,7 +183,7 @@ def cell_types(
         if model is None:
             raise ValueError(f"Unknown model: {model}")
 
-        model_instance = model(magnification=magnification)
+        model_instance = model(**model_kwargs)
 
     CLASS_MAPPING = model.get_classes()
     if model_instance.check_input_tile(tile_spec):
