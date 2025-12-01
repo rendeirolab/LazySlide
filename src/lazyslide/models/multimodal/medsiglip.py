@@ -1,6 +1,7 @@
 import torch
 
 from .._model_registry import register
+from .._utils import hf_access
 from ..base import ImageTextModel, ModelTask
 
 
@@ -29,11 +30,12 @@ class MedSigLip(ImageTextModel):
                 "`pip install transformers`."
             )
 
-        self.model = AutoModel.from_pretrained("google/medsiglip-448")
-        self.processor = AutoProcessor.from_pretrained(
-            "google/medsiglip-448", use_fast=True
-        )
-        self.model.eval()
+        with hf_access("google/medsiglip-448"):
+            self.model = AutoModel.from_pretrained("google/medsiglip-448")
+            self.processor = AutoProcessor.from_pretrained(
+                "google/medsiglip-448", use_fast=True
+            )
+            self.model.eval()
 
     def get_transform(self):
         from torchvision.transforms.v2 import Compose, Resize, ToDtype, ToImage
