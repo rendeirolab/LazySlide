@@ -42,12 +42,18 @@ class Virchow(TimmModel):
         return torch.cat((cls_features, patch_features.mean(1)), dim=-1)
 
 
+@register(
+    key="virchow2",
+    is_gated=True,
+    task=ModelTask.vision,
+    description="Scaling self-supervised mixed magnification models in pathology",
+    commercial=False,
+    hf_url="https://huggingface.co/paige-ai/Virchow2",
+    paper_url="https://doi.org/10.48550/arXiv.2408.00738",
+    bib_key="Zimmermann2024-ya",
+    param_size="631.2M",
+    license="CC-BY-NC-ND-4.0",
+    encode_dim=2560,
+)
 class Virchow2(Virchow):
-    hf_url = "https://huggingface.co/paige-ai/Virchow2"
-    paper_url = "https://doi.org/10.48550/arXiv.2408.00738"
-    description = "Scaling self-supervised mixed magnification models in pathology"
-    bib_key = "Zimmermann2024-ya"
-    license = "CC-BY-NC-ND-4.0"
-    commercial = False
-
     _hf_hub_id = "paige-ai/Virchow2"
