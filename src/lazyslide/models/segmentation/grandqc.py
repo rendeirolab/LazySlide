@@ -19,6 +19,20 @@ from .._model_registry import register
     param_size="6.3M",
 )
 class GrandQCArtifact(SegmentationModel):
+    """
+    The output classes are:
+
+    - 0: Background
+    - 1: Normal Tissue
+    - 2: Fold
+    - 3: Darkspot & Foreign Object
+    - 4: PenMarking
+    - 5: Edge & Air Bubble
+    - 6: Out of Focus
+    - 7: Background
+
+    """
+
     CLASS_MAPPING = {
         0: "Background",
         1: "Normal Tissue",

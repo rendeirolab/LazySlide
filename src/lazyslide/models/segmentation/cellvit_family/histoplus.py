@@ -363,6 +363,27 @@ class HistoPLUSModel(nn.Module):
     param_size="47.9M",
 )
 class HistoPLUS(SegmentationModel):
+    """
+    The output classes are:
+
+    - 0: Background
+    - 1: Cancer cell
+    - 2: Lymphocytes
+    - 3: Fibroblasts
+    - 4: Plasmocytes
+    - 5: Eosinophils
+    - 6: Neutrophils
+    - 7: Macrophages
+    - 8: Muscle Cell
+    - 9: Endothelial Cell
+    - 10: Red blood cell
+    - 11: Epithelial
+    - 12: Apoptotic Body
+    - 13: Mitotic Figures
+    - 14: Minor Stromal Cell
+
+    """
+
     _backbone_tile_size = {
         "20x": 224,
         "40x": 448,

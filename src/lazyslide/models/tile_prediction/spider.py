@@ -55,6 +55,30 @@ shared_info = dict(
     **shared_info,
 )
 class SpiderBreast(Spider):
+    """
+    The output classes are:
+
+    - Adenosis
+    - Benign phyllodes tumor
+    - Ductal carcinoma in situ (high-grade)
+    - Ductal carcinoma in situ (low-grade)
+    - Fat
+    - Fibroadenoma
+    - Fibrocystic changes
+    - Fibrosis
+    - Invasive non-special type carcinoma
+    - Lipogranuloma
+    - Lobular invasive carcinoma
+    - Malignant phyllodes tumor
+    - Necrosis
+    - Normal ducts
+    - Normal lobules
+    - Sclerosing adenosis
+    - Typical ductal hyperplasia
+    - Vessels
+
+    """
+
     def __init__(self, model_path=None, token=None):
         super().__init__(variants="breast", model_path=model_path, token=token)
 
@@ -65,6 +89,25 @@ class SpiderBreast(Spider):
     **shared_info,
 )
 class SpiderColorectal(Spider):
+    """
+    The output classes are:
+
+    - Adenocarcinoma high grade
+    - Adenocarcinoma low grade
+    - Adenoma high grade
+    - Adenoma low grade
+    - Fat
+    - Hyperplastic polyp
+    - Inflammation
+    - Mucus
+    - Muscle
+    - Necrosis
+    - Sessile serrated lesion
+    - Stroma healthy
+    - Vessels
+
+    """
+
     def __init__(self, model_path=None, token=None):
         super().__init__(variants="colorectal", model_path=model_path, token=token)
 
@@ -75,6 +118,36 @@ class SpiderColorectal(Spider):
     **shared_info,
 )
 class SpiderSkin(Spider):
+    """
+    The output classes are:
+
+    - Actinic keratosis
+    - Apocrine glands
+    - Basal cell carcinoma
+    - Carcinoma in situ
+    - Collagen
+    - Epidermis
+    - Fat
+    - Follicle
+    - Inflammation
+    - Invasive melanoma
+    - Kaposi’s sarcoma
+    - Keratin
+    - Melanoma in situ
+    - Mercel cell carcinoma
+    - Muscle
+    - Necrosis
+    - Nerves
+    - Nevus
+    - Sebaceous gland
+    - Seborrheic keratosis
+    - Solar elastosis
+    - Squamous cell carcinoma
+    - Vessels
+    - Wart
+
+    """
+
     def __init__(self, model_path=None, token=None):
         super().__init__(variants="skin", model_path=model_path, token=token)
 
@@ -85,5 +158,25 @@ class SpiderSkin(Spider):
     **shared_info,
 )
 class SpiderThorax(Spider):
+    """
+    The output classes are:
+
+    - Alveoli
+    - Bronchial cartilage
+    - Bronchial glands
+    - Chronic inflammation + fibrosis
+    - Detritus
+    - Fibrosis
+    - Hemorrhage
+    - Lymph node
+    - Pigment
+    - Pleura
+    - Tumor non-small cell
+    - Tumor small cell
+    - Tumor soft
+    - Vessel
+
+    """
+
     def __init__(self, model_path=None, token=None):
         super().__init__(variants="thorax", model_path=model_path, token=token)

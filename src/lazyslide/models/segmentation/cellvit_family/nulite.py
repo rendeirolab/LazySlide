@@ -23,6 +23,18 @@ from .postprocess import np_hv_postprocess
     param_size="47.9M",
 )
 class NuLite(SegmentationModel):
+    """
+    The output classes are:
+
+    - 0: Background
+    - 1: Neoplastic
+    - 2: Inflammatory
+    - 3: Connective
+    - 4: Dead
+    - 5: Epithelial
+
+    """
+
     def __init__(
         self,
         variant: Literal["H", "M", "T"] = "H",
