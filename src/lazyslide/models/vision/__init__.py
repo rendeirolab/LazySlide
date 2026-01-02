@@ -1,6 +1,7 @@
 from .chief import CHIEF, CHIEFSlideEncoder
 from .ctranspath import CTransPath
 from .gigapath import GigaPath, GigaPathSlideEncoder
+from .gpfm import GPFM
 from .h_optimus import H0Mini, HOptimus0, HOptimus1
 from .hibou import HibouB, HibouL
 from .madeleine import MadeleineSlideEncoder
@@ -16,6 +17,7 @@ __all__ = [
     "CTransPath",
     "GigaPath",
     "GigaPathSlideEncoder",
+    "GPFM",
     "H0Mini",
     "HOptimus0",
     "HOptimus1",
