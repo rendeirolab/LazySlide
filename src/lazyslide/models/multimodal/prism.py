@@ -32,7 +32,7 @@ class Prism(ModelBase):
         environs = find_spec("environs")
         sacremoses = find_spec("sacremoses")
 
-        if environs is not None and sacremoses is not None:
+        if environs is None or sacremoses is None:
             raise ModuleNotFoundError(
                 "To run PRISM model, 'environs' and 'sacremoses' must be installed, try "
                 "`pip install environs sacremoses`."
