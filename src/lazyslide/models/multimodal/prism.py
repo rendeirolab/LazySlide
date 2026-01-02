@@ -1,4 +1,5 @@
 import warnings
+from importlib.util import find_spec
 
 import torch
 
@@ -28,10 +29,10 @@ class Prism(ModelBase):
     def __init__(self, model_path=None, token=None):
         from transformers import AutoModel
 
-        try:
-            import environs
-            import sacremoses
-        except ModuleNotFoundError:
+        environs = find_spec("environs")
+        sacremoses = find_spec("sacremoses")
+
+        if environs is None or sacremoses is None:
             raise ModuleNotFoundError(
                 "To run PRISM model, 'environs' and 'sacremoses' must be installed, try "
                 "`pip install environs sacremoses`."

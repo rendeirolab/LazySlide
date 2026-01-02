@@ -9,8 +9,9 @@ from torch.utils.data import DataLoader
 from wsidata import WSIData
 from wsidata.io import update_shapes_data
 
+from lazyslide import _api
 from lazyslide._const import Key
-from lazyslide._utils import default_pbar, get_torch_device
+from lazyslide._utils import default_pbar
 from lazyslide.models.base import TilePredictionModel
 
 if TYPE_CHECKING:
@@ -24,8 +25,8 @@ def tile_prediction(
     batch_size: int = 16,
     num_workers: int = 0,
     tile_key: str = Key.tiles,
-    amp: bool = False,
-    autocast_dtype: torch.dtype = torch.float16,
+    amp: bool = None,
+    autocast_dtype: torch.dtype = None,
     device: str | None = None,
     pbar: bool = True,
 ):
@@ -46,6 +47,10 @@ def tile_prediction(
         Number of worker threads for the DataLoader.
     tile_key : str, default: "tiles"
         The key in the WSIData object where the tiles are stored.
+    amp : bool, optional, default: False
+        Whether to use automatic mixed precision.
+    autocast_dtype : torch.dtype, optional, default: torch.float16
+        The dtype for automatic mixed precision.
     device : str, optional
         The device to run the model on.
     pbar : bool, default: True
@@ -57,6 +62,10 @@ def tile_prediction(
         The predictions are added to the WSIData object.
 
     """
+    amp = _api.default_value("amp", amp)
+    autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
+    device = _api.default_value("device", device)
+
     is_cv_features = False
     if isinstance(model, str):
         from lazyslide.models import MODEL_REGISTRY
@@ -75,9 +84,6 @@ def tile_prediction(
             if card is None:
                 raise ValueError(f"Model '{model}' not found in the registry.")
             model = card()
-
-    if device is None:
-        device = get_torch_device()
     model.to(device=device)
 
     if transform is None:

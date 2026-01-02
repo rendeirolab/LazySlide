@@ -1,21 +1,17 @@
 from __future__ import annotations
 
 import warnings
-from concurrent.futures import ProcessPoolExecutor
-from multiprocessing import Manager
-from typing import Literal, Sequence
+from typing import Literal
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from shapely import Polygon, box, contains_xy, prepare
+from shapely import box, contains_xy, prepare
 from spatialdata.models import ShapesModel
 from wsidata import TileSpec, WSIData
-from wsidata.io import update_shapes_data
-from wsidata.reader import ReaderBase
 
 from lazyslide._const import Key
-from lazyslide._utils import chunker, default_pbar, find_stack_level
+from lazyslide._utils import find_stack_level
 
 
 def tile_tissues(

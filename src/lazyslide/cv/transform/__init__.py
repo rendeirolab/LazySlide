@@ -11,3 +11,15 @@ from .mods import (
     MorphClose,
     MorphOpen,
 )
+
+__all__ = [
+    "Compose",
+    "BinaryThreshold",
+    "BoxBlur",
+    "GaussianBlur",
+    "MedianBlur",
+    "MorphClose",
+    "MorphOpen",
+    "ArtifactFilterThreshold",
+    "TissueDetectionHE",
+]

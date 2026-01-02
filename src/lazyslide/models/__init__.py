@@ -8,7 +8,6 @@ from . import (
     vision,
 )
 from ._model_registry import MODEL_REGISTRY, register
-from ._utils import hf_access
 from .base import (
     ImageModel,
     ImageTextModel,
@@ -19,6 +18,24 @@ from .base import (
     StyleTransferModel,
     TimmModel,
 )
+
+__all__ = [
+    "multimodal",
+    "segmentation",
+    "style_transfer",
+    "tile_prediction",
+    "vision",
+    "MODEL_REGISTRY",
+    "register",
+    "ImageModel",
+    "ImageTextModel",
+    "ModelBase",
+    "ModelTask",
+    "SegmentationModel",
+    "SlideEncoderModel",
+    "StyleTransferModel",
+    "TimmModel",
+]
 
 
 def list_models(task: ModelTask | str = None):

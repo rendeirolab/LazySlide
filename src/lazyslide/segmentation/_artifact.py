@@ -7,7 +7,7 @@ import torch
 from wsidata import WSIData
 from wsidata.io import add_shapes
 
-from lazyslide._utils import find_stack_level, get_torch_device
+from lazyslide._utils import find_stack_level
 
 from ..models.segmentation import GrandQCArtifact
 from ._seg_runner import SemanticSegmentationRunner
@@ -38,9 +38,10 @@ def artifact(
     batch_size: int = 4,
     num_workers: int = 0,
     device: str | None = None,
-    amp: bool = False,
-    autocast_dtype: torch.dtype = torch.float16,
+    amp: bool = None,
+    autocast_dtype: torch.dtype = None,
     key_added: str = "artifacts",
+    pbar: bool = None,
     *args,
 ):
     """
@@ -87,6 +88,8 @@ def artifact(
         The device for the model.
     key_added : str, default: "artifacts"
         The key for the added artifact shapes.
+    pbar : bool, default: True
+        Whether to show a progress bar during segmentation.
 
     """
 
@@ -95,9 +98,6 @@ def artifact(
             "`variants` is deprecated. Use `model` and `variant` instead.",
             stacklevel=find_stack_level(),
         )
-
-    if device is None:
-        device = get_torch_device()
 
     model_mpp = {
         "5x": 2,
@@ -144,6 +144,7 @@ def artifact(
         threshold=threshold,
         buffer_px=buffer_px,
         class_names=CLASS_MAPPING,
+        pbar=pbar,
     )
     arts = runner.run()
     arts = arts[~arts["class"].isin(["Background", "Normal Tissue"])]

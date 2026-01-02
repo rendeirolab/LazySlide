@@ -9,3 +9,25 @@ from .path_orchestra import PathOrchestra
 from .phikon import Phikon, PhikonV2
 from .uni import UNI, UNI2
 from .virchow import Virchow, Virchow2
+
+__all__ = [
+    "CHIEF",
+    "CHIEFSlideEncoder",
+    "CTransPath",
+    "GigaPath",
+    "GigaPathSlideEncoder",
+    "H0Mini",
+    "HOptimus0",
+    "HOptimus1",
+    "HibouB",
+    "HibouL",
+    "MadeleineSlideEncoder",
+    "Midnight",
+    "PathOrchestra",
+    "Phikon",
+    "PhikonV2",
+    "UNI",
+    "UNI2",
+    "Virchow",
+    "Virchow2",
+]

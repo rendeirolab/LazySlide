@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from typing import Dict, Mapping, Sequence
+from typing import Mapping, Sequence
 
 import cv2
 import geopandas as gpd

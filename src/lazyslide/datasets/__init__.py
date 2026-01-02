@@ -4,3 +4,10 @@ from ._sample import (
     lung_carcinoma,
     sample,
 )
+
+__all__ = [
+    "gtex_artery",
+    "gtex_small_intestine",
+    "lung_carcinoma",
+    "sample",
+]

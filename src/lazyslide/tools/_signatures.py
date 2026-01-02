@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from importlib.util import find_spec
 from typing import Any, Literal
 
 
@@ -24,14 +25,14 @@ class RNALinker:
         others: Any,
         gene_name: str | None = None,
     ):
-        try:
-            import scanpy as sc
-            from anndata import AnnData
-        except ImportError:
+        sc = find_spec("scanpy")
+        ad = find_spec("anndata")
+        if sc is None:
             raise ImportError(
                 "To use MultimodalLinker, you need to install scanpy. You can install it using "
                 "`pip install scanpy."
             )
+        AnnData = getattr(ad, "AnnData")
 
         if not isinstance(agg_features, AnnData) or not isinstance(others, AnnData):
             raise TypeError("agg_features and others must be AnnData objects")

@@ -6,7 +6,6 @@ from typing import Dict, List, Optional, Tuple, Union
 import cv2
 import geopandas as gpd
 import numpy as np
-import torch
 from shapely import Polygon
 from shapely.affinity import scale
 from skimage.filters import threshold_otsu

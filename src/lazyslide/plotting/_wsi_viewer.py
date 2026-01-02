@@ -3,6 +3,7 @@ from __future__ import annotations
 import warnings
 from dataclasses import dataclass
 from functools import cached_property
+from importlib.util import find_spec
 from itertools import cycle
 from numbers import Number
 from typing import Any, Dict, List, Literal, Sequence, Union
@@ -742,15 +743,14 @@ class DatashaderFilledPolygonRenderPlan(RenderPlan):
         self.legend = None
 
     def render(self, ax):
-        try:
-            import datashader as ds
-            from datashader import transfer_functions as tf
-        except Exception:  # pragma: no cover - optional dependency
+        ds = find_spec("datashader")
+        if ds is None:
             warnings.warn(
                 "Datashader is not installed; falling back to vector polygons.",
                 stacklevel=find_stack_level(),
             )
             return
+        from datashader import transfer_functions as tf
 
         # Canvas dimensions and extent based on current image viewport
         extent = self.image_datasource.get_extent()
@@ -1249,9 +1249,8 @@ class WSIViewer:
         user_requested = backend == "datashader"
         use_datashader = user_requested or len(polygons.polygons) > 10000
         if use_datashader:
-            try:
-                import datashader
-            except ModuleNotFoundError:
+            ds = find_spec("datashader")
+            if ds is None:
                 use_datashader = False
                 warnings.warn(
                     "Datashader is not installed. "

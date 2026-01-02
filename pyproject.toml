@@ -98,7 +98,6 @@ version = "{version}"
 '''
 
 [tool.ruff]
-lint.ignore = ["F401"]
 lint.extend-select = ["I"]
 line-length = 88
 

@@ -12,8 +12,8 @@ from shapely.affinity import scale
 from wsidata import WSIData
 from wsidata.io import add_tissues
 
+from lazyslide import _api
 from lazyslide._const import Key
-from lazyslide._utils import get_torch_device
 from lazyslide.cv import BinaryMask
 
 
@@ -29,8 +29,8 @@ def tissue(
     detect_holes: bool = True,
     threshold: float = 0.5,
     device: str | None = None,
-    amp: bool = False,
-    autocast_dtype: torch.dtype = torch.float16,
+    amp: bool = None,
+    autocast_dtype: torch.dtype = None,
     key_added: str = Key.tissue,
 ):
     """
@@ -66,13 +66,17 @@ def tissue(
         The probability threshold to consider a pixel as tissue.
     device : str, default: None
         The device to run the model.
+    amp : bool, optional, default: False
+        Whether to use automatic mixed precision.
+    autocast_dtype : torch.dtype, optional, default: torch.float16
+        The dtype for automatic mixed precision.
     key_added : str, default: 'tissues'
         The key to add the tissue polygons.
 
     """
-
-    if device is None:
-        device = get_torch_device()
+    amp = _api.default_value("amp", amp)
+    autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
+    device = _api.default_value("device", device)
 
     # Load the model
     model_name = model

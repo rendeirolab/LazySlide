@@ -38,7 +38,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - name: Install project
-        run: uv sync --dev
+        run: uv sync --dev --group model
       - name: Login to Hugging Face
         run: |
           uv run hf auth login --token ${{ secrets.HF_TOKEN }}

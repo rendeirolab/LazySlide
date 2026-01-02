@@ -14,12 +14,12 @@ from torch.utils.data import DataLoader
 from wsidata import TileSpec, WSIData
 from wsidata.io import add_shapes
 
+from lazyslide import _api
 from lazyslide._const import Key
 from lazyslide._utils import default_pbar, get_torch_device
 from lazyslide.cv import (
     InstanceMap,
     ProbabilityMap,
-    merge_connected_polygons,
     nms,
 )
 from lazyslide.models.base import SegmentationModel
@@ -41,9 +41,9 @@ def semantic(
     batch_size=4,
     num_workers=0,
     device=None,
-    amp: bool = False,
-    autocast_dtype: torch.dtype = torch.float16,
-    pbar: bool = True,
+    amp: bool = None,
+    autocast_dtype: torch.dtype = None,
+    pbar: bool = None,
     key_added="anatomical_structures",
 ):
     """
@@ -82,6 +82,10 @@ def semantic(
         The number of workers for data loading.
     device : str, default: None
         The device for the model (e.g., "cpu" or "cuda"). If None, automatically selected.
+    amp : bool, optional, default: False
+        Whether to use automatic mixed precision.
+    autocast_dtype : torch.dtype, optional, default: torch.float16
+        The dtype for automatic mixed precision.
     pbar : bool, default: True
         Whether to show the progress bar.
     key_added : str, default: "anatomical_structures"
@@ -253,9 +257,9 @@ class SemanticSegmentationRunner(Runner):
         batch_size: int = 4,
         num_workers: int = 0,
         device: str | None = None,
-        amp: bool = False,
-        autocast_dtype: torch.dtype = torch.float16,
-        pbar: bool = True,
+        amp: bool = None,
+        autocast_dtype: torch.dtype = None,
+        pbar: bool = None,
     ):
         self.wsi = wsi
         self.model = model
@@ -270,12 +274,12 @@ class SemanticSegmentationRunner(Runner):
         self.chunk_size = chunk_size
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.device = device or get_torch_device()
+        self.device = _api.default_value("device", device)
         self.model.to(self.device)
-        self.amp = amp
-        self.autocast_dtype = autocast_dtype
+        self.amp = _api.default_value("amp", amp)
+        self.autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
         self.class_names = class_names
-        self.pbar = pbar
+        self.pbar = _api.default_value("pbar", pbar)
 
         self.tile_spec = wsi.tile_spec(tile_key)
         tissue_key = self.tile_spec.tissue_name

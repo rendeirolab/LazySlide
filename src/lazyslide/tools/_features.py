@@ -6,9 +6,11 @@ from typing import Callable, Sequence
 
 import numpy as np
 import torch
+from torch.utils.data import DataLoader
 from wsidata import WSIData
 from wsidata.io import add_features
 
+import lazyslide._api as _api
 from lazyslide._const import Key
 from lazyslide._utils import default_pbar, get_torch_device
 from lazyslide.models import MODEL_REGISTRY, ImageModel, list_models
@@ -39,13 +41,13 @@ def feature_extraction(
     load_kws: dict = None,
     transform: Callable = None,
     device: str = None,
-    amp: bool = False,
-    autocast_dtype: torch.dtype = torch.float16,
+    amp: bool = None,
+    autocast_dtype: torch.dtype = None,
     tile_key: str = Key.tiles,
     key_added: str = None,
     batch_size: int = 32,
     num_workers: int = 0,
-    pbar: bool = True,
+    pbar: bool = None,
     return_features: bool = False,
     **kwargs,
 ):
@@ -133,16 +135,10 @@ def feature_extraction(
 
     """
 
-    try:
-        import torch
-        import torchvision
-        from torch.utils.data import DataLoader
-    except (ImportError, ModuleNotFoundError):
-        raise ImportError(
-            "Feature extraction requires torch, torchvision and timm (optional)."
-        )
-
-    device = device or get_torch_device()
+    device = _api.default_value("device", device)
+    amp = _api.default_value("amp", amp)
+    autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
+    pbar = _api.default_value("pbar", pbar)
 
     load_kws = {} if load_kws is None else load_kws
 
