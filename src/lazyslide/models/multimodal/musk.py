@@ -34,7 +34,7 @@ class MUSK(
         from transformers import XLMRobertaTokenizer
 
         try:
-            from musk import modeling, utils
+            from musk import utils
         except ImportError:
             raise ImportError(
                 "MUSK is not installed. You can install it using "

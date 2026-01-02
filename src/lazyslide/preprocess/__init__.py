@@ -1,4 +1,4 @@
-__all__ = ["find_tissues", "tile_tissues"]
+__all__ = ["find_tissues", "tile_tissues", "tile_graph"]
 
 from ._graph import tile_graph
 from ._tiles import tile_tissues

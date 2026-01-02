@@ -8,16 +8,17 @@ import torch
 from wsidata import WSIData
 from wsidata.io import add_features
 
+from lazyslide import _api
 from lazyslide._const import Key
-from lazyslide._utils import find_stack_level, get_torch_device
+from lazyslide._utils import find_stack_level
 from lazyslide.models import MODEL_REGISTRY
 
 
 def text_embedding(
     texts: List[str],
     model: Literal["plip", "conch", "omiclip"] = "plip",
-    amp: bool = False,
-    autocast_dtype: torch.dtype = torch.float16,
+    amp: bool = None,
+    autocast_dtype: torch.dtype = None,
     device: str = "cpu",
 ):
     """Embed the text into a vector in the text-vision co-embedding using
@@ -58,10 +59,9 @@ def text_embedding(
         >>> zs.tl.text_embedding(terms, model="plip")
 
     """
-
-    # Determine device
-    if device is None:
-        device = get_torch_device()
+    amp = _api.default_value("amp", amp)
+    autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
+    device = _api.default_value("device", device)
 
     model = MODEL_REGISTRY[model]()
     model.to(device)

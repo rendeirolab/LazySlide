@@ -23,7 +23,7 @@ from .._model_registry import register
 class Midnight(ImageModel):
     def __init__(self, model_path=None, token=None):
         try:
-            from transformers import AutoImageProcessor, AutoModel
+            from transformers import AutoModel
         except ImportError:
             raise ImportError(
                 "transformers is not installed. You can install it using "

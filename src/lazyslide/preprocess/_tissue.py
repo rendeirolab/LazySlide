@@ -2,17 +2,14 @@ from __future__ import annotations
 
 import logging
 import warnings
-from concurrent.futures import ProcessPoolExecutor
-from typing import Sequence
 
 import cv2
 import geopandas as gpd
 import numpy as np
-import pandas as pd
 import psutil
 from shapely.affinity import scale, translate
 from wsidata import WSIData
-from wsidata.io import add_tissues, update_shapes_data
+from wsidata.io import add_tissues
 
 from lazyslide.cv.mask import BinaryMask
 from lazyslide.cv.transform import (
@@ -24,7 +21,7 @@ from lazyslide.cv.transform import (
 )
 
 from .._const import Key
-from .._utils import default_pbar, find_stack_level
+from .._utils import find_stack_level
 from ..cv import merge_connected_polygons
 
 

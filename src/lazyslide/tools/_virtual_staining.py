@@ -9,8 +9,9 @@ from spatialdata.transformations import Scale
 from torch.utils.data import DataLoader
 from wsidata import WSIData
 
+from lazyslide import _api
 from lazyslide._const import Key
-from lazyslide._utils import default_pbar, get_torch_device
+from lazyslide._utils import default_pbar
 from lazyslide.models import MODEL_REGISTRY
 
 
@@ -20,8 +21,8 @@ def virtual_stain(
     image_key: str = None,
     tile_key: str = Key.tiles,
     device: str = None,
-    amp: bool = False,
-    autocast_dtype: torch.dtype = torch.float16,
+    amp: bool = None,
+    autocast_dtype: torch.dtype = None,
     batch_size: int = 32,
     num_workers: int = 0,
     pbar: bool = True,
@@ -66,6 +67,10 @@ def virtual_stain(
         >>> wsi.images["rosie_prediction"]
 
     """
+    amp = _api.default_value("amp", amp)
+    autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
+    device = _api.default_value("device", device)
+
     tile_spec = wsi.tile_spec(tile_key)
     if model == "rosie":
         image_shape = (
@@ -80,9 +85,6 @@ def virtual_stain(
 
     if image_key is None:
         image_key = f"{model}_prediction"
-
-    if device is None:
-        device = get_torch_device()
 
     with tempfile.TemporaryDirectory() as tmpdir:
         new_image = np.memmap(

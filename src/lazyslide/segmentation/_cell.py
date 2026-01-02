@@ -21,11 +21,11 @@ def cells(
     batch_size=4,
     num_workers=0,
     device=None,
-    amp: bool = False,
-    autocast_dtype: torch.dtype = torch.float16,
+    amp: bool = None,
+    autocast_dtype: torch.dtype = None,
     size_filter=False,
     nucleus_size=(20, 1000),
-    pbar=True,
+    pbar=None,
     key_added="cells",
     **model_kwargs,
 ):
@@ -55,6 +55,10 @@ def cells(
         The number of workers for data loading.
     device : str, default: None
         The device for the model.
+    amp : bool, optional, default: False
+        Whether to use automatic mixed precision.
+    autocast_dtype : torch.dtype, optional, default: torch.float16
+        The dtype for automatic mixed precision.
     pbar : bool, default: True
         Whether to show a progress bar during segmentation.
     key_added : str, default: "cells"
@@ -104,8 +108,8 @@ def cell_types(
     batch_size=4,
     num_workers=0,
     device=None,
-    amp: bool = False,
-    autocast_dtype: torch.dtype = torch.float16,
+    amp: bool = None,
+    autocast_dtype: torch.dtype = None,
     size_filter=False,
     nucleus_size=(20, 1000),
     pbar=True,

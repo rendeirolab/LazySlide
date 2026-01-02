@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import inspect
 import os
-from functools import wraps
 from types import FrameType
 
 from rich.console import Console

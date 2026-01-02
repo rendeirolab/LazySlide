@@ -7,7 +7,6 @@ import torch
 
 from lazyslide.models.base import ModelTask, SegmentationModel
 
-from ..._utils import find_stack_level
 from .._model_registry import register
 
 if TYPE_CHECKING:

@@ -1,4 +1,3 @@
-import numpy as np
 from wsidata import WSIData
 from wsidata.io import add_shapes, update_shapes_data
 
