@@ -34,7 +34,8 @@ class MUSK(
         from transformers import XLMRobertaTokenizer
 
         try:
-            from musk import utils
+            from musk import modeling, utils  # noqa: F401
+            # The modeling module is imported here to register the custom layers but not used directly
         except ImportError:
             raise ImportError(
                 "MUSK is not installed. You can install it using "
