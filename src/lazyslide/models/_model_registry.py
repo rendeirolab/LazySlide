@@ -120,6 +120,7 @@ class ModelTask(Enum):
     feature_prediction = "feature_prediction"
     style_transfer = "style_transfer"
     cv_feature = "cv_feature"
+    image_generation = "image_generation"
 
 
 def register(

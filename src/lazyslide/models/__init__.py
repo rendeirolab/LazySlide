@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from . import (
+    image_generation,
     multimodal,
     segmentation,
     style_transfer,
@@ -25,6 +26,7 @@ __all__ = [
     "style_transfer",
     "tile_prediction",
     "vision",
+    "image_generation",
     "MODEL_REGISTRY",
     "register",
     "ImageModel",
