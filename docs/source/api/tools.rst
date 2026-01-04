@@ -68,7 +68,7 @@ Zero-shot Learning
     tl.slide_caption
 
 
-Virtual staining
+Generative Modeling
 ~~~~~~~~~~~~~~~~
 
 .. currentmodule:: lazyslide
@@ -78,3 +78,4 @@ Virtual staining
     :nosignatures:
 
     tl.virtual_stain
+    tl.image_generation

@@ -13,7 +13,7 @@ from ..base import ImageGenerationModel, ModelTask
     task=ModelTask.image_generation,
     is_gated=True,
     license="CC BY-NC-ND 4.0",
-    description="a REPA-E Histopathology Image Generation Model",
+    description="A REPA-E Histopathology Image Generation Model",
     commercial=False,
     github_url="https://github.com/prov-gigatime/GigaTIME",
     paper_url="https://www.owkin.com/blogs-case-studies/"
