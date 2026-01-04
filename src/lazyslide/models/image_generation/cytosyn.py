@@ -3,9 +3,9 @@ from importlib.util import find_spec
 
 import torch
 
-from .._model_registry import ModelTask, register
+from .._model_registry import register
 from .._utils import hf_access
-from ..base import ImageGenerationModel
+from ..base import ImageGenerationModel, ModelTask
 
 
 @register(
