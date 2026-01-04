@@ -80,6 +80,12 @@ def virtual_stain(
         )
         scale_x = image_shape[1] / wsi.properties.shape[1]
         scale_y = image_shape[0] / wsi.properties.shape[0]
+    elif model == "gigatime":
+        # The output of Giga-TIME is the same size as the input image
+        img_y, img_x = wsi.properties.shape[:2]
+        scale_x = 1 / tile_spec.base_downsample
+        scale_y = 1 / tile_spec.base_downsample
+        image_shape = (int(img_y * scale_y), int(img_x * scale_x), 23)
     else:
         raise ValueError(f"Model {model} not supported.")
 
@@ -104,43 +110,101 @@ def virtual_stain(
         mask_x, mask_y = [], []
 
         with default_pbar(disable=not pbar) as progress_bar:
-            task = progress_bar.add_task("Extracting features", total=len(ds))
+            task = progress_bar.add_task("Creating new stains", total=len(ds))
 
             if isinstance(device, torch.device):
                 device = device.type
             amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()
             with amp_ctx, torch.inference_mode():
-                for batch in dl:
-                    expression = staining_model.predict(batch["image"].to(device))
-                    image_x = (batch["x"] * scale_x).long() + 1
-                    image_y = (batch["y"] * scale_y).long() + 1
-                    expression = expression.detach().cpu().numpy()
+                if model == "rosie":
+                    for batch in dl:
+                        expression = staining_model.predict(batch["image"].to(device))
+                        image_x = (batch["x"] * scale_x).long() + 1
+                        image_y = (batch["y"] * scale_y).long() + 1
+                        expression = expression.detach().cpu().numpy()
 
-                    mask_x.extend(image_x.tolist())
-                    mask_y.extend(image_y.tolist())
+                        mask_x.extend(image_x.tolist())
+                        mask_y.extend(image_y.tolist())
 
-                    new_image[image_y, image_x] = expression
-                    progress_bar.update(task, advance=len(batch["image"]))
+                        new_image[image_y, image_x] = expression
+                        progress_bar.update(task, advance=len(batch["image"]))
+                elif model == "gigatime":
+                    weight_image = np.zeros(image_shape[:2], dtype=np.float32)
+                    # Create a weight mask for blending
+                    _, tile_h, tile_w = ds[0]["image"].shape
+                    weight_mask = np.ones((tile_h, tile_w), dtype=np.float32)
+                    # Linear ramp for the edges
+                    ramp_size = int(min(tile_h, tile_w) * 0.1)
+                    if ramp_size > 0:
+                        ramp = np.linspace(0.1, 1, ramp_size)
+                        weight_mask[:ramp_size, :] *= ramp[:, np.newaxis]
+                        weight_mask[-ramp_size:, :] *= ramp[::-1, np.newaxis]
+                        weight_mask[:, :ramp_size] *= ramp[np.newaxis, :]
+                        weight_mask[:, -ramp_size:] *= ramp[np.newaxis, ::-1]
+
+                    for batch in dl:
+                        predicted_channels = staining_model.predict(
+                            batch["image"].to(device)
+                        )
+                        predicted_channels = torch.sigmoid(predicted_channels)
+                        predicted_channels = predicted_channels.detach().cpu().numpy()
+                        for ix, cs in enumerate(predicted_channels):
+                            image_x = (batch["x"][ix] * scale_x).long().item()
+                            image_y = (batch["y"][ix] * scale_y).long().item()
+
+                            # Actual tile size might be different from expected if not padded
+                            c, th, tw = cs.shape
+
+                            # Clip to image boundaries
+                            y1, y2 = image_y, min(image_y + th, image_shape[0])
+                            x1, x2 = image_x, min(image_x + tw, image_shape[1])
+
+                            if y2 <= y1 or x2 <= x1:
+                                continue
+
+                            tile_slice_y = slice(0, y2 - y1)
+                            tile_slice_x = slice(0, x2 - x1)
+
+                            prediction = cs[:, tile_slice_y, tile_slice_x].transpose(
+                                1, 2, 0
+                            )
+                            mask = weight_mask[tile_slice_y, tile_slice_x]
+
+                            new_image[y1:y2, x1:x2] += (
+                                prediction * mask[:, :, np.newaxis]
+                            )
+                            weight_image[y1:y2, x1:x2] += mask
+
+                        progress_bar.update(task, advance=len(batch["image"]))
+
+                    # Normalize by weights
+                    nonzero_weight = weight_image > 0
+                    new_image[nonzero_weight] /= weight_image[nonzero_weight][
+                        :, np.newaxis
+                    ]
+
             progress_bar.refresh()
 
-        # Apply postprocessing from the ROSIE codebase
-        content_region = new_image[mask_y, mask_x]
-        bg_threshold = np.percentile(content_region, 1, axis=0)
-        max_threshold = np.percentile(content_region, 99.9, axis=0)
-        # Set bg_threshold to 0 if max_threshold is greater than bg_threshold
-        bg_threshold = np.where(max_threshold > bg_threshold, 0, bg_threshold)
-        new_image[mask_y, mask_x] = np.clip(
-            new_image[mask_y, mask_x], bg_threshold, max_threshold
-        )
-        # Normalize to (0, 255)
-        new_image[mask_y, mask_x] = (
-            (new_image[mask_y, mask_x] - bg_threshold)
-            * 255.0
-            / (max_threshold - bg_threshold)
-        )
-        new_image = new_image.astype(np.uint8)
-        for channel in range(new_image.shape[2]):
-            new_image[:, :, channel] = cv2.medianBlur(new_image[:, :, channel], 3)
+        # Postprocessing
+        if model == "rosie":
+            # Apply postprocessing from the ROSIE codebase
+            content_region = new_image[mask_y, mask_x]
+            bg_threshold = np.percentile(content_region, 1, axis=0)
+            max_threshold = np.percentile(content_region, 99.9, axis=0)
+            # Set bg_threshold to 0 if max_threshold is greater than bg_threshold
+            bg_threshold = np.where(max_threshold > bg_threshold, 0, bg_threshold)
+            new_image[mask_y, mask_x] = np.clip(
+                new_image[mask_y, mask_x], bg_threshold, max_threshold
+            )
+            # Normalize to (0, 255)
+            new_image[mask_y, mask_x] = (
+                (new_image[mask_y, mask_x] - bg_threshold)
+                * 255.0
+                / (max_threshold - bg_threshold)
+            )
+            new_image = new_image.astype(np.uint8)
+            for channel in range(new_image.shape[2]):
+                new_image[:, :, channel] = cv2.medianBlur(new_image[:, :, channel], 3)
         # Write to spatialdata
         image = Image2DModel.parse(
             data=new_image.transpose(2, 0, 1),
