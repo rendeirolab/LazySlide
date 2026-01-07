@@ -1595,7 +1595,8 @@ class WSIViewer:
             edgecolor=edgecolor,
             alpha=alpha,
         )
-        self._zoom_image_render_plan = SlideImageRenderPlan(self.zoom_image_source)
+        if self._has_image:
+            self._zoom_image_render_plan = SlideImageRenderPlan(self.zoom_image_source)
 
         if not cache:
             self._is_zoom_cached = False
