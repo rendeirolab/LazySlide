@@ -40,7 +40,7 @@ MODEL_INPUT_ARGS = {
     "madeleine": {"args": [torch.randn(1, 100, 512)]},
     "medsiglip": {"args": [], "kwargs": {"pixel_values": torch.randn(1, 3, 448, 448)}, "method": "get_image_features"},
     "midnight": {"args": [torch.randn(1, 3, 224, 224)]},
-    "musk": {"args": [torch.randn(1, 3, 224, 224)]},
+    "musk": {"args": [torch.randn(1, 3, 384, 384)]},
     "nulite": {"args": [torch.randn(1, 3, 224, 224)]},
     "omiclip": {"args": [torch.randn(1, 3, 224, 224)]},
     "path_orchestra": {"args": [torch.randn(1, 3, 224, 224)]},
