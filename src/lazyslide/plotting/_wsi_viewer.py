@@ -93,12 +93,29 @@ class DataSource:
         The selection mask of the data depending on the viewport.
     _sel_attrs : Dict
         The selection of data depending on the viewport.
-
     """
 
-    viewport: Viewport | None = None
-    _sel: np.ndarray[Any, np.dtype[np.bool_]] | None = None
-    _sel_attrs: Dict = {}
+    # Type hinting for class attributes (defaults handled in __init__)
+    viewport: Viewport | None
+    _sel: np.ndarray[Any, np.dtype[np.bool_]] | None
+    _sel_attrs: Dict
+
+    def __init__(self, viewport: Viewport | None = None):
+        """
+        Initialize the Data Source.
+
+        Parameters
+        ----------
+        viewport : Viewport, optional
+            The initial viewport state. Defaults to None.
+        """
+        self.viewport = viewport
+        self._sel = None
+        
+        # CORRECT INTIALIZATION:
+        # Creating the dictionary inside __init__ ensures every instance 
+        # gets its own unique dictionary.
+        self._sel_attrs = {}
 
     def set_viewport_hook(self):
         """
@@ -126,7 +143,7 @@ class DataSource:
         Get the data that depends on the viewport during rendering.
         """
         d = self._sel_attrs.get(k)
-        if (d is not None) & (self._sel is not None):
+        if (d is not None) and (self._sel is not None):
             return d[self._sel]
         else:
             return d
@@ -138,6 +155,7 @@ class DataSource:
 
 class ImageDataSource(DataSource):
     def __init__(self, reader: ReaderBase):
+        super().__init__()
         self.reader = reader
         self._image = None
         self._refresh = False
@@ -175,6 +193,7 @@ class ImageDataSource(DataSource):
 class TileDataSource(DataSource):
     def __init__(self, tiles: np.ndarray, tile_spec: TileSpec):
         # tiles are expected as top-left coordinates at level 0 (base) in pixels
+        super().__init__()
         self._tiles = np.asarray(tiles, dtype=int)
         self.tile_spec = tile_spec
         self._sel = np.ones(len(self._tiles), dtype=bool)
@@ -225,6 +244,7 @@ class TileDataSource(DataSource):
 
 class PolygonDataSource(DataSource):
     def __init__(self, polygons: List[Polygon]):
+        super().__init__()
         self._polygons = polygons
         self._render_polygons = polygons
         self._sel = np.ones_like(polygons, dtype=bool)
