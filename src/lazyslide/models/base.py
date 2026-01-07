@@ -66,7 +66,7 @@ class ModelBase(ABC):
         method_obj = getattr(model, method, None) or getattr(self, method, None)
         return (method_obj, model) if method_obj else None
 
-    def estimate_flops(self, args: list[Any], kwargs: dict[str, Any], method: str = "forward") -> int | None:
+    def estimate_flops(self, method: str = "forward", *args: Any, **kwargs: Any) -> int | None:
         """Count the number of flops in a model."""
         model = self.model
         if not isinstance(model, torch.nn.Module):
