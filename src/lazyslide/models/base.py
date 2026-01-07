@@ -5,6 +5,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 import torch
+from torch.utils.flop_counter import FlopCounterMode
 
 from ._repr import model_repr_html
 from ._utils import get_default_transform, hf_access
@@ -47,6 +48,46 @@ class ModelBase(ABC):
             except (AttributeError, TypeError):
                 return None
         return sum(p.numel() for p in model.parameters())
+
+    def _resolve_method(self, model: torch.nn.Module, method: str) -> tuple[Any, torch.nn.Module] | None:
+        """Resolve method path and return (callable, target_model) for FLOPS counting."""
+        if '.' in method:
+            parts = method.split('.')
+            obj, target = model, model
+            for part in parts[:-1]:
+                obj = getattr(obj, part, None)
+                if obj is None:
+                    return None
+                if isinstance(obj, torch.nn.Module):
+                    target = obj
+            method_obj = getattr(obj, parts[-1], None)
+            return (method_obj, target) if method_obj else None
+        
+        method_obj = getattr(model, method, None) or getattr(self, method, None)
+        return (method_obj, model) if method_obj else None
+
+    def estimate_flops(self, args: list[Any], kwargs: dict[str, Any], method: str = "forward") -> int | None:
+        """Count the number of flops in a model."""
+        model = self.model
+        if not isinstance(model, torch.nn.Module):
+            try:
+                model = model.model
+            except (AttributeError, TypeError):
+                return None
+        if isinstance(model, torch.nn.DataParallel):
+            model = model.module
+        
+        result = self._resolve_method(model, method)
+        if result is None:
+            return None
+        
+        method_obj, target = result
+        is_training = model.training
+        model.eval()
+        with FlopCounterMode(target, display=False, depth=None) as flop_counter:
+            method_obj(*args, **kwargs)
+        model.train(is_training)
+        return flop_counter.get_total_flops()
 
     @property
     def name(self):
