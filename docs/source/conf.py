@@ -104,6 +104,7 @@ intersphinx_mapping = {
     "pandas": ("https://pandas.pydata.org/pandas-docs/stable/", None),
     "matplotlib": ("https://matplotlib.org/stable/", None),
     "anndata": ("https://anndata.readthedocs.io/en/latest/", None),
+    "PIL": ("https://pillow.readthedocs.io/en/stable/", None),
 }
 
 
@@ -244,6 +245,7 @@ def generate_models_rst(app, config):
             set(),
         ),
         "style_transfer": ("Style transfer models", "style_transfer", set()),
+        "image_generation": ("Image generation models", "image_generation", set()),
         "base": (
             "Base model class",
             "base",
@@ -251,6 +253,7 @@ def generate_models_rst(app, config):
                 mb.ModelBase,
                 mb.ImageModel,
                 mb.ImageTextModel,
+                mb.ImageGenerationModel,
                 mb.SegmentationModel,
                 mb.SlideEncoderModel,
                 mb.TilePredictionModel,

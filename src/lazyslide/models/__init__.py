@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from . import (
+    image_generation,
     multimodal,
     segmentation,
     style_transfer,
@@ -25,6 +26,7 @@ __all__ = [
     "style_transfer",
     "tile_prediction",
     "vision",
+    "image_generation",
     "MODEL_REGISTRY",
     "register",
     "ImageModel",
@@ -57,7 +59,7 @@ def list_models(task: ModelTask | str = None):
     """
     if task is None:
         return list(MODEL_REGISTRY.keys())
-    if task is not None:
+    else:
         try:
             task = ModelTask(task)
         except ValueError:
@@ -66,10 +68,10 @@ def list_models(task: ModelTask | str = None):
                 f"Available tasks are: {', '.join([t.value for t in ModelTask])}."
             )
         models = []
-        for name, model in MODEL_REGISTRY.items():
-            model_task = model.task
-            if isinstance(model_task, ModelTask):
-                model_task = [model_task]
-            if task in model_task:
+        for name, model_cls in MODEL_REGISTRY.items():
+            model_tasks = getattr(model_cls, "task", [])
+            if isinstance(model_tasks, ModelTask):
+                model_tasks = [model_tasks]
+            if task in model_tasks:
                 models.append(name)
         return models

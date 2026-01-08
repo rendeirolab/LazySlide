@@ -3,7 +3,6 @@ from __future__ import annotations
 import textwrap
 import warnings
 from collections.abc import MutableMapping
-from enum import Enum
 from typing import TYPE_CHECKING, Dict, Iterator
 
 import pandas as pd
@@ -12,7 +11,7 @@ from .._utils import find_stack_level
 from ._repr import model_doc, model_registry_repr_html
 
 if TYPE_CHECKING:
-    from .base import ModelBase
+    from .base import ModelBase, ModelTask
 
 
 class ModelRegistry(MutableMapping):
@@ -109,17 +108,6 @@ class ModelRegistry(MutableMapping):
 
 # Global instance
 MODEL_REGISTRY = ModelRegistry()
-
-
-class ModelTask(Enum):
-    vision = "vision"
-    segmentation = "segmentation"
-    multimodal = "multimodal"
-    slide_encoder = "slide_encoder"
-    tile_prediction = "tile_prediction"
-    feature_prediction = "feature_prediction"
-    style_transfer = "style_transfer"
-    cv_feature = "cv_feature"
 
 
 def register(
