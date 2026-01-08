@@ -112,7 +112,7 @@ class DataSource:
         self.viewport = viewport
         self._sel = None
         
-        # CORRECT INTIALIZATION:
+        # CORRECT INITIALIZATION:
         # Creating the dictionary inside __init__ ensures every instance 
         # gets its own unique dictionary.
         self._sel_attrs = {}
