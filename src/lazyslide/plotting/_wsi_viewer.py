@@ -770,6 +770,7 @@ class DatashaderFilledPolygonRenderPlan(RenderPlan):
                 stacklevel=find_stack_level(),
             )
             return
+        import datashader as ds
         from datashader import transfer_functions as tf
 
         # Canvas dimensions and extent based on current image viewport
@@ -1277,6 +1278,7 @@ class WSIViewer:
                     "Falling back to matplotlib for the base view.",
                     stacklevel=find_stack_level(),
                 )
+            import datashader as ds
 
         if use_datashader:
             warnings.warn(
