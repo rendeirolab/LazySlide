@@ -12,7 +12,7 @@ from wsidata.io import add_features
 
 import lazyslide._api as _api
 from lazyslide._const import Key
-from lazyslide._utils import default_pbar, get_torch_device
+from lazyslide._utils import default_pbar
 from lazyslide.models import MODEL_REGISTRY, ImageModel, list_models
 
 
@@ -300,8 +300,9 @@ def feature_aggregation(
         >>> wsi.tables['resnet50_tiles'].uns['agg_tissue_id']
 
     """
-    if device is None:
-        device = get_torch_device()
+    device = _api.default_value("device", device)
+    amp = _api.default_value("amp", amp)
+    autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
 
     tiles_table = wsi.shapes[tile_key]
     tile_spec = wsi.tile_spec(tile_key)
