@@ -123,6 +123,7 @@ def register(
     paper_url: str = None,
     bib_key: str = None,
     param_size: int | str = None,
+    flops: int | str = None,
     encode_dim: int = None,
     vision_encoder: str = None,
     **information,
@@ -153,6 +154,7 @@ def register(
         cls.paper_url = paper_url
         cls.bib_key = bib_key
         cls.param_size = param_size
+        cls.flops = flops
         cls.encode_dim = encode_dim
         cls.vision_encoder = vision_encoder
 
