@@ -195,6 +195,8 @@ model = [
     "musk",
     "fairscale>=0.4.13",
     "sentencepiece>=0.2.1",
+    "diffusers>=0.36.0",
+    "accelerate>=1.12.0",
 ]
 
 

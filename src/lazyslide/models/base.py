@@ -23,6 +23,7 @@ class ModelTask(Enum):
     feature_prediction = "feature_prediction"
     style_transfer = "style_transfer"
     cv_feature = "cv_feature"
+    image_generation = "image_generation"
 
 
 class ModelBase(ABC):
@@ -238,4 +239,12 @@ class StyleTransferModel(ModelBase):
 
     @abstractmethod
     def get_channel_names(self):
+        raise NotImplementedError
+
+
+class ImageGenerationModel(ModelBase):
+    def generate(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def generate_conditionally(self, *args, **kwargs):
         raise NotImplementedError
