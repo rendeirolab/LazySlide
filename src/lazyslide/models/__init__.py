@@ -9,6 +9,7 @@ from . import (
     vision,
 )
 from ._model_registry import MODEL_REGISTRY, register
+from ._repr import MODEL_INPUT_ARGS_CONFIG
 from .base import (
     ImageModel,
     ImageTextModel,
@@ -28,6 +29,7 @@ __all__ = [
     "vision",
     "image_generation",
     "MODEL_REGISTRY",
+    "MODEL_INPUT_ARGS_CONFIG",
     "register",
     "ImageModel",
     "ImageTextModel",

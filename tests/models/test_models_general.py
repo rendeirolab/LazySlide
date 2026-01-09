@@ -4,69 +4,27 @@ import pytest
 import torch
 from huggingface_hub.errors import GatedRepoError
 
-from lazyslide.models import MODEL_REGISTRY, ModelTask
+from lazyslide.models import MODEL_INPUT_ARGS_CONFIG, MODEL_REGISTRY, ModelTask
 
 MODELS = list(MODEL_REGISTRY.keys())
 
-# Dictionary to store model input arguments for FLOPS estimation
-MODEL_INPUT_ARGS = {
-    "brightness": {"args": [torch.randn(1, 3, 224, 224)]},
-    "canny": {"args": [torch.randn(1, 3, 224, 224)]},
-    "cellpose": {"args": [torch.randn(1, 3, 224, 224)]},
-    "chief": {"args": [torch.randn(1, 3, 224, 224)]},
-    "chief-slide-encoder": {"args": [torch.randn(100, 768)]},
-    "conch": {"args": [torch.randn(1, 3, 224, 224)], "method": "encode_image"},
-    "conch_v1.5": {"args": [torch.randn(1, 3, 448, 448)], "method": "conch.forward"},
-    "contrast": {"args": [torch.randn(1, 3, 224, 224)]},
-    "ctranspath": {"args": [torch.randn(1, 3, 224, 224)]},
-    "entropy": {"args": [torch.randn(1, 3, 224, 224)]},
-    "focus": {"args": [torch.randn(1, 3, 256, 256)]},
-    "focuslitenn": {"args": [torch.randn(1, 3, 256, 256)]},
-    "gigapath": {"args": [torch.randn(1, 3, 224, 224)]},
-    "gigapath-slide-encoder": {"args": [torch.randn(100, 1536), torch.randn(100, 2)]},
-    "gigatime": {"args": [torch.randn(1, 3, 224, 224)]},
-    "gpfm": {"args": [torch.randn(1, 3, 224, 224)]},
-    "grandqc-artifact": {"args": [torch.randn(1, 3, 224, 224)]},
-    "grandqc-tissue": {"args": [torch.randn(1, 3, 224, 224)]},
-    "h-optimus-0": {"args": [torch.randn(1, 3, 224, 224)]},
-    "h-optimus-1": {"args": [torch.randn(1, 3, 224, 224)]},
-    "h0-mini": {"args": [torch.randn(1, 3, 224, 224)]},
-    "haralick_texture": {"args": [torch.randn(1, 3, 224, 224)]},
-    "hest-tissue-segmentation": {"args": [torch.randn(1, 3, 224, 224)]},
-    "hibou-b": {"args": [], "kwargs": {"pixel_values": torch.randn(1, 3, 224, 224)}},
-    "hibou-l": {"args": [], "kwargs": {"pixel_values": torch.randn(1, 3, 224, 224)}},
-    "histoplus": {"args": [torch.randn(1, 3, 840, 840)]},
-    "instanseg": {"args": [torch.randn(1, 3, 224, 224)]},
-    "madeleine": {"args": [torch.randn(1, 100, 512)]},
-    "medsiglip": {"args": [], "kwargs": {"pixel_values": torch.randn(1, 3, 448, 448)}, "method": "get_image_features"},
-    "midnight": {"args": [torch.randn(1, 3, 224, 224)]},
-    "musk": {"args": [torch.randn(1, 3, 384, 384)]},
-    "nulite": {"args": [torch.randn(1, 3, 224, 224)]},
-    "omiclip": {"args": [torch.randn(1, 3, 224, 224)]},
-    "path_orchestra": {"args": [torch.randn(1, 3, 224, 224)]},
-    "pathprofiler": {"args": [torch.randn(1, 3, 512, 512)]},
-    "pathprofilerqc": {"args": [torch.randn(1, 3, 224, 224)]},
-    "phikon": {"args": [torch.randn(1, 3, 224, 224)]},
-    "phikonv2": {"args": [torch.randn(1, 3, 224, 224)]},
-    "plip": {"args": [], "kwargs": {"pixel_values": torch.randn(1, 3, 224, 224)}, "method": "get_image_features"},
-    "prism": {"args": [torch.randn(1, 100, 768)], "method": "model.slide_representations"},
-    "rosie": {"args": [torch.randn(1, 3, 224, 224)]},
-    "sam": {"args": [torch.randn(1, 3, 1024, 1024)]},
-    "saturation": {"args": [torch.randn(1, 3, 224, 224)]},
-    "sharpness": {"args": [torch.randn(1, 3, 224, 224)]},
-    "sobel": {"args": [torch.randn(1, 3, 224, 224)]},
-    "spider-breast": {"args": [torch.randn(1, 3, 224, 224)]},
-    "spider-colorectal": {"args": [torch.randn(1, 3, 224, 224)]},
-    "spider-skin": {"args": [torch.randn(1, 3, 224, 224)]},
-    "spider-thorax": {"args": [torch.randn(1, 3, 224, 224)]},
-    "split_rgb": {"args": [torch.randn(1, 3, 224, 224)]},
-    "titan": {"args": [torch.randn(1, 3, 448, 448)], "method": "conch.forward"},
-    "uni": {"args": [torch.randn(1, 3, 224, 224)]},
-    "uni2": {"args": [torch.randn(1, 3, 224, 224)]},
-    "virchow": {"args": [torch.randn(1, 3, 224, 224)]},
-    "virchow2": {"args": [torch.randn(1, 3, 224, 224)]},
-    "cytosyn": {"args": [], "method": "generate"},
-}
+
+def _build_model_input_args():
+    """Convert shape-based config to tensor-based args for testing."""
+    result = {}
+    for model_name, config in MODEL_INPUT_ARGS_CONFIG.items():
+        test_config = {}
+        if "args" in config:
+            test_config["args"] = [torch.randn(*shape) for shape in config["args"]]
+        if "kwargs" in config:
+            test_config["kwargs"] = {k: torch.randn(*v) for k, v in config["kwargs"].items()}
+        if "method" in config:
+            test_config["method"] = config["method"]
+        result[model_name] = test_config
+    return result
+
+
+MODEL_INPUT_ARGS = _build_model_input_args()
 
 
 @pytest.mark.large_runner
