@@ -65,6 +65,7 @@ MODEL_INPUT_ARGS = {
     "uni2": {"args": [torch.randn(1, 3, 224, 224)]},
     "virchow": {"args": [torch.randn(1, 3, 224, 224)]},
     "virchow2": {"args": [torch.randn(1, 3, 224, 224)]},
+    "cytosyn": {"args": [], "method": "generate"},
 }
 
 
@@ -96,10 +97,11 @@ def test_model_init(model_name):
         # Test estimation of param size
         _ = model.estimate_param_size()
         # Test FLOPS estimation if input arguments are available
-        input_config = MODEL_INPUT_ARGS[model_name]
-        method = input_config.get("method", "forward")
-        kwargs = input_config.get("kwargs", {})
-        _ = model.estimate_flops(method, *input_config["args"], **kwargs)
+        if model_name in MODEL_INPUT_ARGS:
+            input_config = MODEL_INPUT_ARGS[model_name]
+            method = input_config.get("method", "forward")
+            kwargs = input_config.get("kwargs", {})
+            _ = model.estimate_flops(method, *input_config["args"], **kwargs)
 
     # Test the to device function
     model_on_device = model.to("cpu")
