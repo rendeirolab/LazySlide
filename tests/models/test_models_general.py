@@ -38,7 +38,11 @@ MODEL_INPUT_ARGS = {
     "histoplus": {"args": [torch.randn(1, 3, 840, 840)]},
     "instanseg": {"args": [torch.randn(1, 3, 224, 224)]},
     "madeleine": {"args": [torch.randn(1, 100, 512)]},
-    "medsiglip": {"args": [], "kwargs": {"pixel_values": torch.randn(1, 3, 448, 448)}, "method": "get_image_features"},
+    "medsiglip": {
+        "args": [],
+        "kwargs": {"pixel_values": torch.randn(1, 3, 448, 448)},
+        "method": "get_image_features",
+    },
     "midnight": {"args": [torch.randn(1, 3, 224, 224)]},
     "musk": {"args": [torch.randn(1, 3, 384, 384)]},
     "nulite": {"args": [torch.randn(1, 3, 224, 224)]},
@@ -48,8 +52,15 @@ MODEL_INPUT_ARGS = {
     "pathprofilerqc": {"args": [torch.randn(1, 3, 224, 224)]},
     "phikon": {"args": [torch.randn(1, 3, 224, 224)]},
     "phikonv2": {"args": [torch.randn(1, 3, 224, 224)]},
-    "plip": {"args": [], "kwargs": {"pixel_values": torch.randn(1, 3, 224, 224)}, "method": "get_image_features"},
-    "prism": {"args": [torch.randn(1, 100, 768)], "method": "model.slide_representations"},
+    "plip": {
+        "args": [],
+        "kwargs": {"pixel_values": torch.randn(1, 3, 224, 224)},
+        "method": "get_image_features",
+    },
+    "prism": {
+        "args": [torch.randn(1, 100, 768)],
+        "method": "model.slide_representations",
+    },
     "rosie": {"args": [torch.randn(1, 3, 224, 224)]},
     "sam": {"args": [torch.randn(1, 3, 1024, 1024)]},
     "saturation": {"args": [torch.randn(1, 3, 224, 224)]},
@@ -101,7 +112,7 @@ def test_model_init(model_name):
             input_config = MODEL_INPUT_ARGS[model_name]
             method = input_config.get("method", "forward")
             kwargs = input_config.get("kwargs", {})
-            _ = model.estimate_flops(method, *input_config["args"], **kwargs)
+            _ = model.estimate_flops(*input_config["args"], method=method, **kwargs)
 
     # Test the to device function
     model_on_device = model.to("cpu")

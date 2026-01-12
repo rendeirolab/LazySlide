@@ -50,10 +50,12 @@ class ModelBase(ABC):
                 return None
         return sum(p.numel() for p in model.parameters())
 
-    def _resolve_method(self, model: torch.nn.Module, method: str) -> tuple[Any, torch.nn.Module] | None:
+    def _resolve_method(
+        self, model: torch.nn.Module, method: str
+    ) -> tuple[Any, torch.nn.Module] | None:
         """Resolve method path and return (callable, target_model) for FLOPS counting."""
-        if '.' in method:
-            parts = method.split('.')
+        if "." in method:
+            parts = method.split(".")
             obj, target = model, model
             for part in parts[:-1]:
                 obj = getattr(obj, part, None)
@@ -63,11 +65,13 @@ class ModelBase(ABC):
                     target = obj
             method_obj = getattr(obj, parts[-1], None)
             return (method_obj, target) if method_obj else None
-        
+
         method_obj = getattr(model, method, None) or getattr(self, method, None)
         return (method_obj, model) if method_obj else None
 
-    def estimate_flops(self, method: str = "forward", *args: Any, **kwargs: Any) -> int | None:
+    def estimate_flops(
+        self, *args: Any, method: str = "forward", **kwargs: Any
+    ) -> int | None:
         """Count the number of flops in a model."""
         model = self.model
         if not isinstance(model, torch.nn.Module):
@@ -77,11 +81,11 @@ class ModelBase(ABC):
                 return None
         if isinstance(model, torch.nn.DataParallel):
             model = model.module
-        
+
         result = self._resolve_method(model, method)
         if result is None:
             return None
-        
+
         method_obj, target = result
         is_training = model.training
         model.eval()
