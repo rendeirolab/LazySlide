@@ -21,6 +21,7 @@ from ..base import ImageTextModel, ModelTask
     bib_key="Lu2024-nu",
     param_size="395.2M",
     encode_dim=512,
+    flops="35B",
 )
 class CONCH(ImageTextModel):
     def __init__(self, model_path=None, token=None):

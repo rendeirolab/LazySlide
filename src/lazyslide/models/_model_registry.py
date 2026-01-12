@@ -125,6 +125,7 @@ def register(
     param_size: int | str = None,
     encode_dim: int = None,
     vision_encoder: str = None,
+    flops: int | str = None,
     **information,
 ):
     """Register a model class with additional information."""
@@ -155,6 +156,7 @@ def register(
         cls.param_size = param_size
         cls.encode_dim = encode_dim
         cls.vision_encoder = vision_encoder
+        cls.flops = flops
 
         # Set any additional information
         for info_key, info_value in information.items():
