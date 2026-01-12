@@ -14,6 +14,7 @@ from ..base import ModelTask, TilePredictionModel
     paper_url="https://doi.org/10.1038/s41598-022-08351-5",
     bib_key="Haghighat2022-sy",
     param_size="11.2M",
+    flops="3.63G",
 )
 class PathProfilerQC(TilePredictionModel):
     """

@@ -18,6 +18,7 @@ from ..base import ModelTask, StyleTransferModel
     paper_url="https://doi.org/10.1016/j.cell.2025.11.016",
     bib_key="Valanarasu2025-md",
     param_size="9M",
+    flops="52.88G",
 )
 class GigaTIME(StyleTransferModel):
     def __init__(self, model_path: str = None, token: str = None):

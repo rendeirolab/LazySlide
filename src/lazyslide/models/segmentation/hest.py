@@ -12,6 +12,7 @@ from ..base import ModelTask, SegmentationModel
     commercial=False,
     hf_url="https://huggingface.co/MahmoodLab/hest-tissue-seg",
     param_size="39.6M",
+    flops="62.61G",
 )
 class HESTTissueSegmentation(SegmentationModel):
     """

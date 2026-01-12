@@ -52,6 +52,7 @@ shared_info = dict(
 @register(
     key="spider-breast",
     description="Tile classification for breast",
+    flops="164.85G",
     **shared_info,
 )
 class SpiderBreast(Spider):
@@ -86,6 +87,7 @@ class SpiderBreast(Spider):
 @register(
     key="spider-colorectal",
     description="Tile classification for colorectal",
+    flops="164.85G",
     **shared_info,
 )
 class SpiderColorectal(Spider):
@@ -115,6 +117,7 @@ class SpiderColorectal(Spider):
 @register(
     key="spider-skin",
     description="Tile classification for skin",
+    flops="164.85G",
     **shared_info,
 )
 class SpiderSkin(Spider):
@@ -155,6 +158,7 @@ class SpiderSkin(Spider):
 @register(
     key="spider-thorax",
     description="Tile classification for thorax",
+    flops="164.85G",
     **shared_info,
 )
 class SpiderThorax(Spider):

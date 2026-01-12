@@ -17,6 +17,7 @@ from .._model_registry import register
     bib_key="Vorontsov2024-di",
     param_size="631.2M",
     encode_dim=2560,
+    flops="323.93G",
 )
 class Virchow(TimmModel):
     _hf_hub_id = "paige-ai/Virchow"
@@ -54,6 +55,7 @@ class Virchow(TimmModel):
     param_size="631.2M",
     license="CC-BY-NC-ND-4.0",
     encode_dim=2560,
+    flops="328.97G",
 )
 class Virchow2(Virchow):
     _hf_hub_id = "paige-ai/Virchow2"

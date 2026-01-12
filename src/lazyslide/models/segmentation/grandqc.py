@@ -17,6 +17,7 @@ from .._model_registry import register
     paper_url="https://doi.org/10.1038/s41467-024-54769-y",
     bib_key="Weng2024-jf",
     param_size="6.3M",
+    flops="4.63G",
 )
 class GrandQCArtifact(SegmentationModel):
     """
@@ -96,6 +97,7 @@ class GrandQCArtifact(SegmentationModel):
     paper_url="https://doi.org/10.1038/s41467-024-54769-y",
     bib_key="Weng2024-jf",
     param_size="6.6M",
+    flops="8.46G",
 )
 class GrandQCTissue(
     SegmentationModel,

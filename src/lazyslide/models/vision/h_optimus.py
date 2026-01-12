@@ -74,6 +74,7 @@ class HOptimus0(
     bib_key="Bioptimus2025-lj",
     param_size="1.13B",
     encode_dim=1536,
+    flops="591.61G",
 )
 class HOptimus1(TimmModel):
     def __init__(self, model_path=None, token=None):
@@ -102,6 +103,7 @@ class HOptimus1(TimmModel):
     bib_key="Filiot2025-bn",
     param_size="85.7M",
     encode_dim=1536,
+    flops="44.57G",
 )
 class H0Mini(TimmModel):
     def __init__(self, model_path=None, token=None):

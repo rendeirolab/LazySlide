@@ -16,6 +16,7 @@ from .._model_registry import register
     bib_key="Wang2022-rk",
     param_size="27.5M",
     encode_dim=768,
+    flops="8.99G",
 )
 class CTransPath(ImageModel):
     def __init__(self, model_path=None, token=None):

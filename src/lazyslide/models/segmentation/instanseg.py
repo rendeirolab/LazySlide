@@ -38,6 +38,7 @@ class PercentileNormalize:
     paper_url="https://doi.org/10.48550/arXiv.2408.15954",
     bib_key="Goldsborough2024-oc",
     param_size="3.8M",
+    flops="27.55G",
 )
 class Instanseg(
     SegmentationModel,

@@ -19,6 +19,7 @@ from .._model_registry import register
     bib_key="Ma2025-wm",
     param_size="303M",
     encode_dim=1024,
+    flops="155.53G",
 )
 class GPFM(ImageModel):
     def __init__(self, model_path=None, token=None):

@@ -21,6 +21,7 @@ from .postprocess import np_hv_postprocess
     paper_url="https://doi.org/10.48550/arXiv.2408.01797",
     bib_key="Tommasino2024-tg",
     param_size="47.9M",
+    flops="48.10G",
 )
 class NuLite(SegmentationModel):
     """
