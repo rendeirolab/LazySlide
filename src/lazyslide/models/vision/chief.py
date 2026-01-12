@@ -49,6 +49,7 @@ class CHIEF(ImageModel):
     bib_key="Wang2024-jb",
     param_size="1.2M",
     vision_encoder="chief",
+    flops="131.28M",
 )
 class CHIEFSlideEncoder(SlideEncoderModel):
     def __init__(self, model_path=None, token=None):

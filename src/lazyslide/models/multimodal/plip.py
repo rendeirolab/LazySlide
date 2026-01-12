@@ -21,6 +21,7 @@ from ..base import ImageTextModel, ModelTask
     bib_key="Huang2023-wi",
     param_size="87.8M",
     encode_dim=512,
+    flops="8.73G",
 )
 class PLIP(ImageTextModel):
     def __init__(self, model_path=None, token=None):

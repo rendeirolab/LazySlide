@@ -18,6 +18,7 @@ from .._model_registry import register
     bib_key="Jaume2024-tq",
     param_size="3.2M",
     vision_encoder="conch",
+    flops="421.63M",
 )
 class MadeleineSlideEncoder(SlideEncoderModel):
     def __init__(self, model_path=None, token=None):

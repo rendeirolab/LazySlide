@@ -361,6 +361,7 @@ class HistoPLUSModel(nn.Module):
     paper_url="https://doi.org/10.48550/arXiv.2508.09926",
     bib_key="Adjadj2025-hn",
     param_size="47.9M",
+    flops="3.81T",
 )
 class HistoPLUS(SegmentationModel):
     """

@@ -18,6 +18,7 @@ from ..base import ImageTextModel, ModelTask
     bib_key="Xiang2025-fd",
     param_size="675.2M",
     encode_dim=1024,
+    flops="382.13G",
 )
 class MUSK(
     ImageTextModel,
