@@ -19,6 +19,7 @@ from ..base import ModelTask, StyleTransferModel
     paper_url="https://doi.org/10.1038/s41467-025-62346-0",
     bib_key="Wu2025-kv",
     param_size="50M",
+    flops="17.37G",
 )
 class ROSIE(StyleTransferModel):
     def __init__(self, model_path: str = None, token: str = None):

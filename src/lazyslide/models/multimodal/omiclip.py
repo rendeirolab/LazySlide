@@ -21,6 +21,7 @@ from ..base import ImageTextModel, ModelTask
     paper_url="https://doi.org/10.1038/s41592-025-02707-1",
     bib_key="Chen2025-ok",
     param_size="638.5M",
+    flops="156.94G",
 )
 class OmiCLIP(ImageTextModel):
     def __init__(self, model_path=None, token=None):

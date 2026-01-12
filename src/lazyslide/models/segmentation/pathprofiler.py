@@ -34,6 +34,7 @@ class CLAHE:
     paper_url="https://doi.org/10.1038/s41598-022-08351-5",
     bib_key="Haghighat2022-sy",
     param_size="50.3M",
+    flops="44.94G",
 )
 class PathProfilerTissueSegmentation(SegmentationModel):
     """

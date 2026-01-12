@@ -83,6 +83,8 @@ def model_doc(model):
         skeleton += f":bdg-info-line:`Params: {model.param_size}` "
     if model.encode_dim:
         skeleton += f":bdg-info-line:`{model.encode_dim} features` "
+    if model.flops is not None:
+        skeleton += f":bdg-info-line:`FLOPs: {model.flops}` "
     if model.license is not None:
         if isinstance(model.license, list):
             license_str = "; ".join(model.license)

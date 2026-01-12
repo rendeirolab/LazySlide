@@ -15,6 +15,7 @@ from ..base import ModelTask, TilePredictionModel
     paper_url="https://doi.org/10.48550/arXiv.2007.06565",
     bib_key="Wang2020-ku",
     param_size="299",
+    flops="1.53M",
 )
 class FocusLiteNN(TilePredictionModel):
     def __init__(self, model_path=None, token=None):

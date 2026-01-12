@@ -12,6 +12,7 @@ from ..base import ModelTask, SegmentationModel
     description="SAM model for image segmentation",
     github_url="https://github.com/facebookresearch/segment-anything",
     paper_url="https://arxiv.org/abs/2304.02643",
+    flops="975.67G",
 )
 class SAM(SegmentationModel):
     SAM_VARIENTS = [

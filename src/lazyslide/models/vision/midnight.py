@@ -19,6 +19,7 @@ from .._model_registry import register
     bib_key="Karasikov2025-wp",
     param_size="1.14B",
     encode_dim=3072,
+    flops="582.55G",
 )
 class Midnight(ImageModel):
     def __init__(self, model_path=None, token=None):

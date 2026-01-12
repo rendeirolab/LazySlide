@@ -73,6 +73,7 @@ shared_info = dict(
     **shared_info,
     param_size="85.7M",
     encode_dim=768,
+    flops="47.08G",
 )
 class HibouB(Hibou):
     def __init__(self, token=None, model_path=None):
@@ -84,6 +85,7 @@ class HibouB(Hibou):
     **shared_info,
     param_size="303.7M",
     encode_dim=1024,
+    flops="164.85G",
 )
 class HibouL(Hibou):
     def __init__(self, token=None, model_path=None):
