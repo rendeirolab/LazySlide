@@ -20,6 +20,7 @@ from .._model_registry import register
     bib_key="Filiot2023-vg",
     param_size="85.8M",
     encode_dim=768,
+    flops="33.70G",
 )
 class Phikon(ImageModel):
     def __init__(self, model_path=None, token=None):
@@ -58,6 +59,7 @@ class Phikon(ImageModel):
     bib_key="Filiot2024-at",
     param_size="303.4M",
     encode_dim=1024,
+    flops="119.29G",
 )
 class PhikonV2(ImageModel):
     def __init__(self, model_path=None, token=None):
