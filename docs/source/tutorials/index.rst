@@ -26,3 +26,4 @@ please read `wsidata tutorials <https://wsidata.readthedocs.io/en/stable/intro/>
    survival_prediction
    build_tile_model
    virtual_staining
+   image_generation
