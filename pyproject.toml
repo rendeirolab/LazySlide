@@ -119,6 +119,7 @@ fmt = "ruff format docs/source src/lazyslide tests"
 
 [tool.uv]
 default-groups = ["dev", "tests", "docs", "tutorials", "model"]
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true }}]
 
 [dependency-groups]
 dev = [
