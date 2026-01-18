@@ -73,7 +73,7 @@ Whether you're a novice in digital pathology or an expert computational biologis
       Available models in LazySlide
 
    .. grid-item-card:: API Reference
-      :link: tutorials/index
+      :link: api/index
       :link-type: doc
 
       API reference in LazySlide
