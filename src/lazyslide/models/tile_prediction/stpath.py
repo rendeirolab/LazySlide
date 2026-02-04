@@ -917,23 +917,8 @@ def MLPWrapper(
 
 
 class InputEncoder(nn.Module):
-    def __init__(self, config=None):
+    def __init__(self, config):
         super().__init__()
-
-        # set default config like in the original repo that can be used with the
-        # pretrained model
-        if config is None:
-            config = {
-                "n_genes": 38984,
-                "d_input": 1536,
-                "d_model": 512,
-                "n_layers": 4,
-                "n_heads": 4,
-                "dropout": 0.1,
-                "attn_dropout": 0.1,
-                "act": "gelu",
-                "mlp_ratio": 2.0,
-            }
 
         self.image_embed = nn.Linear(config["d_input"], config["d_model"])
         self.gene_embed = nn.Linear(config["n_genes"], config["d_model"], bias=False)
@@ -956,23 +941,8 @@ class InputEncoder(nn.Module):
 
 
 class SpatialTransformer(nn.Module):
-    def __init__(self, config=None):
+    def __init__(self, config):
         super(SpatialTransformer, self).__init__()
-
-        # set default config like in the original repo that can be used with the
-        # pretrained model
-        if config is None:
-            config = {
-                "n_genes": 38984,
-                "d_input": 1536,
-                "d_model": 512,
-                "n_layers": 4,
-                "n_heads": 4,
-                "dropout": 0.1,
-                "attn_dropout": 0.1,
-                "act": "gelu",
-                "mlp_ratio": 2.0,
-            }
 
         self.blks = nn.ModuleList(
             [
@@ -1002,11 +972,57 @@ class SpatialTransformer(nn.Module):
 
 
 class STFM(nn.Module):
-    def __init__(self, config=None) -> None:
+    def __init__(self, config) -> None:
         super(STFM, self).__init__()
 
         self.model = SpatialTransformer(config)
         self.input_encoder = InputEncoder(config)
+
+        self.gene_exp_head = nn.Sequential(
+            nn.LayerNorm(config["d_model"]),
+            nn.Linear(config["d_model"], config["n_genes"]),
+        )
+
+    def inference(
+        self,
+        img_tokens: torch.Tensor,
+        coords: torch.Tensor,
+        ge_tokens: torch.Tensor,
+        batch_idx: torch.Tensor,
+        tech_tokens: torch.Tensor | None = None,
+        organ_tokens: torch.Tensor | None = None,
+    ):
+        x = self.input_encoder(
+            img_tokens=img_tokens,
+            ge_tokens=ge_tokens,
+            tech_tokens=tech_tokens,
+            organ_tokens=organ_tokens,
+        )
+        return self.model(x, coords, batch_idx)
+
+    # def prediction_head(
+    def forward(
+        self,
+        img_tokens: torch.Tensor,
+        coords: torch.Tensor,
+        ge_tokens: torch.Tensor,
+        batch_idx: torch.Tensor,
+        tech_tokens: torch.Tensor | None = None,
+        organ_tokens: torch.Tensor | None = None,
+        return_all=False,
+    ):
+        x = self.inference(
+            img_tokens=img_tokens,
+            coords=coords,
+            batch_idx=batch_idx,
+            ge_tokens=ge_tokens,
+            tech_tokens=tech_tokens,
+            organ_tokens=organ_tokens,
+        )
+
+        if return_all:
+            return self.gene_exp_head(x), x
+        return self.gene_exp_head(x)
 
 
 # @register(
@@ -1030,14 +1046,49 @@ class STPath(TilePredictionModel):
                 "tlhuang/STPath",
                 "stfm.pth",
             )
-        self.stfm = STFM()
-        self.model = self.stfm.model
+
+        if gene_voc_path is None:
+            gene_voc_path = (
+                "/Users/simon/rep/lbi/reindero/STPath/utils_data/symbol2ensembl.json"
+            )
+
+        config = {
+            "d_input": 1536,
+            "d_model": 512,
+            "n_layers": 4,
+            "n_heads": 4,
+            "dropout": 0.1,
+            "attn_dropout": 0.1,
+            "act": "gelu",
+            "mlp_ratio": 2.0,
+        }
+
+        self.tokenizer = TokenizerTools(
+            ge_tokenizer=GeneExpTokenizer(gene_voc_path),
+            image_tokenizer=ImageTokenizer(feature_dim=1536),
+            tech_tokenizer=IDTokenizer(id_type="tech"),
+            specie_tokenizer=IDTokenizer(id_type="specie"),
+            organ_tokenizer=IDTokenizer(id_type="organ"),
+            cancer_anno_tokenizer=AnnotationTokenizer(id_type="disease"),
+            domain_anno_tokenizer=AnnotationTokenizer(id_type="domain"),
+        )
+
+        config["n_genes"] = self.tokenizer.ge_tokenizer.n_tokens
+        config["n_tech"] = self.tokenizer.tech_tokenizer.n_tokens
+        config["n_species"] = self.tokenizer.specie_tokenizer.n_tokens
+        config["n_organs"] = self.tokenizer.organ_tokenizer.n_tokens
+        config["n_cancer_annos"] = self.tokenizer.cancer_anno_tokenizer.n_tokens
+        config["n_domain_annos"] = self.tokenizer.domain_anno_tokenizer.n_tokens
+
+        print(config)
+
+        self.stfm = STFM(config=config)
         self.stfm.load_state_dict(
             torch.load(model_path, map_location="cpu"), strict=True
         )
 
         print(f"Model loaded from {model_path}")
-        self.model.eval()
+        self.stfm.eval()
 
     def predict(self, image):
         return None
