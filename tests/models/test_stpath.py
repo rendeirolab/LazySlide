@@ -120,5 +120,46 @@ out = stfm(embeddings, coords, masked_ge_token, batch_idx, tech_token, organ_tok
 
 print(out.shape)
 
-# exported_program: ExportedProgram = export(stfm)
-# print(exported_program)
+
+def find_jit_culprit(module, name="root"):
+    try:
+        # Try to script and save the current module
+        scripted = torch.jit.script(module)
+        scripted.save(f"temp_{name}.pt")
+    except RuntimeError as e:
+        if "strides() called on an undefined Tensor" in str(e):
+            print(f"CULPRIT FOUND: {name} ({type(module).__name__})")
+            # Recurse into children to find the specific leaf node
+            for child_name, child_module in module.named_children():
+                find_jit_culprit(child_module, f"{name}.{child_name}")
+        else:
+            print(f"Module {name} failed with a different error: {e}")
+    except Exception as e:
+        print(f"Module {name} failed: {e}")
+
+
+# Run it on your model
+# find_jit_culprit(stfm)
+
+
+# 1. Convert the module to TorchScript via scripting
+scripted_model = torch.jit.script(stfm, example_inputs=[args])
+# with open("/Users/simon/Desktop/scripted_model", "w") as f:
+# f.write(scripted_model.code)
+
+# print(scripted_model.get_debug_state())
+
+# Print the graph before saving
+print(scripted_model.graph)
+
+# Specifically look for 'strides' or 'UndefinedTensor' in the IR
+# You can also use:
+print(scripted_model.code)
+#
+# # 2. Save the scripted model (includes weights)
+scripted_model.save("stpath_scripted.pt")
+#
+# # 3. Later, load it as requested
+loaded_jit_model = torch.jit.load("stpath_scripted.pt")
+
+print(loaded_jit_model.code)

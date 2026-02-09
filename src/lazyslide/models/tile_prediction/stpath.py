@@ -5,8 +5,7 @@ import numpy as np
 import scanpy as sc
 import torch
 import torch.nn.functional as F
-from einops import rearrange
-from torch import nn
+from torch import Tensor, nn
 
 from ..base import TilePredictionModel
 
@@ -585,13 +584,13 @@ class AnnotationTokenizer(TokenizerBase):
 
 
 class TokenizerTools:
-    ge_tokenizer: GeneExpTokenizer | None = None
-    image_tokenizer: ImageTokenizer | None = None
-    tech_tokenizer: IDTokenizer | None = None
-    specie_tokenizer: IDTokenizer | None = None
-    organ_tokenizer: IDTokenizer | None = None
-    cancer_anno_tokenizer: AnnotationTokenizer | None = None
-    domain_anno_tokenizer: AnnotationTokenizer | None = None
+    ge_tokenizer: GeneExpTokenizer  # | None = None
+    image_tokenizer: ImageTokenizer  # | None = None
+    tech_tokenizer: IDTokenizer  # | None = None
+    specie_tokenizer: IDTokenizer  # | None = None
+    organ_tokenizer: IDTokenizer  # | None = None
+    cancer_anno_tokenizer: AnnotationTokenizer  # | None = None
+    domain_anno_tokenizer: AnnotationTokenizer  # | None = None
 
     def __init__(
         self,
@@ -602,7 +601,7 @@ class TokenizerTools:
         organ_tokenizer,
         cancer_anno_tokenizer,
         domain_anno_tokenizer,
-        **kwargs,
+        # **kwargs,
     ):
         self.ge_tokenizer = ge_tokenizer
         self.image_tokenizer = image_tokenizer
@@ -612,8 +611,8 @@ class TokenizerTools:
         self.cancer_anno_tokenizer = cancer_anno_tokenizer
         self.domain_anno_tokenizer = domain_anno_tokenizer
 
-        for k, v in kwargs.items():
-            setattr(self, k, v)
+        # for k, v in kwargs.items():
+        # setattr(self, k, v)
 
 
 class TransformerBlock(nn.Module):
@@ -641,7 +640,7 @@ class TransformerBlock(nn.Module):
             norm_layer=nn.LayerNorm,
         )
 
-    def forward(self, token_embs, coords, padding_mask=None):
+    def forward(self, token_embs, coords, padding_mask):
         context_token_embs = self.attn(token_embs, coords, padding_mask)
         token_embs = token_embs + context_token_embs
 
@@ -670,10 +669,12 @@ class FrameAveraging(nn.Module):
 
         accum = torch.broadcast_tensors(*accum)
         operations = torch.stack(accum, dim=-1)
-        operations = rearrange(operations, "... d -> (...) d")
+        # operations = rearrange(operations, "... d -> (...) d")
+        # Standard PyTorch instead of rearrange in the line above
+        operations = operations.flatten(0, -2)
         return operations
 
-    def create_frame(self, X, mask=None):
+    def create_frame(self, X, mask):
         assert X.shape[-1] == self.dim, (
             f"expected points of dimension {self.dim}, but received {X.shape[-1]}"
         )
@@ -711,6 +712,32 @@ class FrameAveraging(nn.Module):
         return X * mask.unsqueeze(-1)
 
 
+@torch.jit.script
+def transform_qkv(
+    q: Tensor, k: Tensor, v: Tensor, n_heads: int
+) -> tuple[Tensor, Tensor, Tensor]:
+    """
+    Transforms Q, K, V tensors from [B, N, (H*D)] to [B, H, N, D].
+    Equivalent to einops.rearrange(x, "b n (h d) -> b h n d", h=n_heads).
+    """
+    # Get dimensions
+    # B: Batch, N: Sequence Length, Total_Dim: h * d
+    b, n, total_dim = q.shape
+    d = total_dim // n_heads
+
+    # Reshape to [B, N, H, D]
+    q = q.view(b, n, n_heads, d)
+    k = k.view(b, n, n_heads, d)
+    v = v.view(b, n, n_heads, d)
+
+    # Permute to [B, H, N, D]
+    q = q.transpose(1, 2)
+    k = k.transpose(1, 2)
+    v = v.transpose(1, 2)
+
+    return q, k, v
+
+
 class Attention(FrameAveraging):
     def __init__(
         self,
@@ -739,28 +766,53 @@ class Attention(FrameAveraging):
             nn.Linear(self.dim + 1, self.n_heads, bias=False),
         )
 
-    def forward(self, x, coords, pad_mask: torch.Tensor = None):
+    def forward(self, x, coords, pad_mask: torch.Tensor):  # = None):
         B, N, C = x.shape
         q, k, v = self.layernorm_qkv(x).chunk(3, dim=-1)
-        q, k, v = map(
-            lambda x: rearrange(x, "b n (h d) -> b h n d", h=self.n_heads), (q, k, v)
-        )
+        # q, k, v = map(
+        #     lambda x: rearrange(x, "b n (h d) -> b h n d", h=self.n_heads), (q, k, v)
+        # )
+        # replaced the two lines above with the next line and wrote the function transform_qkv so jit can compile the code
+        q, k, v = transform_qkv(q, k, v, self.n_heads)
 
         q = q * self.scale
         attn = q @ k.transpose(-2, -1)
 
         """build pairwise representation with FA"""
+        # radial_coords = coords.unsqueeze(dim=2) - coords.unsqueeze(
+        # dim=1
+        # )  # [B, N, N, 2]
+        # radial_coord_norm = radial_coords.norm(dim=-1).reshape(
+        # B * N, N, 1
+        # )  # [B*N, N, 1]
+
+        # changed the statements above to the two following statements for torch jit compatibility
+        # 1. Compute pairwise differences
         radial_coords = coords.unsqueeze(dim=2) - coords.unsqueeze(
             dim=1
         )  # [B, N, N, 2]
-        radial_coord_norm = radial_coords.norm(dim=-1).reshape(
-            B * N, N, 1
-        )  # [B*N, N, 1]
 
-        radial_coords = rearrange(radial_coords, "b n m d -> (b n) m d")
-        neighbor_masks = (
-            ~rearrange(pad_mask, "b n m -> (b n) m") if pad_mask is not None else None
+        # 2. Compute norm using torch.linalg.norm
+        # ord=2 is the default (Frobenius norm for matrices / L2 norm for vectors)
+        radial_coord_norm = torch.linalg.norm(radial_coords, ord=2, dim=-1).reshape(
+            B * N, N, 1
         )
+
+        # radial_coords = rearrange(radial_coords, "b n m d -> (b n) m d")
+        # Standard PyTorch
+        B, N, M, D = radial_coords.shape
+        radial_coords = radial_coords.reshape(B * N, M, D)
+        # neighbor_masks = (
+        # ~rearrange(pad_mask, "b n m -> (b n) m") if pad_mask is not None else None
+
+        # )
+        # Standard PyTorch
+        if pad_mask is not None:
+            B, N, M = pad_mask.shape
+            neighbor_masks = ~(pad_mask.reshape(B * N, M))
+        else:
+            neighbor_masks = None
+
         frame_feats, _, _ = self.create_frame(
             radial_coords, neighbor_masks
         )  # [B*N*4, N, 2]
@@ -776,7 +828,15 @@ class Attention(FrameAveraging):
         spatial_bias = self.edge_bias(
             torch.cat([frame_feats, radial_coord_norm], dim=-1)
         ).mean(dim=1)  # [B * N, N, n_heads]
-        spatial_bias = rearrange(spatial_bias, "(b n) m h -> b h n m", b=B, n=N)
+        # spatial_bias = rearrange(spatial_bias, "(b n) m h -> b h n m", b=B, n=N)
+        # Standard PyTorch instead of the line above for jit compatibility
+        # Input shape: [B*N, M, H]
+        # Step 1: Unflatten (B*N) -> (B, N)
+        H = spatial_bias.shape[-1]
+        spatial_bias = spatial_bias.view(B, N, M, H)
+
+        # Step 2: Reorder (B, N, M, H) -> (B, H, N, M)
+        spatial_bias = spatial_bias.permute(0, 3, 1, 2)
 
         """add spatial bias"""
         attn = attn + spatial_bias
@@ -919,7 +979,6 @@ def MLPWrapper(
 class InputEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
-
         self.image_embed = nn.Linear(config["d_input"], config["d_model"])
         self.gene_embed = nn.Linear(config["n_genes"], config["d_model"], bias=False)
         self.tech_embed = nn.Embedding(config["n_tech"], config["d_model"])
@@ -927,17 +986,29 @@ class InputEncoder(nn.Module):
 
     def forward(
         self,
-        img_tokens,
-        ge_tokens,
-        tech_tokens,
-        organ_tokens,
-    ):
+        img_tokens: torch.Tensor,
+        ge_tokens: torch.Tensor,
+        tech_tokens: torch.Tensor,
+        organ_tokens: torch.Tensor,
+    ) -> torch.Tensor:
+        # Mandatory embeddings
         img_embed = self.image_embed(img_tokens)
         ge_embed = self.gene_embed(ge_tokens)
-        tech_embed = self.tech_embed(tech_tokens)
-        organ_embed = self.organ_embed(organ_tokens)
 
-        return img_embed + ge_embed + tech_embed + organ_embed
+        # Accumulate base embeddings
+        x = img_embed + ge_embed
+
+        # Conditional embedding for tech_tokens
+        if tech_tokens is not None:
+            # Inside this block, tech_tokens is refined from Optional[Tensor] to Tensor
+            x = x + self.tech_embed(tech_tokens)
+
+        # Conditional embedding for organ_tokens
+        if organ_tokens is not None:
+            # Inside this block, organ_tokens is refined from Optional[Tensor] to Tensor
+            x = x + self.organ_embed(organ_tokens)
+
+        return x
 
 
 class SpatialTransformer(nn.Module):
@@ -958,7 +1029,7 @@ class SpatialTransformer(nn.Module):
             ]
         )
 
-    def forward(self, features, coords, batch_idx, **kwargs):
+    def forward(self, features, coords, batch_idx):  # **kwargs):
         # apply the same mask to all cells in the same batch
         batch_mask = ~(batch_idx.unsqueeze(0) == batch_idx.unsqueeze(1))
 
@@ -983,14 +1054,15 @@ class STFM(nn.Module):
             nn.Linear(config["d_model"], config["n_genes"]),
         )
 
+    @torch.jit.export
     def inference(
         self,
         img_tokens: torch.Tensor,
         coords: torch.Tensor,
         ge_tokens: torch.Tensor,
         batch_idx: torch.Tensor,
-        tech_tokens: torch.Tensor | None = None,
-        organ_tokens: torch.Tensor | None = None,
+        tech_tokens: torch.Tensor,  # Optional[torch.Tensor] = None,
+        organ_tokens: torch.Tensor,  # Optional[torch.Tensor] = None,
     ):
         x = self.input_encoder(
             img_tokens=img_tokens,
@@ -1007,9 +1079,9 @@ class STFM(nn.Module):
         coords: torch.Tensor,
         ge_tokens: torch.Tensor,
         batch_idx: torch.Tensor,
-        tech_tokens: torch.Tensor | None = None,
-        organ_tokens: torch.Tensor | None = None,
-        return_all=False,
+        tech_tokens: torch.Tensor,  # Optional[torch.Tensor] = None,
+        organ_tokens: torch.Tensor,  # Optional[torch.Tensor] = None,
+        # return_all=False,
     ):
         x = self.inference(
             img_tokens=img_tokens,
@@ -1020,8 +1092,8 @@ class STFM(nn.Module):
             organ_tokens=organ_tokens,
         )
 
-        if return_all:
-            return self.gene_exp_head(x), x
+        # if return_all:
+        # return self.gene_exp_head(x), x
         return self.gene_exp_head(x)
 
 
