@@ -17,6 +17,7 @@ import numpy as np
 import scanpy as sc
 import torch
 import torch.nn.functional as F
+from huggingface_hub import hf_hub_download
 from torch import Tensor, nn
 
 from ..base import TilePredictionModel
@@ -1625,7 +1626,7 @@ class STFM(nn.Module):
     and a SpatialTransformer to predict gene expression.
     """
 
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: dict = {}) -> None:
         """
         Initializes the STFM.
 
@@ -1636,12 +1637,57 @@ class STFM(nn.Module):
         """
         super(STFM, self).__init__()
 
-        self.model = SpatialTransformer(config)
-        self.input_encoder = InputEncoder(config)
+        if not config:
+            # Default configuration for the STFM model
+            self.config = {
+                "d_input": 1536,  # Dimension of input image features
+                "d_model": 512,  # Dimension of the model's latent space
+                "n_layers": 4,  # Number of transformer blocks
+                "n_heads": 4,  # Number of attention heads
+                "dropout": 0.1,  # Dropout rate for MLP projections
+                "attn_dropout": 0.1,  # Dropout rate for attention weights
+                "act": "gelu",  # Activation function
+                "mlp_ratio": 2.0,  # Ratio for MLP hidden dimension
+                "gene_voc_path": hf_hub_download(
+                    "RendeiroLab/LazySlide-models", "stpath/symbol2ensembl.json"
+                ),
+            }
+        else:
+            self.config = config
+
+        # Initialize all necessary tokenizers
+        self.tokenizer = TokenizerTools(
+            ge_tokenizer=GeneExpTokenizer(self.config["gene_voc_path"]),
+            image_tokenizer=ImageTokenizer(feature_dim=self.config["d_input"]),
+            tech_tokenizer=IDTokenizer(id_type="tech"),
+            specie_tokenizer=IDTokenizer(id_type="specie"),
+            organ_tokenizer=IDTokenizer(id_type="organ"),
+            cancer_anno_tokenizer=AnnotationTokenizer(id_type="disease"),
+            domain_anno_tokenizer=AnnotationTokenizer(id_type="domain"),
+        )
+
+        # Update config with tokenizer-derived dimensions
+        self.config["n_genes"] = self.tokenizer.ge_tokenizer.n_tokens
+        self.config["n_tech"] = self.tokenizer.tech_tokenizer.n_tokens
+        self.config["n_species"] = (
+            self.tokenizer.specie_tokenizer.n_tokens
+        )  # This key doesn't seem to be used in InputEncoder
+        self.config["n_organs"] = self.tokenizer.organ_tokenizer.n_tokens
+        self.config["n_cancer_annos"] = (
+            self.tokenizer.cancer_anno_tokenizer.n_tokens
+        )  # This key doesn't seem to be used in InputEncoder
+        self.config["n_domain_annos"] = (
+            self.tokenizer.domain_anno_tokenizer.n_tokens
+        )  # This key doesn't seem to be used in InputEncoder
+
+        print(self.config)
+
+        self.model = SpatialTransformer(self.config)
+        self.input_encoder = InputEncoder(self.config)
 
         self.gene_exp_head = nn.Sequential(
-            nn.LayerNorm(config["d_model"]),
-            nn.Linear(config["d_model"], config["n_genes"]),
+            nn.LayerNorm(self.config["d_model"]),
+            nn.Linear(self.config["d_model"], self.config["n_genes"]),
         )
 
     @torch.jit.export
@@ -1742,66 +1788,6 @@ class STPath(TilePredictionModel):
             gene_voc_path (Optional[str]): Path to the JSON file for gene vocabulary.
                                            If None, uses a default path (may need adjustment).
         """
-        from huggingface_hub import hf_hub_download
-
-        if model_path is None:
-            model_path = hf_hub_download(
-                "tlhuang/STPath",
-                "stfm.pth",
-            )
-
-        if gene_voc_path is None:
-            gene_voc_path = hf_hub_download(
-                "RendeiroLab/LazySlide-models", "stpath/symbol2ensembl.json"
-            )
-
-        # Default configuration for the STFM model
-        config = {
-            "d_input": 1536,  # Dimension of input image features
-            "d_model": 512,  # Dimension of the model's latent space
-            "n_layers": 4,  # Number of transformer blocks
-            "n_heads": 4,  # Number of attention heads
-            "dropout": 0.1,  # Dropout rate for MLP projections
-            "attn_dropout": 0.1,  # Dropout rate for attention weights
-            "act": "gelu",  # Activation function
-            "mlp_ratio": 2.0,  # Ratio for MLP hidden dimension
-        }
-
-        # Initialize all necessary tokenizers
-        self.tokenizer = TokenizerTools(
-            ge_tokenizer=GeneExpTokenizer(gene_voc_path),
-            image_tokenizer=ImageTokenizer(feature_dim=config["d_input"]),
-            tech_tokenizer=IDTokenizer(id_type="tech"),
-            specie_tokenizer=IDTokenizer(id_type="specie"),
-            organ_tokenizer=IDTokenizer(id_type="organ"),
-            cancer_anno_tokenizer=AnnotationTokenizer(id_type="disease"),
-            domain_anno_tokenizer=AnnotationTokenizer(id_type="domain"),
-        )
-
-        # Update config with tokenizer-derived dimensions
-        config["n_genes"] = self.tokenizer.ge_tokenizer.n_tokens
-        config["n_tech"] = self.tokenizer.tech_tokenizer.n_tokens
-        config["n_species"] = (
-            self.tokenizer.specie_tokenizer.n_tokens
-        )  # This key doesn't seem to be used in InputEncoder
-        config["n_organs"] = self.tokenizer.organ_tokenizer.n_tokens
-        config["n_cancer_annos"] = (
-            self.tokenizer.cancer_anno_tokenizer.n_tokens
-        )  # This key doesn't seem to be used in InputEncoder
-        config["n_domain_annos"] = (
-            self.tokenizer.domain_anno_tokenizer.n_tokens
-        )  # This key doesn't seem to be used in InputEncoder
-
-        print(config)
-
-        self.stfm = STFM(config=config)
-        # Load pre-trained model weights
-        self.stfm.load_state_dict(
-            torch.load(model_path, map_location="cpu"), strict=True
-        )
-
-        print(f"Model loaded from {model_path}")
-        self.stfm.eval()  # Set model to evaluation mode
 
     def predict(self, image):
         """

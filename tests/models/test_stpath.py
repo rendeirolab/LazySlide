@@ -5,8 +5,9 @@ import h5py
 import numpy as np
 import scanpy as sc
 import torch
+from huggingface_hub import hf_hub_download
 
-from lazyslide.models.tile_prediction.stpath import STPath
+from lazyslide.models.tile_prediction.stpath import STFM
 
 
 def read_assets_from_h5(h5_path, keys=None, skip_attrs=False, skip_assets=False):
@@ -59,9 +60,18 @@ def normalize_coords(coords):
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-# init model
-stpath = STPath()
-stfm = stpath.stfm
+model_path = hf_hub_download(
+    "tlhuang/STPath",
+    "stfm.pth",
+)
+
+stfm = STFM()
+# Load pre-trained model weights
+stfm.load_state_dict(torch.load(model_path, map_location="cpu"), strict=True)
+
+print(f"Model loaded from {model_path}")
+stfm.eval()  # Set model to evaluation mode
+
 
 # prepare exmaple data
 sample_id = "INT2"
@@ -85,19 +95,19 @@ adata = sc.read_h5ad(os.path.join(source_dataroot, f"{sample_id}.h5ad"))[barcode
 
 # get mask for gene expression. Since we do not have GE mask all
 n_spots = embeddings.shape[0]
-mask_token = stpath.tokenizer.ge_tokenizer.mask_token.float()
+mask_token = stfm.tokenizer.ge_tokenizer.mask_token.float()
 masked_ge_token = mask_token.repeat(n_spots, 1).to(device)
 
 # get organ token
 organ_type = "Kidney"
-organ_token = stpath.tokenizer.organ_tokenizer.encode(organ_type, align_first=True)
+organ_token = stfm.tokenizer.organ_tokenizer.encode(organ_type, align_first=True)
 organ_token = torch.full(
     (embeddings.shape[0],), organ_token, dtype=torch.long, device=device
 )
 
 # tech token
 tech_type = "Visium"
-tech_token = stpath.tokenizer.tech_tokenizer.encode(tech_type, align_first=True)
+tech_token = stfm.tokenizer.tech_tokenizer.encode(tech_type, align_first=True)
 tech_token = torch.full(
     (embeddings.shape[0],), tech_token, dtype=torch.long, device=device
 )
@@ -105,24 +115,17 @@ tech_token = torch.full(
 
 batch_idx = torch.zeros(embeddings.shape[0], dtype=torch.long).to(device)
 
-# args must be something like:
-#   img_tokens: torch.Tensor,
-#        coords: torch.Tensor,
-#        ge_tokens: torch.Tensor,
-#        batch_idx: torch.Tensor,
-#        tech_tokens: torch.Tensor | None = None,
-#        organ_tokens: torch.Tensor | None = None,
-#        return_all=False,
-
 args = (embeddings, coords, masked_ge_token, batch_idx, tech_token, organ_token)
 
 
 out = stfm(embeddings, coords, masked_ge_token, batch_idx, tech_token, organ_token)
 out = out[:, 2:]  # remove the pad and mask tokens
 
-with open("/Users/simon/Desktop/predictions_reimpl.npz", "wb") as f:
+fout = "/Users/simon/Desktop/predictions_reimpl.npz"
+with open(fout, "wb") as f:
     np.savez(f, out.detach().numpy())
-print(out.shape)
+    print(f"Wrote output of reimplemented model to {fout}.")
+print(f"Shape of output: {out.shape}")
 
 
 def find_jit_culprit(module, name="root"):
@@ -148,22 +151,9 @@ def find_jit_culprit(module, name="root"):
 
 # 1. Convert the module to TorchScript via scripting
 scripted_model = torch.jit.script(stfm, example_inputs=[args])
-# with open("/Users/simon/Desktop/scripted_model", "w") as f:
-# f.write(scripted_model.code)
 
-# print(scripted_model.get_debug_state())
-
-# Print the graph before saving
-print(scripted_model.graph)
-
-# Specifically look for 'strides' or 'UndefinedTensor' in the IR
-# You can also use:
-print(scripted_model.code)
-#
-# # 2. Save the scripted model (includes weights)
+# 2. Save the scripted model (includes weights)
 scripted_model.save("stpath_scripted.pt")
-#
-# # 3. Later, load it as requested
-loaded_jit_model = torch.jit.load("stpath_scripted.pt")
 
-print(loaded_jit_model.code)
+# 3. Later, load it as requested
+loaded_jit_model = torch.jit.load("stpath_scripted.pt")
