@@ -2,6 +2,7 @@ import json
 import os
 
 import h5py
+import numpy as np
 import scanpy as sc
 import torch
 
@@ -117,7 +118,10 @@ args = (embeddings, coords, masked_ge_token, batch_idx, tech_token, organ_token)
 
 
 out = stfm(embeddings, coords, masked_ge_token, batch_idx, tech_token, organ_token)
+out = out[:, 2:]  # remove the pad and mask tokens
 
+with open("/Users/simon/Desktop/predictions_reimpl.npz", "wb") as f:
+    np.savez(f, out.detach().numpy())
 print(out.shape)
 
 
