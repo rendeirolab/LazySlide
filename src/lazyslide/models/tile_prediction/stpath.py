@@ -20,7 +20,257 @@ import torch.nn.functional as F
 from huggingface_hub import hf_hub_download
 from torch import Tensor, nn
 
-from ..base import TilePredictionModel
+from .._model_registry import register
+from ..base import ModelBase, ModelTask
+
+# lookup tables
+# technology
+tech_align_mapping = {
+    "ST": "Spatial Transcriptomics",
+    "Visium": "Visium",
+    "Xenium": "Xenium",
+    "VisiumHD": "Visium HD",
+    "Visium HD": "Visium HD",
+    "Spatial Transcriptomics": "Spatial Transcriptomics",
+}
+"""
+Mapping for aligning various technology identifiers to a standardized vocabulary.
+Keys are raw technology names, values are standardized technology names.
+"""
+tech_voc = ["<pad>", "Spatial Transcriptomics", "Visium", "Xenium", "Visium HD"]
+"""
+Vocabulary for spatial transcriptomics technologies, including special tokens.
+"""
+
+
+# species
+specie_align_mapping = {
+    "Mus musculus": "Mus musculus",
+    "Homo sapiens": "Homo sapiens",
+    "human": "Homo sapiens",
+    "mouse": "Mus musculus",
+    "plant": "others",
+    "rattus norvegicus": "others",
+    "human & mouse": "others",
+    "pig": "others",
+    "fish": "others",
+    "frog": "others",
+    "ambystoma mexicanum": "others",
+}
+"""
+Mapping for aligning various species identifiers to a standardized vocabulary.
+Keys are raw species names, values are standardized species names.
+"""
+specie_voc = ["<pad>", "<mask>", "<unk>", "Mus musculus", "Homo sapiens", "others"]
+"""
+Vocabulary for species, including special tokens.
+"""
+
+
+organ_align_mapping = {
+    "Spinal cord": "Spinal cord",
+    "Brain": "Brain",
+    "Breast": "Breast",
+    "Bowel": "Bowel",
+    "Skin": "Skin",
+    "Heart": "Heart",
+    "Kidney": "Kidney",
+    "Prostate": "Prostate",
+    "Lung": "Lung",
+    "Liver": "Liver",
+    "Uterus": "Uterus",
+    "Bone": "Bone",
+    "Muscle": "Muscle",
+    "Eye": "Eye",
+    "Pancreas": "Pancreas",
+    "breast": "Breast",
+    "brain": "Brain",
+    "kidney": "Kidney",
+    "heart": "Heart",
+    "skin": "Skin",
+    "liver": "Liver",
+    "pancreas": "Pancreas",
+    "mouth": "Mouth",
+    "ovary": "Ovary",
+    "prostate": "Prostate",
+    "glioma": "Glioma",
+    "glioblastoma": "Glioblastoma",
+    "stomach": "Stomach",
+    "colon": "Colon",
+    "lung": "Lung",
+    "muscle": "Muscle",
+    "Bladder": "Others",
+    "Lymphoid": "Others",
+    "Cervix": "Others",
+    "Lymph node": "Others",
+    "Ovary": "Others",
+    "Embryo": "Others",
+    "Lung/Brain": "Others",
+    "Kidney/Brain": "Others",
+    "Placenta": "Others",
+    "Whole organism": "Others",
+    "thymus": "Others",
+    "joint": "Others",
+    "undifferentiated pleomorphic sarcoma": "Others",
+    "largeintestine": "Others",
+    "lacrimal gland": "Others",
+    "leiomyosarcoma": "Others",
+    "endometrium": "Others",
+    "brain+kidney": "Others",
+    "cerebellum": "Others",
+    "cervix": "Others",
+    "colorectal": "Others",
+    "lymphnode": "Others",
+}
+"""
+Mapping for aligning various organ identifiers to a standardized vocabulary.
+Keys are raw organ names, values are standardized organ names.
+"""
+organ_voc = [
+    "<pad>",
+    "<mask>",
+    "<unk>",
+    "Spinal cord",
+    "Brain",
+    "Breast",
+    "Bowel",
+    "Skin",
+    "Heart",
+    "Kidney",
+    "Prostate",
+    "Lung",
+    "Liver",
+    "Uterus",
+    "Bone",
+    "Muscle",
+    "Eye",
+    "Pancreas",
+    "Mouth",
+    "Ovary",
+    "Glioma",
+    "Glioblastoma",
+    "Stomach",
+    "Colon",
+    "Others",
+]
+"""
+Vocabulary for organs, including special tokens.
+"""
+
+# annotation
+cancer_annotation_align_mapping = {
+    "invasive": "tumor",
+    "invasive cancer": "tumor",
+    "tumor": "tumor",
+    "surrounding tumor": "tumor",
+    "immune infiltrate": "tumor",
+    "cancer in situ": "tumor",
+    "tumor stroma with inflammation": "tumor",
+    "tumor cells": "tumor",
+    "tumour cells": "tumor",
+    "tumor stroma fibrous": "tumor",
+    "tumor stroma": "tumor",
+    "fibrosis": "tumor",
+    "high tils stroma": "tumor",
+    "in situ carcinoma*": "tumor",
+    "in situ carcinoma": "tumor",
+    "tumor cells ?": "tumor",
+    "hyperplasia": "tumor",
+    "tumor cells - spindle cells": "tumor",
+    "tumour stroma": "tumor",
+    "necrosis": "tumor",
+    "tumor_edge_5": "tumor",
+    "idc_4": "tumor",
+    "idc_3": "tumor",
+    "idc_2": "tumor",
+    "tumor_edge_3": "tumor",
+    "idc_5": "tumor",
+    "dcis/lcis_4": "tumor",
+    "idc_7": "tumor",
+    "tumor_edge_1": "tumor",
+    "dcis/lcis_1": "tumor",
+    "dcis/lcis_2": "tumor",
+    "tumor_edge_4": "tumor",
+    "idc_1": "tumor",
+    "benign": "tumor",
+    "gg4 cribriform": "tumor",
+    "gg2": "tumor",
+    "chronic inflammation": "tumor",
+    "gg1": "tumor",
+    "transition_state": "tumor",
+    "benign*": "tumor",
+    "gg4": "tumor",
+    "pin": "tumor",
+    "inflammation": "tumor",
+    "dcis/lcis_3": "tumor",
+    "tumor_edge_2": "tumor",
+    "dcis/lcis_5": "tumor",
+    "idc_6": "tumor",
+    "tumor_edge_6": "tumor",
+    "tls": "tumor",
+    "t_agg": "tumor",
+    "healthy": "healthy",
+    "non tumor": "healthy",
+    "normal": "healthy",
+    "breast glands": "healthy",
+    "connective tissue": "healthy",
+    "adipose tissue": "healthy",
+    "artifacts": "healthy",
+    "normal epithelium": "healthy",
+    "lymphocytes": "healthy",
+    "healthy_2": "healthy",
+    "vascular": "healthy",
+    "peripheral nerve": "healthy",
+    "lymphoid stroma": "healthy",
+    "fibrous stroma": "healthy",
+    "fibrosis (peritumoral)": "healthy",
+    "artefacts": "healthy",
+    "endothelial": "healthy",
+    "healthy_1": "healthy",
+    "nerve": "healthy",
+    "fat": "healthy",
+    "stroma": "healthy",
+    "exclude": "healthy",
+    "vessel": "healthy",
+    "no_tls": "healthy",
+}
+"""
+Mapping for aligning various cancer annotation terms to a standardized vocabulary
+of 'tumor' or 'healthy'.
+"""
+cancer_annotation_voc = ["<pad>", "<mask>", "<unk>", "healthy", "tumor"]
+"""
+Vocabulary for cancer annotations, including special tokens.
+"""
+
+domain_annotation_align_mapping = {
+    "l1": "l1",
+    "l2": "l2",
+    "l3": "l3",
+    "l4": "l4",
+    "l5": "l5",
+    "l6": "l6",
+    "vm": "vm",
+}
+"""
+Mapping for aligning various brain layer (domain) annotation terms to a standardized vocabulary.
+"""
+
+domain_annotation_voc = [
+    "<pad>",
+    "<mask>",
+    "<unk>",
+    "l1",
+    "l2",
+    "l3",
+    "l4",
+    "l5",
+    "l6",
+    "vm",
+]
+"""
+Vocabulary for brain layer (domain) annotations, including special tokens.
+"""
 
 
 @runtime_checkable
@@ -394,255 +644,6 @@ class ImageTokenizer(TokenizerBase):
     def pad_token_id(self) -> int:
         """Returns the integer ID for the padding token."""
         return 0
-
-
-# technology
-tech_align_mapping = {
-    "ST": "Spatial Transcriptomics",
-    "Visium": "Visium",
-    "Xenium": "Xenium",
-    "VisiumHD": "Visium HD",
-    "Visium HD": "Visium HD",
-    "Spatial Transcriptomics": "Spatial Transcriptomics",
-}
-"""
-Mapping for aligning various technology identifiers to a standardized vocabulary.
-Keys are raw technology names, values are standardized technology names.
-"""
-tech_voc = ["<pad>", "Spatial Transcriptomics", "Visium", "Xenium", "Visium HD"]
-"""
-Vocabulary for spatial transcriptomics technologies, including special tokens.
-"""
-
-
-# species
-specie_align_mapping = {
-    "Mus musculus": "Mus musculus",
-    "Homo sapiens": "Homo sapiens",
-    "human": "Homo sapiens",
-    "mouse": "Mus musculus",
-    "plant": "others",
-    "rattus norvegicus": "others",
-    "human & mouse": "others",
-    "pig": "others",
-    "fish": "others",
-    "frog": "others",
-    "ambystoma mexicanum": "others",
-}
-"""
-Mapping for aligning various species identifiers to a standardized vocabulary.
-Keys are raw species names, values are standardized species names.
-"""
-specie_voc = ["<pad>", "<mask>", "<unk>", "Mus musculus", "Homo sapiens", "others"]
-"""
-Vocabulary for species, including special tokens.
-"""
-
-
-organ_align_mapping = {
-    "Spinal cord": "Spinal cord",
-    "Brain": "Brain",
-    "Breast": "Breast",
-    "Bowel": "Bowel",
-    "Skin": "Skin",
-    "Heart": "Heart",
-    "Kidney": "Kidney",
-    "Prostate": "Prostate",
-    "Lung": "Lung",
-    "Liver": "Liver",
-    "Uterus": "Uterus",
-    "Bone": "Bone",
-    "Muscle": "Muscle",
-    "Eye": "Eye",
-    "Pancreas": "Pancreas",
-    "breast": "Breast",
-    "brain": "Brain",
-    "kidney": "Kidney",
-    "heart": "Heart",
-    "skin": "Skin",
-    "liver": "Liver",
-    "pancreas": "Pancreas",
-    "mouth": "Mouth",
-    "ovary": "Ovary",
-    "prostate": "Prostate",
-    "glioma": "Glioma",
-    "glioblastoma": "Glioblastoma",
-    "stomach": "Stomach",
-    "colon": "Colon",
-    "lung": "Lung",
-    "muscle": "Muscle",
-    "Bladder": "Others",
-    "Lymphoid": "Others",
-    "Cervix": "Others",
-    "Lymph node": "Others",
-    "Ovary": "Others",
-    "Embryo": "Others",
-    "Lung/Brain": "Others",
-    "Kidney/Brain": "Others",
-    "Placenta": "Others",
-    "Whole organism": "Others",
-    "thymus": "Others",
-    "joint": "Others",
-    "undifferentiated pleomorphic sarcoma": "Others",
-    "largeintestine": "Others",
-    "lacrimal gland": "Others",
-    "leiomyosarcoma": "Others",
-    "endometrium": "Others",
-    "brain+kidney": "Others",
-    "cerebellum": "Others",
-    "cervix": "Others",
-    "colorectal": "Others",
-    "lymphnode": "Others",
-}
-"""
-Mapping for aligning various organ identifiers to a standardized vocabulary.
-Keys are raw organ names, values are standardized organ names.
-"""
-organ_voc = [
-    "<pad>",
-    "<mask>",
-    "<unk>",
-    "Spinal cord",
-    "Brain",
-    "Breast",
-    "Bowel",
-    "Skin",
-    "Heart",
-    "Kidney",
-    "Prostate",
-    "Lung",
-    "Liver",
-    "Uterus",
-    "Bone",
-    "Muscle",
-    "Eye",
-    "Pancreas",
-    "Mouth",
-    "Ovary",
-    "Glioma",
-    "Glioblastoma",
-    "Stomach",
-    "Colon",
-    "Others",
-]
-"""
-Vocabulary for organs, including special tokens.
-"""
-
-# annotation
-cancer_annotation_align_mapping = {
-    "invasive": "tumor",
-    "invasive cancer": "tumor",
-    "tumor": "tumor",
-    "surrounding tumor": "tumor",
-    "immune infiltrate": "tumor",
-    "cancer in situ": "tumor",
-    "tumor stroma with inflammation": "tumor",
-    "tumor cells": "tumor",
-    "tumour cells": "tumor",
-    "tumor stroma fibrous": "tumor",
-    "tumor stroma": "tumor",
-    "fibrosis": "tumor",
-    "high tils stroma": "tumor",
-    "in situ carcinoma*": "tumor",
-    "in situ carcinoma": "tumor",
-    "tumor cells ?": "tumor",
-    "hyperplasia": "tumor",
-    "tumor cells - spindle cells": "tumor",
-    "tumour stroma": "tumor",
-    "necrosis": "tumor",
-    "tumor_edge_5": "tumor",
-    "idc_4": "tumor",
-    "idc_3": "tumor",
-    "idc_2": "tumor",
-    "tumor_edge_3": "tumor",
-    "idc_5": "tumor",
-    "dcis/lcis_4": "tumor",
-    "idc_7": "tumor",
-    "tumor_edge_1": "tumor",
-    "dcis/lcis_1": "tumor",
-    "dcis/lcis_2": "tumor",
-    "tumor_edge_4": "tumor",
-    "idc_1": "tumor",
-    "benign": "tumor",
-    "gg4 cribriform": "tumor",
-    "gg2": "tumor",
-    "chronic inflammation": "tumor",
-    "gg1": "tumor",
-    "transition_state": "tumor",
-    "benign*": "tumor",
-    "gg4": "tumor",
-    "pin": "tumor",
-    "inflammation": "tumor",
-    "dcis/lcis_3": "tumor",
-    "tumor_edge_2": "tumor",
-    "dcis/lcis_5": "tumor",
-    "idc_6": "tumor",
-    "tumor_edge_6": "tumor",
-    "tls": "tumor",
-    "t_agg": "tumor",
-    "healthy": "healthy",
-    "non tumor": "healthy",
-    "normal": "healthy",
-    "breast glands": "healthy",
-    "connective tissue": "healthy",
-    "adipose tissue": "healthy",
-    "artifacts": "healthy",
-    "normal epithelium": "healthy",
-    "lymphocytes": "healthy",
-    "healthy_2": "healthy",
-    "vascular": "healthy",
-    "peripheral nerve": "healthy",
-    "lymphoid stroma": "healthy",
-    "fibrous stroma": "healthy",
-    "fibrosis (peritumoral)": "healthy",
-    "artefacts": "healthy",
-    "endothelial": "healthy",
-    "healthy_1": "healthy",
-    "nerve": "healthy",
-    "fat": "healthy",
-    "stroma": "healthy",
-    "exclude": "healthy",
-    "vessel": "healthy",
-    "no_tls": "healthy",
-}
-"""
-Mapping for aligning various cancer annotation terms to a standardized vocabulary
-of 'tumor' or 'healthy'.
-"""
-cancer_annotation_voc = ["<pad>", "<mask>", "<unk>", "healthy", "tumor"]
-"""
-Vocabulary for cancer annotations, including special tokens.
-"""
-
-domain_annotation_align_mapping = {
-    "l1": "l1",
-    "l2": "l2",
-    "l3": "l3",
-    "l4": "l4",
-    "l5": "l5",
-    "l6": "l6",
-    "vm": "vm",
-}
-"""
-Mapping for aligning various brain layer (domain) annotation terms to a standardized vocabulary.
-"""
-
-domain_annotation_voc = [
-    "<pad>",
-    "<mask>",
-    "<unk>",
-    "l1",
-    "l2",
-    "l3",
-    "l4",
-    "l5",
-    "l6",
-    "vm",
-]
-"""
-Vocabulary for brain layer (domain) annotations, including special tokens.
-"""
 
 
 class IDTokenizer(TokenizerBase):
@@ -1651,6 +1652,10 @@ class STFM(nn.Module):
                 "gene_voc_path": hf_hub_download(
                     "RendeiroLab/LazySlide-models", "stpath/symbol2ensembl.json"
                 ),
+                "model_weigth_path": hf_hub_download(
+                    "tlhuang/STPath",
+                    "stfm.pth",
+                ),
             }
         else:
             self.config = config
@@ -1689,6 +1694,11 @@ class STFM(nn.Module):
             nn.LayerNorm(self.config["d_model"]),
             nn.Linear(self.config["d_model"], self.config["n_genes"]),
         )
+        if "model_weigth_path" in self.config.keys():
+            self.load_state_dict(
+                torch.load(self.config["model_weigth_path"], map_location="cpu"),
+                strict=True,
+            )
 
     @torch.jit.export
     def inference(
@@ -1758,41 +1768,158 @@ class STFM(nn.Module):
         return self.gene_exp_head(x)
 
 
-# @register(
-#     key="pathprofilerqc",
-#     task=ModelTask.tile_prediction,
-#     license="GPL-3.0",
-#     description="Quality assessment of histology images",
-#     commercial=False,
-#     github_url="https://github.com/MaryamHaghighat/PathProfiler",
-#     paper_url="https://doi.org/10.1038/s41598-022-08351-5",
-#     bib_key="Haghighat2022-sy",
-#     param_size="11.2M",
-#     flops="3.63G",
-# )
-class STPath(TilePredictionModel):
+def rescale_coords(coords, new_max=100):
     """
-    STPath model for spatial tile prediction. It encapsulates the STFM
-    and its associated tokenizers.
+    Rescale coordinates to a specified range while maintaining their shape.
+
+    Parameters:
+        coords (torch.Tensor): A tensor of shape (n, 2), where each row contains (x, y) coordinates.
+        new_max (float): The maximum value for the new scaled coordinates.
+
+    Returns:
+        torch.Tensor: The rescaled coordinates.
+    """
+    # Find the minimum and maximum values of the coordinates
+    min_coords = torch.min(coords, dim=0).values
+    max_coords = torch.max(coords, dim=0).values
+
+    # Calculate the range of the coordinates
+    coord_range = max_coords - min_coords
+
+    # Rescale the coordinates to the range [0, new_max]
+    scaled_coords = (coords - min_coords) / coord_range * new_max
+
+    return scaled_coords
+
+
+def normalize_coords(coords):
+    # coords: [-1, 2]
+    coords[:, 0] = coords[:, 0] - coords[:, 0].min()
+    coords[:, 1] = coords[:, 1] - coords[:, 1].min()
+    return rescale_coords(coords)
+
+
+@register(
+    key="stpath",
+    is_gated=False,
+    task=ModelTask.feature_prediction,
+    license="CC BY-NC-ND 4.0",
+    description="A generative foundation model for integrating spatial transcriptomics and whole-slide images",
+    commercial=False,
+    hf_url="https://huggingface.co/tlhuang/STPath",
+    github_url="https://github.com/Graph-and-Geometric-Learning/STPath",
+    paper_url="https://doi.org/10.1038/s41746-025-02020-3",
+    bib_key="Huang2025-st",
+    param_size="~50M",
+    encode_dim=512,
+    flops=305904607008,
+)
+class STPath(ModelBase):
+    """
+    A wrapper class for the STFM that returns a self-describing AnnData object
+    including gene symbols, Ensembl IDs, and spatial metadata.
     """
 
-    def __init__(
-        self, model_path: Optional[str] = None, gene_voc_path: Optional[str] = None
-    ):
-        """
-        Initializes the STPath model.
+    def __init__(self, config: dict = {}):
+        """Initializes the STPath model and its underlying STFM architecture."""
+        self.model = STFM(config=config)
+        self.model.eval()
 
-        Args:
-            model_path (Optional[str]): Path to the pre-trained STFM model weights.
-                                        If None, attempts to download from Hugging Face.
-            gene_voc_path (Optional[str]): Path to the JSON file for gene vocabulary.
-                                           If None, uses a default path (may need adjustment).
+    @torch.inference_mode()
+    def predict(
+        self,
+        image_features: torch.Tensor,
+        coords: torch.Tensor,
+        gene_exp: Optional[sc.AnnData] = None,
+        tech: Optional[str] = None,
+        organ: Optional[str] = None,
+    ) -> sc.AnnData:
         """
+        Predicts gene expression and returns a structured AnnData object.
+        """
+        device = next(self.model.parameters()).device
+        n_cells = image_features.shape[0]
 
-    def predict(self, image):
-        """
-        Placeholder for the prediction method.
-        Actual implementation for making predictions should go here.
-        """
-        # TODO: Implement the actual prediction logic.
-        return None
+        # 1. Coordinate Handling
+        # Save original coordinates and create normalized version for the model
+        orig_coords_np = coords.clone().cpu()
+        norm_coords = coords.clone().cpu()
+        norm_coords = normalize_coords(norm_coords)
+        norm_coords_tensor = norm_coords.to(device)
+
+        # 2. Token Preparation
+        img_tokens = image_features.to(device)
+
+        if gene_exp is None:
+            # Use specialized mask_token from the GeneExpTokenizer
+            mask_token = self.model.tokenizer.ge_tokenizer.mask_token.to(device)
+            ge_tokens = mask_token.unsqueeze(0).expand(n_cells, -1)
+        else:
+            # Encode input AnnData using the internal tokenizer
+            #  TODO: implement padding if just a subset of spots comes with gene expression
+            ge_tokens, _ = self.model.tokenizer.ge_tokenizer.encode(gene_exp)
+            ge_tokens = ge_tokens.to(device)
+
+        # 3. Metadata Alignment
+        tech_tokens = None
+        if tech:
+            tech_id = self.model.tokenizer.tech_tokenizer.encode(tech, align_first=True)
+            tech_tokens = torch.full(
+                (n_cells,), tech_id, dtype=torch.long, device=device
+            )
+
+        organ_tokens = None
+        if organ:
+            organ_id = self.model.tokenizer.organ_tokenizer.encode(
+                organ, align_first=True
+            )
+            organ_tokens = torch.full(
+                (n_cells,), organ_id, dtype=torch.long, device=device
+            )
+
+        # 4. Model Inference
+        batch_idx = torch.zeros(n_cells, dtype=torch.long, device=device)
+        output = self.model(
+            img_tokens=img_tokens,
+            coords=norm_coords_tensor,
+            ge_tokens=ge_tokens,
+            batch_idx=batch_idx,
+            tech_tokens=tech_tokens,
+            organ_tokens=organ_tokens,
+        )
+
+        # 5. Build Metadata Tables
+        # Retrieve genes ordered by token ID (Tokens 0 and 1 are special)
+        gene_ids = self.model.tokenizer.ge_tokenizer.get_available_genes()
+
+        # Build symbol mapping from the internal dictionary
+        # We need to find the symbol for each gene ID stored in the tokenizer
+        id_to_symbol = {
+            v: k for k, v in self.model.tokenizer.ge_tokenizer.symbol2gene.items()
+        }
+        gene_symbols = [id_to_symbol.get(gid, "Unknown") for gid in gene_ids]
+
+        # Prepend special tokens to maintain index alignment with output
+        all_symbols = ["<pad>", "<mask>"] + gene_symbols
+        all_ensembl = ["<pad>", "<mask>"] + gene_ids
+
+        # 6. Final AnnData Construction
+        full_adata = sc.AnnData(
+            X=output.cpu().numpy(),
+            obs={
+                "technology": tech if tech else "unknown",
+                "organ": organ if organ else "unknown",
+            },
+            var={"ensembl_id": all_ensembl, "gene_symbol": all_symbols},
+            obsm={
+                "spatial": norm_coords.cpu().numpy(),
+                "spatial_original": orig_coords_np.cpu().numpy(),
+            },
+        )
+        full_adata.var_names = all_symbols
+
+        # Remove the special tokens to return only biological data
+        is_real_gene = ~full_adata.var_names.isin(["<pad>", "<mask>"])
+        adata = full_adata[:, is_real_gene].copy()
+
+        return adata
