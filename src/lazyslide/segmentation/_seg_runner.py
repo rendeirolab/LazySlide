@@ -425,6 +425,9 @@ class SemanticSegmentationRunner(Runner):
                                 count_mask[slice_y, slice_x] += 1
                             progress_bar.update(task, advance=len(images))
                             progress_bar.refresh()
+                    # Skip if no tiles were processed
+                    if prob_mask is None:
+                        continue
                     # Normalize the probability mask by the count mask
                     prob_mask /= np.clip(count_mask, 1e-6, None)[None, ...]
                     prob_mask[prob_mask < 1e-3] = 0
