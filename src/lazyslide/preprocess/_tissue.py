@@ -76,7 +76,7 @@ def find_tissues(
     filter_artifacts: bool = True,
     key_added: str = Key.tissue,
 ):
-    """Find tissue regions in the :term:`WSI` and add them as contours and holes.
+    """Find tissue regions in the :term:`WSI` and add them as :term:`contours` and :term:`holes`.
 
     .. note::
         The results may not be deterministic between runs,

@@ -12,21 +12,41 @@ Histopathology
    :sorted:
 
    ``H&E``
-      Hematoxylin and eosin staining, the most common tissue staining method in histopathology.
+      Hematoxylin and eosin staining, the most common tissue staining method in histopathology. 
+      Hematoxylin stains cell nuclei blue/purple (binding to DNA/RNA) and eosin stains cytoplasm, extracellular matrix, and other structures pink/red.
+      H&E slides are the standard for disease diagnosis and are widely used in digital pathology analysis.
 
    patch
-      A small rectangular region extracted from a whole slide image for analysis.
+      A small rectangular region extracted from a whole slide image for analysis. 
+      They enable efficient processing of high-resolution :term:`WSIs <WSI>` by breaking them into manageable sub-images
 
    segmentation level
-      The resolution level of a WSI used for segmentation. It can be set by using the parameter `level` 
+      The resolution level of a WSI used for segmentation. Level 0 has the higher resolution, 
+      and higher levels have progressively lower resolution. It can be set by using the parameter `level` 
       in LazySlide's tissue segmentation function. The optimal level is automatically determined based 
       on the available memory, but can be manually set for consistency.
 
+   magnification
+       Optimal zoom level of a :term:`WSI`. It is related to the level of detail in a WSI, 
+       typically measured in terms of how many times the original tissue is magnified (e.g., 20x, 40x). Higher magnification levels provide more detail but require more computational resources for analysis.
+   
+   pyramid
+   pyramid structure
+       A multi-resolution representation of a WSI, storing images at different zoom levels 
+      
    tile
-      Synonym for patch - a small image region extracted from a WSI for processing.
-
+      Synonym for :term:`patch` - a small image region extracted from a WSI for processing.
+    
    ``WSI``
       Whole Slide Image - a high-resolution digital image of an entire tissue section.
+
+    contours
+       Closed boundaries outlining tissue regions in a WSI (e.g., tumor areas, stroma),
+       often represented as polygons. 
+
+    holes
+       Empty spaces within a contour (e.g., artifacts, fat deposits, or non-tissue regions like lumens).
+       They are typically excluded from further analysis.
 
 
 Data structures
