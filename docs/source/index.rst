@@ -48,6 +48,7 @@ Whether you're a novice in digital pathology or an expert computational biologis
     api/index
     contributing/index
     contributors
+    glossary
     references
 
 
