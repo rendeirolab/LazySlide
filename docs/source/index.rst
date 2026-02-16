@@ -14,7 +14,7 @@ LazySlide: Accessible and interoperable whole slide image analysis
       :columns: 12 8 8 8
       :child-align: center
 
-      **LasySlide** LazySlide is a Python framework for whole slide image (WSI) analysis,
+      **LasySlide** LazySlide is a Python framework for whole slide image (:term:`WSI`) analysis,
       designed to integrate seamlessly with the `scverse`_ ecosystem.
 
       By adopting standardized data structures and APIs familiar to the single-cell and genomics community,

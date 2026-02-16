@@ -76,11 +76,11 @@ def find_tissues(
     filter_artifacts: bool = True,
     key_added: str = Key.tissue,
 ):
-    """Find tissue regions in the WSI and add them as contours and holes.
+    """Find tissue regions in the :term:`WSI` and add them as contours and holes.
 
     .. note::
         The results may not be deterministic between runs,
-        as the segmentation level is automatically decided by the available memory.
+        as the :term:`segmentation level` is automatically decided by the available memory.
         To get a consistent result, you can set the `level` parameter to a specific value.
         Set `level=-1` for the lowest resolution level and fastest segmentation speed.
 
