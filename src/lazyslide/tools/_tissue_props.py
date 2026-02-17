@@ -21,7 +21,7 @@ def tissue_props(
     wsi: WSIData,
     key: str = Key.tissue,
 ):
-    """Compute a series of geometrical properties of tissue piecies
+    """Compute a series of geometrical properties of tissue pieces
 
     - "area"
     - "area_filled"
