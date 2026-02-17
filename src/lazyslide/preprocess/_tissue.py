@@ -82,7 +82,7 @@ def find_tissues(
         The results may not be deterministic between runs,
         as the :term:`segmentation level` is automatically decided by the available memory.
         To get a consistent result, you can set the `level` parameter to a specific value.
-        Set `level=-1` for the lowest resolution level and fastest segmentation speed.
+        Set `level=-1` for the lowest resolution level and fastest :term:`segmentation` speed.
 
     .. seealso::
         :func:`zs.seg.tissue <lazyslide.seg.tissue>`
@@ -91,7 +91,7 @@ def find_tissues(
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
-        The WSIData object to work on.
+        The :term:`WSIData` object to work on.
     level : int, default: 'auto'
         The level to use for segmentation.
     refine_level : int or 'auto', default: None

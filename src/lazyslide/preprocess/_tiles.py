@@ -32,14 +32,14 @@ def tile_tissues(
     return_tiles: bool = False,
 ):
     """
-    Generate tiles within the tissue contours in the WSI.
+    Generate :term:`tiles <tile>` within the tissue :term:`contours` in the :term:`WSI`.
 
     If there is no tissue contours, the tiles will generate for the whole image.
 
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
-        The WSIData object to work on.
+        The :term:`WSIData` object to work on.
     tile_px : int, (int, int)
         The size of the tile, if tuple, (W, H).
     stride_px : int, (int, int), default: None
