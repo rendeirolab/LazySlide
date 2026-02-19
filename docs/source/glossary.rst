@@ -19,6 +19,14 @@ Histopathology
       Unwanted features or distortions in histopathology images that can interfere with analysis, such as air bubbles, dust, folded tissue, staining irregularities, or scanning artifacts. 
       These need to be identified and excluded from analysis to ensure accurate results.
 
+   digital pathology
+      The practice of digitizing glass slides into high-resolution :term:`WSI`\s and using computational tools for analysis, diagnosis, and research. 
+      Digital pathology enables remote consultation, quantitative analysis, artificial intelligence applications, and improved workflow efficiency compared to traditional microscopy.
+
+   histopathology
+      The study of diseased tissue at the microscopic level to understand the manifestations of disease. 
+      Involves examining tissue sections that have been processed, sectioned, and stained to identify cellular and structural abnormalities for diagnosis and research.
+
    ``H&E``
       Hematoxylin and eosin staining, the most common tissue staining method in histopathology. 
       Hematoxylin stains cell nuclei blue/purple (binding to DNA/RNA) and eosin stains cytoplasm, extracellular matrix, and other structures pink/red.
@@ -80,6 +88,7 @@ Data structures
       Used extensively in LazySlide to store and manipulate spatial objects like tissue :term:`contours`, :term:`tiles <tile>`, 
       and cell boundaries as :term:`polygons <polygon>`.
 
+   embedding
    feature embedding
       A numerical representation of data (such as image :term:`patches <patch>`) in a lower-dimensional space, typically produced by neural networks. 
       These embeddings capture semantic information and can be used for downstream tasks like clustering, classification, or similarity search.
@@ -89,7 +98,7 @@ Data structures
       In histopathology, features can describe visual properties of :term:`patches <patch>` or geometric properties of tissue regions.
 
    geometric features
-      Quantitative measurements of shape and spatial properties of objects, such as area, perimeter, :term:`convexity`, solidity, and eccentricity. 
+      Quantitative measurements of shape and spatial properties of objects, such as area, perimeter, convexity, solidity, and eccentricity. 
       In LazySlide, these are computed for tissue :term:`contours` and provide morphological characterization of tissue regions.
 
    ``Hugging Face``
@@ -120,10 +129,6 @@ Model types & machine learning
 
 .. glossary::
    :sorted:
-
-   convexity
-      A geometric property measuring how close a shape is to being convex, calculated as the ratio of convex hull area to actual area. 
-      Values close to 1 indicate more convex shapes, used in tissue morphology analysis.
 
    embedding
       A dense vector representation of data in a continuous vector space, typically learned by machine learning models. 
