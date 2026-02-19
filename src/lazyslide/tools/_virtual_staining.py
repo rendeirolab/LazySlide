@@ -28,9 +28,9 @@ def virtual_stain(
     pbar: bool = True,
 ):
     """
-    Translate the :term:`H&E` images to multiplexed images.
+    Translate the :term:`H&E` images to :term:`multiplexed images`.
 
-    A new multi-channel image will be created and stored in the :term:`WSIData` object.
+    A new :term:`multi-channel image` will be created and stored in the :term:`WSIData` object.
     The marker name is recorded in the image channel names.
 
     Parameters

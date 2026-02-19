@@ -38,7 +38,7 @@ def load_annotations(
     min_area: float = 1e2,
     key_added: str = "annotations",
 ):
-    """Load the annotation file and add it to the WSIData
+    """Load the :term:`annotation` file and add it to the :term:`WSIData`
 
     Parameters
     ----------

@@ -43,7 +43,7 @@ def text_embedding(
     Returns
     -------
     :class:`DataFrame <pandas.DataFrame>`
-        The embeddings of the texts, with texts as index.
+        The :term:`embeddings <embedding>` of the texts, with texts as index.
 
     Examples
     --------
@@ -92,7 +92,7 @@ def text_image_similarity(
 
         - The image :term:`features` should be extracted using
           :func:`zs.tl.feature_extraction <lazyslide.tl.feature_extraction>`.
-        - The text embeddings should be computed using
+        - The text :term:`embeddings <embedding>` should be computed using
           :func:`zs.tl.text_embedding <lazyslide.tl.text_embedding>`.
 
     Parameters

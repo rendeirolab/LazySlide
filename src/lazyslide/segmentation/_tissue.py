@@ -41,14 +41,14 @@ def tissue(
         - "pathprofiler": :cite:p:`Haghighat2022-sy`. Runs on mpp=2.5.
         - "hest": "https://huggingface.co/MahmoodLab/hest-tissue-seg". Runs on mpp=1.
 
-    If you encounter a memory issue, please set a higher `mpp` value.
+    If you encounter a memory issue, please set a higher :term:`mpp` value.
 
     Parameters
     ----------
     wsi : :class:`wsidata.WSIData`
-        The whole slide image <WSI>`.
+        The :term:`whole slide image <WSI>`.
     model : {"grandqc", "pathprofiler", "hest"}, default: "pathprofiler"
-        The model to use for tissue segmentation.
+        The model to use for :term:`tissue segmentation`.
     level : int, default: None
         The level to segment the tissue, mutually exclusive with mpp.
     mpp : float, default: None

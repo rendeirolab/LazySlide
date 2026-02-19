@@ -376,7 +376,7 @@ def annotations(
     backend=None,
 ):
     """
-    Display the annotations.
+    Display the :term:`annotation <annotations>` .
 
     Parameters
     ----------

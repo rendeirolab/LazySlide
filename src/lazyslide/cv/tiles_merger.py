@@ -17,7 +17,7 @@ def iou(a, b):
 
 
 def preprocess_gdf(gdf: gpd.GeoDataFrame, buffer_px: float = 0) -> gpd.GeoDataFrame:
-    """Preprocess the polygons by applying a buffer and filtering invalid geometries."""
+    """Preprocess the :term:`polygons <polygon>` by applying a buffer and filtering invalid geometries."""
     new_gdf = gdf.copy()
     new_gdf["geometry"] = gdf["geometry"].buffer(buffer_px)
     # Filter out invalid and empty geometries efficiently
@@ -31,32 +31,32 @@ def nms(
     buffer_px: float = 0,
 ) -> gpd.GeoDataFrame:
     """
-    Performs non-maximum suppression (NMS) on a GeoDataFrame containing polygon geometries.
+    Performs :term:`non-maximum suppression` (:term:`NMS`) on a :term:`GeoDataFrame` containing :term:`polygon` geometries.
 
-    This function is primarily used to reduce overlapping polygons by selecting only the
-    most probable geometric shapes according to the specified probability column. NMS
-    process is guided by the intersection over union (IoU) threshold, buffering distance,
-    and probability values associated with polygons.
+    This function is primarily used to reduce overlapping :term:`polygons <polygon>` by selecting only the
+    most probable geometric shapes according to the specified probability column. :term:`NMS`
+    process is guided by the :term:`intersection over union` (:term:`IoU`) threshold, buffering distance,
+    and probability values associated with :term:`polygons <polygon>`.
 
     Parameters
     ----------
     gdf : gpd.GeoDataFrame
-        A GeoDataFrame containing geometric data for processing.
+        A :term:`GeoDataFrame` containing geometric data for processing.
     prob_col : str
         Column name containing the probability values that determine
-        the importance of each polygon.
+        the importance of each :term:`polygon`.
     iou_threshold : float
         A threshold value that defines the minimum
-        IoU for polygons to be considered for suppression. Default is 0.2.
+        :term:`IoU` for :term:`polygons <polygon>` to be considered for suppression. Default is 0.2.
     buffer_px : float
-        Buffer distance for polygons before performing
-        non-maximum suppression. Default is 0.
+        Buffer distance for :term:`polygons <polygon>` before performing
+        :term:`non-maximum suppression`. Default is 0.
 
     Returns
     -------
     gpd.GeoDataFrame
-        A new GeoDataFrame containing only the selected polygons
-        after applying non-maximum suppression.
+        A new :term:`GeoDataFrame` containing only the selected :term:`polygons <polygon>`
+        after applying :term:`non-maximum suppression`.
     """
 
     pp_gdf = preprocess_gdf(gdf, buffer_px=buffer_px)
@@ -104,12 +104,12 @@ def merge_connected_polygons(
     buffer_px: float = 0,
 ):
     """
-    Merge polygons in a GeoDataFrame while optionally considering a probability column and applying a buffer.
+    Merge :term:`polygons <polygon>` in a :term:`GeoDataFrame` while optionally considering a probability column and applying a buffer.
 
     Parameters
     ----------
     gdf : :class:`GeoDataFrame <geopandas.GeoDataFrame>`
-        GeoDataFrame containing the input geometries to merge.
+        :term:`GeoDataFrame` containing the input geometries to merge.
     prob_col : str, optional
         Name of the column containing the probability values. Default is None.
     buffer_px : float, optional
@@ -118,7 +118,7 @@ def merge_connected_polygons(
     Returns
     -------
     :class:`GeoDataFrame <geopandas.GeoDataFrame>`
-        GeoDataFrame containing the merged geometries, along with probability data if the prob_col parameter is set.
+        :term:`GeoDataFrame` containing the merged geometries, along with probability data if the prob_col parameter is set.
     """
     pp_gdf = preprocess_gdf(gdf, buffer_px=buffer_px)
     has_prob = prob_col in gdf.columns if prob_col else False

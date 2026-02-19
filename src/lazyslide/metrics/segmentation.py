@@ -44,19 +44,19 @@ def get_instance_stats(
 
     This function evaluates instance segmentation performance by matching
     predicted :term:`instances <instance>` to ground truth instances using optimal assignment
-    based on :term:`intersection over union` (IoU) scores. Uses the Hungarian algorithm
+    based on :term:`intersection over union` (IoU) scores. Uses the :term:`Hungarian algorithm`
     to find the optimal one-to-one matching that maximizes total IoU.
 
     Parameters
     ----------
     gdf_true : :term:`GeoDataFrame`
-        Ground truth instances as a GeoDataFrame with geometry column containing
+        Ground truth instances as a :term:`GeoDataFrame` with geometry column containing
         :term:`polygon` geometries representing true object instances.
     gdf_pred : gpd.GeoDataFrame
-        Predicted instances as a GeoDataFrame with geometry column containing
-        polygon geometries representing predicted object instances.
+        Predicted instances as a :term:`GeoDataFrame` with geometry column containing
+        :term:`polygon` geometries representing predicted object instances.
     iou_threshold : float, default=0.5
-        Minimum IoU threshold for considering a match as a true positive.
+        Minimum :term:`IoU` threshold for considering a match as a true positive.
         Matches with IoU below this threshold are considered false positives.
 
     Returns

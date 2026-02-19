@@ -42,7 +42,7 @@ def cells(
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
-        The WSIData object to work on.
+        The :term:`WSIData` object to work on.
     model : str | SegmentationModel, default: "instanseg"
         The cell segmentation model.
     tile_key : str, default: "tiles"

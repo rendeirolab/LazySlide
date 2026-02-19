@@ -82,7 +82,7 @@ def find_tissues(
         The results may not be deterministic between runs,
         as the :term:`segmentation level` is automatically decided by the available memory.
         To get a consistent result, you can set the `level` parameter to a specific value.
-        Set `level=-1` for the lowest resolution level and fastest :term:`segmentation` speed.
+        Set `level=-1` for the lowest resolution level and fastest :term:`tissue segmentation` speed.
 
     .. seealso::
         :func:`zs.seg.tissue <lazyslide.seg.tissue>`
@@ -114,9 +114,9 @@ def find_tissues(
     detect_holes : bool, default: True
         Detect holes in tissue regions.
     filter_artifacts : bool, default: True
-        Filter artifacts out. Artifacts that are non-redish are removed.
+        Filter :term:`artifacts <artifact>` out. Artifacts that are non-redish are removed.
     key_added : str, default: 'tissues'
-        The key to save the result in the WSIData object.
+        The key to save the result in the :term:`WSIData` object.
 
     Returns
     -------

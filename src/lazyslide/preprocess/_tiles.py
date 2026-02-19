@@ -52,7 +52,7 @@ def tile_tissues(
     edge : bool, default: False
         Whether to include the edge tiles.
     mpp : float, default: None
-        The requested mpp of the tiles, if None, use the slide mpp.
+        The requested :term:`mpp` of the tiles, if None, use the slide mpp.
     slide_mpp : float, default: None
         This value will override the slide mpp.
     ops_level : int, default: None

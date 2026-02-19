@@ -28,7 +28,7 @@ Key features
 * **Interoperability**: Built on top of `SpatialData`_, ensuring compatibility with scverse tools like `Scanpy`_, `Anndata`_, and `Squidpy`_. Check out `WSIData`_ for more details.
 * **Accessibility**: User-friendly APIs that cater to both beginners and experts in :term:`digital pathology`.
 * **Scalability**: Efficient handling of large WSIs, enabling high-throughput analyses.
-* **Multimodal integration**: Combine histological data  with transcriptomics, genomics (:term:`omics data`), and textual annotations.
+* **Multimodal integration**: Combine histological data  with transcriptomics, genomics (:term:`omics data`), and textual :term:`annotation <annotations>`.
 * **Foundation model support**: Native integration with state-of-the-art models (e.g., UNI, CONCH, Gigapath, Virchow) for tasks like :term:`zero-shot learning <zero-shot classification>` and captioning.
 * **Deep learning ready**: Provides PyTorch dataloaders for seamless integration into machine learning pipelines.
 
