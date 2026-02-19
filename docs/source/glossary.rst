@@ -52,8 +52,8 @@ Histopathology
 
    polygon
       A geometric shape defined by a series of connected points forming a closed boundary. 
-      In LazySlide, polygons are used to represent tissue regions, :term:`contours`, :term:`tiles <tile>`, and :term:`annotations` 
-      as vector shapes that can be manipulated and analyzed geometrically.
+      In LazySlide, polygons are used to represent tissue regions, :term:`contours`, :term:`tiles <tile>`, and :term:`annotation <annotations>` 
+      as vector shapes that can be manipulated and analyzed geometrically. See `Shapely`_ documentation for more details.
 
    pyramid
    pyramid structure
@@ -175,6 +175,10 @@ Image analysis
       The process of identifying and delineating artifacts within histopathology images to exclude them from analysis. 
       Can be performed using rule-based methods (e.g., filtering non-reddish regions) or machine learning approaches to automatically detect various types of artifacts.
 
+   binary mask
+      A mask where each pixel has only two possible values: 0 (background/negative) or 1 (foreground/positive). 
+      Used in :term:`segmentation` tasks to represent regions of interest, with pixels set to 1 indicating the presence of the target object or tissue type.
+
    cell segmentation
       The process of identifying and delineating individual cells within histopathology images. 
       Can be performed using traditional computer vision methods or deep learning models, typically as :term:`instance segmentation` 
@@ -208,6 +212,11 @@ Image analysis
    instance segmentation
       A type of segmentation that identifies and delineates each individual instance of an object (e.g., each cell) in an image. 
       It is similar to semantic segmentation (associating each pixel with a class label) but distinguishes between different instances of the same class.
+
+   mask
+      A 2D array or image where pixel values indicate different regions, classes, or properties. 
+      In LazySlide, masks are used to represent :term:`segmentation` results, tissue boundaries, or regions of interest. 
+      Can be :term:`binary masks <binary mask>`, multi-class masks, or :term:`instance masks <instance mask>`.
 
    neighborhood graph construction
       The process of building a graph structure that represents spatial relationships between objects (such as :term:`tiles <tile>` or cells), 
@@ -271,3 +280,4 @@ Image analysis
 .. _Scanpy: https://scanpy.readthedocs.io/
 .. _Anndata: https://anndata.readthedocs.io/
 .. _Squidpy: https://squidpy.readthedocs.io/
+.. _Shapely: https://shapely.readthedocs.io/
