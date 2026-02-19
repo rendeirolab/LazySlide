@@ -265,3 +265,9 @@ Image analysis
 
 
 
+.. _scverse: https://scverse.org/
+.. _WSIData: https://wsidata.readthedocs.io/
+.. _SpatialData: https://spatialdata.scverse.org/
+.. _Scanpy: https://scanpy.readthedocs.io/
+.. _Anndata: https://anndata.readthedocs.io/
+.. _Squidpy: https://squidpy.readthedocs.io/
