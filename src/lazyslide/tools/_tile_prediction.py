@@ -31,7 +31,7 @@ def tile_prediction(
     pbar: bool = True,
 ):
     """
-    Predict tiles using a tile prediction model.
+    Predict :term:`tiles <tile>` using a :term:`tile prediction model`.
 
     Parameters
     ----------
@@ -40,7 +40,7 @@ def tile_prediction(
     model : str or TilePredictionModel
         The tile prediction model to use. If a string, it should be the name of the model.
     transform : callable, optional
-        A transform to apply to the tiles before prediction. If None, the model's default transform is used.
+        A :term:`transform function` to apply to the tiles before prediction. If None, the model's default transform is used.
     batch_size : int, default: 16
         The batch size for the DataLoader.
     num_workers : int, default: 0

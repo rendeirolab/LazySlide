@@ -59,7 +59,7 @@ def zero_shot_score(
     device: str = None,
 ):
     """
-    Perform zero-shot classification on the WSI
+    Perform :term:`zero-shot learning` classification on the :term:`WSI`
 
     Supported models:
     - prism: `Prism model <https://huggingface.co/paige-ai/Prism>`_.
@@ -76,7 +76,7 @@ def zero_shot_score(
         The text labels to classify. You can use a list of strings to
         add more information to one class.
     feature_key : str
-        The tile features to be used.
+        The tile :term:`features` to be used.
     agg_key : str
         The aggregation key
     agg_by : str or list of str
@@ -164,11 +164,11 @@ def slide_caption(
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
-        The WSIData object to work on.
+        The :term:`WSIData` object to work on.
     prompt : list of str
         The text instruction to generate the caption.
     feature_key : str
-        The slide features to be used.
+        The slide :term:`features` to be used.
     agg_key : str
         The aggregation key
     agg_by : str or list of str

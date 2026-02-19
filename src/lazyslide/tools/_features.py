@@ -52,7 +52,7 @@ def feature_extraction(
     **kwargs,
 ):
     """
-    Extract features from WSI tiles using a pre-trained vision models.
+    Extract :term:`features` from :term:`WSI` :term:`tiles <tile>` using a pre-trained :term:`vision models <vision model>`.
 
     To list all timm models:
 
@@ -73,9 +73,9 @@ def feature_extraction(
     wsi : :class:`WSIData <wsidata.WSIData>`
         The whole-slide image object.
     model : str or model object
-        The model used for image feature extraction.
-        A list of built-in foundation models can be found in :ref:`models-section`.
-        Other models can be loaded from huggingface, but only models with feature extraction head implemented.
+        The model used for image :term:`feature extraction`.
+        A list of built-in :term:`foundation models <foundation model>` can be found in :ref:`models-section`.
+        Other models can be loaded from :term:`Hugging Face`, but only models with feature extraction head implemented.
     model_path : str or Path
         The path to the model file. Either model or model_path must be provided.
         If you don't have internet access, you can download the model file and load it from the local path.
@@ -90,7 +90,7 @@ def feature_extraction(
     load_kws : dict, optional
         Options to pass to the model creation function.
     transform : callable, optional
-        The transform function for the input image.
+        The :term:`transform function` for the input image.
         If not provided, a default ImageNet transform function will be used.
     device : str, optional
         The device to use for inference. If not provided, the device will be automatically selected.
@@ -119,7 +119,7 @@ def feature_extraction(
 
     .. note::
         The feature matrix will be added to :code:`{model_name}_{tile_key}`
-        in :bdg-danger:`tables` slot of WSIData object.
+        in :bdg-danger:`tables` slot of :term:`WSIData` object.
 
     Examples
     --------
@@ -239,9 +239,9 @@ def feature_aggregation(
     device: str = "cpu",
 ):
     """
-    Aggregate features by groups.
+    Aggregate :term:`features` by groups.
 
-    The aggregation is done by applying an encoder to a group of features to acquire
+    The :term:`feature aggregation` is done by applying an encoder to a group of features to acquire
     a 1d representation of the group. Notice that the final shape of the aggregated
     features might not be the same as the original features.
 

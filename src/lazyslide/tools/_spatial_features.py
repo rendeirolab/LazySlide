@@ -13,7 +13,7 @@ def spatial_features(
     layer_key: str = "spatial_features",
 ):
     """
-    Integrate spatial tile context with vision features using spatial feature smoothing.
+    Integrate :term:`spatial tile graph` context with :term:`vision model` :term:`features` using :term:`spatial feature smoothing`.
 
     Parameters
     ----------
@@ -22,7 +22,7 @@ def spatial_features(
     feature_key : str
         The feature key.
     method : str, default: 'smoothing'
-        The method used for spatial feature smoothing. Currently, only 'smoothing' is supported.
+        The method used for :term:`spatial feature smoothing`. Currently, only 'smoothing' is supported.
     tile_key : str, default: 'tiles'
         The key of the tiles in the :bdg-danger:`shapes` slot.
     graph_key : str, optional

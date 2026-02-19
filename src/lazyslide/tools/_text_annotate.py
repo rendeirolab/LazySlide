@@ -32,7 +32,7 @@ def text_embedding(
     texts : List[str]
         The list of texts.
     model : Literal["plip", "conch", "omiclip"], default: "plip"
-        The text embedding model
+        The text embedding :term:`multimodal model`
     amp : bool, default: False
         Whether to use automatic mixed precision (AMP) for inference.
     autocast_dtype : torch.dtype, default: torch.float16
@@ -90,7 +90,7 @@ def text_image_similarity(
     .. note::
         Prerequisites:
 
-        - The image features should be extracted using
+        - The image :term:`features` should be extracted using
           :func:`zs.tl.feature_extraction <lazyslide.tl.feature_extraction>`.
         - The text embeddings should be computed using
           :func:`zs.tl.text_embedding <lazyslide.tl.text_embedding>`.
@@ -111,7 +111,7 @@ def text_image_similarity(
         The key to store the similarity scores. If None, defaults to
         '{feature_key}_text_similarity'.
     normalize : bool, default: True
-        Apply L2 normalization to the tile features before computing the
+        Apply L2 normalization to the :term:`tile` :term:`features` before computing the
         similarity score to the text embeddings.
     softmax : bool, default: False
         Whether to apply softmax to the similarity scores.

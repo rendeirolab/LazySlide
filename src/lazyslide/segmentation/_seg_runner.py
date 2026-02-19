@@ -47,7 +47,7 @@ def semantic(
     key_added="anatomical_structures",
 ):
     """
-    Semantic segmentation for the whole slide image.
+    :term:`Semantic segmentation` for the :term:`whole slide image <WSI>`.
 
     Parameters
     ----------
@@ -73,7 +73,7 @@ def semantic(
     ignore_index : int or None, default: 0
         The index to ignore during segmentation (e.g., background).
     buffer_px : int, default: 2
-        The buffer in pixels to apply when merging polygons.
+        The buffer in pixels to apply when merging :term:`polygons <polygon>`.
     chunk_size : int, default: 512
         The size of chunks to process at a time when merging probability maps.
     batch_size : int, default: 4
@@ -89,7 +89,7 @@ def semantic(
     pbar : bool, default: True
         Whether to show the progress bar.
     key_added : str, default: "anatomical_structures"
-        The key for the added instance shapes in the WSIData object.
+        The key for the added :term:`instance` shapes in the WSIData object.
 
     Returns
     -------

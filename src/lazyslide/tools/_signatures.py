@@ -5,12 +5,12 @@ from typing import Any, Literal
 
 class RNALinker:
     """
-    Link the aggregated WSI features with other omics data.
+    Link the aggregated :term:`WSI` :term:`features` with other omics data.
 
     Parameters
     ----------
     agg_features : AnnData
-        The aggregated WSI features
+        The aggregated :term:`WSI` :term:`features`
     others : AnnData
         Other omics data, like RNA-seq, must have the same number of observations as agg_features.
     gene_name : str, default: None

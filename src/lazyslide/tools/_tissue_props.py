@@ -21,7 +21,7 @@ def tissue_props(
     wsi: WSIData,
     key: str = Key.tissue,
 ):
-    """Compute a series of geometrical properties of tissue pieces
+    """Compute a series of :term:`geometric features` of tissue pieces
 
     - "area"
     - "area_filled"
@@ -220,5 +220,5 @@ class ContourProps:
 
 
 def contour_props(cnt: np.ndarray, holes=None):
-    """Calculate the properties of a contour."""
+    """Calculate the properties of a :term:`contour`."""
     return ContourProps(cnt, holes)()
