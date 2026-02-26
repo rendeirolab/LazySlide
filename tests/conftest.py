@@ -1,5 +1,10 @@
+import os
+
 import pytest
 import torch
+
+# When set (e.g. on fork PRs without HF secrets), skip dataset download and fixtures.
+SKIP_DATASET_TESTS = os.environ.get("LAZYSLIDE_SKIP_DATASET_TESTS") == "1"
 
 
 class MockNet(torch.nn.Module):
@@ -18,11 +23,14 @@ def cache_test_datasets():
 
 
 def pytest_sessionstart(session):
-    cache_test_datasets()
+    if not SKIP_DATASET_TESTS:
+        cache_test_datasets()
 
 
 @pytest.fixture(scope="session")
 def wsi():
+    if SKIP_DATASET_TESTS:
+        pytest.skip("Dataset tests skipped (no HF token, e.g. fork PR)")
     import lazyslide as zs
 
     return zs.datasets.gtex_artery()
@@ -30,6 +38,8 @@ def wsi():
 
 @pytest.fixture(scope="class")
 def wsi_small():
+    if SKIP_DATASET_TESTS:
+        pytest.skip("Dataset tests skipped (no HF token, e.g. fork PR)")
     import lazyslide as zs
 
     return zs.datasets.sample()
@@ -57,6 +67,8 @@ def torch_jit_file(tmp_path_session):
 @pytest.fixture(scope="session")
 def wsi_with_annotations():
     """Fixture that provides a WSI with annotations for testing."""
+    if SKIP_DATASET_TESTS:
+        pytest.skip("Dataset tests skipped (no HF token, e.g. fork PR)")
     import geopandas as gpd
     from shapely.geometry import Polygon
 

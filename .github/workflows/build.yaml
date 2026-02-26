@@ -27,24 +27,10 @@ jobs:
         python-version: ['3.11', '3.12', '3.13']
 
     runs-on: ${{ matrix.os }}
+    env:
+      # Skip dataset-dependent tests on fork PRs (no HF secrets available).
+      LAZYSLIDE_SKIP_DATASET_TESTS: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != 'rendeirolab/LazySlide' && '1' || '' }}
     steps:
-      # The following step is to ensure secrets can be accessed by forked PRs
-      # Ref: https://michaelheap.com/access-secrets-from-forks/
-      - name: Get User Permission
-        id: checkAccess
-        uses: actions-cool/check-user-permission@v2
-        with:
-          require: write
-          username: ${{ github.triggering_actor }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Check User Permission
-        if: steps.checkAccess.outputs.require-result == 'false'
-        run: |
-          echo "${{ github.triggering_actor }} does not have permissions on this repo."
-          echo "Current permission level is ${{ steps.checkAccess.outputs.user-permission }}"
-          echo "Job originally triggered by ${{ github.actor }}"
-          exit 1
       - uses: actions/checkout@v4
         with:
           ref: ${{  github.event.pull_request.head.sha }} # This is dangerous without human review
@@ -57,12 +43,14 @@ jobs:
       - name: Install project
         run: uv sync --dev
       - name: Login to Hugging Face
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'rendeirolab/LazySlide'
         run: |
           uv run hf auth login --token ${{ secrets.HF_TOKEN }}
       - name: Tests
         run: |
           uv run pytest tests -n auto -m "not large_runner" --cov=src/lazyslide --cov-report=xml --cov-report=html
       - name: Upload coverage reports to Codecov
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'rendeirolab/LazySlide'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
