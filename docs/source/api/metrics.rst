@@ -5,7 +5,7 @@ Metrics
 Segmentation
 ~~~~~~~~~~~~
 
-LazySlide provides comprehensive segmentation evaluation metrics for both instance and semantic segmentation tasks.
+LazySlide provides comprehensive :term:`segmentation` evaluation metrics for both :term:`instance segmentation` and :term:`semantic segmentation` tasks.
 
 Here's how to evaluate segmentation performance using LazySlide's metrics:
 

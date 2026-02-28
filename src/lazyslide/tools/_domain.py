@@ -13,10 +13,10 @@ def spatial_domain(
     key_added: str = "domain",
 ):
     """
-    Perform unsupervised spatial domain segmentation on a WSI using feature embeddings.
+    Perform :term:`unsupervised spatial domain segmentation` on a :term:`WSI` using :term:`feature embeddings <feature embedding>`.
 
-    This function applies scaling, PCA, neighborhood graph construction, and Leiden clustering
-    to identify spatial domains within the WSI based on the provided features.
+    This function applies scaling, PCA, :term:`neighborhood graph construction`, and :term:`Leiden clustering`
+    to identify spatial domains within the WSI based on the provided :term:`features`.
 
     Parameters
     ----------
@@ -29,7 +29,7 @@ def spatial_domain(
     layer : str, optional
         The layer in the feature table to use for clustering.
     resolution : float, optional
-        The resolution parameter for Leiden clustering. Defaults to 0.1.
+        The resolution parameter for :term:`Leiden clustering`. Defaults to 0.1.
     key_added : str, optional
         The key under which to store the domain labels. Defaults to "domain".
 
@@ -76,8 +76,8 @@ def tile_shaper(
     key_added: str = "domain_shapes",
 ):
     """
-    Return the domain shapes of the WSI by merging tiles with the same types
-    that are spatially aggregated into polygons using geopandas dissolve.
+    Return the domain shapes of the :term:`WSI` by merging :term:`tiles <tile>` with the same types
+    that are spatially aggregated into :term:`polygons <polygon>` using geopandas dissolve.
 
     Parameters
     ----------
@@ -86,14 +86,14 @@ def tile_shaper(
     groupby : str
         The groupby key.
     tile_key : str
-        The tile key.
+        The :term:`tile` key.
     key_added : str
         The key to add the shapes to.
 
     Returns
     -------
     :class:`GeoDataFrame <geopandas.GeoDataFrame>`
-        Added to to the :bdg-danger:`shapes` slot of the WSIData object.
+        Added to to the :bdg-danger:`shapes` slot of the :term:`WSIData` object.
 
     Examples
     --------

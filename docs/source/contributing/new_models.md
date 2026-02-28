@@ -13,10 +13,10 @@ For setting up the development environment of LazySlide, please refer to [this p
 ## Understanding the base class of different model types
 
 There are different types of models in LazySlide:
-- Vision model
-- Image-text multimodal model
-- Segmentation model
-- Tile prediction model
+- {term}`Vision models <vision model>`
+- Image-text {term}`multimodal models <multimodal model>`
+- {term}`Segmentation models <segmentation model>`
+- {term}`Tile prediction models <tile prediction model>`
 
 You should find all the base class definition in `src/lazyslide/models/base.py`, and all models should 
 inherit from one of the base class. If you want the model like `model='cellpose'` in the LazySlide functions, 
@@ -45,7 +45,7 @@ There are some shared methods
 
 ### Vision model
 
-Vision model will require to implement `encode_image(self, image)` method to encode the input image and return
+Vision models will require to implement `encode_image(self, image)` method to encode the input image and return
 the encoded feature.
 
 Here is an example of a **vision model**:
@@ -107,7 +107,7 @@ class MyGreatModel(ImageModel):
 ### Image-text multimodal model
 
 Image text model will require implementing
-- `encode_image(self, image)`: Same as vision model
+- `encode_image(self, image)`: Same as vision models
 - `encode_text(self, text)`: Tokenize the text, encode and normalize the text features
 
 Here is an example of an **image-text multimodal model**:
@@ -150,8 +150,9 @@ class MyGreatImageTextModel(ImageTextModel):
 
 ### Segmentation model
 
-Segmentation model will require implementing, depends on the model type, either semantics or instance segmentation, please
+Segmentation models will require implementing, depends on the model type, either {term}`semantic segmentation` or {term}`instance segmentation`, please
 set the output type in `supported_output(self)` method.
+
 - `segment(self, image)`: Segment the input image, must return a dictionary with the output of the model, the key should be the output type defined in `supported_output(self)`
 - `supported_output(self)`: Return the supported output of the model, supported values are "probability_map", "instance_map", "class_map"
 

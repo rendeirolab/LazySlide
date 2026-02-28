@@ -8,9 +8,9 @@ from scipy.optimize import linear_sum_assignment
 
 @dataclass
 class SegmentationStats:
-    """Statistics for segmentation evaluation.
+    """Statistics for :term:`segmentation` evaluation.
 
-    A data class containing confusion matrix elements and optional IoU values
+    A data class containing :term:`confusion matrix` elements and optional :term:`IoU` values
     for evaluating segmentation performance.
 
     Attributes
@@ -25,7 +25,7 @@ class SegmentationStats:
         True negatives - correctly identified negative instances.
     ious : list of float, optional
         List of intersection over union (IoU) values for matched instances.
-        Only populated for instance segmentation tasks. Default is None.
+        Only populated for :term:`instance segmentation` tasks. Default is None.
     """
 
     tp: int
@@ -40,23 +40,23 @@ def get_instance_stats(
     gdf_pred: gpd.GeoDataFrame,
     iou_threshold: float = 0.5,
 ) -> SegmentationStats:
-    """Compute instance segmentation statistics using Hungarian matching.
+    """Compute :term:`instance segmentation` statistics using :term:`Hungarian algorithm` matching.
 
     This function evaluates instance segmentation performance by matching
-    predicted instances to ground truth instances using optimal assignment
-    based on intersection over union (IoU) scores. Uses the Hungarian algorithm
+    predicted :term:`instances <instance>` to ground truth instances using optimal assignment
+    based on :term:`intersection over union` (IoU) scores. Uses the :term:`Hungarian algorithm`
     to find the optimal one-to-one matching that maximizes total IoU.
 
     Parameters
     ----------
-    gdf_true : gpd.GeoDataFrame
-        Ground truth instances as a GeoDataFrame with geometry column containing
-        polygon geometries representing true object instances.
+    gdf_true : :term:`GeoDataFrame`
+        Ground truth instances as a :term:`GeoDataFrame` with geometry column containing
+        :term:`polygon` geometries representing true object instances.
     gdf_pred : gpd.GeoDataFrame
-        Predicted instances as a GeoDataFrame with geometry column containing
-        polygon geometries representing predicted object instances.
+        Predicted instances as a :term:`GeoDataFrame` with geometry column containing
+        :term:`polygon` geometries representing predicted object instances.
     iou_threshold : float, default=0.5
-        Minimum IoU threshold for considering a match as a true positive.
+        Minimum :term:`IoU` threshold for considering a match as a true positive.
         Matches with IoU below this threshold are considered false positives.
 
     Returns
@@ -106,10 +106,10 @@ def get_semantic_stats(
     gdf_true: gpd.GeoDataFrame,
     gdf_pred: gpd.GeoDataFrame,
 ) -> SegmentationStats:
-    """Compute semantic segmentation statistics using area-based overlap.
+    """Compute :term:`semantic segmentation` statistics using area-based overlap.
 
     This function evaluates semantic segmentation performance by computing
-    area-based statistics between ground truth and predicted polygons.
+    area-based statistics between ground truth and predicted :term:`polygons <polygon>`.
     It calculates intersection areas to determine true positives, false
     positives, and false negatives based on geometric overlap.
 
@@ -154,7 +154,7 @@ def get_semantic_stats(
 
 
 def accuracy(stats: SegmentationStats) -> float:
-    """Compute accuracy from segmentation statistics.
+    """Compute accuracy from :term:`segmentation` statistics.
 
     Accuracy is the proportion of correctly classified instances (both positive
     and negative) out of the total instances.
@@ -180,7 +180,7 @@ def accuracy(stats: SegmentationStats) -> float:
 
 
 def precision(stats: SegmentationStats) -> float:
-    """Compute precision from segmentation statistics.
+    """Compute precision from :term:`segmentation` statistics.
 
     Precision measures the proportion of predicted positive instances that are
     actually positive. It answers the question: "Of all the instances we predicted
@@ -205,7 +205,7 @@ def precision(stats: SegmentationStats) -> float:
 
 
 def recall(stats: SegmentationStats) -> float:
-    """Compute recall (sensitivity) from segmentation statistics.
+    """Compute recall (sensitivity) from :term:`segmentation` statistics.
 
     Recall measures the proportion of actual positive instances that were correctly
     identified. It answers the question: "Of all the instances that are actually
@@ -231,7 +231,7 @@ def recall(stats: SegmentationStats) -> float:
 
 
 def f1_score(stats: SegmentationStats) -> float:
-    """Compute F1 score from segmentation statistics.
+    """Compute F1 score from :term:`segmentation` statistics.
 
     The F1 score is the harmonic mean of precision and recall, providing a single
     metric that balances both precision and recall. It reaches its best value at 1
@@ -259,10 +259,10 @@ def f1_score(stats: SegmentationStats) -> float:
 
 
 def mean_iou(stats: SegmentationStats) -> float:
-    """Compute mean Intersection over Union (mIoU) from segmentation statistics.
+    """Compute mean :term:`Intersection over Union` (mIoU) from :term:`segmentation` statistics.
 
-    This function handles both instance and semantic segmentation scenarios:
-    - For instance segmentation: computes the mean of IoU values for matched instances
+    This function handles both :term:`instance segmentation` and :term:`semantic segmentation` scenarios:
+    - For instance segmentation: computes the mean of :term:`IoU` values for matched instances
     - For semantic segmentation: computes IoU using the Jaccard index formula
 
     Parameters
@@ -292,7 +292,7 @@ def mean_iou(stats: SegmentationStats) -> float:
 
 
 def dice(stats: SegmentationStats) -> float:
-    """Compute Dice coefficient from segmentation statistics.
+    """Compute Dice coefficient from :term:`segmentation` statistics.
 
     The Dice coefficient (also known as Sørensen-Dice coefficient or F1 score)
     measures the similarity between two sets by computing twice the size of their
@@ -319,7 +319,7 @@ def dice(stats: SegmentationStats) -> float:
 
 
 def sensitivity(stats: SegmentationStats) -> float:
-    """Compute sensitivity (true positive rate) from segmentation statistics.
+    """Compute sensitivity (true positive rate) from :term:`segmentation` statistics.
 
     Sensitivity measures the proportion of actual positive instances that were
     correctly identified. This is identical to recall and represents the ability
@@ -349,7 +349,7 @@ def sensitivity(stats: SegmentationStats) -> float:
 
 
 def specificity(stats: SegmentationStats) -> float:
-    """Compute specificity (true negative rate) from segmentation statistics.
+    """Compute specificity (true negative rate) from :term:`segmentation` statistics.
 
     Specificity measures the proportion of actual negative instances that were
     correctly identified as negative. It represents the ability of the model
@@ -377,11 +377,11 @@ def specificity(stats: SegmentationStats) -> float:
 
 
 def pq(stats: SegmentationStats) -> float:
-    """Compute Panoptic Quality (PQ) from segmentation statistics.
+    """Compute :term:`Panoptic Quality` (PQ) from segmentation statistics.
 
     Panoptic Quality is a unified metric for evaluating panoptic segmentation
     that combines both detection quality (matching instances) and segmentation
-    quality (IoU of matched instances). It balances both recognition and
+    quality (:term:`IoU` of matched instances). It balances both recognition and
     segmentation quality in a single metric.
 
     Parameters

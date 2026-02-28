@@ -75,12 +75,12 @@ class Mask(ABC):
         classes_order=None,
     ):
         """
-        Create a mask from polygons.
+        Create a :term:`mask` from :term:`polygon <polygons>`.
 
         Parameters
         ----------
         polygons : gpd.GeoDataFrame
-            GeoDataFrame containing polygons.
+            :term:`GeoDataFrame` containing :term:`polygon <polygons>`.
         bounding_box : tuple, optional
             Bounding box to define the mask size (xmin, ymin, xmax, ymax).
         class_col : str, optional
@@ -208,9 +208,9 @@ class BinaryMask(Mask):
     ):
         assert mask.ndim == 2, "Binary mask must be 2D."
         if prob_map is not None:
-            assert prob_map.shape == mask.shape, (
-                "Probability mask must have the same shape as the binary mask."
-            )
+            assert (
+                prob_map.shape == mask.shape
+            ), "Probability mask must have the same shape as the binary mask."
         # Coerce the mask to binary (0 and 1)
         mask = np.asarray(mask > 0, dtype=np.uint8)
         super().__init__(mask, prob_map, class_names)
@@ -256,9 +256,9 @@ class MulticlassMask(Mask):
         assert mask.ndim == 2, "Multiclass mask must be 2D."
         assert self._is_integer_dtype(mask), "Multiclass mask must be of integer type."
         if prob_map is not None:
-            assert prob_map.shape == mask.shape, (
-                "Probability mask must have the same shape as the multiclass mask."
-            )
+            assert (
+                prob_map.shape == mask.shape
+            ), "Probability mask must have the same shape as the multiclass mask."
         super().__init__(mask, prob_map)
         self.classes = np.sort(np.unique(self.mask))
         self.n_classes = len(self.classes)
@@ -414,7 +414,7 @@ class MultilabelMask(Mask):
 
 
 class InstanceMap(Mask):
-    """The class for instance mask."""
+    """The class for :term:`instance mask`."""
 
     def __init__(
         self,
@@ -424,9 +424,9 @@ class InstanceMap(Mask):
     ):
         assert instance_map.ndim == 2, "Instance map must be 2D."
         # The map must be an integer type with unique values for each instance
-        assert np.issubdtype(instance_map.dtype, np.integer), (
-            "Instance map must be of integer type."
-        )
+        assert np.issubdtype(
+            instance_map.dtype, np.integer
+        ), "Instance map must be of integer type."
 
         self._is_classification = False
         if prob_map is not None:
@@ -445,23 +445,23 @@ class InstanceMap(Mask):
         ignore_index: int | Sequence[int] | None = None,
     ) -> gpd.GeoDataFrame:
         """
-        Convert instance mask to polygons.
+        Convert :term:`instance mask` to :term:`polygons <polygon>`.
 
         Parameters
         ----------
         min_area : float
             Minimum area of detected regions to be included in the polygon.
         min_hole_area : float
-            Minimum area of detected holes to be included in the polygon.
+            Minimum area of detected :term:`holes` to be included in the :term:`polygon`.
         detect_holes : bool
-            Whether to detect holes in regions.
+            Whether to detect :term:`holes` in regions.
         ignore_index : int or Sequence[int] or None
             Indexes to ignore.
 
         Returns
         -------
         Dict[int, Sequence[Polygon]]
-            Dictionary of polygons for each instance.
+            Dictionary of :term:`polygons <polygon>` for each :term:`instance`.
 
         """
         if ignore_index is not None:
@@ -522,25 +522,25 @@ class ProbabilityMap(Mask):
         ignore_index: int | Sequence[int] | None = 0,
     ) -> gpd.GeoDataFrame:
         """
-        Convert the probability map to polygons.
+        Convert the probability map to :term:`polygons <polygon>`.
 
         Parameters
         ----------
         threshold : float
-            Threshold to convert the probability map to binary mask.
+            Threshold to convert the probability map to term:`binary mask`.
         min_area : float
-            Minimum area of detected regions to be included in the polygon.
+            Minimum area of detected regions to be included in the polygon`.
         min_hole_area : float
-            Minimum area of detected holes to be included in the polygon.
+            Minimum area of detected :term:`holes` to be included in the polygon`.
         detect_holes : bool
-            Whether to detect holes in regions.
+            Whether to detect :term:`holes` in regions.
         ignore_index : int or Sequence[int] or None
             Indexes to ignore.
 
         Returns
         -------
         gpd.GeoDataFrame
-            GeoDataFrame containing polygons and their probabilities.
+            :term:`GeoDataFrame` containing polygons and their probabilities.
 
         """
         if self.is2D:
@@ -592,18 +592,18 @@ def binary_mask_to_polygons(
     detect_holes: bool = True,
 ) -> Sequence[Polygon]:
     """
-    Convert binary mask to polygon.
+    Convert :term:`binary mask` to :term:`polygon`.
 
     Parameters
     ----------
     binary_mask : np.ndarray
         Binary mask.
     min_area : int
-        Minimum area of detected regions to be included in the polygon.
+        Minimum area of detected regions to be included in the polygon`.
     min_hole_area : int
-        Minimum area of detected holes to be included in the polygon.
+        Minimum area of detected :term:`holes` to be included in the polygon`.
     detect_holes : bool
-        Whether to detect holes in regions.
+        Whether to detect :term:`holes` in regions.
 
     Returns
     -------
@@ -683,7 +683,7 @@ def binary_mask_to_polygons_with_prob(
     detect_holes: bool = True,
 ) -> gpd.GeoDataFrame:
     """
-    Convert binary mask to polygon and include probability information.
+    Convert :term:`binary mask` to :term:`polygon` and include probability information.
 
     Parameters
     ----------
@@ -692,16 +692,16 @@ def binary_mask_to_polygons_with_prob(
     prob_map : np.ndarray, optional
         Probability mask with the same shape as the binary mask.
     min_area : float
-        Minimum area of detected regions to be included in the polygon.
+        Minimum area of detected regions to be included in the polygon`.
     min_hole_area : float
-        Minimum area of detected holes to be included in the polygon.
+        Minimum area of detected :term:`holes` to be included in the polygon`.
     detect_holes : bool
-        Whether to detect holes in regions.
+        Whether to detect :term:`holes` in regions.
 
     Returns
     -------
     :class:`GeoDataFrame <geopandas.GeoDataFrame>`
-        GeoDataFrame containing polygons and their probabilities.
+        :term:`GeoDataFrame` containing polygons and their probabilities.
 
     """
     # Get polygons using the existing function

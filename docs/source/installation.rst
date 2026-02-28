@@ -95,7 +95,7 @@ The reader will be automatically detected by `wsidata <https://wsidata.readthedo
         .. code-block:: python
 
             import os
-            with os.add_dll_directory("path/to/openslide/bin")):
+            with os.add_dll_directory("path/to/openslide/bin"):
                 import openslide
 
     .. tab-item:: BioFormats

@@ -255,18 +255,18 @@ def zero_shot(
     show_progress: bool = True,
 ) -> WSIData:
     """
-    Perform zero-shot segmentation on the WSI using the specified model and prompts.
+    Perform :term:`zero-shot learning` :term:`segmentation` on the :term:`WSI` using the specified model and prompts.
 
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
-        The WSIData object to work on.
+        The :term:`WSIData` object to work on.
     prompts : list[str]
         List of prompts for zero-shot segmentation.
     table_key : str
         The key for the similarity matrix in the WSIData object.
     tile_key : str
-        The key for the tiles in the WSIData object.
+        The key for the :term:`tiles <tile>` in the WSIData object.
     tissue_key : str, default: "tissues"
         The key for the tissues in the WSIData object.
     threshold : str | float | list[float], default: 'otsu'
@@ -283,7 +283,7 @@ def zero_shot(
     key_added : str, default: "zero_shot_segmentation"
         The key to store the results in the WSIData object.
     min_area : float, default: 10
-        Minimum area for polygons to be included in the results.
+        Minimum area for :term:`polygons <polygon>` to be included in the results.
     show_progress : bool, default: True
         Whether to show a progress bar.
 

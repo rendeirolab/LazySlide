@@ -45,12 +45,12 @@ def artifact(
     *args,
 ):
     """
-    Artifact segmentation for the whole slide image.
+    :term:`Artifact segmentation` for the :term:`whole slide image <WSI>`.
 
     Run GrandQC :cite:p:`Weng2024-jf` artifact segmentation model on the whole slide image.
     The model is trained on 512x512 tiles with mpp=1.5, 2, or 1.
 
-    It can detect the following artifacts:
+    It can detect the following :term:`artifacts <artifact>`:
 
     - Fold
     - Darkspot & Foreign Object
@@ -61,7 +61,7 @@ def artifact(
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
-        The WSIData object to work on.
+        The :term:`WSIData` object to work on.
     tile_key : str
         The key of the tile table.
     model : {"grandqc"}, default: "grandqc"
@@ -79,9 +79,9 @@ def artifact(
     threshold : float, default: 0.8
         The probability threshold to consider a pixel as an artifact.
     buffer_px : int, default: 2
-        The buffer in pixels to apply when merging polygons.
+        The buffer in pixels to apply when merging :term:`polygons <polygon>`.
     batch_size : int, default: 4
-        The batch size for segmentation.
+        The batch size for :term:`segmentation`.
     num_workers : int, default: 0
         The number of workers for data loading.
     device : str, default: None

@@ -23,7 +23,7 @@ def image_generation(
     **kwargs,
 ) -> List[Image.Image]:
     """
-    Generation of tile images unconditionally or conditionally.
+    Generation of :term:`tile` images unconditionally or conditionally.
 
     Currently only supports cytosyn model, conditionally generation relied on H0-mini features.
 
@@ -34,7 +34,7 @@ def image_generation(
     model : str, default: "cytosyn"
         The image generation model.
     prompt_tiles : slice, default: None
-        The tiles to generate images for, please use index to select tiles.
+        The :term:`tiles <tile>` to generate images for, please use index to select tiles.
         If None, unconditional generation is performed.
     tile_key : str, default: "tiles"
         Which tile table to use.

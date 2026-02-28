@@ -12,7 +12,7 @@ def topk_score(
     agg_method: str = "max",
 ) -> np.ndarray:
     """
-    Get the top k score from a feature x class matrix.
+    Get the top k score from a :term:`feature` x class matrix.
 
     Parameters
     ----------

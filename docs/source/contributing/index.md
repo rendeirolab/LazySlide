@@ -4,7 +4,7 @@ We welcome contributions to the LazySlide project. This document provides guidel
 
 ## Project overview
 
-LazySlide is a modularized and scalable whole slide image analysis toolkit. The project is structured as follows:
+LazySlide is a modularized and scalable {term}`whole slide image <WSI>` analysis toolkit. The project is structured as follows:
 
 - `src/lazyslide`: Main package code
 - `tests`: Test files

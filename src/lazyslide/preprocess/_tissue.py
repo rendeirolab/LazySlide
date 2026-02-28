@@ -76,13 +76,13 @@ def find_tissues(
     filter_artifacts: bool = True,
     key_added: str = Key.tissue,
 ):
-    """Find tissue regions in the WSI and add them as contours and holes.
+    """Find tissue regions in the :term:`WSI` and add them as :term:`contours` and :term:`holes`.
 
     .. note::
         The results may not be deterministic between runs,
-        as the segmentation level is automatically decided by the available memory.
+        as the :term:`segmentation level` is automatically decided by the available memory.
         To get a consistent result, you can set the `level` parameter to a specific value.
-        Set `level=-1` for the lowest resolution level and fastest segmentation speed.
+        Set `level=-1` for the lowest resolution level and fastest :term:`tissue segmentation` speed.
 
     .. seealso::
         :func:`zs.seg.tissue <lazyslide.seg.tissue>`
@@ -91,7 +91,7 @@ def find_tissues(
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
-        The WSIData object to work on.
+        The :term:`WSIData` object to work on.
     level : int, default: 'auto'
         The level to use for segmentation.
     refine_level : int or 'auto', default: None
@@ -114,9 +114,9 @@ def find_tissues(
     detect_holes : bool, default: True
         Detect holes in tissue regions.
     filter_artifacts : bool, default: True
-        Filter artifacts out. Artifacts that are non-redish are removed.
+        Filter :term:`artifacts <artifact>` out. Artifacts that are non-redish are removed.
     key_added : str, default: 'tissues'
-        The key to save the result in the WSIData object.
+        The key to save the result in the :term:`WSIData` object.
 
     Returns
     -------

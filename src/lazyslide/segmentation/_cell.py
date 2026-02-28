@@ -29,10 +29,10 @@ def cells(
     key_added="cells",
     **model_kwargs,
 ):
-    """Cell segmentation for the whole slide image.
+    """:term:`cell segmentation <Cell segmentation>` for the whole slide image.
 
-    Tiles should be prepared before segmentation, the tile size should be
-    reasonable (with mpp around 0.5) for the model to work properly
+    :term:`tile <Tiles>` should be prepared before segmentation, the tile size should be
+    reasonable (with :term:`mpp` around 0.5) for the model to work properly
 
     Supported models:
 
@@ -42,7 +42,7 @@ def cells(
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
-        The WSIData object to work on.
+        The :term:`WSIData` object to work on.
     model : str | SegmentationModel, default: "instanseg"
         The cell segmentation model.
     tile_key : str, default: "tiles"
@@ -115,10 +115,10 @@ def cell_types(
     pbar=True,
     key_added="cell_types",
 ):
-    """Cell type segmentation for the whole slide image.
+    """:term:`Cell type segmentation` for the :term:`whole slide image`.
 
-    Tiles should be prepared before segmentation, the tile size should be
-    reasonable (with mpp around 0.5) for the model to work properly
+    :term:`tile <Tiles>` should be prepared before segmentation, the tile size should be
+    reasonable (with :term:`mpp` around 0.5) for the model to work properly
 
     Supported models:
         - nulite: :cite:p:`Tommasino2024-tg`
@@ -173,9 +173,10 @@ def cell_types(
                 f"You can either generate new tiles or pass `magnification='20x'/'40x'` to select "
                 f"which model to use."
             )
-    assert magnification in {"20x", "40x"}, (
-        f"Unsupported magnification: {magnification}, use '20x' or '40x'"
-    )
+    assert magnification in {
+        "20x",
+        "40x",
+    }, f"Unsupported magnification: {magnification}, use '20x' or '40x'"
 
     if isinstance(model, SegmentationModel):
         model_instance = model

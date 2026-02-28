@@ -25,7 +25,7 @@ def tile_graph(
     table_key: str = None,
 ):
     """
-    Compute the spatial graph of the tiles.
+    Compute the :term:`spatial graph <spatial tile graph>` of the tiles.
 
     Parameters
     ----------
@@ -36,7 +36,7 @@ def tile_graph(
     n_rings : int, default: 1
         The number of rings to consider.
     delaunay : bool, default: False
-        Whether to use Delaunay triangulation.
+        Whether to use :term:`Delaunay triangulation`.
     transform : str, default: None
         The transformation to apply to the graph.
     set_diag : bool, default: False
@@ -223,9 +223,7 @@ def _build_connectivity(
         r = (
             1
             if radius is None
-            else radius
-            if isinstance(radius, (int, float))
-            else max(radius)
+            else radius if isinstance(radius, (int, float)) else max(radius)
         )
         tree = NearestNeighbors(n_neighbors=n_neighs, radius=r, metric="euclidean")
         tree.fit(coords)

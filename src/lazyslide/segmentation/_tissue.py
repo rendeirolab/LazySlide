@@ -34,34 +34,34 @@ def tissue(
     key_added: str = Key.tissue,
 ):
     """
-    Perform tissue segmentation powered by a deep learning model.
+    Perform :term:`tissue segmentation` powered by a deep learning model.
 
     Supported models:
         - "grandqc": :cite:p:`Weng2024-jf`. Runs on mpp=10.
         - "pathprofiler": :cite:p:`Haghighat2022-sy`. Runs on mpp=2.5.
         - "hest": "https://huggingface.co/MahmoodLab/hest-tissue-seg". Runs on mpp=1.
 
-    If you encounter a memory issue, please set a higher `mpp` value.
+    If you encounter a memory issue, please set a higher :term:`mpp` value.
 
     Parameters
     ----------
     wsi : :class:`wsidata.WSIData`
-        The whole slide image.
+        The :term:`whole slide image <WSI>`.
     model : {"grandqc", "pathprofiler", "hest"}, default: "pathprofiler"
-        The model to use for tissue segmentation.
+        The model to use for :term:`tissue segmentation`.
     level : int, default: None
         The level to segment the tissue, mutually exclusive with mpp.
     mpp : float, default: None
         The mpp level to segment the tissue, mutually exclusive with level.
     bbox_ratio : float, default: 0.05
         The ratio of the bounding box to filter
-        the false positive tissue polygons.
+        the false positive tissue :term:`polygons <polygon>`.
     min_area : float, default: 1e-3
         The minimum area of the tissue polygon.
     min_hole_area : float, default: 1e-5
         The minimum area of the hole in the tissue polygon.
     detect_holes : bool, default: True
-        Whether to detect holes in the tissue polygons.
+        Whether to detect :term:`holes` in the tissue polygons.
     threshold : float, default: 0.5
         The probability threshold to consider a pixel as tissue.
     device : str, default: None
