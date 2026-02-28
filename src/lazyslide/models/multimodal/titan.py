@@ -133,6 +133,8 @@ class Titan(
         if template is None:
             template = self.TEMPLATES
 
-        classifier = self.model.zero_shot_classifier(prompts, template)
+        classifier = self.model.zero_shot_classifier(
+            prompts, template, device=slide_embeddings.device
+        )
         scores = self.model.zero_shot(slide_embeddings, classifier)
         return scores
