@@ -2,24 +2,25 @@
 
 <p align="center">
     <picture align="center">
-    <img src="https://raw.githubusercontent.com/rendeirolab/lazyslide/main/assets/logo@3x.png" width="150px">
+    <img src="https://raw.githubusercontent.com/rendeirolab/lazyslide/main/assets/logo.png" width="150px">
     </picture>
 </p>
 <p align="center">
   <i>Accessible and interoperable whole slide image analysis</i>
 </p>
 
-[![bioRxiv badge](https://zenodo.org/badge/doi/10.1101/2025.05.28.656548.svg)](https://doi.org/10.1101/2025.05.28.656548) ⬅️ read the preprint on BioRxiv
 
 [![Documentation Status](https://readthedocs.org/projects/lazyslide/badge/?version=stable&style=flat-square)](https://lazyslide.readthedocs.io/en/stable)
 ![pypi version](https://img.shields.io/pypi/v/lazyslide?color=0098FF&logo=python&logoColor=white&style=flat-square)
 ![conda version](https://img.shields.io/conda/vn/conda-forge/lazyslide?style=flat-square&logo=anaconda&logoColor=white&color=%2344A833)
 ![PyPI - License](https://img.shields.io/pypi/l/lazyslide?color=FFD43B&style=flat-square)
 ![scverse ecosystem](https://img.shields.io/badge/scverse_ecosystem-gray.svg?style=flat-square&logo=data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+PCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4KPHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB2aWV3Qm94PSIwIDAgOTEgOTEiIHZlcnNpb249IjEuMSIKICAgIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIKICAgIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4bWw6c3BhY2U9InByZXNlcnZlIgogICAgeG1sbnM6c2VyaWY9Imh0dHA6Ly93d3cuc2VyaWYuY29tLyIgc3R5bGU9ImZpbGwtcnVsZTpldmVub2RkO2NsaXAtcnVsZTpldmVub2RkO3N0cm9rZS1saW5lam9pbjpyb3VuZDtzdHJva2UtbWl0ZXJsaW1pdDoyOyI+CiAgICA8ZyBpZD0iRWJlbmVfMyI+CiAgICAgICAgPGc+CiAgICAgICAgICAgIDxwYXRoIGQ9Ik0zNSw4OS42Yy0yMi4zLC0zLjQgLTMwLjYsLTE5LjggLTMwLjYsLTE5LjhjMTAuOCwxNi45IDQzLDkuMSA1Mi45LDIuNWMxMi40LC04LjMgOCwtMTUuMyA2LjgsLTE4LjFjNS40LDcuMiA1LjMsMjMuNSAtMS4xLDI5LjRjLTUuNiw1LjEgLTE1LjMsNy45IC0yOCw2WiIgc3R5bGU9ImZpbGw6I2ZmZjtmaWxsLXJ1bGU6bm9uemVybztzdHJva2U6IzAwMDtzdHJva2Utd2lkdGg6MXB4OyIvPgogICAgICAgICAgICA8cGF0aCBkPSJNODMuOSw0My41YzIuOSwtNy4xIDAuOCwtMTIuNSAwLjUsLTEzLjNjLTAuNywtMS4zIC0xLjUsLTIuMyAtMi40LC0zLjFjLTE2LjEsLTEyLjYgLTU1LjksMSAtNzAuOSwxNi44Yy0xMC45LDExLjUgLTEwLjEsMjAgLTYuNywyNS44YzMuMSw0LjggNy45LDcuNiAxMy40LDljLTExLjUsLTEyLjQgOS44LC0zMS4xIDI5LC0zOGMyMSwtNy41IDMyLjUsLTMgMzcuMSwyLjhaIiBzdHlsZT0iZmlsbDojMzQzNDM0O2ZpbGwtcnVsZTpub256ZXJvO3N0cm9rZTojMDAwO3N0cm9rZS13aWR0aDoxcHg7Ii8+CiAgICAgICAgICAgIDxwYXRoIGQ9Ik03OS42LDUwLjRjOSwtMTAuNSA1LC0xOS43IDQuOCwtMjAuNGMtMCwwIDQuNCw3LjEgMi4yLDIyLjZjLTEuMiw4LjUgLTUuNCwxNiAtMTAuMSwxMS44Yy0yLjEsLTEuOCAtMywtNi45IDMuMSwtMTRaIiBzdHlsZT0iZmlsbDojZmZmO2ZpbGwtcnVsZTpub256ZXJvO3N0cm9rZTojMDAwO3N0cm9rZS13aWR0aDoxcHg7Ii8+CiAgICAgICAgICAgIDxwYXRoIGQ9Ik02NCw1NC4yYy0zLjMsLTQuOCAtOC4xLC03LjQgLTEyLjMsLTEwLjhjLTIuMiwtMS43IC0xNi40LC0xMS4yIC0xOS4yLC0xNS4xYy02LjQsLTYuNCAtOS41LC0xNi45IC0zLjQsLTIzLjFjLTQuNCwtMC44IC04LjIsMC4yIC0xMC42LDEuNWMtMS4xLDAuNiAtMi4xLDEuMiAtMi44LDJjLTYuNyw2LjIgLTUuOCwxNyAtMS42LDI0LjNjNC41LDcuOCAxMy4yLDE1LjQgMjQuMywyMi44YzUuMSwzLjQgMTUuNiw4LjQgMTkuMywxNmMxMS43LC04LjEgNy42LC0xNC45IDYuMywtMTcuNloiIHN0eWxlPSJmaWxsOiNiNGI0YjQ7ZmlsbC1ydWxlOm5vbnplcm87c3Ryb2tlOiMwMDA7c3Ryb2tlLXdpZHRoOjFweDsiLz4KICAgICAgICAgICAgPHBhdGggZD0iTTM4LjcsOS44YzcuOSw2LjMgMTIuNCw5LjggMjAsOC41YzUuNywtMSA0LjksLTcuOSAtNCwtMTMuNmMtNC40LC0yLjggLTkuNCwtNC4yIC0xNS43LC00LjJjLTcuNSwtMCAtMTYuMywzLjkgLTIwLjYsNi40YzQsLTIuMyAxMS45LC0zLjggMjAuMywyLjlaIiBzdHlsZT0iZmlsbDojZmZmO2ZpbGwtcnVsZTpub256ZXJvO3N0cm9rZTojMDAwO3N0cm9rZS13aWR0aDoxcHg7Ii8+CiAgICAgICAgPC9nPgogICAgPC9nPgo8L3N2Zz4=)
+[![Nature Methods](https://img.shields.io/badge/DOI-10.1038%2Fs41592--026--03044--7-blue?style=flat-square)](https://doi.org/10.1038/s41592-026-03044-7)
 
 [Installation](https://lazyslide.readthedocs.io/en/stable/installation.html) | 
 [Tutorials](https://lazyslide.readthedocs.io/en/stable/tutorials/index.html) |
-[Preprint](https://doi.org/10.1101/2025.05.28.656548)
+[Preprint](https://doi.org/10.1101/2025.05.28.656548) | 
+[Nature Methods](https://doi.org/10.1038/s41592-026-03044-7)
 
 LazySlide is a Python framework for whole slide image (WSI) analysis, designed to integrate seamlessly with the scverse
 ecosystem.

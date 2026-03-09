@@ -58,7 +58,7 @@ bibtex_reference_style = "author_year"
 
 html_theme = "sphinx_book_theme"
 html_static_path = ["_static"]
-html_logo = "_static/logo@3x.png"
+html_logo = "_static/logo.png"
 html_css_files = ["custom.css"]
 html_theme_options = {
     "repository_url": "https://github.com/rendeirolab/LazySlide",
