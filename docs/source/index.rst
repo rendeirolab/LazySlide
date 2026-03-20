@@ -6,7 +6,7 @@ LazySlide: Accessible and interoperable whole slide image analysis
    .. grid-item::
        :columns: 12 4 4 4
 
-       .. image:: _static/logo@3x.png
+       .. image:: _static/logo.png
           :align: center
           :width: 150px
 
