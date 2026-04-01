@@ -399,9 +399,6 @@ class SemanticSegmentationRunner(Runner):
                                     )
                                 pos_x = int((xs[i] - minx) / self.downsample)
                                 pos_y = int((ys[i] - miny) / self.downsample)
-                                # skip tiles that are outside the tissue bounds
-                                if pos_x >= width or pos_y >= height:
-                                    continue
                                 slice_y = slice(
                                     pos_y,
                                     np.clip(
