@@ -289,10 +289,11 @@ class SemanticSegmentationRunner(Runner):
 
         if not self.has_tissue:
             wsi_bounds = wsi.properties.bounds
+            bx, by, bw, bh = wsi_bounds
             tissues = gpd.GeoDataFrame(
                 {
                     "tissue_id": [0],
-                    "geometry": [box(0, 0, wsi_bounds[2], wsi_bounds[3])],
+                    "geometry": [box(bx, by, bx + bw, by + bh)],
                 }
             )
         else:
