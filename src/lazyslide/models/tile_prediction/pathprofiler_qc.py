@@ -53,6 +53,7 @@ class PathProfilerQC(TilePredictionModel):
         from torchvision.transforms import InterpolationMode
         from torchvision.transforms.v2 import (
             Compose,
+            Normalize,
             Resize,
             ToDtype,
             ToImage,
@@ -62,11 +63,15 @@ class PathProfilerQC(TilePredictionModel):
             [
                 ToImage(),
                 Resize(
-                    size=(256, 256),
+                    size=(224, 224),
                     interpolation=InterpolationMode.BICUBIC,
                     antialias=True,
                 ),
                 ToDtype(dtype=torch.float32, scale=True),
+                Normalize(
+                    mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225],
+                ),
             ]
         )
 
