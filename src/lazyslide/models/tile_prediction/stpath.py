@@ -1811,7 +1811,6 @@ def normalize_coords(coords):
     bib_key="Huang2025-st",
     param_size="~50M",
     encode_dim=512,
-    flops=305904607008,
 )
 class STPath(ModelBase):
     """
