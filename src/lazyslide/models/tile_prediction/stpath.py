@@ -1801,7 +1801,7 @@ def normalize_coords(coords):
 @register(
     key="stpath",
     is_gated=False,
-    task=ModelTask.feature_prediction,
+    task=ModelTask.spatial_transcriptomics,
     license=None,  # No license specified by the authors in the GitHub repo or HuggingFace model card
     description="A generative foundation model for integrating spatial transcriptomics and whole-slide images",
     commercial=None,  # Unknown: no license has been specified upstream
