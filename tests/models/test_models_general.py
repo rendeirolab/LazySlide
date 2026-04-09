@@ -71,6 +71,16 @@ MODEL_INPUT_ARGS = {
     "spider-skin": {"args": [torch.randn(1, 3, 224, 224)]},
     "spider-thorax": {"args": [torch.randn(1, 3, 224, 224)]},
     "split_rgb": {"args": [torch.randn(1, 3, 224, 224)]},
+    # STPath takes (img_tokens, coords, ge_tokens, batch_idx).
+    # n_genes=38984 matches the full symbol2ensembl vocabulary (incl. pad + mask tokens).
+    "stpath": {
+        "args": [
+            torch.randn(10, 1536),  # img_tokens  [N, feature_dim]
+            torch.rand(10, 2) * 100,  # coords       [N, 2]
+            torch.zeros(10, 38984),  # ge_tokens    [N, n_genes] (all-mask)
+            torch.zeros(10, dtype=torch.long),  # batch_idx [N]
+        ],
+    },
     "titan": {"args": [torch.randn(1, 3, 448, 448)], "method": "conch.forward"},
     "uni": {"args": [torch.randn(1, 3, 224, 224)]},
     "uni2": {"args": [torch.randn(1, 3, 224, 224)]},
@@ -103,8 +113,8 @@ def test_model_init(model_name):
         assert model.model is not None
         assert model.name is not None
         assert isinstance(model.task, (ModelTask, List))
-        assert model.license is not None
-        assert model.commercial is not None
+        assert hasattr(model, "license")
+        assert hasattr(model, "commercial")
         # Test estimation of param size
         _ = model.estimate_param_size()
         # Test FLOPS estimation if input arguments are available

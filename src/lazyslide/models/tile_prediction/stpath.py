@@ -11,6 +11,7 @@ It includes:
 """
 
 import json
+import warnings
 from typing import Optional, Protocol, runtime_checkable
 
 import numpy as np
@@ -397,8 +398,8 @@ class GeneExpTokenizer(TokenizerBase):
             if symbol in self.symbol2gene
         ]
         if len(res) != len(symbol_list):
-            print(
-                f"Warning: {len(symbol_list) - len(res)} symbols are not in the tokenizer."
+            warnings.warn(
+                f"{len(symbol_list) - len(res)} symbols are not in the tokenizer."
             )
 
         if return_valid_positions:
@@ -529,7 +530,7 @@ class GeneExpTokenizer(TokenizerBase):
             try:
                 from torch_geometric.utils import coalesce
             except ImportError:
-                print(
+                warnings.warn(
                     "torch_geometric is not installed. Falling back to dense representation."
                 )
                 return_sparse = False  # Fallback if torch_geometric is not available
@@ -1685,8 +1686,6 @@ class STFM(nn.Module):
             self.tokenizer.domain_anno_tokenizer.n_tokens
         )  # This key doesn't seem to be used in InputEncoder
 
-        print(self.config)
-
         self.model = SpatialTransformer(self.config)
         self.input_encoder = InputEncoder(self.config)
 
@@ -1803,12 +1802,12 @@ def normalize_coords(coords):
     key="stpath",
     is_gated=False,
     task=ModelTask.feature_prediction,
-    license="CC BY-NC-ND 4.0",
+    license=None,  # No license specified by the authors in the GitHub repo or HuggingFace model card
     description="A generative foundation model for integrating spatial transcriptomics and whole-slide images",
-    commercial=False,
+    commercial=None,  # Unknown: no license has been specified upstream
     hf_url="https://huggingface.co/tlhuang/STPath",
     github_url="https://github.com/Graph-and-Geometric-Learning/STPath",
-    paper_url="https://doi.org/10.1038/s41746-025-02020-3",
+    paper_url="https://doi.org/10.64898/2026.03.17.711896",
     bib_key="Huang2025-st",
     param_size="~50M",
     encode_dim=512,
