@@ -83,20 +83,39 @@ Below is a list of available models categorized by their type:
 .. include:: api/models.rst
 ```
 
-## Use model in offline environment
+## Use model in an offline environment
 
 For huggingface gated models, to run in an environment without internet access.
-The model must be download first, for example, run the model initiation code on a HPC login node.
+The model must be downloaded first, for example, run the model initiation code on an HPC login node or your local machine.
 
+::::{tab-set}
+
+:::{tab-item} Python
 ```python
-from lazyslide.models import MODEL_REGISTRY
+from huggingface_hub import snapshot_download
 
-# This will cache the model
-model = MODEL_REGISTRY['uni']()
+snapshot_download("model-repo-name")
 ```
+:::
+
+:::{tab-item} CLI
+```bash
+hf download model-repo-name
+```
+:::
+
+::::
+
+If you need to copy from your local machine to an HPC login node, you would need to mimic the same directory structure
+as the model repository. The huggingface model is by default downloaded to `~/.cache/huggingface`. This is controlled
+by the environment variable `HF_HOME <https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables#hfhome>`_.
+
+You can either copy the whole local `~/.cache/huggingface` directory to the same path on HPC login node, or copy the specific model
+directory to the HPC login node.`
 
 When you submit a job to compute node without internet connection. Please set the environment variable
 `HF_HUB_OFFLINE=1` so huggingface will not make any HTTP request.
+
 Alternatively, You can set it at the start of your python session
 
 ```python
