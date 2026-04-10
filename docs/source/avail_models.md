@@ -108,10 +108,10 @@ hf download model-repo-name
 
 If you need to copy from your local machine to an HPC login node, you would need to mimic the same directory structure
 as the model repository. The huggingface model is by default downloaded to `~/.cache/huggingface`. This is controlled
-by the environment variable `HF_HOME <https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables#hfhome>`_.
+by the environment variable [`HF_HOME`](https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables#hfhome).
 
 You can either copy the whole local `~/.cache/huggingface` directory to the same path on HPC login node, or copy the specific model
-directory to the HPC login node.`
+directory to the HPC login node.
 
 When you submit a job to compute node without internet connection. Please set the environment variable
 `HF_HUB_OFFLINE=1` so huggingface will not make any HTTP request.

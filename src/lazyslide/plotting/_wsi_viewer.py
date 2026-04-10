@@ -318,10 +318,10 @@ class ScaleBarRenderPlan(RenderPlan):
         self.kwargs = kwargs
 
     def render(self, ax):
-        from matplotlib_scalebar.scalebar import ScaleBar
-
         if self.dx is None:
             return
+
+        from matplotlib_scalebar.scalebar import ScaleBar
         scalebar = ScaleBar(self.dx, units=self.units, **self.kwargs)
         ax.add_artist(scalebar)
 
