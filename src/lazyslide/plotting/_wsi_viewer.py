@@ -311,7 +311,7 @@ class SlideImageRenderPlan(RenderPlan):
 
 
 class ScaleBarRenderPlan(RenderPlan):
-    def __init__(self, datasource: ImageDataSource, dx, units="um", **kwargs):
+    def __init__(self, datasource: ImageDataSource, dx=None, units="um", **kwargs):
         self.datasource: ImageDataSource = datasource
         self.dx = dx
         self.units = units
@@ -320,6 +320,8 @@ class ScaleBarRenderPlan(RenderPlan):
     def render(self, ax):
         from matplotlib_scalebar.scalebar import ScaleBar
 
+        if self.dx is None:
+            return
         scalebar = ScaleBar(self.dx, units=self.units, **self.kwargs)
         ax.add_artist(scalebar)
 
