@@ -33,6 +33,15 @@ def tile_prediction(
     """
     Predict :term:`tiles <tile>` using a :term:`tile prediction model`.
 
+    A list of available models can be listed with:
+
+    .. code-block:: python
+
+        from lazyslide.models import list_models
+
+        list_models(task="tile_prediction")
+
+
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`

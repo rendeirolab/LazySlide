@@ -617,10 +617,14 @@ class CellSegmentationRunner(Runner):
                             results.append(df)
                     progress_bar.update(task, advance=len(images))
             progress_bar.refresh()
+        # If no results
+        if len(results) == 0:
+            return gpd.GeoDataFrame(columns=["geometry"])
         # Concatenate all results into a single GeoDataFrame
         cells = gpd.GeoDataFrame(pd.concat(results, ignore_index=True)).reset_index(
             drop=True
         )
+        # If all results are empty dataframe
         if len(cells) == 0:
             return gpd.GeoDataFrame(columns=["geometry"])
         if "prob" not in cells:
