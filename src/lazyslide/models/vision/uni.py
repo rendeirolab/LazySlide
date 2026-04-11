@@ -1,6 +1,6 @@
 import torch
 
-from lazyslide.models.base import ModelTask, TimmModel
+from lazyslide.models.base import ModelTask, TimmVitModel
 
 from .._model_registry import register
 
@@ -19,7 +19,7 @@ from .._model_registry import register
     param_size="303.4M",
     encode_dim=1024,
 )
-class UNI(TimmModel):
+class UNI(TimmVitModel):
     def __init__(self, model_path=None, token=None):
         # from huggingface_hub import hf_hub_download
         # model_path = hf_hub_download("MahmoodLab/UNI", filename="pytorch_model.bin")
@@ -59,7 +59,7 @@ class UNI(TimmModel):
     param_size="681.4M",
     encode_dim=1536,
 )
-class UNI2(TimmModel):
+class UNI2(TimmVitModel):
     def __init__(self, model_path=None, token=None):
         import timm
 

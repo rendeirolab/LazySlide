@@ -2,18 +2,28 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Callable, Literal, Sequence
 
+import geopandas as gpd
 import numpy as np
 import torch
+from shapely import box
 from torch.utils.data import DataLoader
-from wsidata import WSIData
+from wsidata import TileSpec, WSIData
 from wsidata.io import add_features
 
 import lazyslide._api as _api
 from lazyslide._const import Key
 from lazyslide._utils import default_pbar
-from lazyslide.models import MODEL_REGISTRY, ImageModel, list_models
+from lazyslide.models import (
+    MODEL_REGISTRY,
+    ImageModel,
+    ImageModelProtocol,
+    ModelBaseProtocol,
+    ViTModelProtocol,
+    list_models,
+)
+from lazyslide.preprocess._tiles import _add_tiles
 
 
 def load_models(model_name: str, model_path=None, token=None, **kwargs):
@@ -29,10 +39,26 @@ def load_models(model_name: str, model_path=None, token=None, **kwargs):
     return model, model_name
 
 
+def to_numpy(t):
+    return t if isinstance(t, np.ndarray) else t.cpu().numpy()
+
+
+DEFAULT_POOL_MODE = {
+    "h0-mini": "cls_patch_mean",
+    "h-optimus-0": "cls_patch_mean",
+    "h-optimus-1": "cls_patch_mean",
+    "midnight": "cls_patch_mean",
+    "gigapath": "cls",
+    "uni": "cls",
+    "uni2": "cls",
+}
+
+
 # TODO: Test if it's possible to load model files
 # TODO: Add color normalization
 def feature_extraction(
     wsi: WSIData,
+    *,
     model: str | Callable | ImageModel = None,
     model_path: str | Path = None,
     model_name: str = None,
@@ -40,14 +66,19 @@ def feature_extraction(
     token: str = None,
     load_kws: dict = None,
     transform: Callable = None,
+    # For inference
     device: str = None,
     amp: bool = None,
     autocast_dtype: torch.dtype = None,
-    tile_key: str = Key.tiles,
-    key_added: str = None,
     batch_size: int = 32,
     num_workers: int = 0,
     pbar: bool = None,
+    # For input
+    tile_key: str = Key.tiles,
+    dense: bool = False,
+    pool_mode: Literal["cls", "cls_patch_mean"] | None = None,
+    # For results
+    key_added: str = None,
     return_features: bool = False,
     **kwargs,
 ):
@@ -98,17 +129,20 @@ def feature_extraction(
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, default: torch.float16
         The dtype for automatic mixed precision.
-    tile_key : str, default: 'tiles'
-        The key of the tiles dataframe in the spatial data object.
-    key_added : str, optional
-        The key to store the extracted features.
     batch_size : int, optional
         The batch size for inference.
     num_workers : int, optional
-        - mode='batch', The number of workers for data loading.
-        - mode='chunk', The number of workers for parallel inference.
+        The number of workers for data loading.
     pbar : bool, default: True
         Whether to show progress bar.
+    tile_key : str, default: 'tiles'
+        The key of the tiles dataframe in the spatial data object.
+    dense : bool, default: False
+        Whether to extract dense features for ViT models.
+    pool_mode : st, optional
+        The pooling mode for dense features. One of 'cls', 'cls_patch_mean'.
+    key_added : str, optional
+        The key to store the extracted features.
     return_features : bool, default: False
         Whether to return the extracted features.
 
@@ -185,20 +219,34 @@ def feature_extraction(
         pass
 
     if transform is None:
-        if isinstance(model, ImageModel):
+        if isinstance(model, ModelBaseProtocol):
             transform = model.get_transform()
-    # Create dataloader
-    # Auto chunk the wsi tile coordinates to the number of workers'
+
     n_tiles = len(wsi.shapes[tile_key])
+
+    # Setup dense features tiles
+    if dense:
+        if isinstance(model, ViTModelProtocol):
+            token_tiles, token_tiles_spec = subdivide_tiles(
+                wsi, model.grid_size, tile_key
+            )
+        else:
+            raise NotImplementedError(
+                "Dense features are only supported for ViT models."
+            )
+        if pool_mode is None:
+            pool_mode = DEFAULT_POOL_MODE.get(model_name, "cls")
+        if pool_mode not in ["cls", "cls_patch_mean"]:
+            raise ValueError(f"Invalid pool_mode: {pool_mode}")
 
     with default_pbar(disable=not pbar) as progress_bar:
         task = progress_bar.add_task("Extracting features", total=n_tiles)
-
         dataset = wsi.ds.tile_images(tile_key=tile_key, transform=transform)
         loader = DataLoader(
             dataset, batch_size=batch_size, num_workers=num_workers, **kwargs
         )
         # Extract features
+        dense_features = []
         features = []
         if isinstance(device, torch.device):
             device = device.type
@@ -206,13 +254,34 @@ def feature_extraction(
         with amp_ctx, torch.inference_mode():
             for batch in loader:
                 image = batch["image"].to(device)
-                if isinstance(model, ImageModel):
+                if dense and isinstance(model, ViTModelProtocol):
+                    intermediate_features = model.encode_image_dense(image)
+                    cls_feature = intermediate_features[:, 0]
+                    patch_token_feature = intermediate_features[
+                        :, model.num_prefix_tokens :
+                    ]
+                    patch_mean = patch_token_feature.mean(1)
+                    # Keep (batch_size, n_patches, embed_dim) — flatten per-tile later to preserve order
+                    dense_feature = patch_token_feature.reshape(
+                        -1, patch_token_feature.shape[-1]
+                    )
+
+                    if pool_mode == "cls":
+                        output = cls_feature
+                    elif pool_mode == "cls_patch_mean":
+                        output = torch.cat([cls_feature, patch_mean], dim=-1)
+                    else:
+                        raise ValueError(f"Invalid pool_mode: {pool_mode}")
+                    dense_features.append(to_numpy(dense_feature))
+                elif isinstance(model, ImageModelProtocol):
                     output = model.encode_image(image)
-                else:
+                elif callable(model):
                     output = model(image)
-                if not isinstance(output, np.ndarray):
-                    output = output.cpu().numpy()
-                features.append(output)
+                else:
+                    raise TypeError(
+                        f"Model {type(model)} is not callable and does not have encode_image method."
+                    )
+                features.append(to_numpy(output))
                 progress_bar.update(task, advance=len(image))
                 del batch  # Free up memory
         # The progress bar may not reach 100% if exit too early
@@ -221,6 +290,15 @@ def feature_extraction(
         features = np.vstack(features)
 
     add_features(wsi, key=key_added, tile_key=tile_key, features=features)
+    if dense:
+        _add_tiles(wsi, token_tiles, token_tiles_spec, key_added=f"{tile_key}_dense")
+        dense_features = np.vstack(dense_features)
+        add_features(
+            wsi,
+            key=f"{key_added}_dense",
+            tile_key=f"{tile_key}_dense",
+            features=dense_features,
+        )
     if return_features:
         return features
     return None
@@ -454,3 +532,87 @@ def _encode_slide(
 
     result_dict["features"] = agg_features
     return result_dict
+
+
+def subdivide_tiles(
+    wsi: WSIData,
+    subdivisions: int | tuple[int, int],
+    tile_key: str = Key.tiles,
+) -> tuple[gpd.GeoDataFrame, TileSpec]:
+    """
+    Subdivide tiles into smaller tiles.
+
+    Parameters
+    ----------
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The whole-slide image object.
+    subdivisions : int or tuple of int
+        The number of subdivisions in each dimension.
+        If int, the same number of subdivisions will be used for both width and height.
+        If tuple, (nw, nh) subdivisions will be used.
+    tile_key : str, default: 'tiles'
+        The key of the tiles dataframe in the spatial data object.
+
+    Returns
+    -------
+    None
+    """
+    if isinstance(subdivisions, int):
+        nw = nh = subdivisions
+    else:
+        nw, nh = subdivisions
+
+    tiles_table = wsi.shapes[tile_key]
+    tile_spec = wsi.tile_spec(tile_key)
+
+    # Use the actual geometry bounds to get base-level coordinate dimensions.
+    # tile_spec.width/height are in pixel space at the requested mpp, which may
+    # differ from the slide base coordinate space when the tile is downsampled.
+    sample_bounds = tiles_table.iloc[0].geometry.bounds  # (minx, miny, maxx, maxy)
+    base_tile_w = sample_bounds[2] - sample_bounds[0]
+    base_tile_h = sample_bounds[3] - sample_bounds[1]
+    new_width = base_tile_w / nw
+    new_height = base_tile_h / nh
+
+    new_tiles = []
+    original_tile_ids = []
+
+    for idx, row in tiles_table.iterrows():
+        bounds = row.geometry.bounds  # (minx, miny, maxx, maxy)
+        minx, miny, maxx, maxy = bounds
+
+        # Loop order must match timm's patch token order.
+        # timm flattens (B, embed, grid_H, grid_W) as flatten(2).transpose(1,2),
+        # giving token index k = row * grid_W + col, where row is the y-direction
+        # (outer) and col is the x-direction (inner).
+        # So j (y) must be the outer loop and i (x) the inner loop.
+        for j in range(nh):
+            for i in range(nw):
+                sub_minx = minx + i * new_width
+                sub_miny = miny + j * new_height
+                sub_maxx = sub_minx + new_width
+                sub_maxy = sub_miny + new_height
+
+                new_tiles.append(box(sub_minx, sub_miny, sub_maxx, sub_maxy))
+                original_tile_ids.append(
+                    row["tile_id"] if "tile_id" in tiles_table.columns else idx
+                )
+
+    new_tiles_gdf = gpd.GeoDataFrame(
+        {"tile_id": np.arange(len(new_tiles)), "original_tile_id": original_tile_ids},
+        geometry=new_tiles,
+    )
+    new_tiles_gdf = new_tiles_gdf[["tile_id", "original_tile_id", "geometry"]]
+
+    # tile_px should be the sub-tile pixel size, not the full parent tile size.
+    sub_tile_w = int(tile_spec.width // nw)
+    sub_tile_h = int(tile_spec.height // nh)
+    new_tile_spec = TileSpec.from_wsidata(
+        wsi,
+        tile_px=(sub_tile_w, sub_tile_h),
+        stride_px=(sub_tile_w, sub_tile_h),
+        mpp=tile_spec.mpp,
+        tissue_name=tile_spec.tissue_name,
+    )
+
+    return new_tiles_gdf, new_tile_spec

@@ -10,14 +10,24 @@ from . import (
 )
 from ._model_registry import MODEL_REGISTRY, register
 from .base import (
+    ImageGenerationModel,
+    ImageGenerationModelProtocol,
     ImageModel,
+    ImageModelProtocol,
     ImageTextModel,
+    ImageTextModelProtocol,
     ModelBase,
+    ModelBaseProtocol,
     ModelTask,
     SegmentationModel,
+    SegmentationModelProtocol,
     SlideEncoderModel,
     StyleTransferModel,
+    StyleTransferModelProtocol,
+    TilePredictionProtocol,
     TimmModel,
+    TimmVitModel,
+    ViTModelProtocol,
 )
 
 __all__ = [
@@ -29,14 +39,24 @@ __all__ = [
     "image_generation",
     "MODEL_REGISTRY",
     "register",
+    "ImageGenerationModel",
+    "ImageGenerationModelProtocol",
     "ImageModel",
+    "ImageModelProtocol",
     "ImageTextModel",
+    "ImageTextModelProtocol",
     "ModelBase",
+    "ModelBaseProtocol",
     "ModelTask",
     "SegmentationModel",
+    "SegmentationModelProtocol",
     "SlideEncoderModel",
     "StyleTransferModel",
+    "StyleTransferModelProtocol",
+    "TilePredictionProtocol",
     "TimmModel",
+    "TimmVitModel",
+    "ViTModelProtocol",
 ]
 
 

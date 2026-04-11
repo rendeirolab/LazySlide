@@ -2,7 +2,15 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Protocol,
+    Self,
+    Tuple,
+    runtime_checkable,
+)
 
 import torch
 from torch.utils.flop_counter import FlopCounterMode
@@ -11,6 +19,7 @@ from ._repr import model_repr_html
 from ._utils import get_default_transform, hf_access
 
 if TYPE_CHECKING:
+    from numpy.typing import ArrayLike
     from wsidata import TileSpec
 
 
@@ -26,18 +35,84 @@ class ModelTask(Enum):
     image_generation = "image_generation"
 
 
+@runtime_checkable
+class ModelBaseProtocol(Protocol):
+    model: Any
+
+    def get_transform(self) -> Callable | None: ...
+
+    def to(self, device) -> Self: ...
+
+    def try_compile(self, **compile_kws: Any): ...
+
+
+@runtime_checkable
+class ImageModelProtocol(ModelBaseProtocol, Protocol):
+    def get_transform(self) -> Callable: ...
+
+    def encode_image(self, image, *args, **kwargs) -> ArrayLike: ...
+
+
+@runtime_checkable
+class ViTModelProtocol(ModelBaseProtocol, Protocol):
+    grid_size: Tuple[int, int]
+    patch_size: Tuple[int, int]
+    num_prefix_tokens: int
+
+    def encode_image_dense(self, image, *args, **kwargs) -> ArrayLike: ...
+
+
+@runtime_checkable
+class ImageTextModelProtocol(ImageModelProtocol, Protocol):
+    def encode_image(self, image, *args, **kwargs) -> ArrayLike: ...
+
+    def encode_text(self, text, *args, **kwargs) -> ArrayLike: ...
+
+
+@runtime_checkable
+class SegmentationModelProtocol(ModelBaseProtocol, Protocol):
+    def predict(self, image, *args, **kwargs) -> dict[str, Any]: ...
+
+    def supported_formats(self) -> tuple[str]: ...
+
+
+@runtime_checkable
+class TilePredictionProtocol(ModelBaseProtocol, Protocol):
+    def predict(self, image, *args, **kwargs) -> Any: ...
+
+
+@runtime_checkable
+class StyleTransferModelProtocol(ModelBaseProtocol, Protocol):
+    def predict(self, image): ...
+
+    def get_channel_names(self): ...
+
+
+@runtime_checkable
+class ImageGenerationModelProtocol(ModelBaseProtocol, Protocol):
+    def generate(self, *args, **kwargs): ...
+
+    def generate_conditionally(self, *args, **kwargs): ...
+
+
 class ModelBase(ABC):
     model: Any
 
-    def _repr_html_(self):
+    def _repr_html_(self) -> str:
         return model_repr_html(self)
 
-    def get_transform(self):
+    def get_transform(self) -> Callable | None:
         return None
 
-    def to(self, device):
+    def to(self, device) -> Self:
         self.model.to(device)
         return self
+
+    def try_compile(self, **compile_kws: Any):
+        try:
+            self.model = torch.compile(self.model, **compile_kws)
+        except Exception:  # noqa
+            pass
 
     def estimate_param_size(self) -> int | None:
         """Count the number of parameters in a model."""
@@ -110,9 +185,7 @@ class ModelBase(ABC):
 
 
 class ImageModel(ModelBase):
-    # TODO: Add a config that specify the recommended input tile size and mpp
-
-    def get_transform(self):
+    def get_transform(self) -> Callable:
         import torch
         from torchvision.transforms.v2 import (
             Compose,
@@ -132,14 +205,14 @@ class ImageModel(ModelBase):
         )
 
     @abstractmethod
-    def encode_image(self, image):
+    def encode_image(self, image: ArrayLike, *args, **kwargs) -> ArrayLike:
         raise NotImplementedError
 
-    def __call__(self, image):
+    def __call__(self, image: ArrayLike, *args, **kwargs):
         return self.encode_image(image)
 
 
-class TimmModel(ImageModel):
+class TimmModel(ModelBase):
     def __init__(self, name, token=None, compile=False, compile_kws=None, **kwargs):
         import timm
         from huggingface_hub import login
@@ -166,28 +239,44 @@ class TimmModel(ImageModel):
         return get_default_transform()
 
     @torch.inference_mode()
-    def encode_image(self, image):
-        with torch.inference_mode():
-            return self.model(image)
+    def encode_image(self, image: torch.Tensor, *args, **kwargs) -> ArrayLike:
+        return self.model(image)
+
+
+class TimmVitModel(TimmModel):
+    def __init__(self, name, token=None, compile=False, compile_kws=None, **kwargs):
+        super().__init__(
+            name, token=token, compile=compile, compile_kws=compile_kws, **kwargs
+        )
+        from timm.models import VisionTransformer
+
+        self.is_timm_vit = isinstance(self.model, VisionTransformer)
+        if not self.is_timm_vit:
+            raise ValueError(f"Model {name} is not a timm VisionTransformer")
+
+        patch_embed = self.model.patch_embed
+        self.img_size: Tuple[int, int] = patch_embed.img_size
+        self.patch_size: Tuple[int, int] = patch_embed.patch_size
+        self.grid_size: Tuple[int, int] = patch_embed.grid_size
+        self.num_prefix_tokens: int = self.model.num_prefix_tokens
+
+    @torch.inference_mode()
+    def encode_image_dense(self, image: torch.Tensor, *args, **kwargs) -> ArrayLike:
+        return self.model.forward_features(image)
 
 
 class SlideEncoderModel(ModelBase):
     @abstractmethod
-    def encode_slide(self, embeddings, coords=None, **kwargs):
+    def encode_slide(self, embeddings, coords=None, *args, **kwargs) -> ArrayLike:
         raise NotImplementedError
 
 
 class ImageTextModel(ImageModel):
     @abstractmethod
-    def encode_image(self, image):
-        """This should return the image feature before normalize."""
+    def encode_text(self, text, *args, **kwargs) -> ArrayLike:
         raise NotImplementedError
 
-    @abstractmethod
-    def encode_text(self, text):
-        raise NotImplementedError
-
-    def tokenize(self, text):
+    def tokenize(self, text, *args, **kwargs):
         raise NotImplementedError
 
 
