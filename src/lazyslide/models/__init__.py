@@ -26,7 +26,7 @@ from .base import (
     StyleTransferModelProtocol,
     TilePredictionProtocol,
     TimmModel,
-    TimmVitModel,
+    TimmViTModel,
     ViTModelProtocol,
 )
 
@@ -55,7 +55,7 @@ __all__ = [
     "StyleTransferModelProtocol",
     "TilePredictionProtocol",
     "TimmModel",
-    "TimmVitModel",
+    "TimmViTModel",
     "ViTModelProtocol",
 ]
 

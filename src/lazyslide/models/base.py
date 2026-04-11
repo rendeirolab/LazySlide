@@ -243,7 +243,7 @@ class TimmModel(ModelBase):
         return self.model(image)
 
 
-class TimmVitModel(TimmModel):
+class TimmViTModel(TimmModel):
     def __init__(self, name, token=None, compile=False, compile_kws=None, **kwargs):
         super().__init__(
             name, token=token, compile=compile, compile_kws=compile_kws, **kwargs
