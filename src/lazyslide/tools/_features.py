@@ -58,8 +58,8 @@ DEFAULT_POOL_MODE = {
 # TODO: Add color normalization
 def feature_extraction(
     wsi: WSIData,
-    *,
     model: str | Callable | ImageModel = None,
+    *,
     model_path: str | Path = None,
     model_name: str = None,
     jit: bool = False,
