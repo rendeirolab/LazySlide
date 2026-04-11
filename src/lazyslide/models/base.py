@@ -38,6 +38,7 @@ class ModelTask(Enum):
 @runtime_checkable
 class ModelBaseProtocol(Protocol):
     model: Any
+    name: str
 
     def get_transform(self) -> Callable | None: ...
 

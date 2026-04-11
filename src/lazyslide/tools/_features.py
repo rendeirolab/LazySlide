@@ -139,8 +139,8 @@ def feature_extraction(
         The key of the tiles dataframe in the spatial data object.
     dense : bool, default: False
         Whether to extract dense features for ViT models.
-    pool_mode : st, optional
-        The pooling mode for dense features. One of 'cls', 'cls_patch_mean'.
+    pool_mode : {'cls', 'cls_patch_mean'}, optional
+        The pooling mode for dense features.
     key_added : str, optional
         The key to store the extracted features.
     return_features : bool, default: False
@@ -185,7 +185,7 @@ def feature_extraction(
             )
             if model_name is None:
                 model_name = default_model_name
-        elif isinstance(model, ImageModel):
+        elif isinstance(model, ImageModelProtocol):
             model = model
             model_name = model.name
         else:
@@ -204,7 +204,7 @@ def feature_extraction(
     if key_added is None:
         if model_name is not None:
             key_added = model_name
-        elif isinstance(model, ImageModel):
+        elif isinstance(model, ImageModelProtocol):
             key_added = model.name
         elif hasattr(model, "__class__"):
             key_added = model.__class__.__name__
@@ -555,7 +555,10 @@ def subdivide_tiles(
 
     Returns
     -------
-    None
+    tuple[geopandas.GeoDataFrame, TileSpec]
+        A tuple containing the subdivided tiles as a GeoDataFrame and the
+        corresponding TileSpec for the generated sub-tiles.
+
     """
     if isinstance(subdivisions, int):
         nw = nh = subdivisions
@@ -576,6 +579,7 @@ def subdivide_tiles(
 
     new_tiles = []
     original_tile_ids = []
+    original_tissue_ids = []
 
     for idx, row in tiles_table.iterrows():
         bounds = row.geometry.bounds  # (minx, miny, maxx, maxy)
@@ -597,9 +601,14 @@ def subdivide_tiles(
                 original_tile_ids.append(
                     row["tile_id"] if "tile_id" in tiles_table.columns else idx
                 )
+                original_tissue_ids.append(row["tissue_id"])
 
     new_tiles_gdf = gpd.GeoDataFrame(
-        {"tile_id": np.arange(len(new_tiles)), "original_tile_id": original_tile_ids},
+        {
+            "tile_id": np.arange(len(new_tiles)),
+            "original_tile_id": original_tile_ids,
+            "tissue_id": original_tissue_ids,
+        },
         geometry=new_tiles,
     )
     new_tiles_gdf = new_tiles_gdf[["tile_id", "original_tile_id", "geometry"]]
