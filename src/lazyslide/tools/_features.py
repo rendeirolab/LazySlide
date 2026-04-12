@@ -581,6 +581,8 @@ def subdivide_tiles(
     # Use the actual geometry bounds to get base-level coordinate dimensions.
     # tile_spec.width/height are in pixel space at the requested mpp, which may
     # differ from the slide base coordinate space when the tile is downsampled.
+    if len(tiles_table) == 0:
+        raise ValueError(f"Empty dataframe in the specified tile_key='{tile_key}'.")
     sample_bounds = tiles_table.iloc[0].geometry.bounds  # (minx, miny, maxx, maxy)
     base_tile_w = sample_bounds[2] - sample_bounds[0]
     base_tile_h = sample_bounds[3] - sample_bounds[1]
@@ -618,17 +620,25 @@ def subdivide_tiles(
                 if has_tissue_id:
                     original_tissue_ids.append(tissue_id)
 
+    gdf_data = {
+        "tile_id": np.arange(len(new_tiles)),
+    }
+    if has_tile_id:
+        gdf_data["original_tile_id"] = original_tile_ids
+    if has_tissue_id:
+        gdf_data["tissue_id"] = original_tissue_ids
+
     new_tiles_gdf = gpd.GeoDataFrame(
-        {
-            "tile_id": np.arange(len(new_tiles)),
-            "original_tile_id": original_tile_ids,
-            "tissue_id": original_tissue_ids,
-        },
+        gdf_data,
         geometry=new_tiles,
     )
-    new_tiles_gdf = new_tiles_gdf[
-        ["tile_id", "original_tile_id", "tissue_id", "geometry"]
-    ]
+    column_order = ["tile_id"]
+    if has_tile_id:
+        column_order.append("original_tile_id")
+    if has_tissue_id:
+        column_order.append("tissue_id")
+    column_order.append("geometry")
+    new_tiles_gdf = new_tiles_gdf[column_order]
 
     # tile_px should be the sub-tile pixel size, not the full parent tile size.
     sub_tile_w = int(tile_spec.width // nw)
