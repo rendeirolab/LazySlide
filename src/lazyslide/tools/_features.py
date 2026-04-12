@@ -26,15 +26,21 @@ from lazyslide.models import (
 from lazyslide.preprocess._tiles import _add_tiles
 
 
-def load_models(model_name: str, model_path=None, token=None, **kwargs):
+def load_models(model_name: str, dense=False, model_path=None, token=None, **kwargs):
     """Load a model with timm or torch.hub.load"""
 
     if model_name in MODEL_REGISTRY:
         model = MODEL_REGISTRY[model_name](model_path=model_path, token=token, **kwargs)
     else:
-        from lazyslide.models import TimmModel
+        from lazyslide.models import TimmModel, TimmViTModel
 
-        model = TimmModel(model_name, token=token, **kwargs)
+        if dense:
+            try:
+                model = TimmViTModel(model_name, token=token, **kwargs)
+            except ValueError:
+                raise ValueError(f"Model {model_name} is not a ViT model.")
+        else:
+            model = TimmModel(model_name, token=token, **kwargs)
 
     return model, model_name
 
@@ -181,7 +187,11 @@ def feature_extraction(
             model = model
         elif isinstance(model, str):
             model, default_model_name = load_models(
-                model_name=model, model_path=model_path, token=token, **load_kws
+                dense=dense,
+                model_name=model,
+                model_path=model_path,
+                token=token,
+                **load_kws,
             )
             if model_name is None:
                 model_name = default_model_name
@@ -580,10 +590,15 @@ def subdivide_tiles(
     new_tiles = []
     original_tile_ids = []
     original_tissue_ids = []
+    has_tile_id = "tile_id" in tiles_table.columns
+    has_tissue_id = "tissue_id" in tiles_table.columns
 
     for idx, row in tiles_table.iterrows():
         bounds = row.geometry.bounds  # (minx, miny, maxx, maxy)
         minx, miny, maxx, maxy = bounds
+
+        tile_id = row["tile_id"] if has_tile_id else idx
+        tissue_id = row["tissue_id"] if has_tissue_id else None
 
         # Loop order must match timm's patch token order.
         # timm flattens (B, embed, grid_H, grid_W) as flatten(2).transpose(1,2),
@@ -598,10 +613,10 @@ def subdivide_tiles(
                 sub_maxy = sub_miny + new_height
 
                 new_tiles.append(box(sub_minx, sub_miny, sub_maxx, sub_maxy))
-                original_tile_ids.append(
-                    row["tile_id"] if "tile_id" in tiles_table.columns else idx
-                )
-                original_tissue_ids.append(row["tissue_id"])
+                if has_tile_id:
+                    original_tile_ids.append(tile_id)
+                if has_tissue_id:
+                    original_tissue_ids.append(tissue_id)
 
     new_tiles_gdf = gpd.GeoDataFrame(
         {
@@ -611,7 +626,9 @@ def subdivide_tiles(
         },
         geometry=new_tiles,
     )
-    new_tiles_gdf = new_tiles_gdf[["tile_id", "original_tile_id", "geometry"]]
+    new_tiles_gdf = new_tiles_gdf[
+        ["tile_id", "original_tile_id", "tissue_id", "geometry"]
+    ]
 
     # tile_px should be the sub-tile pixel size, not the full parent tile size.
     sub_tile_w = int(tile_spec.width // nw)

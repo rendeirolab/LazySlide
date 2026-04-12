@@ -2,7 +2,8 @@ import pytest
 
 import lazyslide as zs
 
-TIMM_MODEL = "mobilenetv3_small_050"
+TIMM_MODEL = "test_resnet"
+TIMM_VIT_MODEL = "test_vit"
 
 
 class TestFeatureExtraction:
@@ -15,7 +16,14 @@ class TestFeatureExtraction:
         zs.tl.feature_extraction(wsi_small, model_path=torch_jit_file)
 
     def test_timm_model(self, wsi_small):
-        zs.tl.feature_extraction(wsi_small, model=TIMM_MODEL)
+        zs.tl.feature_extraction(
+            wsi_small, model=TIMM_MODEL, load_kws=dict(pretrained=False)
+        )
+
+    def test_timm_vit_model(self, wsi_small):
+        zs.tl.feature_extraction(
+            wsi_small, model=TIMM_VIT_MODEL, dense=True, load_kws=dict(pretrained=False)
+        )
 
 
 @pytest.mark.large_runner

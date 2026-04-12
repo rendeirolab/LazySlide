@@ -232,12 +232,15 @@ class TimmModel(ModelBase):
                 pass
 
         if compile:
-            if compile_kws is None:
-                compile_kws = {}
-            self.compiled_model = torch.compile(self.model, **compile_kws)
+            self.try_compile(**(compile_kws or {}))
+
+        if hasattr(self.model, "default_cfg"):
+            self.img_size = self.model.default_cfg.get("input_size", (3, 224, 224))[1:]
+        else:
+            self.img_size = (224, 224)
 
     def get_transform(self):
-        return get_default_transform()
+        return get_default_transform(self.img_size)
 
     @torch.inference_mode()
     def encode_image(self, image: torch.Tensor, *args, **kwargs) -> ArrayLike:
