@@ -35,10 +35,7 @@ def load_models(model_name: str, dense=False, model_path=None, token=None, **kwa
         from lazyslide.models import TimmModel, TimmViTModel
 
         if dense:
-            try:
-                model = TimmViTModel(model_name, token=token, **kwargs)
-            except ValueError:
-                raise ValueError(f"Model {model_name} is not a ViT model.")
+            model = TimmViTModel(model_name, token=token, **kwargs)
         else:
             model = TimmModel(model_name, token=token, **kwargs)
 
@@ -151,6 +148,7 @@ def feature_extraction(
         The key to store the extracted features.
     return_features : bool, default: False
         Whether to return the extracted features.
+        If `dense=True`, will return a (features, dense_features)
 
     Returns
     -------
@@ -183,9 +181,7 @@ def feature_extraction(
     load_kws = {} if load_kws is None else load_kws
 
     if model is not None:
-        if isinstance(model, Callable):
-            model = model
-        elif isinstance(model, str):
+        if isinstance(model, str):
             model, default_model_name = load_models(
                 dense=dense,
                 model_name=model,
@@ -198,6 +194,8 @@ def feature_extraction(
         elif isinstance(model, ImageModelProtocol):
             model = model
             model_name = model.name
+        elif isinstance(model, Callable):
+            model = model
         else:
             raise ValueError("Model must be a model name or a model object.")
     else:
@@ -310,6 +308,8 @@ def feature_extraction(
             features=dense_features,
         )
     if return_features:
+        if dense:
+            return features, dense_features
         return features
     return None
 
