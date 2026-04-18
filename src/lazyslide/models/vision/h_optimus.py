@@ -1,6 +1,6 @@
 import torch
 
-from lazyslide.models.base import ModelTask, TimmModel
+from lazyslide.models.base import ModelTask, TimmViTModel
 
 from .._model_registry import register
 
@@ -46,9 +46,7 @@ def get_hoptimus_transform():
     param_size="1.13B",
     encode_dim=1536,
 )
-class HOptimus0(
-    TimmModel,
-):
+class HOptimus0(TimmViTModel):
     def __init__(self, model_path=None, token=None):
         super().__init__(
             "hf-hub:bioptimus/H-optimus-0",
@@ -76,7 +74,7 @@ class HOptimus0(
     encode_dim=1536,
     flops="591.61G",
 )
-class HOptimus1(TimmModel):
+class HOptimus1(TimmViTModel):
     def __init__(self, model_path=None, token=None):
         super().__init__(
             "hf-hub:bioptimus/H-optimus-1",
@@ -105,7 +103,7 @@ class HOptimus1(TimmModel):
     encode_dim=1536,
     flops="44.57G",
 )
-class H0Mini(TimmModel):
+class H0Mini(TimmViTModel):
     def __init__(self, model_path=None, token=None):
         import timm
 

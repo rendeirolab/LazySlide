@@ -35,7 +35,7 @@ def hf_access(name):
         ) from e
 
 
-def get_default_transform():
+def get_default_transform(img_size=(224, 224)):
     """The default transform for the model."""
     from torchvision.transforms import InterpolationMode
     from torchvision.transforms.v2 import (
@@ -50,12 +50,12 @@ def get_default_transform():
     transforms = [
         ToImage(),
         Resize(
-            size=(224, 224),
+            size=img_size,
             interpolation=InterpolationMode.BICUBIC,
             max_size=None,
             antialias=True,
         ),
-        CenterCrop(224),
+        CenterCrop(img_size),
         ToDtype(dtype=torch.float32, scale=True),
         Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
     ]

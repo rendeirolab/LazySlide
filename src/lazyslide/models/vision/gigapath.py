@@ -1,6 +1,6 @@
 from platformdirs import user_cache_path
 
-from lazyslide.models.base import ModelTask, SlideEncoderModel, TimmModel
+from lazyslide.models.base import ModelTask, SlideEncoderModel, TimmViTModel
 
 from .._model_registry import register
 
@@ -19,7 +19,7 @@ from .._model_registry import register
     param_size="1.13B",
     encode_dim=1536,
 )
-class GigaPath(TimmModel):
+class GigaPath(TimmViTModel):
     def __init__(self, model_path=None, token=None):
         # Version check
         import timm

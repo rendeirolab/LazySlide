@@ -34,6 +34,11 @@ class Midnight(ImageModel):
         with hf_access("kaiko-ai/midnight"):
             self.model = AutoModel.from_pretrained("kaiko-ai/midnight")
 
+        self.img_size = (224, 224)  # Trained in 518, 518
+        self.patch_size = (14, 14)
+        self.grid_size = (16, 16)
+        self.num_prefix_tokens: int = 1
+
     def get_transform(self):
         from torchvision.transforms import v2
 
@@ -46,6 +51,10 @@ class Midnight(ImageModel):
                 v2.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
             ]
         )
+
+    @torch.inference_mode()
+    def encode_image_dense(self, image):
+        return self.model(image).last_hidden_state
 
     @staticmethod
     def extract_classification_embedding(tensor):
