@@ -1,10 +1,9 @@
 import numpy as np
 import torch
 
-from lazyslide.models._utils import hf_access
-from lazyslide.models.base import ImageModel, ModelTask
-
-from .._model_registry import register
+from lazyslide_models._model_registry import register
+from lazyslide_models._utils import hf_access
+from lazyslide_models.base import ImageModel, ModelTask
 
 
 @register(

@@ -1,8 +1,7 @@
 import numpy as np
 
-from lazyslide.models.base import ModelTask, SegmentationModel
-
-from .._model_registry import register
+from lazyslide_models._model_registry import register
+from lazyslide_models.base import ModelTask, SegmentationModel
 
 
 @register(

@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from typing import Callable
-
 import torch
 
-from lazyslide.models.base import SegmentationModel
-from lazyslide.models.segmentation.postprocess import semanticseg_postprocess
+from lazyslide_models.base import SegmentationModel
 
 
 class SMPBase(SegmentationModel):
@@ -54,6 +51,3 @@ class SMPBase(SegmentationModel):
                 # default_fn
             ]
         )
-
-    def get_postprocess(self) -> Callable:
-        return semanticseg_postprocess

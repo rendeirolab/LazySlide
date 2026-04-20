@@ -1,8 +1,7 @@
 import torch
 
-from lazyslide.models.base import ImageModel, ModelTask, SlideEncoderModel
-
-from .._model_registry import register
+from lazyslide_models._model_registry import register
+from lazyslide_models.base import ImageModel, ModelTask, SlideEncoderModel
 
 
 @register(

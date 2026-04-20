@@ -13,7 +13,7 @@ from torch import nn
 from torch.nn import functional as F
 from torch.nn.parameter import Parameter
 
-from lazyslide._utils import find_stack_level
+from lazyslide_models._utils import find_stack_level
 
 from ..._model_registry import register
 from ..._utils import hf_access

@@ -2,10 +2,9 @@ import warnings
 
 import torch
 
-from ..._utils import find_stack_level
-from .._model_registry import register
-from .._utils import hf_access
-from ..base import ImageTextModel, ModelTask
+from lazyslide_models._model_registry import register
+from lazyslide_models._utils import find_stack_level, hf_access
+from lazyslide_models.base import ImageTextModel, ModelTask
 
 
 @register(

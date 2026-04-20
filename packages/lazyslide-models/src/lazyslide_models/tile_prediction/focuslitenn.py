@@ -1,8 +1,8 @@
 import numpy as np
 import torch
 
-from .._model_registry import register
-from ..base import ModelTask, TilePredictionModel
+from lazyslide_models._model_registry import register
+from lazyslide_models.base import ModelTask, TilePredictionModel
 
 
 @register(

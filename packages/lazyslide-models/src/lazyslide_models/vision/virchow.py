@@ -1,8 +1,7 @@
 import torch
 
-from lazyslide.models.base import ModelTask, TimmModel
-
-from .._model_registry import register
+from lazyslide_models._model_registry import register
+from lazyslide_models.base import ModelTask, TimmModel
 
 
 @register(

@@ -1,9 +1,8 @@
 import torch
 from huggingface_hub import hf_hub_download
 
-from lazyslide.models.base import ImageModel, ModelTask
-
-from .._model_registry import register
+from lazyslide_models._model_registry import register
+from lazyslide_models.base import ImageModel, ModelTask
 
 
 @register(

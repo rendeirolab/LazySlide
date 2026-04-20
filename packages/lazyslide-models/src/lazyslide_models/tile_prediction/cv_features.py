@@ -6,8 +6,8 @@ import cv2
 import numpy as np
 from skimage.util import dtype_limits
 
-from .._model_registry import register
-from ..base import ModelTask, TilePredictionModel
+from lazyslide_models._model_registry import register
+from lazyslide_models.base import ModelTask, TilePredictionModel
 
 __all__ = [
     "SplitRGB",

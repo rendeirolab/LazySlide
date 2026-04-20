@@ -1,8 +1,7 @@
 from platformdirs import user_cache_path
 
-from lazyslide.models.base import ModelTask, SlideEncoderModel, TimmViTModel
-
-from .._model_registry import register
+from lazyslide_models._model_registry import register
+from lazyslide_models.base import ModelTask, SlideEncoderModel, TimmViTModel
 
 
 @register(

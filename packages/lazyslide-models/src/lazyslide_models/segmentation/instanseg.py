@@ -5,9 +5,8 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from lazyslide.models.base import ModelTask, SegmentationModel
-
-from .._model_registry import register
+from lazyslide_models._model_registry import register
+from lazyslide_models.base import ModelTask, SegmentationModel
 
 if TYPE_CHECKING:
     from wsidata import TileSpec
