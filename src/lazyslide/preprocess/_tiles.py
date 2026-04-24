@@ -143,6 +143,8 @@ def tile_tissues(
     for _, row in contours.iterrows():
         tissue_id = row["tissue_id"]
         cnt = row["geometry"]
+        if not cnt.is_valid:
+            cnt = cnt.buffer(0)
         minx, miny, maxx, maxy = cnt.bounds
         height, width = (maxy - miny, maxx - minx)
 
