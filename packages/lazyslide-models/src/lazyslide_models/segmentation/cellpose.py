@@ -73,5 +73,5 @@ class Cellpose(SegmentationModel):
             masks = masks[np.newaxis, ...]
         return {"instance_map": masks}
 
-    def supported_output(self):
+    def supported_outputs(self):
         return ("instance_map",)

@@ -21,7 +21,7 @@ def _fake_class(name, deps, inject=""):
 
 
 @contextmanager
-def hf_access(name):
+def hf_access(name: str):
     """
     Context manager for Hugging Face access.
     """
@@ -52,6 +52,7 @@ def get_default_transform(img_size=(224, 224)):
 
     transforms = [
         ToImage(),
+        ToDtype(dtype=torch.float32, scale=True),
         Resize(
             size=img_size,
             interpolation=InterpolationMode.BICUBIC,
@@ -59,7 +60,6 @@ def get_default_transform(img_size=(224, 224)):
             antialias=True,
         ),
         CenterCrop(img_size),
-        ToDtype(dtype=torch.float32, scale=True),
         Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
     ]
     return Compose(transforms)

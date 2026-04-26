@@ -52,5 +52,5 @@ class HESTTissueSegmentation(SegmentationModel):
         with torch.inference_mode():
             return {"probability_map": self.model(image)["out"].softmax(1)}
 
-    def supported_output(self):
+    def supported_outputs(self):
         return ("probability_map",)

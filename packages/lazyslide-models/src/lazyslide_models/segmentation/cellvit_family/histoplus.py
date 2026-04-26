@@ -362,6 +362,7 @@ class HistoPLUSModel(nn.Module):
     bib_key="Adjadj2025-hn",
     param_size="47.9M",
     flops="3.81T",
+    input_size=840,
 )
 class HistoPLUS(SegmentationModel):
     """
@@ -451,7 +452,7 @@ class HistoPLUS(SegmentationModel):
             "class_map": np.array(prob_maps),
         }
 
-    def supported_output(self):
+    def supported_outputs(self):
         return ["instance_map", "class_map"]
 
     @staticmethod

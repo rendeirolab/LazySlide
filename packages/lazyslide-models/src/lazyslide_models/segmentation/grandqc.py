@@ -82,7 +82,7 @@ class GrandQCArtifact(SegmentationModel):
             out = self.model(image)
         return {"probability_map": out}
 
-    def supported_output(self):
+    def supported_outputs(self):
         return ("probability_map",)
 
 
@@ -120,5 +120,5 @@ class GrandQCTissue(
     def segment(self, image):
         return {"probability_map": self.model(image).softmax(dim=1)}
 
-    def supported_output(self):
+    def supported_outputs(self):
         return ("probability_map",)

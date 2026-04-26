@@ -4,11 +4,10 @@ from typing import Literal
 import numpy as np
 import torch
 
-from lazyslide._utils import find_stack_level
-
-from ..._model_registry import register
-from ...base import ModelTask, SegmentationModel
-from .postprocess import np_hv_postprocess
+from lazyslide_models._model_registry import register
+from lazyslide_models._utils import find_stack_level
+from lazyslide_models.base import ModelTask, SegmentationModel
+from lazyslide_models.segmentation.cellvit_family.postprocess import np_hv_postprocess
 
 
 @register(
@@ -92,7 +91,7 @@ class NuLite(SegmentationModel):
             "class_map": np.array(prob_maps),
         }
 
-    def supported_output(self):
+    def supported_outputs(self):
         return ["instance_map", "class_map"]
 
     @staticmethod

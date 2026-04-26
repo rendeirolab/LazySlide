@@ -75,7 +75,7 @@ class Instanseg(
         # But C is always 1, so we can squeeze it
         return {"instance_map": out.long().squeeze(1)}
 
-    def supported_output(self):
+    def supported_outputs(self):
         return ("instance_map",)
 
     def check_input_tile(self, tile_spec: "TileSpec") -> bool:

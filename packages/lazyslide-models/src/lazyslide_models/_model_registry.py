@@ -3,12 +3,12 @@ from __future__ import annotations
 import textwrap
 import warnings
 from collections.abc import MutableMapping
-from typing import TYPE_CHECKING, Dict, Iterator
+from typing import TYPE_CHECKING, Dict, Iterator, List
 
 import pandas as pd
 
-from .._utils import find_stack_level
-from ._repr import model_doc, model_registry_repr_html
+from lazyslide_models._repr import model_doc, model_registry_repr_html
+from lazyslide_models._utils import find_stack_level
 
 if TYPE_CHECKING:
     from .base import ModelBase, ModelTask
@@ -111,21 +111,22 @@ MODEL_REGISTRY = ModelRegistry()
 
 
 def register(
-    key: str | list[str],
-    task: ModelTask | list[ModelTask] = None,
+    key: str | List[str],
+    task: ModelTask | List[ModelTask] | None = None,
     is_gated: bool = False,
-    license: str | list[str] = None,
-    license_url: str | list[str] = None,
-    description: str = None,
-    commercial: bool = None,
-    github_url: str = None,
-    hf_url: str = None,
-    paper_url: str = None,
-    bib_key: str = None,
-    param_size: int | str = None,
-    encode_dim: int = None,
-    vision_encoder: str = None,
-    flops: int | str = None,
+    license: str | List[str] | None = None,
+    license_url: str | List[str] | None = None,
+    description: str | None = None,
+    commercial: bool | None = None,
+    github_url: str | None = None,
+    hf_url: str | None = None,
+    paper_url: str | None = None,
+    bib_key: str | None = None,
+    param_size: int | str | None = None,
+    encode_dim: int | None = None,
+    vision_encoder: str | None = None,
+    flops: int | str | None = None,
+    input_size: int | None = None,
     **information,
 ):
     """Register a model class with additional information."""
@@ -157,6 +158,7 @@ def register(
         cls.encode_dim = encode_dim
         cls.vision_encoder = vision_encoder
         cls.flops = flops
+        cls.input_size = input_size
 
         # Set any additional information
         for info_key, info_value in information.items():

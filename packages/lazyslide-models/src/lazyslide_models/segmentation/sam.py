@@ -13,6 +13,7 @@ from lazyslide_models.base import ModelTask, SegmentationModel
     github_url="https://github.com/facebookresearch/segment-anything",
     paper_url="https://arxiv.org/abs/2304.02643",
     flops="975.67G",
+    input_size=1024,
 )
 class SAM(SegmentationModel):
     SAM_VARIENTS = [
@@ -33,17 +34,15 @@ class SAM(SegmentationModel):
             from transformers import SamModel, SamProcessor
             # from ultralytics import SAM
 
-            self.model = SamModel.from_pretrained(variant, use_auth_token=token)
-            self.processor = SamProcessor.from_pretrained(variant, use_auth_token=token)
+            self.model = SamModel.from_pretrained(variant, token=token)
+            self.processor = SamProcessor.from_pretrained(variant, token=token)
             self._is_hq = False
 
         elif variant in self.SAM_HQ_VARIENTS:
             from transformers import SamHQModel, SamHQProcessor
 
-            self.model = SamHQModel.from_pretrained(variant, use_auth_token=token)
-            self.processor = SamHQProcessor.from_pretrained(
-                variant, use_auth_token=token
-            )
+            self.model = SamHQModel.from_pretrained(variant, token=token)
+            self.processor = SamHQProcessor.from_pretrained(variant, token=token)
             self._is_hq = True
         else:
             raise ValueError(
@@ -81,15 +80,13 @@ class SAM(SegmentationModel):
         input_boxes=None,
         segmentation_maps=None,
         multimask_output=False,
-    ) -> torch.Tensor:
+    ):
         """
         Segment the input image using the SAM model.
 
         Args:
             image (torch.Tensor): Input image tensor of shape (C, H, W).
 
-        Returns:
-            torch.Tensor: Segmentation mask tensor of shape (H, W).
         """
         inputs = self.processor(
             image,
@@ -117,7 +114,7 @@ class SAM(SegmentationModel):
         )
         return {"probability_map": masks[0]}
 
-    def supported_output(self):
+    def supported_outputs(self):
         """
         Returns the supported output types for the SAM model.
         """
