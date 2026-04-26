@@ -2,6 +2,7 @@ import os
 
 import pytest
 import torch
+from torch.export import dims, export, save
 
 # When set (e.g. on fork PRs without HF secrets), skip dataset download and fixtures.
 SKIP_DATASET_TESTS = os.environ.get("LAZYSLIDE_SKIP_DATASET_TESTS") == "1"
@@ -65,6 +66,17 @@ def torch_jit_file(tmp_path_session):
 
 
 @pytest.fixture(scope="session")
+def torch_export_model(tmp_path_session):
+    model = MockNet()
+
+    batch_dim = dims("batch")
+    exp_mods = export(
+        model, args=torch.randn(1, 3, 224, 224), dynamic_shapes={0: batch_dim}
+    )
+    save(exp_mods, tmp_path_session / "exported_model.pt2")
+
+
+@pytest.fixture(scope="session")
 def wsi_with_annotations():
     """Fixture that provides a WSI with annotations for testing."""
     if SKIP_DATASET_TESTS:
@@ -100,46 +112,3 @@ def wsi_with_annotations():
             wsi.shapes["annotations"] = annot_gdf
 
     return wsi
-
-
-# def pytest_configure(config):
-#     """
-#     Set a unique HF_HOME for each test session to avoid data races when using xdist.
-#
-#     This is particularly important when running tests in parallel on GitHub Actions
-#     with matrix strategy across different Python versions and operating systems.
-#     """
-#     # Get the worker ID if running with pytest-xdist
-#     worker_id = os.environ.get("PYTEST_XDIST_WORKER", "")
-#
-#     # Create a unique directory name using worker ID and process ID
-#     unique_id = f"{worker_id}_{os.getpid()}_{uuid.uuid4().hex[:8]}"
-#
-#     # Create a temporary directory for this test session
-#     hf_home_dir = os.path.join(tempfile.gettempdir(), f"hf_home_{unique_id}")
-#     os.makedirs(hf_home_dir, exist_ok=True)
-#
-#     # Set the HF_HOME environment variable
-#     os.environ["HF_HOME"] = hf_home_dir
-#
-#     # Store the directory path for cleanup in pytest_unconfigure
-#     config.hf_home_dir = hf_home_dir
-#
-#     # Log the HF_HOME directory for debugging
-#     print(f"Setting HF_HOME to {hf_home_dir}")
-#
-#
-# def pytest_unconfigure(config):
-#     """
-#     Clean up the temporary HF_HOME directory after tests are complete.
-#     """
-#     import shutil
-#
-#     # Check if we created a temporary directory in pytest_configure
-#     if hasattr(config, "hf_home_dir") and os.path.exists(config.hf_home_dir):
-#         try:
-#             # Remove the temporary directory and all its contents
-#             shutil.rmtree(config.hf_home_dir)
-#             print(f"Cleaned up temporary HF_HOME directory: {config.hf_home_dir}")
-#         except Exception as e:
-#             print(f"Failed to clean up temporary HF_HOME directory: {e}")

@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+from mock_models import MockImageTextModel
 
 import lazyslide as zs
 
@@ -8,10 +9,11 @@ import lazyslide as zs
 class TestTextEmbedding:
     """Tests for the text_embedding function."""
 
-    def test_text_embedding_plip(self):
-        """Test text_embedding with PLIP model."""
+    def test_text_embedding(self):
+        """Test text_embedding with mock model."""
         texts = ["This is a test", "Another test text"]
-        embeddings = zs.tl.text_embedding(texts, model="plip", device="cpu")
+        model = MockImageTextModel()
+        embeddings = zs.tl.text_embedding(texts, model=model, device="cpu")
 
         # Check that the output is a DataFrame with the expected shape and index
         assert isinstance(embeddings, pd.DataFrame)
@@ -34,34 +36,43 @@ class TestTextImageSimilarity:
     @pytest.fixture(autouse=True)
     def setup(self, wsi_small):
         """Setup for text_image_similarity tests."""
-        zs.tl.feature_extraction(wsi_small, model="plip", device="cpu")
+        model = MockImageTextModel()
+        zs.tl.feature_extraction(wsi_small, model=model, device="cpu")
 
         # Verify that the tiles were created
-        assert "plip_tiles" in wsi_small.tables
-        assert len(wsi_small.tables["plip_tiles"]) > 0
+        assert "MockImageTextModel_tiles" in wsi_small.tables
+        assert len(wsi_small.tables["MockImageTextModel_tiles"]) > 0
 
         # Define test texts
         self.texts = ["This is a test", "Another test text"]
 
-        # Store the WSI and tile_key for use in tests
+        # Store the WSI and model for use in tests
         self.wsi = wsi_small
+        self.model = model
 
-    def test_text_image_similarity_plip(self):
-        """Test text_image_similarity with PLIP model."""
+    def test_text_image_similarity(self):
+        """Test text_image_similarity with mock model."""
         # Get text embeddings
-        text_embeddings = zs.tl.text_embedding(self.texts, model="plip", device="cpu")
+        text_embeddings = zs.tl.text_embedding(
+            self.texts, model=self.model, device="cpu"
+        )
 
         # Compute similarity
         zs.tl.text_image_similarity(
-            self.wsi, text_embeddings, model="plip", key_added="plip_similarity"
+            self.wsi,
+            text_embeddings,
+            feature_key="MockImageTextModel",
+            key_added="mock_similarity",
         )
 
         # Check that the similarity scores were added to the WSI
-        assert "plip_similarity" in self.wsi.tables
+        assert "mock_similarity" in self.wsi.tables
 
         # Check that the similarity scores have the expected shape
-        similarity_table = self.wsi.tables["plip_similarity"]
-        assert similarity_table.X.shape[0] == len(self.wsi.tables["plip_tiles"])
+        similarity_table = self.wsi.tables["mock_similarity"]
+        assert similarity_table.X.shape[0] == len(
+            self.wsi.tables["MockImageTextModel_tiles"]
+        )
         assert similarity_table.X.shape[1] == len(self.texts)
 
         # Check that the variable names match the text embeddings index
@@ -70,23 +81,27 @@ class TestTextImageSimilarity:
     def test_text_image_similarity_with_softmax(self):
         """Test text_image_similarity with softmax applied."""
         # Get text embeddings
-        text_embeddings = zs.tl.text_embedding(self.texts, model="plip", device="cpu")
+        text_embeddings = zs.tl.text_embedding(
+            self.texts, model=self.model, device="cpu"
+        )
 
         # Compute similarity with softmax
         zs.tl.text_image_similarity(
             self.wsi,
             text_embeddings,
-            model="plip",
-            key_added="plip_similarity_softmax",
+            feature_key="MockImageTextModel",
+            key_added="mock_similarity_softmax",
             softmax=True,
         )
 
         # Check that the similarity scores were added to the WSI
-        assert "plip_similarity_softmax" in self.wsi.tables
+        assert "mock_similarity_softmax" in self.wsi.tables
 
         # Check that the similarity scores have the expected shape
-        similarity_table = self.wsi.tables["plip_similarity_softmax"]
-        assert similarity_table.X.shape[0] == len(self.wsi.tables["plip_tiles"])
+        similarity_table = self.wsi.tables["mock_similarity_softmax"]
+        assert similarity_table.X.shape[0] == len(
+            self.wsi.tables["MockImageTextModel_tiles"]
+        )
         assert similarity_table.X.shape[1] == len(self.texts)
 
         # Check that the scores are probabilities (sum to 1 for each tile)
@@ -96,7 +111,9 @@ class TestTextImageSimilarity:
     def test_text_image_similarity_with_custom_scoring(self):
         """Test text_image_similarity with a custom scoring function."""
         # Get text embeddings
-        text_embeddings = zs.tl.text_embedding(self.texts, model="plip", device="cpu")
+        text_embeddings = zs.tl.text_embedding(
+            self.texts, model=self.model, device="cpu"
+        )
 
         # Define a custom scoring function (cosine similarity)
         def cosine_similarity(X, Y):
@@ -109,17 +126,19 @@ class TestTextImageSimilarity:
         zs.tl.text_image_similarity(
             self.wsi,
             text_embeddings,
-            model="plip",
-            key_added="plip_similarity_cosine",
+            feature_key="MockImageTextModel",
+            key_added="mock_similarity_cosine",
             scoring_func=cosine_similarity,
         )
 
         # Check that the similarity scores were added to the WSI
-        assert "plip_similarity_cosine" in self.wsi.tables
+        assert "mock_similarity_cosine" in self.wsi.tables
 
         # Check that the similarity scores have the expected shape
-        similarity_table = self.wsi.tables["plip_similarity_cosine"]
-        assert similarity_table.X.shape[0] == len(self.wsi.tables["plip_tiles"])
+        similarity_table = self.wsi.tables["mock_similarity_cosine"]
+        assert similarity_table.X.shape[0] == len(
+            self.wsi.tables["MockImageTextModel_tiles"]
+        )
         assert similarity_table.X.shape[1] == len(self.texts)
 
         # Check that the scores are between -1 and 1 (cosine similarity range)
@@ -129,7 +148,9 @@ class TestTextImageSimilarity:
     def test_text_image_similarity_invalid_scoring_func(self):
         """Test text_image_similarity with an invalid scoring function."""
         # Get text embeddings
-        text_embeddings = zs.tl.text_embedding(self.texts, model="plip", device="cpu")
+        text_embeddings = zs.tl.text_embedding(
+            self.texts, model=self.model, device="cpu"
+        )
 
         # Define an invalid scoring function that will raise an error
         def invalid_scoring_func(X, Y):
@@ -141,6 +162,6 @@ class TestTextImageSimilarity:
             zs.tl.text_image_similarity(
                 self.wsi,
                 text_embeddings,
-                model="plip",
+                feature_key="MockImageTextModel",
                 scoring_func=invalid_scoring_func,
             )
