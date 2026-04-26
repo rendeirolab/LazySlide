@@ -20,6 +20,21 @@ dev = [
     "pytest-cov>=6.0",
     "pytest-xdist>=3.0",
 ]
+model = [
+    "einops>=0.8.1",
+    "einops-exts>=0.0.4",
+    "environs>=14.1.1",
+    "sacremoses>=0.1.1",
+    "conch",
+    "open-clip-torch>=2.32.0",
+    "transformers>=4.49.0",
+    "cellpose>=4.0.0",
+    "musk",
+    "fairscale>=0.4.13",
+    "sentencepiece>=0.2.1",
+    "diffusers>=0.36.0",
+    "accelerate>=1.12.0",
+]
 
 [tool.pytest.ini_options]
 markers = [
