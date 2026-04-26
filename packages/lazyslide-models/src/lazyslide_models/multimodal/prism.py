@@ -46,6 +46,7 @@ class Prism(ModelBase):
                 "paige-ai/Prism",
                 trust_remote_code=True,
                 token=token,
+                low_cpu_mem_usage=False,
             )
             self.model.eval()
 

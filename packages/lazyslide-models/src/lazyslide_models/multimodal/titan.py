@@ -21,6 +21,7 @@ from lazyslide_models.base import ImageModel, ModelTask
     param_size="158.9M",
     encode_dim=768,
     vision_encoder="titan",
+    input_size=448,
 )
 class Titan(
     ImageModel,
@@ -58,8 +59,9 @@ class Titan(
             self.model = AutoModel.from_pretrained(
                 "MahmoodLab/TITAN",
                 add_pooling_layer=False,
-                use_auth_token=token,
+                token=token,
                 trust_remote_code=True,
+                low_cpu_mem_usage=False,
             )
             self.model.eval()
             self.conch, self.conch_transform = self.model.return_conch()

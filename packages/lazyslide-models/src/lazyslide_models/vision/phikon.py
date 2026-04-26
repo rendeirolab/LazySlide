@@ -29,11 +29,9 @@ class Phikon(ImageModel):
             self.model = ViTModel.from_pretrained(
                 "owkin/phikon",
                 add_pooling_layer=False,
-                use_auth_token=token,
+                token=token,
             )
-            self.img_processor = AutoImageProcessor.from_pretrained(
-                "owkin/phikon", use_fast=True
-            )
+            self.img_processor = AutoImageProcessor.from_pretrained("owkin/phikon")
 
     def get_transform(self):
         return None
@@ -67,11 +65,9 @@ class PhikonV2(ImageModel):
         with hf_access("owkin/phikon-v2"):
             self.model = AutoModel.from_pretrained(
                 "owkin/phikon-v2",
-                use_auth_token=token,
+                token=token,
             )
-            self.img_processor = AutoImageProcessor.from_pretrained(
-                "owkin/phikon-v2", use_fast=True
-            )
+            self.img_processor = AutoImageProcessor.from_pretrained("owkin/phikon-v2")
 
     def get_transform(self):
         return None

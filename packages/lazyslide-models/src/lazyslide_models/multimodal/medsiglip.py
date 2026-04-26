@@ -19,6 +19,7 @@ from lazyslide_models.base import ImageTextModel, ModelTask
     bib_key="Sellergren2025-qq",
     encode_dim=1152,
     param_size="878M",
+    input_size=448,
 )
 class MedSigLip(ImageTextModel):
     def __init__(self, model_path=None, token=None):
@@ -32,9 +33,7 @@ class MedSigLip(ImageTextModel):
 
         with hf_access("google/medsiglip-448"):
             self.model = AutoModel.from_pretrained("google/medsiglip-448")
-            self.processor = AutoProcessor.from_pretrained(
-                "google/medsiglip-448", use_fast=True
-            )
+            self.processor = AutoProcessor.from_pretrained("google/medsiglip-448")
             self.model.eval()
 
     def get_transform(self):

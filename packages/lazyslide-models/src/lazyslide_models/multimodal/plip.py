@@ -41,11 +41,9 @@ class PLIP(ImageTextModel):
             model_path = "vinid/plip"
 
         with hf_access(model_path):
-            self.model = CLIPModel.from_pretrained(model_path, use_auth_token=token)
+            self.model = CLIPModel.from_pretrained(model_path, token=token)
             self.model.eval()
-            self.processor = CLIPProcessor.from_pretrained(
-                model_path, use_auth_token=token
-            )
+            self.processor = CLIPProcessor.from_pretrained(model_path, token=token)
 
     def get_transform(self):
         return None

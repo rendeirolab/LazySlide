@@ -19,6 +19,7 @@ from lazyslide_models.base import ImageTextModel, ModelTask
     param_size="675.2M",
     encode_dim=1024,
     flops="382.13G",
+    input_size=384,
 )
 class MUSK(
     ImageTextModel,
@@ -59,7 +60,7 @@ class MUSK(
             token_file = hf_hub_download(
                 repo_id="xiangjx/musk", filename="tokenizer.spm"
             )
-            self.tokenizer = XLMRobertaTokenizer(token_file)
+            self.tokenizer = XLMRobertaTokenizer(vocab_file=token_file)
 
     def get_transform(self):
         from torchvision.transforms import InterpolationMode
