@@ -67,6 +67,26 @@ jobs:
       - name: Install workspace
         run: uv sync --dev --group tests --group model
 
+      - name: Diagnostic - check environment
+        working-directory: packages/lazyslide-models
+        run: |
+          echo "=== Python path ==="
+          uv run python -c "import sys; print('\n'.join(sys.path))"
+          echo "=== Registry check ==="
+          uv run python -c "
+          from lazyslide_models import MODEL_REGISTRY, list_models
+          print(f'Total models in registry: {len(MODEL_REGISTRY)}')
+          for task in ['vision','multimodal','segmentation','slide_encoder','tile_prediction','cv_feature','style_transfer','image_generation']:
+              models = list_models(task=task)
+              print(f'  {task}: {len(models)} models')
+          "
+          echo "=== Collect only (no xdist) ==="
+          uv run pytest tests/test_models.py --rootdir=. --collect-only -q 2>&1 | tail -20
+          echo "=== Collect with marker filter ==="
+          uv run pytest tests/test_models.py --rootdir=. -m 'not gated' --collect-only -q 2>&1 | tail -20
+          echo "=== Collect with xdist ==="
+          uv run pytest tests/test_models.py --rootdir=. -m 'not gated' -n 4 --collect-only -q 2>&1 | tail -20
+
       - name: Run open model tests
         working-directory: packages/lazyslide-models
         run: |
