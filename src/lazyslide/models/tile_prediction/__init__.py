@@ -18,6 +18,7 @@ from .spider import (
     SpiderSkin,
     SpiderThorax,
 )
+from .stpath import STFM, STPath
 
 CV_FEATURES = {
     "split_rgb": SplitRGB,
@@ -50,4 +51,6 @@ __all__ = [
     "Saturation",
     "HaralickTexture",
     "SplitRGB",
+    "STFM",
+    "STPath",
 ]

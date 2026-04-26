@@ -58,6 +58,9 @@ models = [
     "transformers>=4.49.0",
     "open-clip-torch>=2.32.0",
 ]
+stpath = [
+    "torch-geometric>=2.6.0",
+]
 
 # Define entry points
 [project.scripts]

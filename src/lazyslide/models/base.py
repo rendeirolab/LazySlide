@@ -29,7 +29,7 @@ class ModelTask(Enum):
     multimodal = "multimodal"
     slide_encoder = "slide_encoder"
     tile_prediction = "tile_prediction"
-    feature_prediction = "feature_prediction"
+    spatial_transcriptomics = "spatial_transcriptomics"
     style_transfer = "style_transfer"
     cv_feature = "cv_feature"
     image_generation = "image_generation"
