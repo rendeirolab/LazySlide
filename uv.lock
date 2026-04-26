@@ -3021,18 +3021,46 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-xdist" },
 ]
+model = [
+    { name = "accelerate" },
+    { name = "cellpose" },
+    { name = "conch" },
+    { name = "diffusers" },
+    { name = "einops" },
+    { name = "einops-exts" },
+    { name = "environs" },
+    { name = "fairscale" },
+    { name = "musk" },
+    { name = "open-clip-torch" },
+    { name = "sacremoses" },
+    { name = "sentencepiece" },
+    { name = "transformers" },
+]
 
 [package.metadata]
 requires-dist = [
+    { name = "accelerate", marker = "extra == 'model'", specifier = ">=1.12.0" },
+    { name = "cellpose", marker = "extra == 'model'", specifier = ">=4.0.0" },
+    { name = "conch", marker = "extra == 'model'", git = "https://github.com/mahmoodlab/CONCH.git" },
+    { name = "diffusers", marker = "extra == 'model'", specifier = ">=0.36.0" },
+    { name = "einops", marker = "extra == 'model'", specifier = ">=0.8.1" },
+    { name = "einops-exts", marker = "extra == 'model'", specifier = ">=0.0.4" },
+    { name = "environs", marker = "extra == 'model'", specifier = ">=14.1.1" },
+    { name = "fairscale", marker = "extra == 'model'", specifier = ">=0.4.13" },
+    { name = "musk", marker = "extra == 'model'", git = "https://github.com/lilab-stanford/MUSK.git" },
     { name = "numpy", specifier = ">=2.0.0" },
+    { name = "open-clip-torch", marker = "extra == 'model'", specifier = ">=2.32.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0" },
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.0" },
+    { name = "sacremoses", marker = "extra == 'model'", specifier = ">=0.1.1" },
+    { name = "sentencepiece", marker = "extra == 'model'", specifier = ">=0.2.1" },
     { name = "timm", specifier = ">=1.0.3" },
     { name = "torch", specifier = ">=2.0.0" },
     { name = "transformers", specifier = ">=4.0.0" },
+    { name = "transformers", marker = "extra == 'model'", specifier = ">=4.49.0" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["dev", "model"]
 
 [[package]]
 name = "legacy-api-wrap"
