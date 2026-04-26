@@ -5,18 +5,18 @@ from typing import Callable, List, Literal
 import numpy as np
 import pandas as pd
 import torch
+from lazyslide_models import MODEL_REGISTRY, ImageTextModelProtocol
 from wsidata import WSIData
 from wsidata.io import add_features
 
 from lazyslide import _api
 from lazyslide._const import Key
 from lazyslide._utils import find_stack_level
-from lazyslide.models import MODEL_REGISTRY
 
 
 def text_embedding(
     texts: List[str],
-    model: Literal["plip", "conch", "omiclip"] = "plip",
+    model: Literal["plip", "conch", "omiclip"] | ImageTextModelProtocol = "plip",
     amp: bool = None,
     autocast_dtype: torch.dtype = None,
     device: str = "cpu",
@@ -63,7 +63,8 @@ def text_embedding(
     autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
     device = _api.default_value("device", device)
 
-    model = MODEL_REGISTRY[model]()
+    if isinstance(model, str):
+        model = MODEL_REGISTRY[model]()
     model.to(device)
 
     amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()
@@ -76,7 +77,7 @@ def text_embedding(
 def text_image_similarity(
     wsi: WSIData,
     text_embeddings: pd.DataFrame,
-    model: Literal["plip", "conch", "omiclip"] = "plip",
+    model: Literal["plip", "conch", "omiclip"] | ImageTextModelProtocol = "plip",
     tile_key: str = Key.tiles,
     feature_key: str = None,
     key_added: str = None,

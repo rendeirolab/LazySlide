@@ -112,14 +112,17 @@ def zero_shot_score(
 
     prompts = _preprocess_prompts(prompts)
 
-    if model == "prism":
-        from lazyslide.models.multimodal import Prism
+    if isinstance(model, str):
+        if model == "prism":
+            from lazyslide_models.multimodal import Prism
 
-        model = Prism()
-    elif model == "titan":
-        from lazyslide.models.multimodal import Titan
+            model = Prism()
+        elif model == "titan":
+            from lazyslide_models.multimodal import Titan
 
-        model = Titan()
+            model = Titan()
+        else:
+            raise ValueError(f"Unknown model: {model}")
     model.to(device)
     # Get the embeddings from the WSI
     agg_info, annos = _get_agg_info(
@@ -185,7 +188,7 @@ def slide_caption(
     if device is None:
         device = get_torch_device()
 
-    from lazyslide.models.multimodal import Prism
+    from lazyslide_models.multimodal import Prism
 
     model = Prism()
     model.to(device)
