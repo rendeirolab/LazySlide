@@ -5,7 +5,7 @@ from ._seg_runner import (
     SemanticSegmentationRunner,
     semantic,
 )
-from ._tissue import tissue
+from ._tissue import tissue, tissue_entropy
 from ._zero_shot import zero_shot
 
 __all__ = [
@@ -14,6 +14,7 @@ __all__ = [
     "cell_types",
     "semantic",
     "tissue",
+    "tissue_entropy",
     "zero_shot",
     "CellSegmentationRunner",
     "SemanticSegmentationRunner",

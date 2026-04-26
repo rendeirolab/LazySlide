@@ -9,6 +9,10 @@ import numpy as np
 import torch
 from shapely import box
 from shapely.affinity import scale
+from skimage.color import rgb2hed
+from skimage.filters import threshold_otsu
+from skimage.filters.rank import entropy as rank_entropy
+from skimage.morphology import disk
 from wsidata import WSIData
 from wsidata.io import add_tissues
 
@@ -206,6 +210,178 @@ def tissue(
         yfact=1 - bbox_ratio,
     )
     # Only polygons that are in the filter box are kept
+    polygons = polygons[polygons.geometry.intersects(filter_box)]
+    if len(polygons) == 0:
+        warnings.warn("No tissues were found. The staining might be too weak.")
+        return
+    add_tissues(wsi, key_added, polygons.geometry)
+
+
+def _hovernet_masking(
+    img: np.ndarray,
+    disk_radius: int = 4,
+    lower_threshold: bool = True,
+) -> np.ndarray:
+    """Generate a binary tissue mask using HED entropy and Otsu thresholding.
+
+    Parameters
+    ----------
+    img : np.ndarray
+        Input RGB image (H x W x 3).
+    disk_radius : int
+        Radius of the disk structuring element for entropy filtering.
+    lower_threshold : bool
+        If True, use a more permissive threshold (0.85x Otsu)
+        and aggregate only H+E entropy. If False, use H+E-D.
+
+    Returns
+    -------
+    np.ndarray
+        Binary mask (dtype=bool).
+
+    """
+    selem = disk(disk_radius)
+
+    hed = rgb2hed(img)
+    hed = (hed * 255).astype(np.uint8)
+    h, e, d = hed[:, :, 0], hed[:, :, 1], hed[:, :, 2]
+
+    h_entropy = rank_entropy(h, selem)
+    e_entropy = rank_entropy(e, selem)
+    d_entropy = rank_entropy(d, selem)
+
+    if lower_threshold:
+        entropy = np.sum([h_entropy, e_entropy], axis=0)
+    else:
+        entropy = np.sum([h_entropy, e_entropy], axis=0) - d_entropy
+
+    threshold_val = threshold_otsu(entropy)
+    if lower_threshold:
+        threshold_val *= 0.85
+    return entropy > threshold_val
+
+
+def _is_mask_inverted(mask: np.ndarray) -> bool:
+    """Check if a binary mask is inverted by inspecting border pixels.
+
+    If more than 95% of the border pixels are True, the mask
+    is likely inverted (background marked as foreground).
+
+    """
+    top = mask[0, :]
+    right = mask[:, -1]
+    bottom = mask[-1, :]
+    left = mask[:, 0]
+
+    edge = np.concatenate([top, right[1:-1], bottom, left[1:-1]])
+    return edge.mean() > 0.95
+
+
+def tissue_entropy(
+    wsi: WSIData,
+    *,
+    level: int = None,
+    mpp: float = None,
+    disk_radius: int = 4,
+    relaxed_threshold: bool = True,
+    invert_check: bool = True,
+    bbox_ratio: float = 0.05,
+    min_area: float = 1e-3,
+    min_hole_area: float = 1e-5,
+    detect_holes: bool = True,
+    key_added: str = Key.tissue,
+) -> None:
+    """Perform :term:`tissue segmentation` using HED color-space entropy filtering.
+
+    This method does not require a deep learning model. It converts the image
+    to the HED (Hematoxylin-Eosin-DAB) color space, computes local entropy
+    per channel, and applies Otsu thresholding to produce a tissue mask.
+
+    Parameters
+    ----------
+    wsi : :class:`wsidata.WSIData`
+        The :term:`whole slide image <WSI>`.
+    level : int, default: None
+        The level to segment the tissue, mutually exclusive with mpp.
+    mpp : float, default: None
+        The mpp level to segment the tissue, mutually exclusive with level.
+        Defaults to 4.0 when neither level nor mpp is specified.
+    disk_radius : int, default: 4
+        Radius of the disk structuring element for entropy filtering.
+        Larger values produce smoother masks but are slower to compute.
+    relaxed_threshold : bool, default: True
+        If True, use a more permissive threshold (0.85x Otsu) and
+        aggregate only hematoxylin and eosin entropy. If False, also
+        subtract DAB entropy, producing a stricter mask.
+    invert_check : bool, default: True
+        Whether to check and correct accidental mask inversion,
+        which can occur in rare cases due to entropy histogram properties.
+    bbox_ratio : float, default: 0.05
+        The ratio of the bounding box to filter
+        the false positive tissue :term:`polygons <polygon>`.
+    min_area : float, default: 1e-3
+        The minimum area of the tissue polygon.
+    min_hole_area : float, default: 1e-5
+        The minimum area of the hole in the tissue polygon.
+    detect_holes : bool, default: True
+        Whether to detect :term:`holes` in the tissue polygons.
+    key_added : str, default: 'tissues'
+        The key to add the tissue polygons.
+
+    """
+    props = wsi.properties
+    if mpp is not None and level is not None:
+        raise ValueError("Please specify either level or mpp, not both.")
+
+    target_mpp = 4.0
+    if mpp is not None:
+        target_mpp = mpp
+    if level is None:
+        level_mpp = np.array(props.level_downsample) * props.mpp
+        level = np.argmin(np.abs(level_mpp - target_mpp))
+
+    current_mpp = props.level_downsample[level] * props.mpp
+    if current_mpp < target_mpp:
+        scale_factor = target_mpp / current_mpp
+    else:
+        scale_factor = 1
+
+    # Get the tissue image
+    height, width = props.level_shape[level]
+    img = wsi.reader.get_region(0, 0, width, height, level=level)
+    # Downsample the image if necessary
+    if scale_factor != 1:
+        t_width = int(width / scale_factor)
+        t_height = int(height / scale_factor)
+        scale_factor = width / t_width
+        img = cv2.resize(
+            img,
+            (t_width, t_height),
+            interpolation=cv2.INTER_LINEAR,
+        )
+    current_downsample = props.level_downsample[level] * scale_factor
+
+    mask = _hovernet_masking(
+        img, disk_radius=disk_radius, lower_threshold=relaxed_threshold
+    )
+    if invert_check and _is_mask_inverted(mask):
+        mask = ~mask
+
+    mask = mask.astype(np.uint8)
+    polygons = BinaryMask(mask).to_polygons(
+        min_area=min_area,
+        min_hole_area=min_hole_area,
+        detect_holes=detect_holes,
+    )
+    polygons["geometry"] = polygons["geometry"].scale(
+        xfact=current_downsample, yfact=current_downsample, origin=(0, 0)
+    )
+    minx, miny, width, height = wsi.properties.bounds
+    filter_box = scale(
+        box(minx, miny, minx + width, miny + height),
+        xfact=1 - bbox_ratio,
+        yfact=1 - bbox_ratio,
+    )
     polygons = polygons[polygons.geometry.intersects(filter_box)]
     if len(polygons) == 0:
         warnings.warn("No tissues were found. The staining might be too weak.")
