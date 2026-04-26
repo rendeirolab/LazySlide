@@ -1,4 +1,4 @@
-name: CI
+name: Test & Build LazySlide
 
 on:
   push:
