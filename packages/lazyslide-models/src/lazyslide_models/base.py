@@ -6,6 +6,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Dict,
     Protocol,
     Self,
     Tuple,
@@ -20,7 +21,6 @@ from ._utils import get_default_transform, hf_access
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike
-    from wsidata import TileSpec
 
 
 class ModelTask(Enum):
@@ -72,21 +72,21 @@ class ImageTextModelProtocol(ImageModelProtocol, Protocol):
 
 @runtime_checkable
 class SegmentationModelProtocol(ModelBaseProtocol, Protocol):
-    def predict(self, image, *args, **kwargs) -> dict[str, Any]: ...
+    def segment(self, image, *args, **kwargs) -> Dict[str, Any]: ...
 
-    def supported_formats(self) -> tuple[str]: ...
+    def supported_outputs(self) -> Tuple[str]: ...
 
 
 @runtime_checkable
-class TilePredictionProtocol(ModelBaseProtocol, Protocol):
-    def predict(self, image, *args, **kwargs) -> Any: ...
+class TilePredictionModelProtocol(ModelBaseProtocol, Protocol):
+    def predict(self, image, *args, **kwargs) -> Dict[str, Any]: ...
 
 
 @runtime_checkable
 class StyleTransferModelProtocol(ModelBaseProtocol, Protocol):
     def predict(self, image): ...
 
-    def get_channel_names(self): ...
+    def get_channel_names(self) -> Tuple[str, ...]: ...
 
 
 @runtime_checkable
@@ -128,7 +128,7 @@ class ModelBase(ABC):
 
     def _resolve_method(
         self, model: torch.nn.Module, method: str
-    ) -> tuple[Any, torch.nn.Module] | None:
+    ) -> Tuple[Any, torch.nn.Module] | None:
         """Resolve method path and return (callable, target_model) for FLOPS counting."""
         if "." in method:
             parts = method.split(".")
@@ -171,18 +171,8 @@ class ModelBase(ABC):
         return flop_counter.get_total_flops()
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self.__class__.__name__
-
-    @classmethod
-    def check_input_tile(cls, tile_spec: "TileSpec") -> bool:
-        """
-        A helper function to check if the input tile size is valid.
-
-        Return True if the input tile size is valid. And the model will be executed.
-        Add a warning here if the input is not optimal but still can be executed.
-        """
-        return True
 
 
 class ImageModel(ModelBase):
@@ -303,11 +293,11 @@ class SegmentationModel(ModelBase):
         )
 
     @abstractmethod
-    def segment(self, image) -> dict[str, Any]:
+    def segment(self, image) -> Dict[str, Any]:
         raise NotImplementedError
 
     @abstractmethod
-    def supported_output(self):
+    def supported_outputs(self) -> Tuple[str, ...]:
         return (
             "probability_map",
             "instance_map",
@@ -316,13 +306,13 @@ class SegmentationModel(ModelBase):
         )
 
     @staticmethod
-    def get_classes():
+    def get_classes() -> Tuple[str, ...] | None:
         return None
 
 
 class TilePredictionModel(ModelBase):
     @abstractmethod
-    def predict(self, image):
+    def predict(self, image) -> Dict[str, Any]:
         """The output should always be a dict of numpy arrays
         to allow multiple outputs.
         """
@@ -335,7 +325,7 @@ class StyleTransferModel(ModelBase):
         raise NotImplementedError
 
     @abstractmethod
-    def get_channel_names(self):
+    def get_channel_names(self) -> Tuple[str, ...]:
         raise NotImplementedError
 
 
