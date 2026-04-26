@@ -7,7 +7,26 @@ authors = [
     { name = "Yimin Zheng", email = "yzheng@cemm.at" }
 ]
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "numpy>=2.0.0",
+    "timm>=1.0.3",
+    "torch>=2.0.0",
+    "transformers>=4.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=6.0",
+    "pytest-xdist>=3.0",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "gated: model behind a gated HuggingFace repo",
+    "slow: large or slow-to-load model",
+]
+addopts = "-n 4"
 
 [build-system]
 requires = ["hatchling"]
