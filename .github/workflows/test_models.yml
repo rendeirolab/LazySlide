@@ -71,6 +71,7 @@ jobs:
         working-directory: packages/lazyslide-models
         run: |
           uv run pytest tests/test_models.py \
+            --rootdir=. \
             -m 'not gated' \
             -n 4 \
             --maxfail=3 \
@@ -131,6 +132,7 @@ jobs:
         working-directory: packages/lazyslide-models
         run: |
           uv run pytest tests/test_models.py \
+            --rootdir=. \
             -m 'gated' \
             -n 4 \
             --maxfail=3 \
@@ -193,6 +195,7 @@ jobs:
         working-directory: packages/lazyslide-models
         run: |
           uv run pytest tests/test_general.py \
+            --rootdir=. \
             -n 4 \
             --maxfail=3 \
             --cov=lazyslide_models \
