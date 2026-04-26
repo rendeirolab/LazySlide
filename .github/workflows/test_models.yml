@@ -65,7 +65,7 @@ jobs:
             pyproject.toml
 
       - name: Install workspace
-        run: uv sync --dev --group model
+        run: uv sync --dev --group tests --group model
 
       - name: Run open model tests
         working-directory: packages/lazyslide-models
@@ -125,7 +125,7 @@ jobs:
             pyproject.toml
 
       - name: Install workspace
-        run: uv sync --dev --group model
+        run: uv sync --dev --group tests --group model
 
       - name: Run gated model tests
         working-directory: packages/lazyslide-models
@@ -187,7 +187,7 @@ jobs:
             uv.lock
 
       - name: Install workspace
-        run: uv sync --dev --group model
+        run: uv sync --dev --group tests --group model
 
       - name: Run general tests
         working-directory: packages/lazyslide-models
