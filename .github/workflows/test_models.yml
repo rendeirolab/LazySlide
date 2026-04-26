@@ -74,7 +74,7 @@ jobs:
             -m 'not gated' \
             -n 4 \
             --maxfail=3 \
-            --cov=src/lazyslide_models \
+            --cov=lazyslide_models \
             --cov-report=xml \
             -v
       - name: Upload coverage reports to Codecov
@@ -134,7 +134,7 @@ jobs:
             -m 'gated' \
             -n 4 \
             --maxfail=3 \
-            --cov=src/lazyslide_models \
+            --cov=lazyslide_models \
             --cov-report=xml \
             -v
 
@@ -195,7 +195,7 @@ jobs:
           uv run pytest tests/test_general.py \
             -n 4 \
             --maxfail=3 \
-            --cov=src/lazyslide_models \
+            --cov=lazyslide_models \
             --cov-report=xml \
             -v
 
