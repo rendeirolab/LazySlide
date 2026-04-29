@@ -81,21 +81,21 @@ def tissue(
     # Load the model
     model_name = model
     if model == "grandqc":
-        from lazyslide.models.segmentation import GrandQCTissue
+        from lazyslide_models.segmentation import GrandQCTissue
 
         model = GrandQCTissue()
         target_mpp = 10
         min_size = 32
         divider = 32
     elif model == "pathprofiler":
-        from lazyslide.models.segmentation import PathProfilerTissueSegmentation
+        from lazyslide_models.segmentation import PathProfilerTissueSegmentation
 
         model = PathProfilerTissueSegmentation()
         target_mpp = 2.5
         divider = 64
         min_size = 128
     elif model == "hest":
-        from lazyslide.models.segmentation import HESTTissueSegmentation
+        from lazyslide_models.segmentation import HESTTissueSegmentation
 
         model = HESTTissueSegmentation()
         target_mpp = 1

@@ -1,19 +1,27 @@
-name: Test Models
+name: Test LazySlide Models
 on:
-  workflow_dispatch: # Allows manual triggering of the workflow
-  schedule:          # Schedules the workflow to run weekly
-    - cron: '0 0 * * 0' # Runs every Sunday at midnight UTC
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0' # Every Sunday at midnight UTC
   push:
     paths:
       - '.github/workflows/test_models.yml'
-      - 'src/lazyslide/models/**'
-      - 'tests/models/**'
+      - 'packages/lazyslide-models/**'
+
+env:
+  # Persistent HuggingFace cache across runs — avoids re-downloading weights
+  HF_HOME: /home/runner/.cache/huggingface
+  # Enable fast Xet-based downloads when available
+  HF_HUB_ENABLE_HF_TRANSFER: "1"
+  # HF_TOKEN is read natively by huggingface_hub — no login step needed
+  HF_TOKEN: ${{ secrets.HF_TOKEN }}
 
 jobs:
-  Test:
-    runs-on: linux-cpu8-300g # Use a runner with enough disk space
+  test-open-models:
+    name: Test Open Models
+    runs-on: linux-cpu8-300g
     steps:
-      - name: Get User Permission
+      - name: Check User Permission
         id: checkAccess
         uses: actions-cool/check-user-permission@v2
         with:
@@ -21,31 +29,195 @@ jobs:
           username: ${{ github.triggering_actor }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Check User Permission
+
+      - name: Abort if unauthorized
         if: steps.checkAccess.outputs.require-result == 'false'
         run: |
           echo "${{ github.triggering_actor }} does not have permissions on this repo."
-          echo "Current permission level is ${{ steps.checkAccess.outputs.user-permission }}"
-          echo "Job originally triggered by ${{ github.actor }}"
           exit 1
+
       - uses: actions/checkout@v4
         with:
-          ref: ${{  github.event.pull_request.head.sha }} # This is dangerous without human review
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      # ── Cache HuggingFace model weights ──────────────────────────────
+      # The default 10 GB GitHub cache is too small for all model weights.
+      # We split caching into two layers:
+      #   1. actions/cache for small/medium models (fits in 10 GB budget)
+      #   2. The self-hosted runner's persistent $HF_HOME survives across
+      #      runs as long as the runner instance is re-used, covering
+      #      large models that don't fit in the GitHub cache.
+      - name: Restore HuggingFace cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.HF_HOME }}
+          key: hf-open-models-${{ hashFiles('packages/lazyslide-models/src/**/*.py') }}
+          restore-keys: |
+            hf-open-models-
+
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
         with:
-          python-version: 3.12
+          python-version: "3.12"
           enable-cache: true
-          cache-dependency-glob: "uv.lock"
-      - name: Install project
-        run: uv sync --dev --group model
-      - name: Login to Hugging Face
+          cache-dependency-glob: |
+            packages/lazyslide-models/pyproject.toml
+            pyproject.toml
+
+      - name: Install workspace
+        run: uv sync --dev --group tests --group model
+
+      - name: Diagnostic - check environment
+        working-directory: packages/lazyslide-models
         run: |
-          uv run hf auth login --token ${{ secrets.HF_TOKEN }}
-      - name: Tests # TODO: Add tests for models
+          echo "=== pwd ==="
+          pwd
+          echo "=== ls tests/ ==="
+          ls -la tests/
+          echo "=== Collect only (no xdist, no rootdir) ==="
+          uv run pytest tests/test_models.py --collect-only -q 2>&1 | tail -20
+          echo "=== Collect with marker filter ==="
+          uv run pytest tests/test_models.py -m 'not gated' --collect-only -q 2>&1 | tail -20
+          echo "=== Collect with xdist ==="
+          uv run pytest tests/test_models.py -m 'not gated' -n 4 --collect-only -q 2>&1 | tail -20
+          echo "=== Collect with -c pyproject.toml ==="
+          uv run pytest tests/test_models.py -c pyproject.toml -m 'not gated' --collect-only -q 2>&1 | tail -20
+
+      - name: Run open model tests
+        working-directory: packages/lazyslide-models
         run: |
-          uv run pytest tests/models -n auto --maxfail=1 --dist=loadfile --cov=src/lazyslide/models --cov-report=xml --cov-report=html
+          uv run pytest tests/test_models.py \
+            -m 'not gated' \
+            -n 4 \
+            --maxfail=3 \
+            --cov=lazyslide_models \
+            --cov-report=xml \
+            -v
       - name: Upload coverage reports to Codecov
+        if: always()
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          flags: open-models
+
+  test-gated-models:
+    name: Test Gated Models
+    runs-on: linux-cpu8-300g
+    steps:
+      - name: Check User Permission
+        id: checkAccess
+        uses: actions-cool/check-user-permission@v2
+        with:
+          require: write
+          username: ${{ github.triggering_actor }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Abort if unauthorized
+        if: steps.checkAccess.outputs.require-result == 'false'
+        run: |
+          echo "${{ github.triggering_actor }} does not have permissions on this repo."
+          exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Restore HuggingFace cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.HF_HOME }}
+          key: hf-gated-models-${{ hashFiles('packages/lazyslide-models/src/**/*.py') }}
+          restore-keys: |
+            hf-gated-models-
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: |
+            packages/lazyslide-models/pyproject.toml
+            pyproject.toml
+
+      - name: Install workspace
+        run: uv sync --dev --group tests --group model
+
+      - name: Run gated model tests
+        working-directory: packages/lazyslide-models
+        run: |
+          uv run pytest tests/test_models.py \
+            -m 'gated' \
+            -n 4 \
+            --maxfail=3 \
+            --cov=lazyslide_models \
+            --cov-report=xml \
+            -v
+
+      - name: Upload coverage reports to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: gated-models
+
+  test-general:
+    name: Test General (Registry & Contracts)
+    runs-on: linux-cpu8-300g
+    steps:
+      - name: Check User Permission
+        id: checkAccess
+        uses: actions-cool/check-user-permission@v2
+        with:
+          require: write
+          username: ${{ github.triggering_actor }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Abort if unauthorized
+        if: steps.checkAccess.outputs.require-result == 'false'
+        run: |
+          echo "${{ github.triggering_actor }} does not have permissions on this repo."
+          exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Restore HuggingFace cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.HF_HOME }}
+          key: hf-general-${{ hashFiles('packages/lazyslide-models/src/**/*.py') }}
+          restore-keys: |
+            hf-general-
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: |
+            packages/lazyslide-models/pyproject.toml
+            pyproject.toml
+            uv.lock
+
+      - name: Install workspace
+        run: uv sync --dev --group tests --group model
+
+      - name: Run general tests
+        working-directory: packages/lazyslide-models
+        run: |
+          uv run pytest tests/test_general.py \
+            -n 4 \
+            --maxfail=3 \
+            --cov=lazyslide_models \
+            --cov-report=xml \
+            -v
+
+      - name: Upload coverage reports to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: model-general

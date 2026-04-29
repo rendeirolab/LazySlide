@@ -3,10 +3,9 @@ from __future__ import annotations
 import warnings
 
 import torch
+from lazyslide_models import MODEL_REGISTRY, SegmentationModelProtocol
 from wsidata import WSIData
 from wsidata.io import add_shapes
-
-from lazyslide.models import MODEL_REGISTRY, SegmentationModel
 
 from .._const import Key
 from .._utils import find_stack_level
@@ -15,7 +14,7 @@ from ._seg_runner import CellSegmentationRunner
 
 def cells(
     wsi: WSIData,
-    model: str | SegmentationModel = "instanseg",
+    model: str | SegmentationModelProtocol = "instanseg",
     tile_key=Key.tiles,
     transform=None,
     batch_size=4,
@@ -66,7 +65,7 @@ def cells(
 
     """
 
-    if isinstance(model, SegmentationModel):
+    if isinstance(model, SegmentationModelProtocol):
         model_instance = model
     else:
         model = MODEL_REGISTRY.get(model)
@@ -101,7 +100,7 @@ def cells(
 
 def cell_types(
     wsi: WSIData,
-    model: str | SegmentationModel = "nulite",
+    model: str | SegmentationModelProtocol = "nulite",
     tile_key=Key.tiles,
     magnification: str | None = None,
     transform=None,
@@ -178,7 +177,7 @@ def cell_types(
         "40x",
     }, f"Unsupported magnification: {magnification}, use '20x' or '40x'"
 
-    if isinstance(model, SegmentationModel):
+    if isinstance(model, SegmentationModelProtocol):
         model_instance = model
     else:
         model_kwargs = dict(magnification=magnification)

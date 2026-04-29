@@ -1,42 +1,42 @@
 import numpy as np
 import pandas as pd
-import pytest
+from mock_models import MockPrismModel
 
 import lazyslide as zs
 
+TIMM_MODEL = "test_resnet"
+
 
 class TestZeroShotClassification:
-    @pytest.mark.large_runner
-    def test_zero_shot_with_real_prism(self, wsi):
-        """Test zero-shot classification with actual Prism model.
-
-        This test is marked to be skipped on CI to avoid downloading large models.
-        Run it locally if you want to test with the actual Prism model.
-        """
-        # Skip this test if running on CI
-        pytest.importorskip("transformers")
-
+    def test_zero_shot_with_mock_prism(self, wsi):
+        """Test zero-shot classification with mock Prism model."""
         # Prepare the WSI with necessary preprocessing
         zs.pp.find_tissues(wsi)
         zs.pp.tile_tissues(wsi, 512)
 
-        # Extract features using a simple model
-        zs.tl.feature_extraction(wsi, model="virchow")
+        # Extract features using a lightweight timm model
+        zs.tl.feature_extraction(wsi, model=TIMM_MODEL, load_kws=dict(pretrained=False))
 
-        # Aggregate features
-        zs.tl.feature_aggregation(wsi, feature_key="virchow", encoder="prism")
+        # Aggregate features using mock prism
+        mock_prism = MockPrismModel()
+        # feature_aggregation uses MODEL_REGISTRY for encoder string,
+        # so use "mean" for aggregation and then call zero_shot_score with model instance
+        zs.tl.feature_aggregation(wsi, feature_key=TIMM_MODEL, encoder="mean")
 
         # Define prompts for zero-shot classification
         prompts = [["normal tissue"], ["abnormal tissue"], ["inflammation"]]
 
-        # Perform zero-shot classification
+        # Perform zero-shot classification with mock model instance
         results = zs.tl.zero_shot_score(
-            wsi, prompts, feature_key="virchow_tiles", model="prism"
+            wsi,
+            prompts,
+            feature_key=f"{TIMM_MODEL}_tiles",
+            model=mock_prism,
         )
 
         # Verify the results
         assert isinstance(results, pd.DataFrame)
-        assert results.shape[1] == len(prompts)  # Number of classes
+        assert results.shape[1] == len(prompts)
         assert list(results.columns) == [
             "normal tissue",
             "abnormal tissue",

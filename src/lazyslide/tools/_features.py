@@ -7,6 +7,14 @@ from typing import Callable, Literal, Sequence
 import geopandas as gpd
 import numpy as np
 import torch
+from lazyslide_models import (
+    MODEL_REGISTRY,
+    ImageModel,
+    ImageModelProtocol,
+    ModelBaseProtocol,
+    ViTModelProtocol,
+    list_models,
+)
 from shapely import box
 from torch.utils.data import DataLoader
 from wsidata import TileSpec, WSIData
@@ -15,14 +23,6 @@ from wsidata.io import add_features
 import lazyslide._api as _api
 from lazyslide._const import Key
 from lazyslide._utils import default_pbar
-from lazyslide.models import (
-    MODEL_REGISTRY,
-    ImageModel,
-    ImageModelProtocol,
-    ModelBaseProtocol,
-    ViTModelProtocol,
-    list_models,
-)
 from lazyslide.preprocess._tiles import _add_tiles
 
 
@@ -32,7 +32,7 @@ def load_models(model_name: str, dense=False, model_path=None, token=None, **kwa
     if model_name in MODEL_REGISTRY:
         model = MODEL_REGISTRY[model_name](model_path=model_path, token=token, **kwargs)
     else:
-        from lazyslide.models import TimmModel, TimmViTModel
+        from lazyslide_models import TimmModel, TimmViTModel
 
         if dense:
             model = TimmViTModel(model_name, token=token, **kwargs)
