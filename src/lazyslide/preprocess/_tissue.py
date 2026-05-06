@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import warnings
+from typing import Literal
 
 import cv2
 import geopandas as gpd
@@ -16,6 +17,7 @@ from lazyslide.cv.transform import (
     ArtifactFilterThreshold,
     BinaryThreshold,
     Compose,
+    EntropyThreshold,
     MedianBlur,
     MorphClose,
 )
@@ -61,10 +63,28 @@ def _tissue_mask(
     return c.apply(image)
 
 
+def _build_tissue_mask(image, method, otsu_kwargs, entropy_kwargs):
+    if method == "otsu":
+        return _tissue_mask(image, **otsu_kwargs)
+    if method == "entropy":
+        kwargs = dict(entropy_kwargs)
+        morph_ksize = kwargs.pop("morph_ksize")
+        morph_n_iter = kwargs.pop("morph_n_iter")
+        c = Compose(
+            [
+                EntropyThreshold(**kwargs),
+                MorphClose(kernel_size=morph_ksize, n_iterations=morph_n_iter),
+            ]
+        )
+        return c.apply(image)
+    raise ValueError(f"Unknown method: {method!r}. Choose from 'otsu' or 'entropy'.")
+
+
 def find_tissues(
     wsi: WSIData,
     level: int | str = "auto",
     refine_level: int | str | None = None,
+    method: Literal["otsu", "entropy"] = "otsu",
     to_hsv: bool = False,
     blur_ksize: int = 17,
     threshold: int = 7,
@@ -74,6 +94,9 @@ def find_tissues(
     min_hole_area: float = 1e-5,
     detect_holes: bool = True,
     filter_artifacts: bool = True,
+    disk_radius: int = 4,
+    relaxed_threshold: bool = True,
+    invert_check: bool = True,
     key_added: str = Key.tissue,
 ):
     """Find tissue regions in the :term:`WSI` and add them as :term:`contours` and :term:`holes`.
@@ -96,17 +119,26 @@ def find_tissues(
         The level to use for segmentation.
     refine_level : int or 'auto', default: None
         The level to refine the tissue polygons.
+    method : {'otsu', 'entropy'}, default: 'otsu'
+        Tissue mask construction strategy.
+        ``'otsu'`` uses median blur + Otsu/artifact thresholding + morphological
+        closing. ``'entropy'`` uses HED color-space local entropy with Otsu
+        thresholding followed by morphological closing; when
+        ``method='entropy'`` the otsu-specific parameters (``to_hsv``,
+        ``blur_ksize``, ``threshold``, ``filter_artifacts``) are ignored.
     to_hsv : bool, default: False
-        The tissue image will be converted from RGB to HSV space,
+        (otsu only) The tissue image will be converted from RGB to HSV space,
         the saturation channel (color purity) will be used for tissue detection.
     blur_ksize : int, default: 17
-        The kernel size used to apply median blurring.
+        (otsu only) The kernel size used to apply median blurring.
     threshold : int, default: 7
-        The threshold for binary thresholding.
+        (otsu only) The threshold for binary thresholding.
     morph_n_iter : int, default: 3
-        The number of iterations of morphological opening and closing to apply.
+        The number of iterations of morphological closing to apply
+        (also applied as opening on the otsu path).
     morph_ksize : int, default: 7
-        The kernel size for morphological opening and closing.
+        The kernel size for morphological closing
+        (also applied as opening on the otsu path).
     min_tissue_area : float, default: 1e-3
         The minimum area of tissue.
     min_hole_area : float, default: 1e-5
@@ -114,7 +146,16 @@ def find_tissues(
     detect_holes : bool, default: True
         Detect holes in tissue regions.
     filter_artifacts : bool, default: True
-        Filter :term:`artifacts <artifact>` out. Artifacts that are non-redish are removed.
+        (otsu only) Filter :term:`artifacts <artifact>` out. Artifacts that are non-redish are removed.
+    disk_radius : int, default: 4
+        (entropy only) Radius of the disk structuring element used for entropy filtering.
+    relaxed_threshold : bool, default: True
+        (entropy only) If True, use a more permissive threshold (0.85x Otsu)
+        and aggregate only hematoxylin and eosin entropy. If False, also
+        subtract DAB entropy, producing a stricter mask.
+    invert_check : bool, default: True
+        (entropy only) Whether to detect and correct mask inversion when the
+        background dominates the image borders.
     key_added : str, default: 'tissues'
         The key to save the result in the :term:`WSIData` object.
 
@@ -149,11 +190,18 @@ def find_tissues(
     # Set the segmentation options
 
     # Run the first segmentation
-    mask_option = dict(
+    otsu_kwargs = dict(
         to_hsv=to_hsv,
         filter_artifacts=filter_artifacts,
         blur_ksize=blur_ksize,
         threshold=threshold,
+        morph_ksize=morph_ksize,
+        morph_n_iter=morph_n_iter,
+    )
+    entropy_kwargs = dict(
+        disk_radius=disk_radius,
+        relaxed_threshold=relaxed_threshold,
+        invert_check=invert_check,
         morph_ksize=morph_ksize,
         morph_n_iter=morph_n_iter,
     )
@@ -162,7 +210,7 @@ def find_tissues(
         min_hole_area=min_hole_area,
     )
     tissue_image = wsi.reader.get_level(ops_level)
-    tissue_mask = _tissue_mask(tissue_image, **mask_option)
+    tissue_mask = _build_tissue_mask(tissue_image, method, otsu_kwargs, entropy_kwargs)
     tissue_polys = BinaryMask(tissue_mask).to_polygons(
         **to_poly_option, detect_holes=detect_holes_1
     )
@@ -203,7 +251,7 @@ def find_tissues(
             image = wsi.reader.get_region(
                 xmin, ymin, width, height, level=current_refine_level
             )
-            tissue_mask = _tissue_mask(image, **mask_option)
+            tissue_mask = _build_tissue_mask(image, method, otsu_kwargs, entropy_kwargs)
             tissue_polys = BinaryMask(tissue_mask).to_polygons(
                 **to_poly_option, detect_holes=detect_holes
             )

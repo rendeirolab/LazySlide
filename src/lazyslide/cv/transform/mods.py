@@ -2,6 +2,10 @@ from collections import namedtuple
 
 import cv2
 import numpy as np
+from skimage.color import rgb2hed
+from skimage.filters import threshold_otsu
+from skimage.filters.rank import entropy as rank_entropy
+from skimage.morphology import disk
 
 # Base class
 
@@ -199,6 +203,75 @@ class ArtifactFilterThreshold(Transform):
             type=(cv2.THRESH_BINARY + cv2.THRESH_OTSU),
         )
         return out
+
+
+class EntropyThreshold(Transform):
+    """
+    HED entropy thresholding transform to create a binary tissue mask.
+
+    Converts the input RGB image into the HED (Hematoxylin-Eosin-DAB) color
+    space, computes per-channel local entropy with a disk structuring element,
+    and applies Otsu thresholding to produce a binary mask.
+
+    Parameters
+    ----------
+    disk_radius : int, default: 4
+        Radius of the disk structuring element used for entropy filtering.
+    relaxed_threshold : bool, default: True
+        If True, use a more permissive threshold (0.85x Otsu) and aggregate
+        only hematoxylin and eosin entropy. If False, also subtract DAB
+        entropy, producing a stricter mask.
+    invert_check : bool, default: True
+        Whether to detect a flipped mask (>95% of border pixels foreground)
+        and invert it.
+
+    """
+
+    def __init__(self, disk_radius=4, relaxed_threshold=True, invert_check=True):
+        if disk_radius < 1:
+            raise ValueError("disk_radius must be >= 1")
+        self.set_params(
+            disk_radius=disk_radius,
+            relaxed_threshold=relaxed_threshold,
+            invert_check=invert_check,
+        )
+
+    def apply(self, image):
+        disk_radius = self.params["disk_radius"]
+        relaxed = self.params["relaxed_threshold"]
+        invert_check = self.params["invert_check"]
+
+        selem = disk(disk_radius)
+
+        hed = rgb2hed(image)
+        hed = (hed * 255).astype(np.uint8)
+        h, e, d = hed[:, :, 0], hed[:, :, 1], hed[:, :, 2]
+
+        h_entropy = rank_entropy(h, selem)
+        e_entropy = rank_entropy(e, selem)
+
+        if relaxed:
+            entropy = np.sum([h_entropy, e_entropy], axis=0)
+        else:
+            d_entropy = rank_entropy(d, selem)
+            entropy = np.sum([h_entropy, e_entropy], axis=0) - d_entropy
+
+        threshold_val = threshold_otsu(entropy)
+        if relaxed:
+            threshold_val *= 0.85
+
+        mask = entropy > threshold_val
+
+        if invert_check:
+            top = mask[0, :]
+            right = mask[:, -1]
+            bottom = mask[-1, :]
+            left = mask[:, 0]
+            edge = np.concatenate([top, right[1:-1], bottom, left[1:-1]])
+            if edge.mean() > 0.95:
+                mask = ~mask
+
+        return (mask.astype(np.uint8)) * 255
 
 
 # ================= Morphological Modules =================
