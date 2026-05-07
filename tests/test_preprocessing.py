@@ -157,6 +157,98 @@ class TestPPFindTissues:
             assert geom.is_valid
 
 
+class TestPPFindTissuesEntropy:
+    """Tests for the pp.find_tissues function with method='entropy'."""
+
+    def test_basic_functionality(self, wsi):
+        """Test basic functionality with method='entropy'."""
+        key = "tissue_entropy_basic"
+        zs.pp.find_tissues(wsi, method="entropy", key_added=key)
+
+        assert key in wsi.shapes
+        assert len(wsi[key]) > 0
+
+        for geom in wsi[key].geometry:
+            assert isinstance(geom, Polygon)
+            assert geom.area > 0
+            assert geom.is_valid
+
+    @pytest.mark.parametrize("disk_radius", [2, 4, 6])
+    def test_disk_radius_parameter(self, wsi, disk_radius):
+        """Test different disk_radius parameter values."""
+        key = f"tissue_entropy_disk_{disk_radius}"
+        zs.pp.find_tissues(
+            wsi, method="entropy", disk_radius=disk_radius, key_added=key
+        )
+
+        assert key in wsi.shapes
+        assert len(wsi[key]) > 0
+
+    @pytest.mark.parametrize("relaxed_threshold", [True, False])
+    def test_relaxed_threshold_parameter(self, wsi, relaxed_threshold):
+        """Test different relaxed_threshold parameter values."""
+        key = f"tissue_entropy_relaxed_{relaxed_threshold}"
+        zs.pp.find_tissues(
+            wsi,
+            method="entropy",
+            relaxed_threshold=relaxed_threshold,
+            key_added=key,
+        )
+
+        assert key in wsi.shapes
+        assert len(wsi[key]) > 0
+
+    @pytest.mark.parametrize("invert_check", [True, False])
+    def test_invert_check_parameter(self, wsi, invert_check):
+        """Test different invert_check parameter values."""
+        key = f"tissue_entropy_invert_{invert_check}"
+        zs.pp.find_tissues(
+            wsi, method="entropy", invert_check=invert_check, key_added=key
+        )
+
+        assert key in wsi.shapes
+        assert len(wsi[key]) > 0
+
+    @pytest.mark.parametrize("level", ["auto", -1])
+    def test_level_parameter(self, wsi, level):
+        """Test different level parameter values."""
+        key = f"tissue_entropy_level_{level}"
+        zs.pp.find_tissues(wsi, method="entropy", level=level, key_added=key)
+
+        assert key in wsi.shapes
+        assert len(wsi[key]) > 0
+
+    @pytest.mark.parametrize("detect_holes", [True, False])
+    def test_detect_holes_parameter(self, wsi, detect_holes):
+        """Test different detect_holes parameter values."""
+        key = f"tissue_entropy_holes_{detect_holes}"
+        zs.pp.find_tissues(
+            wsi, method="entropy", detect_holes=detect_holes, key_added=key
+        )
+
+        assert key in wsi.shapes
+        assert len(wsi[key]) > 0
+
+        if not detect_holes:
+            tissue = wsi[key].geometry[0]
+            assert len(tissue.interiors) == 0
+
+    def test_method_otsu_smoke(self, wsi):
+        """Test that method='otsu' is wired through correctly."""
+        key = "tissue_method_otsu"
+        zs.pp.find_tissues(wsi, method="otsu", key_added=key)
+
+        assert key in wsi.shapes
+        assert len(wsi[key]) > 0
+
+    def test_invalid_method_raises(self, wsi):
+        """Test that an invalid method raises ValueError."""
+        with pytest.raises(ValueError):
+            zs.pp.find_tissues(
+                wsi, method="invalid_method", key_added="tissue_invalid_method"
+            )
+
+
 class TestPPTileTissues:
     """Tests for the pp.tile_tissues function."""
 

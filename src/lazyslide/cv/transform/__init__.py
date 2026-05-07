@@ -6,6 +6,7 @@ from .mods import (
     BinaryThreshold,
     BoxBlur,
     Compose,
+    EntropyThreshold,
     GaussianBlur,
     MedianBlur,
     MorphClose,
@@ -21,5 +22,6 @@ __all__ = [
     "MorphClose",
     "MorphOpen",
     "ArtifactFilterThreshold",
+    "EntropyThreshold",
     "TissueDetectionHE",
 ]
