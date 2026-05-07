@@ -28,10 +28,10 @@ uv sync
 4. Install pre-commit hooks
 
 ```bash
-uv run pre-commit install
+uv run prek install
 ```
 
-We use [pre-commit](https://pre-commit.com/) to run code formatting and linting checks before each commit.
+We use [prek](https://prek.j178.dev/) to run code formatting and linting checks before each commit.
 
 5. Start a Python session
 

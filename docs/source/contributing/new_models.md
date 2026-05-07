@@ -10,6 +10,8 @@ If the model is considered beneficial to LazySlide user, you can then start codi
 
 For setting up the development environment of LazySlide, please refer to [this page](setup.md).
 
+As of LazySlide v0.11.0, we migrate all models to a new package called `lazyslide_models`.
+
 ## Understanding the base class of different model types
 
 There are different types of models in LazySlide:
@@ -18,7 +20,7 @@ There are different types of models in LazySlide:
 - {term}`Segmentation models <segmentation model>`
 - {term}`Tile prediction models <tile prediction model>`
 
-You should find all the base class definition in `src/lazyslide/models/base.py`, and all models should 
+You should find all the base class definition in `base.py`, and all models should 
 inherit from one of the base class. If you want the model like `model='cellpose'` in the LazySlide functions, 
 please use the `register` decorator to register the model in LazySlide. 
 
@@ -59,8 +61,8 @@ key to the `bib_key` field.
 ```python
 import torch
 
-from lazyslide.models import hf_access, register
-from lazyslide.models.base import ImageModel, ModelTask
+from lazyslide_models import hf_access, register
+from lazyslide_models.base import ImageModel, ModelTask
 
 
 # A key must be defined to register the model
@@ -115,8 +117,8 @@ Here is an example of an **image-text multimodal model**:
 ```python
 import torch
 
-from lazyslide.models import hf_access, register
-from lazyslide.models.base import ImageTextModel, ModelTask
+from lazyslide_models import hf_access, register
+from lazyslide_models.base import ImageTextModel, ModelTask
 
 
 @register(
@@ -159,8 +161,8 @@ set the output type in `supported_output(self)` method.
 ```python
 import torch
 
-from lazyslide.models.base import SegmentationModel, ModelTask
-from lazyslide.models import register
+from lazyslide_models.base import SegmentationModel, ModelTask
+from lazyslide_models import register
 
 
 @register(
@@ -198,8 +200,8 @@ Tile prediction model will require implementing
 ```python
 import torch
 
-from lazyslide.models.base import TilePredictionModel, ModelTask
-from lazyslide.models import register
+from lazyslide_models.base import TilePredictionModel, ModelTask
+from lazyslide_models import register
 
 
 @register(
@@ -232,7 +234,7 @@ If you've done everything right, your model should be available in the registry.
 to see if it works
 
 ```python
-from lazyslide.models import MODEL_REGISTRY, list_models
+from lazyslide_models import MODEL_REGISTRY, list_models
 
 model_name = "your model name"
 assert model_name in list_models()
