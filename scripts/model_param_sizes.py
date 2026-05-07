@@ -38,10 +38,7 @@ Examples:
 """
 
 import argparse
-import importlib
 import json
-import sys
-from pathlib import Path
 
 import numpy as np
 import torch
@@ -154,6 +151,7 @@ def update_model_registry(model_name, param_size=None, feature_dim=None):
     """
     try:
         from importlib.resources import files
+
         registry_path = files("lazyslide.models").joinpath("model_registry.json")
     except ImportError as e:
         print(f"Error locating model_registry.json: {e}")
