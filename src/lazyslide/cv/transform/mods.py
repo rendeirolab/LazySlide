@@ -2,10 +2,6 @@ from collections import namedtuple
 
 import cv2
 import numpy as np
-from skimage.color import rgb2hed
-from skimage.filters import threshold_otsu
-from skimage.filters.rank import entropy as rank_entropy
-from skimage.morphology import disk
 
 # Base class
 
@@ -223,9 +219,14 @@ class EntropyThreshold(Transform):
         entropy, producing a stricter mask.
     invert_check : bool, default: True
         Whether to detect a flipped mask (>95% of border pixels foreground)
-        and invert it.
+        and invert it. Note: this heuristic assumes the slide border is
+        mostly background; it may misfire on tightly-cropped ROIs.
 
     """
+
+    #: Empirical multiplier applied to the Otsu threshold in relaxed mode
+    #: to include faint tissue that strict Otsu would miss.
+    RELAXED_THRESHOLD_FACTOR = 0.85
 
     def __init__(self, disk_radius=4, relaxed_threshold=True, invert_check=True):
         if disk_radius < 1:
@@ -237,6 +238,13 @@ class EntropyThreshold(Transform):
         )
 
     def apply(self, image):
+        from skimage.color import rgb2hed
+        from skimage.exposure import rescale_intensity
+        from skimage.filters import threshold_otsu
+        from skimage.filters.rank import entropy as rank_entropy
+        from skimage.morphology import disk
+        from skimage.util import img_as_ubyte
+
         disk_radius = self.params["disk_radius"]
         relaxed = self.params["relaxed_threshold"]
         invert_check = self.params["invert_check"]
@@ -244,21 +252,21 @@ class EntropyThreshold(Transform):
         selem = disk(disk_radius)
 
         hed = rgb2hed(image)
-        hed = (hed * 255).astype(np.uint8)
+        hed = img_as_ubyte(rescale_intensity(hed, in_range=(hed.min(), hed.max())))
         h, e, d = hed[:, :, 0], hed[:, :, 1], hed[:, :, 2]
 
         h_entropy = rank_entropy(h, selem)
         e_entropy = rank_entropy(e, selem)
 
         if relaxed:
-            entropy = np.sum([h_entropy, e_entropy], axis=0)
+            entropy = h_entropy + e_entropy
         else:
             d_entropy = rank_entropy(d, selem)
-            entropy = np.sum([h_entropy, e_entropy], axis=0) - d_entropy
+            entropy = np.maximum(h_entropy + e_entropy - d_entropy, 0)
 
         threshold_val = threshold_otsu(entropy)
         if relaxed:
-            threshold_val *= 0.85
+            threshold_val *= self.RELAXED_THRESHOLD_FACTOR
 
         mask = entropy > threshold_val
 
