@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
-from mock_models import MockPrismModel
 
 import lazyslide as zs
+
+from .mock_models import MockPrismModel
 
 TIMM_MODEL = "test_resnet"
 

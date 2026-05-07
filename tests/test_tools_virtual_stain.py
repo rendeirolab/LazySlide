@@ -1,8 +1,9 @@
 import numpy as np
 import pytest
-from mock_models import MockStyleTransferModel
 
 from lazyslide.tools import virtual_stain
+
+from .mock_models import MockStyleTransferModel
 
 
 def test_virtual_stain_mock(wsi):

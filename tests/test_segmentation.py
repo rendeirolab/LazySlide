@@ -1,10 +1,10 @@
-from mock_models import (
+import lazyslide as zs
+
+from .mock_models import (
     MockCellSegmentationModel,
     MockCellTypeSegmentationModel,
     MockSemanticSegmentationModel,
 )
-
-import lazyslide as zs
 
 
 def test_tissue_segmentation(wsi):

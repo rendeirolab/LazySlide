@@ -1,9 +1,10 @@
 import numpy as np
 import pandas as pd
 import pytest
-from mock_models import MockImageTextModel
 
 import lazyslide as zs
+
+from .mock_models import MockImageTextModel
 
 
 class TestTextEmbedding:

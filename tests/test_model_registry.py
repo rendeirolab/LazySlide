@@ -5,6 +5,8 @@ These tests verify that the model registry is properly structured and that
 the list_models function works correctly, without initializing any models.
 """
 
+import importlib
+import sys
 from collections.abc import MutableMapping
 
 import pandas as pd
@@ -16,6 +18,22 @@ from lazyslide.models import MODEL_REGISTRY, ModelBase, ModelTask, list_models
 def test_model_registry_import():
     """Test that the model registry can be imported."""
     assert MODEL_REGISTRY is not None
+
+
+def test_backward_compat_module_aliases():
+    """Legacy lazyslide.models.* imports should resolve to lazyslide_models modules."""
+    base_module = importlib.import_module("lazyslide.models.base")
+    compat_base_module = importlib.import_module("lazyslide_models.base")
+    registry_module = importlib.import_module("lazyslide.models._model_registry")
+    compat_registry_module = importlib.import_module("lazyslide_models._model_registry")
+    hibou_module = importlib.import_module("lazyslide.models.vision.hibou")
+    compat_hibou_module = importlib.import_module("lazyslide_models.vision.hibou")
+
+    assert base_module is compat_base_module
+    assert registry_module is compat_registry_module
+    assert hibou_module is compat_hibou_module
+    assert sys.modules["lazyslide.models.base"] is compat_base_module
+    assert sys.modules["lazyslide.models.vision.hibou"] is compat_hibou_module
 
 
 def test_model_registry_type():
