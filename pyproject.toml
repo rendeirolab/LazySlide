@@ -102,10 +102,6 @@ version = "{version}"
 lint.extend-select = ["I"]
 line-length = 88
 
-[tool.ruff.lint.per-file-ignores]
-"tests/test_example.py" = ["E402"]
-"tests/test_loader.py" = ["E402"]
-
 [tool.mypy]
 ignore_missing_imports = true
 
