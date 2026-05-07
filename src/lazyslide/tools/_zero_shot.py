@@ -5,6 +5,7 @@ from typing import Iterable, List, Sequence
 import numpy as np
 import pandas as pd
 import torch
+from lazyslide_models import MODEL_REGISTRY
 from wsidata import WSIData
 
 from lazyslide._utils import get_torch_device
@@ -112,14 +113,8 @@ def zero_shot_score(
 
     prompts = _preprocess_prompts(prompts)
 
-    if model == "prism":
-        from lazyslide.models.multimodal import Prism
-
-        model = Prism()
-    elif model == "titan":
-        from lazyslide.models.multimodal import Titan
-
-        model = Titan()
+    if isinstance(model, str):
+        model = MODEL_REGISTRY[model]()
     model.to(device)
     # Get the embeddings from the WSI
     agg_info, annos = _get_agg_info(
@@ -185,7 +180,7 @@ def slide_caption(
     if device is None:
         device = get_torch_device()
 
-    from lazyslide.models.multimodal import Prism
+    from lazyslide_models.multimodal import Prism
 
     model = Prism()
     model.to(device)

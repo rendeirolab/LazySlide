@@ -4,7 +4,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from huggingface_hub import hf_hub_download, upload_file
+from huggingface_hub import hf_hub_download
 from wsidata import open_wsi
 
 import lazyslide as zs

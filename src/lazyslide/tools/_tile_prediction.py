@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Union
 
 import pandas as pd
 import torch
+from lazyslide_models import TilePredictionModelProtocol
 from torch.utils.data import DataLoader
 from wsidata import WSIData
 from wsidata.io import update_shapes_data
@@ -12,10 +13,9 @@ from wsidata.io import update_shapes_data
 from lazyslide import _api
 from lazyslide._const import Key
 from lazyslide._utils import default_pbar
-from lazyslide.models.base import TilePredictionModel
 
 if TYPE_CHECKING:
-    TP_MODEL = Union[str, TilePredictionModel]
+    TP_MODEL = Union[str, TilePredictionModelProtocol]
 
 
 def tile_prediction(
@@ -37,7 +37,7 @@ def tile_prediction(
 
     .. code-block:: python
 
-        from lazyslide.models import list_models
+        from lazyslide_models import list_models
 
         list_models(task="tile_prediction")
 
@@ -77,8 +77,8 @@ def tile_prediction(
 
     is_cv_features = False
     if isinstance(model, str):
-        from lazyslide.models import MODEL_REGISTRY
-        from lazyslide.models.tile_prediction import CV_FEATURES
+        from lazyslide_models import MODEL_REGISTRY
+        from lazyslide_models.tile_prediction import CV_FEATURES
 
         if model == "spider":
             raise ValueError(
@@ -134,7 +134,7 @@ def tile_prediction(
     update_shapes_data(wsi, tile_key, results)
 
 
-def _get_model(model: TP_MODEL) -> TilePredictionModel:
+def _get_model(model: TP_MODEL) -> TilePredictionModelProtocol:
     """
     Get the tile prediction model from a string or a TilePredictionModel instance.
 
@@ -150,8 +150,8 @@ def _get_model(model: TP_MODEL) -> TilePredictionModel:
 
     """
     if isinstance(model, str):
-        from lazyslide.models import MODEL_REGISTRY
-        from lazyslide.models.tile_prediction import CV_FEATURES
+        from lazyslide_models import MODEL_REGISTRY
+        from lazyslide_models.tile_prediction import CV_FEATURES
 
         if model in CV_FEATURES:
             return CV_FEATURES[model]()
@@ -160,7 +160,7 @@ def _get_model(model: TP_MODEL) -> TilePredictionModel:
         if card is None:
             raise ValueError(f"Model '{model}' not found in the registry.")
         return card()
-    elif isinstance(model, TilePredictionModel):
+    elif isinstance(model, TilePredictionModelProtocol):
         return model
     else:
         raise TypeError(

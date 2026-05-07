@@ -2,17 +2,16 @@ from contextlib import nullcontext
 from typing import List
 
 import torch
+from lazyslide_models import MODEL_REGISTRY, ImageGenerationModelProtocol
 from PIL import Image
 from wsidata import WSIData
 
 from lazyslide import _api
-from lazyslide.models import MODEL_REGISTRY
-from lazyslide.models.base import ImageGenerationModel
 
 
 def image_generation(
     wsi: WSIData = None,
-    model: str | ImageGenerationModel = "cytosyn",
+    model: str | ImageGenerationModelProtocol = "cytosyn",
     prompt_tiles: slice = None,
     tile_key: str = "tiles",
     device: str = None,
@@ -73,10 +72,10 @@ def image_generation(
     amp = _api.default_value("amp", amp)
     autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
 
-    if isinstance(model, ImageGenerationModel):
+    if isinstance(model, ImageGenerationModelProtocol):
         raise NotImplementedError("Currently only supports cytosyn model.")
 
-    generation_model: ImageGenerationModel = MODEL_REGISTRY[model]()
+    generation_model: ImageGenerationModelProtocol = MODEL_REGISTRY[model]()
     try:
         generation_model.to(device)
     except:  # noqa: E722

@@ -9,6 +9,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import torch
+from lazyslide_models import SegmentationModelProtocol
 from shapely import box, prepare
 from torch.utils.data import DataLoader
 from wsidata import TileSpec, WSIData
@@ -22,12 +23,11 @@ from lazyslide.cv import (
     ProbabilityMap,
     nms,
 )
-from lazyslide.models.base import SegmentationModel
 
 
 def semantic(
     wsi: WSIData,
-    model: SegmentationModel,
+    model: SegmentationModelProtocol,
     tile_key=Key.tiles,
     class_names: List[str] | Mapping[int, str] | None = None,
     transform=None,
@@ -243,7 +243,7 @@ class SemanticSegmentationRunner(Runner):
     def __init__(
         self,
         wsi: WSIData,
-        model: SegmentationModel,
+        model: SegmentationModelProtocol,
         tile_key: str = Key.tiles,
         transform: Callable = None,
         mode: Literal["constant", "gaussian"] = "gaussian",
@@ -300,7 +300,7 @@ class SemanticSegmentationRunner(Runner):
             tissues = wsi[tissue_key]
         self.tissues = tissues
         self.downsample = self.tile_spec.base_downsample
-        self._supported_output = self.model.supported_output()
+        self._supported_output = self.model.supported_outputs()
 
     @cached_property
     def importance_map(self):
@@ -498,7 +498,7 @@ class CellSegmentationRunner(Runner):
     def __init__(
         self,
         wsi: WSIData,
-        model: SegmentationModel,
+        model: SegmentationModelProtocol,
         tile_key: str = Key.tiles,
         transform: Callable = None,
         size_filter: bool = True,
@@ -528,7 +528,7 @@ class CellSegmentationRunner(Runner):
 
         self.tile_spec = wsi.tile_spec(tile_key)
         self.downsample = self.tile_spec.base_downsample
-        self._supported_output = self.model.supported_output()
+        self._supported_output = self.model.supported_outputs()
         if "instance_map" not in self._supported_output:
             raise ValueError("The model does not support instance segmentation.")
 
