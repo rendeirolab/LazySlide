@@ -89,11 +89,11 @@ plot_formats = [("png", 200)]
 nitpicky = True
 # Alternative approach - ignore specific references
 nitpick_ignore = [
-    ("py:class", "lazyslide.models.tile_prediction.cv_features._CVFeatures"),
+    ("py:class", "lazyslide_models.tile_prediction.cv_features._CVFeatures"),
     ("py:class", "abc.ABC"),
     ("py:class", "Scorer"),
-    ("py:class", "lazyslide.models.vision.hibou.Hibou"),
-    ("py:class", "lazyslide.models.tile_prediction.spider.Spider"),
+    ("py:class", "lazyslide_models.vision.hibou.Hibou"),
+    ("py:class", "lazyslide_models.tile_prediction.spider.Spider"),
 ]
 
 intersphinx_mapping = {
@@ -188,7 +188,7 @@ def pull_tutorials(app, config):
 
 # -- Dynamic documentation generation for models ---------------------------
 def template_model_api(title, module_name, models):
-    currentmodule = "lazyslide.models"
+    currentmodule = "lazyslide_models"
     if module_name is not None:
         currentmodule += f".{module_name}"
 
@@ -209,7 +209,7 @@ def template_model_api(title, module_name, models):
         names = [model.__name__ for model in models]
     else:
         names = [
-            model.__module__.split(".")[2] + "." + model.__name__ for model in models
+            model.__module__.split(".")[1] + "." + model.__name__ for model in models
         ]
     for name in natsorted(names):
         content.append(f"    {name}")
@@ -222,9 +222,9 @@ def generate_models_rst(app, config):
     models_dir = Path(app.srcdir) / "api"
     models_file = models_dir / "models.rst"
 
-    from lazyslide.models import MODEL_REGISTRY
-    from lazyslide.models import base as mb
-    from lazyslide.models.segmentation import SMPBase
+    from lazyslide_models import MODEL_REGISTRY
+    from lazyslide_models import base as mb
+    from lazyslide_models.segmentation import SMPBase
 
     # Define model lists manually based on the current models.rst file
     model_sections = {
@@ -277,7 +277,10 @@ def generate_models_rst(app, config):
         "Models",
         "------",
         "",
-        ".. currentmodule:: lazyslide.models",
+        ".. attention::",
+        "    The :code:`.models` is already deprecated, please import from :mod:`lazyslide_models` instead.",
+        "",
+        ".. currentmodule:: lazyslide_models",
         "",
         ".. autosummary::",
         "    :toctree: _autogen",

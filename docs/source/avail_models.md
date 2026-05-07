@@ -9,6 +9,12 @@ cite the original paper or repository as appropriate.
 LazySlide does not redistribute any source code that's not compatible with LazySlide's MIT license.
 :::
 
+:::{note}
+As of LazySlide version 0.11.0, we have transfer all LazySlide models to a separate package, `lazyslide-models`.
+All models are now imported from `lazyslide_models` instead of `lazyslide.models`. 
+Please make sure to update your code accordingly.
+:::
+
 ## Get model names
 
 In most of the cases, you only need to pass the model name as string to the function, for example, to use
@@ -17,7 +23,7 @@ the `UNI` model in feature extraction, you can do: `zs.tl.feature_extraction(wsi
 To get all available models, you can use the `list_models` function:
 
 ```python
-from lazyslide.models import list_models
+from lazyslide_models import list_models
 
 models = list_models()
 ```
@@ -26,7 +32,7 @@ models = list_models()
 You can also filter models by type:
 
 ```python
-from lazyslide.models import list_models
+from lazyslide_models import list_models
 
 vision_models = list_models("vision")  # for vision models only
 multimodal_models = list_models("multimodal")  # for multimodal models only
@@ -46,7 +52,7 @@ timm_models = list_models()
 To retrive a specific model class:
 
 ```python
-from lazyslide.models import MODEL_REGISTRY
+from lazyslide_models import MODEL_REGISTRY
 model_module = MODEL_REGISTRY['instanseg']
 model = model_module()  # Initiate the model
 ```
@@ -135,7 +141,7 @@ one of our base classes (here is `ImageModel`) and implement necessary methods.
 ```python
 import torch
 
-from lazyslide.models.base import ImageModel
+from lazyslide_models.base import ImageModel
 
 class MyGreatModel(ImageModel):
 
