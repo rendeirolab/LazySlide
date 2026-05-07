@@ -153,10 +153,10 @@ class MyGreatImageTextModel(ImageTextModel):
 ### Segmentation model
 
 Segmentation models will require implementing, depends on the model type, either {term}`semantic segmentation` or {term}`instance segmentation`, please
-set the output type in `supported_output(self)` method.
+set the output type in `supported_outputs(self)` method.
 
-- `segment(self, image)`: Segment the input image, must return a dictionary with the output of the model, the key should be the output type defined in `supported_output(self)`
-- `supported_output(self)`: Return the supported output of the model, supported values are "probability_map", "instance_map", "class_map"
+- `segment(self, image)`: Segment the input image, must return a dictionary with the output of the model, the key should be the output type defined in `supported_outputs(self)`
+- `supported_outputs(self)`: Return the supported output of the model, supported values are "probability_map", "instance_map", "class_map"
 
 ```python
 import torch
@@ -187,7 +187,7 @@ class MySuperSegmentation(SegmentationModel):
         out = self.model(image)
         return {"instance_map": out.long().squeeze(1)}
 
-    def supported_output(self):
+    def supported_outputs(self):
         return ("instance_map",)  # Can be multiple outputs
 
 ```

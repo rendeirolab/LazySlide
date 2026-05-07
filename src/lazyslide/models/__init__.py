@@ -42,9 +42,9 @@ warnings.warn(
 
 
 def _register_compat_modules() -> None:
+    """Mirror lazyslide-models modules into the legacy lazyslide.models namespace."""
     import sys
 
-    """Mirror lazyslide-models modules into the legacy lazyslide.models namespace."""
     sys.modules.update(
         {
             f"{__name__}.base": base,

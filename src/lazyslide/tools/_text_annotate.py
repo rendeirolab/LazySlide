@@ -1,6 +1,6 @@
 import warnings
 from contextlib import nullcontext
-from typing import Callable, List, Literal
+from typing import Callable, List
 
 import numpy as np
 import pandas as pd
@@ -77,7 +77,7 @@ def text_embedding(
 def text_image_similarity(
     wsi: WSIData,
     text_embeddings: pd.DataFrame,
-    model: Literal["plip", "conch", "omiclip"] | ImageTextModelProtocol = "plip",
+    model: str = "plip",
     tile_key: str = Key.tiles,
     feature_key: str = None,
     key_added: str = None,
@@ -102,7 +102,7 @@ def text_image_similarity(
         The WSIData object to work on.
     text_embeddings : pd.DataFrame
         The embeddings of the texts, with texts as index.
-    model : {"plip", "conch", "omiclip"}, default: "plip"
+    model : str, default: "plip"
         The text embedding model.
     tile_key : str, default: 'tiles'
         The tile key.

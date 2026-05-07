@@ -10,7 +10,7 @@ LazySlide does not redistribute any source code that's not compatible with LazyS
 :::
 
 :::{note}
-As of LazySlide version 0.11.0, we have transfer all LazySlide models to a separate package, `lazyslide-models`.
+As of LazySlide version 0.11.0, we have transferred all LazySlide models to a separate package, `lazyslide-models`.
 All models are now imported from `lazyslide_models` instead of `lazyslide.models`. 
 Please make sure to update your code accordingly.
 :::
