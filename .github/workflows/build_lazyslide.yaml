@@ -7,24 +7,26 @@ on:
     tags:
       - 'v*'
     paths:
-      - '.github/**'
+      - '.github/workflows/build_lazyslide.yaml'
       - 'src/lazyslide/**'
       - 'tests/**'
       - 'pyproject.toml'
+      - 'uv.lock'
   pull_request:
     paths:
-      - '.github/**'
+      - '.github/workflows/build_lazyslide.yaml'
       - 'src/lazyslide/**'
       - 'tests/**'
       - 'pyproject.toml'
+      - 'uv.lock'
 
 jobs:
-  Test:
+  test:
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.11', '3.12', '3.13']
+        python-version: ['3.11', '3.12', '3.13', '3.14']
 
     runs-on: ${{ matrix.os }}
     env:
@@ -32,8 +34,6 @@ jobs:
       LAZYSLIDE_SKIP_DATASET_TESTS: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != 'rendeirolab/LazySlide' && '1' || '' }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{  github.event.pull_request.head.sha }} # This is dangerous without human review
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
         with:
@@ -48,21 +48,23 @@ jobs:
           uv run hf auth login --token ${{ secrets.HF_TOKEN }}
       - name: Tests
         run: |
-          uv run pytest tests -n auto -m "not large_runner" --cov=src/lazyslide --cov-report=xml --cov-report=html
+          uv run pytest tests -n auto --cov=src/lazyslide --cov-report=xml --cov-report=html
       - name: Upload coverage reports to Codecov
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'rendeirolab/LazySlide'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
-  Upload_to_pypi:
+  publish-test-pypi:
     runs-on: ubuntu-latest
-    needs: Test
+    needs: test
+    if: github.event_name == 'push'
     permissions:
       id-token: write
-      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Setup uv
         uses: astral-sh/setup-uv@v5
         with:
@@ -73,25 +75,38 @@ jobs:
         run: |
           uv build
           uv publish --publish-url https://test.pypi.org/legacy/ || exit 0
-      - name: Login to Hugging Face
+
+  release:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Publish to pypi
         run: |
-          uv run hf auth login --token ${{ secrets.HF_TOKEN }}
+          uv build
+          uv publish
       - name: Tag huggingface dataset
-        if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           VERSION=${{ github.ref_name }}
           echo "Detected version: $VERSION"
           uv run scripts/tag_datasets.py create RendeiroLab/LazySlide-data "$VERSION"
       - name: Tag LazySlide-tutorials
-        if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ secrets.TUTORIAL_RELEASE_TOKEN }}
         run: |
           TAG=${{ github.ref_name }}
           echo "Tagging tutorials repo with $TAG"
           gh release create "$TAG" --repo RendeiroLab/LazySlide-tutorials --notes "New release: $TAG"
-      - name: Publish to pypi
-        if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
-        run: |
-          uv build
-          uv publish
