@@ -16,7 +16,7 @@ from lazyslide._utils import find_stack_level
 
 def text_embedding(
     texts: List[str],
-    model: Literal["plip", "conch", "omiclip"] | ImageTextModelProtocol = "plip",
+    model: str | ImageTextModelProtocol = "plip",
     amp: bool = None,
     autocast_dtype: torch.dtype = None,
     device: str = "cpu",
@@ -31,7 +31,7 @@ def text_embedding(
     ----------
     texts : List[str]
         The list of texts.
-    model : Literal["plip", "conch", "omiclip"], default: "plip"
+    model : {"plip", "conch", "omiclip"}, default: "plip"
         The text embedding :term:`multimodal model`
     amp : bool, default: False
         Whether to use automatic mixed precision (AMP) for inference.
