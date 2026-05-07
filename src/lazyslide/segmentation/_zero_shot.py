@@ -41,7 +41,7 @@ def _initialize_model(
         The initialized model instance and the device it's running on.
     """
     if model_name == "sam":
-        model_instance = MODEL_REGISTRY.get("sam")(**(model_kwargs or {}))
+        model_instance = MODEL_REGISTRY["sam"](**(model_kwargs or {}))
     else:
         raise ValueError(
             f"Unsupported model: {model_name}. Currently only 'sam' is supported."
