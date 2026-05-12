@@ -5,16 +5,16 @@ jobs:
   Generate-datasets:
     runs-on: linux-gpu-runner
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
-          python-version: '3.12'
+          python-version: '3.13'
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - name: Login to Hugging Face
         run: |
-          uv run hf auth login --token ${{ secrets.HF_UPLOAD_DATASET_TOKEN }}
+          uv run hf auth login --token ${{ secrets.HF_TOKEN }}
       - name: Generate datasets
         run: |
           uv run scripts/update_datasets.py
