@@ -47,6 +47,30 @@ def wsi_small():
 
 
 @pytest.fixture(scope="session")
+def wsi_no_spec():
+    """WSI with arbitrary shapes as tiles — no TileSpec metadata."""
+    if SKIP_DATASET_TESTS:
+        pytest.skip("Dataset tests skipped (no HF token, e.g. fork PR)")
+    import geopandas as gpd
+    from shapely import box
+    from wsidata.io import add_shapes
+
+    import lazyslide as zs
+
+    wsi = zs.datasets.sample(with_data=False)
+    tiles = [
+        box(100, 100, 356, 356),
+        box(500, 200, 756, 456),
+        box(100, 600, 356, 856),
+        box(800, 800, 1056, 1056),
+        box(400, 1200, 656, 1456),
+    ]
+    gdf = gpd.GeoDataFrame({"geometry": tiles})
+    add_shapes(wsi, "no_spec_tiles", gdf)
+    return wsi
+
+
+@pytest.fixture(scope="session")
 def tmp_path_session(tmp_path_factory):
     return tmp_path_factory.mktemp("session_tmp")
 

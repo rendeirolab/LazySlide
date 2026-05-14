@@ -8,9 +8,9 @@ Before you actually work on the new model, please submit an issue saying that yo
 a new model and provide information on the model. We will then decide if that model should be integrated or not.
 If the model is considered beneficial to LazySlide user, you can then start coding!
 
-For setting up the development environment of LazySlide, please refer to [this page](setup.md).
-
-As of LazySlide v0.11.0, we migrate all models to a new package called `lazyslide_models`.
+As of LazySlide v0.11.0, all models live in a separate package called
+[lazyslide-models](https://github.com/rendeirolab/lazyslide-models).
+New model contributions should be submitted to that repository.
 
 ## Understanding the base class of different model types
 
@@ -20,9 +20,10 @@ There are different types of models in LazySlide:
 - {term}`Segmentation models <segmentation model>`
 - {term}`Tile prediction models <tile prediction model>`
 
-You should find all the base class definition in `base.py`, and all models should 
-inherit from one of the base class. If you want the model like `model='cellpose'` in the LazySlide functions, 
-please use the `register` decorator to register the model in LazySlide. 
+You should find all the base class definitions in `base.py` of the
+[lazyslide-models](https://github.com/rendeirolab/lazyslide-models) package, and all models should
+inherit from one of the base classes. If you want the model to be usable like `model='cellpose'` in LazySlide functions,
+please use the `register` decorator to register the model.
 
 ```python
 zs.seg.cells(wsi, model='cellpose')  # 'cellpose' must be registered
@@ -47,7 +48,7 @@ There are some shared methods
 
 ### Vision model
 
-Vision models will require to implement `encode_image(self, image)` method to encode the input image and return
+Vision models must implement `encode_image(self, image)` to encode the input image and return
 the encoded feature.
 
 Here is an example of a **vision model**:
@@ -55,8 +56,8 @@ Here is an example of a **vision model**:
 You can have much information related to the model defined.
 Some of them are required, some are optional. If it's optional, you don't have to define it.
 
-If the model comes with a publication, please also add a bib entry in `docs/source/references.bib` and add the 
-key to the `bib_key` field.
+If the model comes with a publication, please also add a bib entry in `references.bib`
+in the [lazyslide-models](https://github.com/rendeirolab/lazyslide-models) repository and add the key to the `bib_key` field.
 
 ```python
 import torch
@@ -106,6 +107,88 @@ class MyGreatModel(ImageModel):
         return output
 ```
 
+### ViT vision model (with dense tokens)
+
+If your vision model is a Vision Transformer (ViT), you should also implement `encode_image_dense(self, image)`
+which returns a `DenseTokens` named tuple containing separate CLS and patch token embeddings.
+This enables LazySlide to extract dense (per-patch) features via `dense=True` in `feature_extraction`.
+
+`DenseTokens` fields:
+- `cls_token`: CLS token embedding, shape `[B, D]`
+- `patch_tokens`: Patch token embeddings, shape `[B, N_patches, D]`
+
+If your model is a timm ViT, you can inherit from `TimmViTModel` which provides `encode_image_dense` automatically.
+For non-timm ViTs, implement it yourself and import `DenseTokens` from `lazyslide_models.base`.
+
+**Pooling behavior**: When `dense=True`, LazySlide pools the dense tokens into tile-level features.
+The pool mode is controlled by `pool_mode` in `feature_extraction`:
+- `"cls"`: Use only the CLS token (default for most models)
+- `"cls_patch_mean"`: Concatenate CLS token with the mean of patch tokens
+
+If your model's `encode_image` returns `cat(cls_token, patch_tokens.mean())`, you should add an entry
+to `DEFAULT_POOL_MODE` in `src/lazyslide/tools/_features.py` with `"cls_patch_mean"` so the dense path
+matches the non-dense behavior.
+
+```python
+import torch
+
+from lazyslide_models import register
+from lazyslide_models.base import DenseTokens, ImageModel, ModelTask
+
+
+@register(
+    key="my-great-vit",
+    task=ModelTask.vision,
+    license="MIT",
+    description="A great ViT model",
+    commercial=True,
+)
+class MyGreatViT(ImageModel):
+
+    def __init__(self):
+        from huggingface_hub import hf_hub_download
+
+        model_file = hf_hub_download("my-repo/my-great-vit", "model.pt")
+        self.model = torch.load(model_file, map_location="cpu")
+        self.model.eval()
+        self.num_prefix_tokens = 1  # typically 1 for CLS token
+
+    @torch.inference_mode()
+    def encode_image_dense(self, image) -> DenseTokens:
+        hidden = self.model.forward_features(image)
+        return DenseTokens(
+            cls_token=hidden[:, 0],
+            patch_tokens=hidden[:, self.num_prefix_tokens:],
+        )
+
+    @torch.inference_mode()
+    def encode_image(self, image):
+        dense = self.encode_image_dense(image)
+        # CLS + mean patch tokens — add "my-great-vit": "cls_patch_mean" to DEFAULT_POOL_MODE
+        return torch.cat([dense.cls_token, dense.patch_tokens.mean(dim=1)], dim=-1)
+```
+
+For timm-based ViTs, you can skip the manual implementation entirely:
+
+```python
+from lazyslide_models.base import TimmViTModel, ModelTask
+from lazyslide_models import register
+
+
+@register(
+    key="my-timm-vit",
+    task=ModelTask.vision,
+    license="MIT",
+    description="A timm ViT model",
+    commercial=True,
+)
+class MyTimmViT(TimmViTModel):
+    """Inherits encode_image, encode_image_dense, get_transform from TimmViTModel."""
+
+    def __init__(self, token=None):
+        super().__init__("hf-hub:my-repo/my-timm-vit", pretrained=True, token=token)
+```
+
 ### Image-text multimodal model
 
 Image text model will require implementing
@@ -152,16 +235,21 @@ class MyGreatImageTextModel(ImageTextModel):
 
 ### Segmentation model
 
-Segmentation models will require implementing, depends on the model type, either {term}`semantic segmentation` or {term}`instance segmentation`, please
-set the output type in `supported_outputs(self)` method.
+Segmentation models must implement `segment(self, image)` which returns a `SegmentationOutput` named tuple.
+The output covers both semantic and instance segmentation — set the relevant fields and leave others as `None`.
 
-- `segment(self, image)`: Segment the input image, must return a dictionary with the output of the model, the key should be the output type defined in `supported_outputs(self)`
-- `supported_outputs(self)`: Return the supported output of the model, supported values are "probability_map", "instance_map", "class_map"
+- `segment(self, image)`: Segment the input image, must return a `SegmentationOutput`
+
+`SegmentationOutput` fields:
+- `probability_map`: Per-class probabilities, shape `[B, C, H, W]` (float). For semantic segmentation and cell type classification.
+- `instance_map`: Instance ID map, shape `[B, H, W]` (int). For instance segmentation.
+- `patch_token_map`: Vision token map, shape `[B, D, Patch_H, Patch_W]`. Only for ViT-based segmentation models.
+- `classes`: Tuple of class name strings in index order. Set when the model has named classes.
 
 ```python
 import torch
 
-from lazyslide_models.base import SegmentationModel, ModelTask
+from lazyslide_models.base import SegmentationModel, SegmentationOutput, ModelTask
 from lazyslide_models import register
 
 
@@ -172,7 +260,7 @@ from lazyslide_models import register
     commercial=True,
 )
 class MySuperSegmentation(SegmentationModel):
-    """Apply the InstaSeg model to the input image."""
+    """Instance segmentation model."""
 
     def __init__(self):
         from huggingface_hub import hf_hub_download
@@ -185,10 +273,7 @@ class MySuperSegmentation(SegmentationModel):
     @torch.inference_mode()
     def segment(self, image):
         out = self.model(image)
-        return {"instance_map": out.long().squeeze(1)}
-
-    def supported_outputs(self):
-        return ("instance_map",)  # Can be multiple outputs
+        return SegmentationOutput(instance_map=out.long().squeeze(1))
 
 ```
 
@@ -242,18 +327,20 @@ model_class = MODEL_REGISTRY[model_name]
 model_instance = model_class()  # You must call the model to initiate an instance
 
 ```
-To make the model available to user, you will also need to go to the respective function to add your model logic.
-If it's only for feature extraction, you don't need to do anything.
+To make the model available to users, you will also need to go to the respective function in the LazySlide
+repository to add your model logic. If it's only for feature extraction, you don't need to do anything.
 
 ## Add a unit test
 
-The final step is to ensure that your model be loaded and run properly. Please add a unit test to `tests/models/*.py`.
-You can refer to the existing unit test to see how to write a unit test. If your model is gated on huggingface,
+The final step is to ensure that your model can be loaded and run properly. Please add a unit test to the
+[lazyslide-models](https://github.com/rendeirolab/lazyslide-models) repository under `tests/test_models.py`.
+You can refer to the existing tests to see how to write one. If your model is gated on Hugging Face,
 the model access must be granted to [@Mr-Milk](https://github.com/Mr-Milk) so that the test can be run on GitHub Actions.
 Remember to @Mr-Milk when you submit a PR.
 
 ## Submit a PR
 
-Now that you've done all the work, you can submit a PR and we will start the review process.
+New models should be submitted as a PR to the
+[lazyslide-models](https://github.com/rendeirolab/lazyslide-models) repository (not the main LazySlide repo).
 For instructions on how to submit a PR, 
 please refer to [this page](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request).

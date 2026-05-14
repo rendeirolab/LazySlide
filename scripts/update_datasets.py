@@ -84,7 +84,7 @@ def create_zip(
 
 def process_sample(wsi_path, geojson_path=None):
     print("Processing whole slide image...")
-    wsi = open_wsi(wsi_path, store=None)
+    wsi = open_wsi(wsi_path, store=None, attach_thumbnail=False)
     zs.pp.find_tissues(wsi)
     zs.seg.tissue(wsi, key_added="dl-tissue")
     zs.pp.tile_tissues(wsi, 256)
@@ -96,7 +96,7 @@ def process_sample(wsi_path, geojson_path=None):
 
 def process_gtex_artery(svs_path, geojson_path=None):
     print("Processing GTEx artery slide...")
-    wsi = open_wsi(svs_path, store=None)
+    wsi = open_wsi(svs_path, store=None, attach_thumbnail=False)
     zs.pp.find_tissues(wsi)
     zs.seg.tissue(wsi, key_added="dl-tissue")
     zs.pp.tile_tissues(wsi, 256, mpp=0.5)
@@ -109,7 +109,7 @@ def process_gtex_artery(svs_path, geojson_path=None):
 
 def process_lung_carcinoma(svs_path, geojson_path=None):
     print("Processing lung carcinoma slide...")
-    wsi = open_wsi(svs_path, store=None)
+    wsi = open_wsi(svs_path, store=None, attach_thumbnail=False)
     zs.pp.find_tissues(wsi)
     zs.pp.tile_tissues(wsi, 256)
     zs.tl.feature_extraction(wsi, "virchow", pbar=True)
@@ -120,7 +120,7 @@ def process_lung_carcinoma(svs_path, geojson_path=None):
 
 def process_gtex_small_intestine(svs_path, geojson_path=None):
     print("Processing sample GTEx small intestine slide...")
-    wsi = open_wsi(svs_path, store=None)
+    wsi = open_wsi(svs_path, store=None, attach_thumbnail=False)
     zs.pp.find_tissues(wsi)
     zs.pp.tile_tissues(wsi, 128)
     zs.tl.feature_extraction(wsi, "plip")

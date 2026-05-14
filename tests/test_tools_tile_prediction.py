@@ -113,3 +113,20 @@ class TestTilePrediction:
         assert len(tiles_gdf) > 0
         # Should have accumulated features from all models (3 base columns + 3 features = 6)
         assert len(tiles_gdf.columns) >= 6  # Base columns + multiple features
+
+
+class TestTilePredictionWithoutTileSpec:
+    """Tile prediction on arbitrary shapes without TileSpec."""
+
+    def test_cv_feature(self, wsi_no_spec):
+        tile_prediction(wsi_no_spec, "brightness", tile_key="no_spec_tiles")
+        tiles = wsi_no_spec.shapes["no_spec_tiles"]
+        assert "brightness" in tiles.columns
+        assert len(tiles) == 5
+
+    def test_multiple_cv_features(self, wsi_no_spec):
+        for model_name in ["contrast", "saturation"]:
+            tile_prediction(wsi_no_spec, model_name, tile_key="no_spec_tiles")
+        tiles = wsi_no_spec.shapes["no_spec_tiles"]
+        assert "contrast" in tiles.columns
+        assert "saturation" in tiles.columns

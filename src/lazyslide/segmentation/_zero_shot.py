@@ -225,7 +225,7 @@ def _segment_with_model(
         all_labels = [1] * len(pos_prompts) + [0] * len(neg_prompts)
 
         # Perform segmentation
-        mask = model_instance.segment(
+        result = model_instance.segment(
             image,
             image_embedding=embeddings,
             input_points=[all_prompts],
@@ -233,7 +233,7 @@ def _segment_with_model(
             input_boxes=[boxes],
         )
 
-        return mask
+        return result.probability_map
     except Exception as e:
         logger.error(f"Error during segmentation: {str(e)}")
         # Return empty mask in case of error

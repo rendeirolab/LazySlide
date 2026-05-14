@@ -46,7 +46,7 @@ def _load_dataset(slide_file, zarr_file, with_data=True, pbar=False):
 
             with ZipFile(slide_zarr_zip, "r") as zip_ref:
                 zip_ref.extractall(slide_zarr.parent)
-    return open_wsi(slide, store=str(slide_zarr) if with_data else None, pbar=pbar)
+    return open_wsi(slide, store=str(slide_zarr) if with_data else None)
 
 
 def sample(with_data: bool = True, pbar: bool = False):

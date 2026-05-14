@@ -179,7 +179,7 @@ def tissue(
     amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()
     with amp_ctx, torch.inference_mode():
         pred = model.segment(img_t)
-    pred = pred["probability_map"]
+    pred = pred.probability_map
 
     pred = pred.squeeze(0).detach().cpu().numpy()
     if model_name == "grandqc":

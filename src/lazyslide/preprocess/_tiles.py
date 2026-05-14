@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Literal
+from typing import Literal, Tuple
 
 import geopandas as gpd
 import numpy as np
@@ -16,9 +16,9 @@ from lazyslide._utils import find_stack_level
 
 def tile_tissues(
     wsi: WSIData,
-    tile_px: int | (int, int),
+    tile_px: int | Tuple[int, int],
     *,
-    stride_px: int | (int, int) = None,
+    stride_px: int | Tuple[int, int] | None = None,
     overlap: float = None,
     edge: bool = False,
     mpp: float = None,

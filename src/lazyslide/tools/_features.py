@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import warnings
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Callable, Literal, Sequence
+from typing import TYPE_CHECKING, Callable, Literal, Sequence
 
 import geopandas as gpd
 import numpy as np
@@ -11,6 +12,7 @@ from lazyslide_models import (
     MODEL_REGISTRY,
     ImageModel,
     ImageModelProtocol,
+    ImageTextModelProtocol,
     ModelBaseProtocol,
     ViTModelProtocol,
     list_models,
@@ -22,8 +24,11 @@ from wsidata.io import add_features
 
 import lazyslide._api as _api
 from lazyslide._const import Key
-from lazyslide._utils import default_pbar
+from lazyslide._utils import default_pbar, find_stack_level
 from lazyslide.preprocess._tiles import _add_tiles
+
+if TYPE_CHECKING:
+    from lazyslide_models import DenseTokens
 
 
 def load_models(model_name: str, dense=False, model_path=None, token=None, **kwargs):
@@ -51,6 +56,8 @@ DEFAULT_POOL_MODE = {
     "h-optimus-0": "cls_patch_mean",
     "h-optimus-1": "cls_patch_mean",
     "midnight": "cls_patch_mean",
+    "virchow": "cls_patch_mean",
+    "virchow2": "cls_patch_mean",
     "gigapath": "cls",
     "uni": "cls",
     "uni2": "cls",
@@ -143,7 +150,9 @@ def feature_extraction(
     dense : bool, default: False
         Whether to extract dense features for ViT models.
     pool_mode : {'cls', 'cls_patch_mean'}, optional
-        The pooling mode for dense features.
+        The pooling mode for dense features. Only works for ViT models,
+        'cls' uses only CLS tokens, 'cls_patch_mean' uses CLS + mean patch tokens.
+        If None, the models before v0.11.0 will keep it's old behavior.
     key_added : str, optional
         The key to store the extracted features.
     return_features : bool, default: False
@@ -234,6 +243,12 @@ def feature_extraction(
 
     # Setup dense features tiles
     if dense:
+        if isinstance(model, ImageTextModelProtocol):
+            warnings.warn(
+                "If you want to extract dense features for Multimodal models, do not set dense=True."
+                "As the vision token in dense mode maybe fit for text-image query.",
+                stacklevel=find_stack_level(),
+            )
         if isinstance(model, ViTModelProtocol):
             token_tiles, token_tiles_spec = subdivide_tiles(
                 wsi, model.grid_size, tile_key
@@ -263,21 +278,16 @@ def feature_extraction(
             for batch in loader:
                 image = batch["image"].to(device)
                 if dense and isinstance(model, ViTModelProtocol):
-                    intermediate_features = model.encode_image_dense(image)
-                    cls_feature = intermediate_features[:, 0]
-                    patch_token_feature = intermediate_features[
-                        :, model.num_prefix_tokens :
-                    ]
-                    patch_mean = patch_token_feature.mean(1)
+                    dense_tokens: DenseTokens = model.encode_image_dense(image)
+                    patch_mean = dense_tokens.patch_tokens.mean(1)
                     # Keep (batch_size, n_patches, embed_dim) — flatten per-tile later to preserve order
-                    dense_feature = patch_token_feature.reshape(
-                        -1, patch_token_feature.shape[-1]
+                    dense_feature = dense_tokens.patch_tokens.reshape(
+                        -1, dense_tokens.patch_tokens.shape[-1]
                     )
-
                     if pool_mode == "cls":
-                        output = cls_feature
+                        output = dense_tokens.cls_token
                     elif pool_mode == "cls_patch_mean":
-                        output = torch.cat([cls_feature, patch_mean], dim=-1)
+                        output = torch.cat([dense_tokens.cls_token, patch_mean], dim=-1)
                     else:
                         raise ValueError(f"Invalid pool_mode: {pool_mode}")
                     dense_features.append(to_numpy(dense_feature))

@@ -24,6 +24,29 @@ class TestCellSegmentation:
         model = MockCellTypeSegmentationModel()
         zs.seg.cell_types(wsi, model, tile_key="cell_tiles", key_added="cell_types")
 
+    def test_cell_classification_with_features(self, wsi):
+        zs.pp.tile_tissues(wsi, tile_px=512, mpp=0.5, key_added="cell_feat_tiles")
+
+        model = MockCellTypeSegmentationModel()
+        zs.seg.cell_types(
+            wsi,
+            model,
+            tile_key="cell_feat_tiles",
+            key_added="cell_types_feat",
+            extract_features=True,
+        )
+        # Verify cells were added
+        assert "cell_types_feat" in wsi.shapes
+
+        n_cells = len(wsi.shapes["cell_types_feat"])
+        assert n_cells > 0, "Expected deterministic mock segmentation to produce cells"
+        # Verify features were stored
+        feat_key = "cell_types_feat_features"
+        assert feat_key in wsi.tables
+        feat = wsi.tables[feat_key]
+        assert feat.X.shape[0] == n_cells
+        assert feat.X.shape[1] == model._EMBED_DIM
+
 
 class TestSemanticSegmentation:
     def test_semantic_segmentation(self, wsi):

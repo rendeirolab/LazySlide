@@ -6,7 +6,7 @@ so tests validate pipeline logic without downloading weights.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Self, Tuple
+from typing import Self, Tuple
 
 import numpy as np
 import torch
@@ -16,6 +16,7 @@ from lazyslide_models.base import (
     ModelBase,
     ModelTask,
     SegmentationModel,
+    SegmentationOutput,
     StyleTransferModel,
 )
 
@@ -34,7 +35,7 @@ class MockCellSegmentationModel(SegmentationModel):
 
         return Compose([ToImage(), ToDtype(dtype=torch.float32, scale=False)])
 
-    def segment(self, image) -> Dict[str, Any]:
+    def segment(self, image) -> SegmentationOutput:
         B, C, H, W = image.shape
         instance_maps = torch.zeros(B, H, W, dtype=torch.long)
         # Place 3 small cells in center region (away from edges for filtering)
@@ -44,10 +45,7 @@ class MockCellSegmentationModel(SegmentationModel):
             y_lo, y_hi = max(0, cy - r), min(H, cy + r)
             x_lo, x_hi = max(0, cx - r), min(W, cx + r)
             instance_maps[:, y_lo:y_hi, x_lo:x_hi] = idx
-        return {"instance_map": instance_maps}
-
-    def supported_outputs(self) -> Tuple[str, ...]:
-        return ("instance_map",)
+        return SegmentationOutput(instance_map=instance_maps)
 
     @classmethod
     def check_input_tile(cls, tile_spec) -> bool:
@@ -60,14 +58,14 @@ class MockCellSegmentationModel(SegmentationModel):
 class MockCellTypeSegmentationModel(SegmentationModel):
     """Returns instance_map + class_map with 6-class NuLite-compatible output."""
 
-    _CLASS_MAPPING = {
-        0: "Background",
-        1: "Neoplastic",
-        2: "Inflammatory",
-        3: "Connective",
-        4: "Dead",
-        5: "Epithelial",
-    }
+    classes = (
+        "Background",
+        "Neoplastic",
+        "Inflammatory",
+        "Connective",
+        "Dead",
+        "Epithelial",
+    )
 
     def __init__(self, **kwargs):
         self.model = nn.Identity()
@@ -77,7 +75,9 @@ class MockCellTypeSegmentationModel(SegmentationModel):
 
         return Compose([ToImage(), ToDtype(dtype=torch.float32, scale=True)])
 
-    def segment(self, image) -> Dict[str, Any]:
+    _EMBED_DIM = 64
+
+    def segment(self, image) -> SegmentationOutput:
         B, C, H, W = image.shape
         n_classes = 6
         instance_maps = np.zeros((B, H, W), dtype=np.int64)
@@ -96,24 +96,17 @@ class MockCellTypeSegmentationModel(SegmentationModel):
                 class_maps[b, class_id, y_lo:y_hi, x_lo:x_hi] = 0.9
                 class_maps[b, 0, y_lo:y_hi, x_lo:x_hi] = 0.1  # low background prob
 
-        return {
-            "instance_map": instance_maps,
-            "class_map": class_maps,
-        }
+        # Simulate ViT patch token map [B, D, PH, PW]
+        PH, PW = H // 16, W // 16  # typical ViT patch size = 16
+        gen = np.random.RandomState(42)
+        patch_token_map = gen.randn(B, self._EMBED_DIM, PH, PW).astype(np.float32)
 
-    def supported_outputs(self) -> Tuple[str, ...]:
-        return "instance_map", "class_map"
-
-    @staticmethod
-    def get_classes():
-        return {
-            0: "Background",
-            1: "Neoplastic",
-            2: "Inflammatory",
-            3: "Connective",
-            4: "Dead",
-            5: "Epithelial",
-        }
+        return SegmentationOutput(
+            instance_map=instance_maps,
+            probability_map=class_maps,
+            patch_token_map=patch_token_map,
+            classes=self.classes,
+        )
 
     @classmethod
     def check_input_tile(cls, tile_spec) -> bool:
@@ -140,7 +133,7 @@ class MockSemanticSegmentationModel(SegmentationModel):
             ]
         )
 
-    def segment(self, image) -> Dict[str, Any]:
+    def segment(self, image) -> SegmentationOutput:
         B, C, H, W = image.shape
         n_classes = 8
         prob_map = torch.zeros(B, n_classes, H, W)
@@ -148,10 +141,7 @@ class MockSemanticSegmentationModel(SegmentationModel):
         prob_map[:, 1, :, :] = 0.8
         # Class 2 (Fold) gets a small region with high prob
         prob_map[:, 2, H // 4 : H // 2, W // 4 : W // 2] = 0.9
-        return {"probability_map": prob_map}
-
-    def supported_outputs(self) -> Tuple[str, ...]:
-        return ("probability_map",)
+        return SegmentationOutput(probability_map=prob_map)
 
     @classmethod
     def check_input_tile(cls, tile_spec) -> bool:

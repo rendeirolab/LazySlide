@@ -69,7 +69,7 @@ Zero-shot Learning
 
 
 Generative Modeling
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 .. currentmodule:: lazyslide
 
