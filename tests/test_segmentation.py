@@ -39,13 +39,13 @@ class TestCellSegmentation:
         assert "cell_types_feat" in wsi.shapes
 
         n_cells = len(wsi.shapes["cell_types_feat"])
-        if n_cells > 0:
-            # Verify features were stored
-            feat_key = "cell_types_feat_features"
-            assert feat_key in wsi.tables
-            feat = wsi.tables[feat_key]
-            assert feat.X.shape[0] == n_cells
-            assert feat.X.shape[1] == model._EMBED_DIM
+        assert n_cells > 0, "Expected deterministic mock segmentation to produce cells"
+        # Verify features were stored
+        feat_key = "cell_types_feat_features"
+        assert feat_key in wsi.tables
+        feat = wsi.tables[feat_key]
+        assert feat.X.shape[0] == n_cells
+        assert feat.X.shape[1] == model._EMBED_DIM
 
 
 class TestSemanticSegmentation:

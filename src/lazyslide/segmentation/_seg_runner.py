@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 from contextlib import nullcontext
 from functools import cached_property
@@ -17,7 +18,7 @@ from wsidata.io import add_shapes
 
 from lazyslide import _api
 from lazyslide._const import Key
-from lazyslide._utils import default_pbar, get_torch_device
+from lazyslide._utils import default_pbar, find_stack_level, get_torch_device
 from lazyslide.cv import (
     InstanceMap,
     ProbabilityMap,
@@ -413,6 +414,12 @@ class SemanticSegmentationRunner(Runner):
                             output = self.model.segment(images)
 
                             probability_map = output.probability_map
+                            if probability_map is None:
+                                raise ValueError(
+                                    "Semantic segmentation requires probability_map "
+                                    "but the model returned None. "
+                                    "This model may only support instance segmentation."
+                                )
 
                             if isinstance(probability_map, torch.Tensor):
                                 # Update the out tensor with the importance map
@@ -593,6 +600,7 @@ class CellSegmentationRunner(Runner):
                 )
 
                 results = []
+                _warned_no_tokens = False
 
                 task = progress_bar.add_task(
                     "Processing tiles", total=len(tile_dataset)
@@ -606,6 +614,12 @@ class CellSegmentationRunner(Runner):
                     output = self.model.segment(images)
 
                     instance_map = output.instance_map
+                    if instance_map is None:
+                        raise ValueError(
+                            "Cell segmentation requires instance_map "
+                            "but the model returned None. "
+                            "This model may only support semantic segmentation."
+                        )
                     probability_map = output.probability_map
                     patch_token_map = output.patch_token_map
 
@@ -628,6 +642,17 @@ class CellSegmentationRunner(Runner):
                             )
 
                     has_tokens = self.extract_features and patch_token_map is not None
+                    if (
+                        self.extract_features
+                        and patch_token_map is None
+                        and not _warned_no_tokens
+                    ):
+                        warnings.warn(
+                            "extract_features=True but model does not return "
+                            "patch_token_map. Feature extraction will be skipped.",
+                            stacklevel=find_stack_level(),
+                        )
+                        _warned_no_tokens = True
 
                     for i in range(len(xs)):
                         pos_x = xs[i]

@@ -20,7 +20,8 @@ There are different types of models in LazySlide:
 - {term}`Segmentation models <segmentation model>`
 - {term}`Tile prediction models <tile prediction model>`
 
-You should find all the base class definitions in `lazyslide_models/base.py`, and all models should
+You should find all the base class definitions in `base.py` of the
+[lazyslide-models](https://github.com/rendeirolab/lazyslide-models) package, and all models should
 inherit from one of the base classes. If you want the model to be usable like `model='cellpose'` in LazySlide functions,
 please use the `register` decorator to register the model.
 
@@ -55,8 +56,8 @@ Here is an example of a **vision model**:
 You can have much information related to the model defined.
 Some of them are required, some are optional. If it's optional, you don't have to define it.
 
-If the model comes with a publication, please also add a bib entry in `docs/source/references.bib` and add the 
-key to the `bib_key` field.
+If the model comes with a publication, please also add a bib entry in `references.bib`
+in the [lazyslide-models](https://github.com/rendeirolab/lazyslide-models) repository and add the key to the `bib_key` field.
 
 ```python
 import torch

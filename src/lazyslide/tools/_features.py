@@ -151,7 +151,7 @@ def feature_extraction(
         Whether to extract dense features for ViT models.
     pool_mode : {'cls', 'cls_patch_mean'}, optional
         The pooling mode for dense features. Only works for ViT models,
-        'cls' uses only CLS tokens, 'cls_path_mean' uses CLS + mean patch tokens.
+        'cls' uses only CLS tokens, 'cls_patch_mean' uses CLS + mean patch tokens.
         If None, the models before v0.11.0 will keep it's old behavior.
     key_added : str, optional
         The key to store the extracted features.
