@@ -2963,7 +2963,7 @@ requires-dist = [
     { name = "einops", marker = "extra == 'models'", specifier = ">=0.8.1" },
     { name = "einops-exts", marker = "extra == 'models'", specifier = ">=0.0.4" },
     { name = "environs", marker = "extra == 'models'", specifier = ">=14.1.1" },
-    { name = "lazyslide-models", git = "https://github.com/rendeirolab/lazyslide-models.git?branch=main" },
+    { name = "lazyslide-models", specifier = ">=0.0.2" },
     { name = "legendkit", specifier = ">=0.3.4" },
     { name = "matplotlib", specifier = ">=3.9.0" },
     { name = "matplotlib-scalebar", specifier = ">=0.9.0" },
@@ -2982,7 +2982,7 @@ requires-dist = [
     { name = "torchvision", marker = "extra == 'all'", specifier = ">=0.15" },
     { name = "transformers", marker = "extra == 'all'", specifier = ">=4.49.0" },
     { name = "transformers", marker = "extra == 'models'", specifier = ">=4.49.0" },
-    { name = "wsidata", git = "https://github.com/rendeirolab/wsidata?branch=main" },
+    { name = "wsidata", specifier = ">=0.10.0" },
 ]
 provides-extras = ["all", "models"]
 
@@ -3064,8 +3064,8 @@ tutorials = [
 
 [[package]]
 name = "lazyslide-models"
-version = "0.0.1.post1.dev0+eccd047"
-source = { git = "https://github.com/rendeirolab/lazyslide-models.git?branch=main#eccd0477fd97a66ec16ae475121eaa6adea7ce73" }
+version = "0.0.2"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "opencv-python-headless" },
@@ -3076,6 +3076,10 @@ dependencies = [
     { name = "timm" },
     { name = "torch" },
     { name = "transformers" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e1/dc/8531dac8f13145b19b648c0bd8fdb3768d3ad7eac7984cd2c8fddb09a1c6/lazyslide_models-0.0.2.tar.gz", hash = "sha256:8bed15fa3066a6f669d958420af64c8037ad4d9af770a7362de3299f3279e25b", size = 219735, upload-time = "2026-05-14T17:16:11.353Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4c/fd/f1f7e39857ba013447623b3f7b1582c5f1c86803b23c050cab5da1e99028/lazyslide_models-0.0.2-py3-none-any.whl", hash = "sha256:26c4bc5a7af33f025086e90f64abb1ac87467d50438f3c41d0d370ed43f2f062", size = 81671, upload-time = "2026-05-14T17:16:10.219Z" },
 ]
 
 [[package]]
@@ -8413,8 +8417,8 @@ wheels = [
 
 [[package]]
 name = "wsidata"
-version = "0.9.0.post5.dev0+6ea22c1"
-source = { git = "https://github.com/rendeirolab/wsidata?branch=main#6ea22c17fdcbb81a394101c61abfaaf184af1b4d" }
+version = "0.10.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "opencv-python-headless" },
     { name = "openslide-bin" },
@@ -8422,6 +8426,10 @@ dependencies = [
     { name = "rich" },
     { name = "spatialdata" },
     { name = "torch" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3c/d2/ccb29380269c074d2aaf4a3dbae7972e3aec3dab86c6ad70753529d36bd1/wsidata-0.10.0.tar.gz", hash = "sha256:9ad6da8e820958501ab57c033d8d87b46298adfa398ec222964366d0994b8426", size = 59726, upload-time = "2026-05-14T17:16:58.745Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/97/d4/5b900338921e68e2f40300b58e0e9702f3b63edcb1a2a8425164a5150ec6/wsidata-0.10.0-py3-none-any.whl", hash = "sha256:133a792472a0a8c06f1e209fd6d4dd05d8b4cdb266ced11b160fc59e052a68a4", size = 80446, upload-time = "2026-05-14T17:16:59.62Z" },
 ]
 
 [[package]]
