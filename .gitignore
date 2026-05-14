@@ -72,6 +72,7 @@ instance/
 docs/build/
 docs/.jupyter_cache/
 docs/jupyter_execute
+docs/source/references_combined.bib
 
 
 # PyBuilder

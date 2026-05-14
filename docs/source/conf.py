@@ -2,6 +2,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import urllib.request
 from datetime import datetime
 from pathlib import Path
 
@@ -46,13 +47,17 @@ autodoc_typehints = "none"
 autosectionlabel_prefix_document = True
 # setting autosummary
 autosummary_generate = True
+# Suppress "stub file not found" warnings from autosummary directives
+# that are processed via ``.. include::`` from a different directory context
+# (e.g. avail_models.md includes api/models.rst).
+suppress_warnings = ["autosummary.stub"]
 numpydoc_show_class_members = False
 add_module_names = False
 
 templates_path = ["_templates"]
 exclude_patterns = []
 
-bibtex_bibfiles = ["references.bib"]
+bibtex_bibfiles = ["references_combined.bib"]
 bibtex_default_style = "unsrt"
 bibtex_reference_style = "author_year"
 
@@ -121,6 +126,32 @@ def get_clean_version(version):
     if match:
         return match.group(1)
     return version
+
+
+def combine_references(app, config):
+    """Download references.bib from lazyslide-models and merge with local copy."""
+    remote_url = "https://raw.githubusercontent.com/rendeirolab/lazyslide-models/main/references.bib"
+    local_bib = Path(app.srcdir) / "references.bib"
+    combined_bib = Path(app.srcdir) / "references_combined.bib"
+
+    try:
+        with urllib.request.urlopen(remote_url) as response:
+            remote_content = response.read().decode("utf-8")
+        print("Downloaded references.bib from lazyslide-models")
+    except Exception as e:
+        print(f"Warning: Could not download references.bib from lazyslide-models: {e}")
+        return
+
+    # Read local references.bib (may be empty)
+    local_content = local_bib.read_text().strip() if local_bib.exists() else ""
+
+    # Combine: remote first, then local
+    combined = remote_content.strip()
+    if local_content:
+        combined += "\n\n" + local_content
+
+    combined_bib.write_text(combined)
+    print(f"Combined references.bib written to {combined_bib}")
 
 
 def pull_tutorials(app, config):
@@ -310,5 +341,8 @@ def setup(app):
     # Connect the pull_tutorials function to the builder-inited event
     # This ensures it runs after the configuration is initialized but before the build starts
     app.connect("config-inited", pull_tutorials)
+
+    # Download and combine references.bib from lazyslide-models
+    app.connect("config-inited", combine_references)
 
     return {"version": "0.1", "parallel_read_safe": True}

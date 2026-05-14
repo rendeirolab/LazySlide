@@ -25,6 +25,47 @@ from lazyslide.cv import (
 )
 
 
+def _pool_cell_feature(
+    instance_map: np.ndarray,
+    patch_token_map: np.ndarray,
+    instance_id: int,
+) -> np.ndarray:
+    """Mean-pool patch tokens overlapping a single cell instance.
+
+    Parameters
+    ----------
+    instance_map : np.ndarray, shape ``[H, W]``
+        Integer instance ID map for the tile.
+    patch_token_map : np.ndarray, shape ``[D, PH, PW]``
+        Patch token feature map from a ViT segmentation model.
+    instance_id : int
+        The instance ID to extract features for.
+
+    Returns
+    -------
+    np.ndarray, shape ``[D]``
+        Mean-pooled feature vector for the cell.
+    """
+    cell_mask = instance_map == instance_id  # [H, W]
+    H, W = cell_mask.shape
+    D, PH, PW = patch_token_map.shape
+
+    # Downsample cell mask to patch token resolution (nearest-neighbor)
+    row_idx = np.round(np.linspace(0, H - 1, PH)).astype(int)
+    col_idx = np.round(np.linspace(0, W - 1, PW)).astype(int)
+    patch_mask = cell_mask[np.ix_(row_idx, col_idx)]  # [PH, PW]
+
+    if patch_mask.any():
+        return patch_token_map[:, patch_mask].mean(axis=1)  # [D]
+
+    # Cell smaller than a single patch — use nearest patch token
+    ys, xs = np.where(cell_mask)
+    cy, cx = ys.mean(), xs.mean()
+    py = min(int(cy * PH / H), PH - 1)
+    px = min(int(cx * PW / W), PW - 1)
+    return patch_token_map[:, py, px]  # [D]
+
+
 def semantic(
     wsi: WSIData,
     model: SegmentationModelProtocol,
@@ -300,7 +341,6 @@ class SemanticSegmentationRunner(Runner):
             tissues = wsi[tissue_key]
         self.tissues = tissues
         self.downsample = self.tile_spec.base_downsample
-        self._supported_output = self.model.supported_outputs()
 
     @cached_property
     def importance_map(self):
@@ -372,7 +412,7 @@ class SemanticSegmentationRunner(Runner):
                             # TODO: output may not be tensor
                             output = self.model.segment(images)
 
-                            probability_map = output["probability_map"]
+                            probability_map = output.probability_map
 
                             if isinstance(probability_map, torch.Tensor):
                                 # Update the out tensor with the importance map
@@ -510,6 +550,7 @@ class CellSegmentationRunner(Runner):
         autocast_dtype: torch.dtype = torch.float16,
         class_names: List[str] | Mapping[int, str] | None = None,
         pbar: bool = True,
+        extract_features: bool = False,
     ):
         self.wsi = wsi
         self.model = model
@@ -525,14 +566,15 @@ class CellSegmentationRunner(Runner):
         self.autocast_dtype = autocast_dtype
         self.class_names = class_names
         self.pbar = pbar
+        self.extract_features = extract_features
 
         self.tile_spec = wsi.tile_spec(tile_key)
         self.downsample = self.tile_spec.base_downsample
-        self._supported_output = self.model.supported_outputs()
-        if "instance_map" not in self._supported_output:
-            raise ValueError("The model does not support instance segmentation.")
 
-    def run(self) -> gpd.GeoDataFrame:
+    def run(self) -> gpd.GeoDataFrame | tuple[gpd.GeoDataFrame, np.ndarray]:
+        all_features: list[np.ndarray] = []  # per-cell [D] vectors
+        global_cell_idx = 0
+
         with default_pbar(disable=not self.pbar) as progress_bar:
             amp_ctx = (
                 torch.autocast(self.device, self.autocast_dtype)
@@ -551,7 +593,6 @@ class CellSegmentationRunner(Runner):
                 )
 
                 results = []
-                # is_classification = "class_map" in self._supported_output
 
                 task = progress_bar.add_task(
                     "Processing tiles", total=len(tile_dataset)
@@ -564,21 +605,36 @@ class CellSegmentationRunner(Runner):
                         images = images.to(self.device)
                     output = self.model.segment(images)
 
-                    instance_map = output["instance_map"]
-                    class_map = output.get("class_map", None)
+                    instance_map = output.instance_map
+                    probability_map = output.probability_map
+                    patch_token_map = output.patch_token_map
 
-                    # Get output and covert to numpy
+                    # Resolve class_names from output if not provided
+                    if self.class_names is None and output.classes is not None:
+                        self.class_names = {
+                            i: name for i, name in enumerate(output.classes)
+                        }
+
+                    # Get output and convert to numpy
                     if isinstance(instance_map, torch.Tensor):
                         instance_map = instance_map.detach().cpu().to(torch.int).numpy()
-                    if class_map is not None:
-                        if isinstance(class_map, torch.Tensor):
-                            class_map = class_map.detach().cpu().numpy()
+                    if probability_map is not None:
+                        if isinstance(probability_map, torch.Tensor):
+                            probability_map = probability_map.detach().cpu().numpy()
+                    if patch_token_map is not None:
+                        if isinstance(patch_token_map, torch.Tensor):
+                            patch_token_map = (
+                                patch_token_map.detach().cpu().float().numpy()
+                            )
+
+                    has_tokens = self.extract_features and patch_token_map is not None
+
                     for i in range(len(xs)):
                         pos_x = xs[i]
                         pos_y = ys[i]
                         out = instance_map[i]
-                        if class_map is not None:
-                            prob_map = class_map[i]
+                        if probability_map is not None:
+                            prob_map = probability_map[i]
                         else:
                             prob_map = None
 
@@ -590,6 +646,18 @@ class CellSegmentationRunner(Runner):
                         )
                         df = m.to_polygons(detect_holes=False)
                         if len(df) > 0:
+                            # Pre-compute per-instance features before filtering
+                            if has_tokens:
+                                token_map_i = patch_token_map[i]  # [D, PH, PW]
+                                cell_ids = np.unique(out)
+                                cell_ids = cell_ids[cell_ids > 0]
+                                cell_features = {
+                                    int(cid): _pool_cell_feature(
+                                        out, token_map_i, int(cid)
+                                    )
+                                    for cid in cell_ids
+                                }
+
                             # Remove the polygons that are on the edge of the tile
                             tile_box = (
                                 box(0, 0, self.tile_spec.width, self.tile_spec.height)
@@ -614,19 +682,52 @@ class CellSegmentationRunner(Runner):
                             )
                             if self.size_filter:
                                 df = df[df["geometry"].area.between(*self.nucleus_size)]
+
+                            # Map surviving cells to features via centroid lookup
+                            if has_tokens and len(df) > 0:
+                                H, W = out.shape
+                                idx_values = []
+                                for _, row_data in df.iterrows():
+                                    # Map centroid back to tile pixel coords
+                                    cx = (
+                                        row_data.geometry.centroid.x - pos_x
+                                    ) / self.downsample
+                                    cy = (
+                                        row_data.geometry.centroid.y - pos_y
+                                    ) / self.downsample
+                                    # Look up instance ID at centroid
+                                    py = min(max(int(cy), 0), H - 1)
+                                    px = min(max(int(cx), 0), W - 1)
+                                    cid = int(out[py, px])
+                                    if cid in cell_features:
+                                        all_features.append(cell_features[cid])
+                                    else:
+                                        # Fallback: use nearest valid instance
+                                        all_features.append(
+                                            next(iter(cell_features.values()))
+                                        )
+                                    idx_values.append(global_cell_idx)
+                                    global_cell_idx += 1
+                                df = df.copy()
+                                df["_cell_idx"] = idx_values
                             results.append(df)
                     progress_bar.update(task, advance=len(images))
             progress_bar.refresh()
         # If no results
+        empty = gpd.GeoDataFrame(columns=["geometry"])
         if len(results) == 0:
-            return gpd.GeoDataFrame(columns=["geometry"])
+            if self.extract_features:
+                return empty, np.empty((0, 0))
+            return empty
         # Concatenate all results into a single GeoDataFrame
         cells = gpd.GeoDataFrame(pd.concat(results, ignore_index=True)).reset_index(
             drop=True
         )
         # If all results are empty dataframe
         if len(cells) == 0:
-            return gpd.GeoDataFrame(columns=["geometry"])
+            if self.extract_features:
+                return empty, np.empty((0, 0))
+            return empty
         if "prob" not in cells:
             cells["prob"] = 1
         # Drop the overlapping cells, preserving the largest one
@@ -635,5 +736,18 @@ class CellSegmentationRunner(Runner):
         tissue_key = self.tile_spec.tissue_name
         tissues = self.wsi[tissue_key]  # GeoDataFrame
         cells = cells[cells.intersects(tissues.unary_union)]
+
+        if self.extract_features and "_cell_idx" in cells.columns:
+            features = np.stack(all_features)  # [N_total, D]
+            surviving_idx = cells["_cell_idx"].values.astype(int)
+            features = features[surviving_idx]
+            cells = cells.drop(columns=["_cell_idx"]).reset_index(drop=True)
+            return cells, features
+
+        if "_cell_idx" in cells.columns:
+            cells = cells.drop(columns=["_cell_idx"])
+
+        if self.extract_features:
+            return cells, np.empty((len(cells), 0))
 
         return cells

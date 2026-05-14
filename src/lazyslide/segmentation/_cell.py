@@ -5,7 +5,7 @@ import warnings
 import torch
 from lazyslide_models import MODEL_REGISTRY, SegmentationModelProtocol
 from wsidata import WSIData
-from wsidata.io import add_shapes
+from wsidata.io import add_features, add_shapes
 
 from .._const import Key
 from .._utils import find_stack_level
@@ -24,7 +24,8 @@ def cells(
     autocast_dtype: torch.dtype = None,
     size_filter=False,
     nucleus_size=(20, 1000),
-    pbar=None,
+    pbar=True,
+    extract_features: bool = False,
     key_added="cells",
     **model_kwargs,
 ):
@@ -60,6 +61,11 @@ def cells(
         The dtype for automatic mixed precision.
     pbar : bool, default: True
         Whether to show a progress bar during segmentation.
+    extract_features : bool, default: False
+        Whether to extract per-cell feature vectors from the model's
+        ``patch_token_map``.  Only available for ViT-based segmentation
+        models (e.g. NuLite, HistoPLUS).  If the model does not produce
+        a ``patch_token_map``, a warning is emitted and features are skipped.
     key_added : str, default: "cells"
         The key for the added cell shapes.
 
@@ -92,10 +98,20 @@ def cells(
             amp=amp,
             autocast_dtype=autocast_dtype,
             pbar=pbar,
+            extract_features=extract_features,
         )
-        cells = runner.run()
+        result = runner.run()
+        if extract_features:
+            cells_gdf, features = result
+        else:
+            cells_gdf = result
         # Add cells to the WSIData
-        add_shapes(wsi, key=key_added, shapes=cells.explode().reset_index(drop=True))
+        cells_gdf = cells_gdf.explode().reset_index(drop=True)
+        add_shapes(wsi, key=key_added, shapes=cells_gdf)
+        if extract_features and features.size > 0:
+            add_features(
+                wsi, key=f"{key_added}_features", tile_key=key_added, features=features
+            )
 
 
 def cell_types(
@@ -112,6 +128,7 @@ def cell_types(
     size_filter=False,
     nucleus_size=(20, 1000),
     pbar=True,
+    extract_features: bool = False,
     key_added="cell_types",
 ):
     """:term:`Cell type segmentation` for the :term:`whole slide image`.
@@ -189,7 +206,6 @@ def cell_types(
 
         model_instance = model(**model_kwargs)
 
-    CLASS_MAPPING = model.get_classes()
     if model_instance.check_input_tile(tile_spec):
         runner = CellSegmentationRunner(
             wsi,
@@ -204,11 +220,21 @@ def cell_types(
             amp=amp,
             autocast_dtype=autocast_dtype,
             pbar=pbar,
-            class_names=CLASS_MAPPING,
+            extract_features=extract_features,
         )
-        cells = runner.run()
-        # Add cells to the WSIData
+        result = runner.run()
+        if extract_features:
+            cells_gdf, features = result
+        else:
+            cells_gdf = result
         # Exclude background
-        cells = cells[cells["class"] != "Background"]
-        cells = cells.explode().reset_index(drop=True)
-        add_shapes(wsi, key=key_added, shapes=cells)
+        bg_mask = cells_gdf["class"] != "Background"
+        cells_gdf = cells_gdf[bg_mask]
+        if extract_features and features.size > 0:
+            features = features[bg_mask.values]
+        cells_gdf = cells_gdf.explode().reset_index(drop=True)
+        add_shapes(wsi, key=key_added, shapes=cells_gdf)
+        if extract_features and features.size > 0:
+            add_features(
+                wsi, key=f"{key_added}_features", tile_key=key_added, features=features
+            )
