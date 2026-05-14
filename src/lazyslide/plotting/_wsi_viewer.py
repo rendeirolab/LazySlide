@@ -174,7 +174,6 @@ class ImageDataSource(DataSource):
                 self.viewport.h,
             )
             self._image = self.reader.get_region(x, y, w, h, level=self.viewport.level)
-            self._image[np.where(self._image == 0)] = 255
             self._refresh = False
         return self._image
 
@@ -322,6 +321,7 @@ class ScaleBarRenderPlan(RenderPlan):
             return
 
         from matplotlib_scalebar.scalebar import ScaleBar
+
         scalebar = ScaleBar(self.dx, units=self.units, **self.kwargs)
         ax.add_artist(scalebar)
 
