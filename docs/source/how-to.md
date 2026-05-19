@@ -1,10 +1,10 @@
 # How to?
 
-This sections provides useful tips when using LazySlide.
+This section provides useful tips when using LazySlide.
 
 ## Tissue segmentation
 
-:::{dropdown} My tissues looks very vague, how do I segment them?
+:::{dropdown} My tissues look very vague, how do I segment them?
 
 You can either try the entropy-based segmentation:
 ```python
@@ -33,9 +33,9 @@ zs.tl.feature_extraction(wsi, model="uni", dense=True)
 There are currently two options for pooling the extracted features: "cls" and "cls_patch_mean". 
 But this only works for ViT-based models.
 - "cls": This option uses the [CLS] token as the pooled representation of the tissue tile. 
-  Transformer-based models to use the [CLS] token for classification tasks.
-- "cls_patch_mean": This option concatenate the [CLS] token and the mean of patch tokens.
-  Combining both global context (CLS token) and local details (patch tokens).
+  Transformer-based models use the [CLS] token for classification tasks.
+- "cls_patch_mean": This option concatenates the [CLS] token and the mean of patch tokens.
+  This combines both global context (the CLS token) and local details (the patch tokens).
 ```python
 zs.tl.feature_extraction(wsi, model="uni", pool_mode="cls_patch_mean")
 ```

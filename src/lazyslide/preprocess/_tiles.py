@@ -67,7 +67,7 @@ def tile_tissues(
         If 'approx', it will filter out tiles that are on the border of the tissue.
         If 'exact', it will filter out tiles that are not within the tissue,
         but it may be much slower for smaller tiles.
-    tissue_key : str, default: 'tissue'
+    tissue_key : str, default: 'tissues'
         The key of the tissue contours.
     key_added : str, default: 'tiles'
         The key of the tiles. If set to None, the tiles will not be added to the WSIData object.
