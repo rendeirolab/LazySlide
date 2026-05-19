@@ -33,9 +33,9 @@ def text_embedding(
         The list of texts.
     model : {"plip", "conch", "omiclip"}, default: "plip"
         The text embedding :term:`multimodal model`
-    amp : bool, default: False
+    amp : bool, optional
         Whether to use automatic mixed precision (AMP) for inference.
-    autocast_dtype : torch.dtype, default: torch.float16
+    autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
     device : str, default: "cpu"
         The device to use for computation (e.g., 'cpu', 'cuda', 'mps').
@@ -100,15 +100,15 @@ def text_image_similarity(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object to work on.
-    text_embeddings : pd.DataFrame
+    text_embeddings : :class:`DataFrame <pandas.DataFrame>`
         The embeddings of the texts, with texts as index.
     model : str, default: "plip"
         The text embedding model.
     tile_key : str, default: 'tiles'
         The tile key.
-    feature_key : str
+    feature_key : str, default: None
         The feature key.
-    key_added : str
+    key_added : str, default: None
         The key to store the similarity scores. If None, defaults to
         '{feature_key}_text_similarity'.
     normalize : bool, default: True
@@ -116,21 +116,12 @@ def text_image_similarity(
         similarity score to the text embeddings.
     softmax : bool, default: False
         Whether to apply softmax to the similarity scores.
-    distance_metric : str or callable, optional
-        The distance metric from scipy.spatial.distance to use instead of
-        dot product. Can be a string metric name or a callable function.
-        If provided, distances will be computed and converted to similarities
-        (1 - distance). Common string options include 'cosine', 'euclidean',
-        'manhattan', 'chebyshev', etc. If None, uses dot product similarity.
-        Cannot be used together with scoring_func.
     scoring_func : callable, optional
         A custom scoring/similarity function that takes two matrices and
         returns a similarity score matrix (higher = more similar). Should
         have same signature as np.dot: func(X, Y) where X is (n_texts,
         feature_dim) and Y is (feature_dim, n_features), returning
-        (n_texts, n_features). If provided, this takes precedence over
-        distance_metric and dot product. Cannot be used together with
-        distance_metric.
+        (n_texts, n_features).
 
     Returns
     -------
@@ -150,10 +141,6 @@ def text_image_similarity(
         >>> zs.tl.text_image_similarity(wsi, embeddings, model="plip",
         ...                             tile_key="text_tiles",
         ...                             softmax=True)
-        >>> # Using scipy distance functions
-        >>> zs.tl.text_image_similarity(wsi, embeddings, model="plip",
-        ...                             tile_key="text_tiles",
-        ...                             distance_metric="euclidean")
         >>> # Using custom scoring function
         >>> zs.tl.text_image_similarity(wsi, embeddings, model="plip",
         ...                             tile_key="text_tiles",

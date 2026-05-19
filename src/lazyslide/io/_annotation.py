@@ -50,7 +50,7 @@ def load_annotations(
         Whether to explode the annotations.
     in_bounds : bool, default: False
         Whether to move the annotations to the slide bounds.
-    join_with : str, List[str], default: 'tissues'
+    join_with : str or list of str, default: 'tissues'
         The key to join the annotations with.
     join_to : str, default: None
         The key to join the annotations to.

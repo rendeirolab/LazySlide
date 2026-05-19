@@ -39,22 +39,23 @@ def image_generation(
         Which tile table to use.
     device : str, optional
         The device to use for inference. If not provided, the device will be automatically selected.
-    amp : bool, default: False
+    amp : bool, optional
         Whether to use automatic mixed precision.
-    autocast_dtype : torch.dtype, default: torch.float16
+    autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
     num_images_per_tiles : int, default: 2
         The number of images to generate for each tile if conditional generation is used.
         Otherwise, it's the total number of images to generate if unconditional generation is used.
     seed : int, default: 0
         The random seed to ensure reproducible image generation (May not work for all models).
-    kwargs : dict, optional
-        Please refer to the documentation of the specific model for additional parameters.
+    **kwargs : dict
+        Additional keyword arguments passed to the model's generation function.
+        Please refer to the documentation of the specific model for details.
 
     Returns
     -------
-    :class:`PIL.Image.Image`
-        The function returns a list of generated images in PIL format.
+    list of :class:`PIL.Image.Image`
+        A list of generated images in PIL format.
 
     Examples
     --------

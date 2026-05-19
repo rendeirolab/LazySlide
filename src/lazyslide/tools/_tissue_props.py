@@ -40,7 +40,7 @@ def tissue_props(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object.
-    key : str
+    key : str, default: 'tissues'
         The tissue key.
 
     Returns

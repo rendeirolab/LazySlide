@@ -15,7 +15,7 @@ import pandas as pd
 from legendkit import cat_legend, colorart, vstack
 from matplotlib import pyplot as plt
 from matplotlib.artist import Artist
-from matplotlib.cm import ScalarMappable, get_cmap
+from matplotlib.cm import ScalarMappable
 from matplotlib.collections import PatchCollection
 from matplotlib.colors import ListedColormap, is_color_like, to_hex, to_rgba
 from matplotlib.patches import Patch, Rectangle
@@ -395,7 +395,7 @@ class HeatmapTilesRenderPlan(RenderPlan):
         for (x, y), v in zip(tiles, vs):
             tile_image[y : y + tile_height + 1, x : x + tile_width + 1] = v
 
-        cmap = get_cmap(self.cmap)
+        cmap = plt.get_cmap(self.cmap)
         sm = ScalarMappable(norm=self.norm, cmap=cmap)
         sm.set_clim(self.vmin, self.vmax)
         sm.set_array(tile_image)

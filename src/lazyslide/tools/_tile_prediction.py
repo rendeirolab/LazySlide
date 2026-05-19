@@ -56,9 +56,9 @@ def tile_prediction(
         Number of worker threads for the DataLoader.
     tile_key : str, default: "tiles"
         The key in the WSIData object where the tiles are stored.
-    amp : bool, optional, default: False
+    amp : bool, optional
         Whether to use automatic mixed precision.
-    autocast_dtype : torch.dtype, optional, default: torch.float16
+    autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
     device : str, optional
         The device to run the model on.
