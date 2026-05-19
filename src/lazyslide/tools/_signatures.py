@@ -9,9 +9,9 @@ class RNALinker:
 
     Parameters
     ----------
-    agg_features : AnnData
-        The aggregated WSI features
-    others : AnnData
+    agg_features : :class:`AnnData <anndata.AnnData>`
+        The aggregated WSI features.
+    others : :class:`AnnData <anndata.AnnData>`
         Other :term:`omics data`, like RNA-seq, must have the same number of observations as agg_features.
     gene_name : str, default: None
         The key to use for the name of the omics data.
@@ -68,9 +68,9 @@ class RNALinker:
             Scale the features between -1 and 1.
         test_method : str, default: "t-test"
             The method to use for ranking omics features like genes.
-        n_features : int | str, default: 100
+        n_features : int or str, default: 100
             The number of features to use for scoring. If "all", use all features.
-        key_added : str | None, default: None
+        key_added : str or None, default: None
             The key to store the scores in the obs of agg_features.
             If not specify, f"{score_group}_score" will be added to the obs of agg_features.
 
@@ -115,6 +115,12 @@ class RNALinker:
     def plot_score(self, ax=None):
         """
         Plot the score distribution for the score group and others.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes, default: None
+            The axes to plot on. If None, a new figure is created.
+
         """
         import pandas as pd
         import seaborn as sns
@@ -151,6 +157,17 @@ class RNALinker:
     ):
         """
         Associate scores with other omics.
+
+        Parameters
+        ----------
+        method : {"pearson", "spearman", "kendall", "linear_reg", "lasso"}, default: "linear_reg"
+            The method to use for association analysis.
+        score_key : str, default: None
+            The key in agg_features.obs containing the scores to associate.
+            If None, uses the last score key set by :meth:`score`.
+        key_added : str, default: "association_score"
+            The key to store the association scores in omics_matrix.var.
+
         """
         import numpy as np
         import pandas as pd
@@ -226,6 +243,14 @@ class RNALinker:
     ):
         """
         Plot the rank of the association score.
+
+        Parameters
+        ----------
+        n_genes : int, default: 5
+            The number of top and bottom genes to annotate on the plot.
+        gene_name : str, default: None
+            The column name in omics_matrix.var to use as gene names.
+
         """
         import numpy as np
         from matplotlib import pyplot as plt
@@ -280,6 +305,21 @@ class RNALinker:
     ):
         """
         Get the top and bottom associated genes.
+
+        Parameters
+        ----------
+        n_genes : int, default: 5
+            The number of top and bottom genes to return.
+        gene_name : str, default: None
+            The column name in omics_matrix.var to use as gene names.
+            If None, uses the index of omics_matrix.var.
+
+        Returns
+        -------
+        dict
+            A dictionary with keys 'top' and 'bottom', each containing
+            a DataFrame of the most and least associated genes.
+
         """
         scores_df = self._get_associated_genes(gene_name)
         return {"top": scores_df.head(n_genes), "bottom": scores_df.tail(n_genes)}

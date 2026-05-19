@@ -43,7 +43,7 @@ def cells(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The :term:`WSIData` object to work on.
-    model : str | SegmentationModel, default: "instanseg"
+    model : str or SegmentationModelProtocol, default: "instanseg"
         The cell segmentation model.
     tile_key : str, default: "tiles"
         The key of the tile table.
@@ -55,10 +55,15 @@ def cells(
         The number of workers for data loading.
     device : str, default: None
         The device for the model.
-    amp : bool, optional, default: False
+    amp : bool, optional
         Whether to use automatic mixed precision.
-    autocast_dtype : torch.dtype, optional, default: torch.float16
+    autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
+    size_filter : bool, default: False
+        Whether to filter cells by nucleus size.
+    nucleus_size : tuple of (int, int), default: (20, 1000)
+        The (min, max) nucleus size range in pixels for filtering.
+        Only used when ``size_filter=True``.
     pbar : bool, default: True
         Whether to show a progress bar during segmentation.
     extract_features : bool, default: False
@@ -68,6 +73,12 @@ def cells(
         a ``patch_token_map``, a warning is emitted and features are skipped.
     key_added : str, default: "cells"
         The key for the added cell shapes.
+
+    Returns
+    -------
+    None
+        The cell shapes are added to the :bdg-danger:`shapes` slot
+        of the WSIData object.
 
     """
 
@@ -144,7 +155,7 @@ def cell_types(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object to work on.
-    model : str | SegmentationModel, default: "nulite"
+    model : str or SegmentationModelProtocol, default: "nulite"
         The cell type segmentation model.
     tile_key : str, default: "tiles"
         The key of the tile table.
@@ -158,10 +169,28 @@ def cell_types(
         The number of workers for data loading.
     device : str, default: None
         The device for the model.
+    amp : bool, optional
+        Whether to use automatic mixed precision.
+    autocast_dtype : torch.dtype, optional
+        The dtype for automatic mixed precision.
+    size_filter : bool, default: False
+        Whether to filter cells by nucleus size.
+    nucleus_size : tuple of (int, int), default: (20, 1000)
+        The (min, max) nucleus size range in pixels for filtering.
+        Only used when ``size_filter=True``.
     pbar : bool, default: True
         Whether to show a progress bar during segmentation.
+    extract_features : bool, default: False
+        Whether to extract per-cell feature vectors from the model's
+        ``patch_token_map``.
     key_added : str, default: "cell_types"
         The key for the added cell type shapes.
+
+    Returns
+    -------
+    None
+        The cell type shapes are added to the :bdg-danger:`shapes` slot
+        of the WSIData object.
 
     """
 

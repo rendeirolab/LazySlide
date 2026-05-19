@@ -113,7 +113,7 @@ def feature_extraction(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The whole-slide image object.
-    model : str or model object
+    model : str, callable, or ImageModelProtocol
         The model used for image :term:`feature extraction`.
         A list of built-in :term:`foundation models <foundation model>` can be found in :ref:`models-section`.
         Other models can be loaded from :term:`Hugging Face`, but only models with feature extraction head implemented.
@@ -135,15 +135,15 @@ def feature_extraction(
         If not provided, a default ImageNet transform function will be used.
     device : str, optional
         The device to use for inference. If not provided, the device will be automatically selected.
-    amp : bool, default: False
+    amp : bool, optional
         Whether to use automatic mixed precision.
-    autocast_dtype : torch.dtype, default: torch.float16
+    autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
-    batch_size : int, optional
+    batch_size : int, default: 32
         The batch size for inference.
-    num_workers : int, optional
+    num_workers : int, default: 0
         The number of workers for data loading.
-    pbar : bool, default: True
+    pbar : bool, optional
         Whether to show progress bar.
     tile_key : str, default: 'tiles'
         The key of the tiles dataframe in the spatial data object.
@@ -360,7 +360,7 @@ def feature_aggregation(
         - :code:`chief`: Chief slide encoder. The feature must be extracted by :code:`CHIEF` model.
     tile_key : str, default: 'tiles'
         The key of the tiles dataframe in the spatial data object.
-    by : str or array of str, default: None
+    by : str or list of str, default: None
         The level to aggregate the features.
 
         - By default will aggregate the features from all tiles in the slide.
@@ -372,7 +372,7 @@ def feature_aggregation(
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, default: torch.float16
         The dtype for automatic mixed precision.
-    device : str, optional
+    device : str, default: "cpu"
         The device to use for inference. If not provided, the device will be automatically selected.
 
     Returns

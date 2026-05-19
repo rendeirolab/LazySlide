@@ -86,10 +86,20 @@ def artifact(
         The number of workers for data loading.
     device : str, default: None
         The device for the model.
+    amp : bool, optional
+        Whether to use automatic mixed precision.
+    autocast_dtype : torch.dtype, optional
+        The dtype for automatic mixed precision.
     key_added : str, default: "artifacts"
         The key for the added artifact shapes.
-    pbar : bool, default: True
+    pbar : bool, optional
         Whether to show a progress bar during segmentation.
+
+    Returns
+    -------
+    None
+        The artifact shapes are added to the :bdg-danger:`shapes` slot
+        of the WSIData object.
 
     """
 

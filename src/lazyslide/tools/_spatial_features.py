@@ -32,7 +32,7 @@ def spatial_features(
 
     Returns
     -------
-    None.
+    None
         The transformed feature will be added to the :code:`spatial_features` layer of the feature AnnData.
 
     Examples

@@ -43,11 +43,11 @@ def virtual_stain(
         The key to store the new image.
     tile_key : str, default: "tiles"
         The key for the tile table.
-    device : str, default: None
+    device : str, optional
         Which device to use for inference. If None, the default device is used.
-    amp : bool, default: False
+    amp : bool, optional
         Whether to use automatic mixed precision.
-    autocast_dtype : torch.dtype, default: torch.float16
+    autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
     batch_size : int, default: 32
         The batch size for inference.
@@ -55,6 +55,12 @@ def virtual_stain(
         The number of workers for data loading.
     pbar : bool, default: True
         If the progress bar should be shown.
+
+    Returns
+    -------
+    None
+        The virtual stain image is added to the :bdg-danger:`images` slot
+        of the WSIData object under the key ``'{model_name}_prediction'``.
 
     Examples
     --------

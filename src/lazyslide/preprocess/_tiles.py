@@ -40,9 +40,9 @@ def tile_tissues(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The :term:`WSIData` object to work on.
-    tile_px : int, (int, int)
+    tile_px : int or tuple of (int, int)
         The size of the tile, if tuple, (W, H).
-    stride_px : int, (int, int), default: None
+    stride_px : int or tuple of (int, int), default: None
         The stride of the tile, if tuple, (W, H).
         If None, use the tile size.
     overlap : float, default: None
@@ -67,9 +67,9 @@ def tile_tissues(
         If 'approx', it will filter out tiles that are on the border of the tissue.
         If 'exact', it will filter out tiles that are not within the tissue,
         but it may be much slower for smaller tiles.
-    tissue_key : str, default 'tissue'
+    tissue_key : str, default: 'tissues'
         The key of the tissue contours.
-    key_added : str, default 'tiles'
+    key_added : str, default: 'tiles'
         The key of the tiles. If set to None, the tiles will not be added to the WSIData object.
     return_tiles : bool, default: False
         Return the tiles dataframe.

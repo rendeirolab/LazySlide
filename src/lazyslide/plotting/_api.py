@@ -225,11 +225,19 @@ def tiles(
         The normalization of the color map.
     palette : str, default: None
         The color palette.
-    size : int, default: 50
+    smooth : bool, default: False
+        Whether to apply spatial smoothing to the plotted values.
+    smooth_scale : int, default: 2
+        The scale factor for spatial smoothing.
+    size : int, default: None
         The size of the points.
+    gridcolor : str, default: "k"
+        The color of the tile grid lines.
+    linewidth : float, default: 0.1
+        The width of the tile grid lines.
     ax : matplotlib.axes.Axes, default: None
         The axes to plot on.
-    rasterized : bool, default: False
+    rasterized : bool, default: True
         Rasterize the points.
     kwargs : dict
         Additional keyword arguments for plotting.

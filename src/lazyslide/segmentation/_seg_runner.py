@@ -95,7 +95,7 @@ def semantic(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object to work on.
-    model : SegmentationModel
+    model : SegmentationModelProtocol
         The segmentation model.
     tile_key : str, default: "tiles"
         The key of the tile table.
@@ -124,11 +124,11 @@ def semantic(
         The number of workers for data loading.
     device : str, default: None
         The device for the model (e.g., "cpu" or "cuda"). If None, automatically selected.
-    amp : bool, optional, default: False
+    amp : bool, optional
         Whether to use automatic mixed precision.
-    autocast_dtype : torch.dtype, optional, default: torch.float16
+    autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
-    pbar : bool, default: True
+    pbar : bool, optional
         Whether to show the progress bar.
     key_added : str, default: "anatomical_structures"
         The key for the added :term:`instance` shapes in the WSIData object.

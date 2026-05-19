@@ -45,7 +45,7 @@ def tissue(
 
     Parameters
     ----------
-    wsi : :class:`wsidata.WSIData`
+    wsi : :class:`WSIData <wsidata.WSIData>`
         The :term:`whole slide image <WSI>`.
     model : {"grandqc", "pathprofiler", "hest"}, default: "pathprofiler"
         The model to use for :term:`tissue segmentation`.
@@ -66,12 +66,18 @@ def tissue(
         The probability threshold to consider a pixel as tissue.
     device : str, default: None
         The device to run the model.
-    amp : bool, optional, default: False
+    amp : bool, optional
         Whether to use automatic mixed precision.
-    autocast_dtype : torch.dtype, optional, default: torch.float16
+    autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
     key_added : str, default: 'tissues'
         The key to add the tissue polygons.
+
+    Returns
+    -------
+    None
+        The tissue polygons are added to the :bdg-danger:`shapes` slot
+        of the WSIData object.
 
     """
     amp = _api.default_value("amp", amp)

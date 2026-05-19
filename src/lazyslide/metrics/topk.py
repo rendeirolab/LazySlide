@@ -16,7 +16,7 @@ def topk_score(
 
     Parameters
     ----------
-    matrix : np.ndarray | AnnData
+    matrix : np.ndarray or AnnData
         The input matrix. Feature x class.
     k : int, default: 5
         The number of top scores to return.

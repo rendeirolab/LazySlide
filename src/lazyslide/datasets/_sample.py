@@ -62,6 +62,11 @@ def sample(with_data: bool = True, pbar: bool = False):
     pbar : bool, default: False
         Whether to show the progress bar.
 
+    Returns
+    -------
+    :class:`WSIData <wsidata.WSIData>`
+        The loaded whole-slide image object.
+
     """
     return _load_dataset(
         "sample.svs", "sample.zarr.zip", with_data=with_data, pbar=pbar
@@ -80,6 +85,11 @@ def gtex_artery(with_data: bool = True, pbar: bool = False):
         Whether to load the associated zarr storage data.
     pbar : bool, default: False
         Whether to show the progress bar.
+
+    Returns
+    -------
+    :class:`WSIData <wsidata.WSIData>`
+        The loaded whole-slide image object.
 
     """
     return _load_dataset(
@@ -103,6 +113,11 @@ def gtex_small_intestine(with_data: bool = True, pbar: bool = False):
     pbar : bool, default: False
         Whether to show the progress bar.
 
+    Returns
+    -------
+    :class:`WSIData <wsidata.WSIData>`
+        The loaded whole-slide image object.
+
     """
     return _load_dataset(
         "GTEX-11DXX-1626.svs",
@@ -124,6 +139,11 @@ def lung_carcinoma(with_data: bool = True, pbar: bool = False):
         Whether to load the associated zarr storage data.
     pbar : bool, default: False
         Whether to show the progress bar.
+
+    Returns
+    -------
+    :class:`WSIData <wsidata.WSIData>`
+        The loaded whole-slide image object.
 
     """
 
