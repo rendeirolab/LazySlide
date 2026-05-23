@@ -57,7 +57,22 @@ jobs:
 
       - name: Compute version
         id: version
-        run: echo "value=$(git describe --tags --always --dirty)" >> "$GITHUB_OUTPUT"
+        run: |
+          raw=$(git describe --tags --always --dirty)
+          # Normalize `git describe` output to PEP440 with sed:
+          #   v0.11.0rc1-4-gbc33cdc        -> 0.11.0rc1+4.gbc33cdc
+          #   v0.11.0rc1-4-gbc33cdc-dirty  -> 0.11.0rc1+4.gbc33cdc.dirty
+          #   v0.11.0                      -> 0.11.0
+          #   v1.2.3-dirty                 -> 1.2.3+dirty
+          #   bc33cdc (no tag)             -> 0.0.0+gbc33cdc
+          pep440=$(echo "$raw" \
+            | sed -E 's/^v//' \
+            | sed -E 's/^([0-9][^-]*)-([0-9]+)-(g[0-9a-f]+)/\1+\2.\3/' \
+            | sed -E 's/^([^0-9].*)$/0.0.0+g\1/' \
+            | sed -E 's/(\+[^-]+)-dirty$/\1.dirty/' \
+            | sed -E 's/^([0-9][^+-]*)-dirty$/\1+dirty/')
+          echo "Raw: $raw -> PEP440: $pep440"
+          echo "value=$pep440" >> "$GITHUB_OUTPUT"
 
       - name: Extract metadata (version)
         id: meta
