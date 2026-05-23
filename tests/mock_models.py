@@ -321,13 +321,13 @@ class MockPrismModel(ModelBase):
 
     @torch.inference_mode()
     def encode_slide(self, embeddings, coords=None, **kwargs) -> dict:
-        """Returns dict with image_embedding and image_latents."""
+        """Returns dict with embeddings and latents."""
         B = embeddings.shape[0]
         embed_dim = 512
         n_latents = 16
         return {
-            "image_embedding": torch.randn(B, embed_dim),
-            "image_latents": torch.randn(B, n_latents, embed_dim),
+            "embeddings": torch.randn(B, embed_dim),
+            "latents": torch.randn(B, n_latents, embed_dim),
         }
 
     @torch.inference_mode()

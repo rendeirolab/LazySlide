@@ -9,7 +9,7 @@ import sys
 # Re-export the public API from wsidata
 from wsidata import agg_wsi, open_wsi
 
-from . import cv, datasets, io, metrics
+from . import cv, datasets, io, metrics, models
 from . import plotting as pl
 from . import preprocess as pp
 from . import segmentation as seg

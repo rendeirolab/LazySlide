@@ -3012,7 +3012,7 @@ requires-dist = [
     { name = "ipython", marker = "extra == 'docker'" },
     { name = "ipywidgets", marker = "extra == 'docker'" },
     { name = "jupyterlab", marker = "extra == 'docker'" },
-    { name = "lazyslide-models", specifier = ">=0.0.2" },
+    { name = "lazyslide-models", git = "https://github.com/rendeirolab/lazyslide-models.git?branch=main" },
     { name = "legendkit", specifier = ">=0.3.4" },
     { name = "marsilea", marker = "extra == 'docker'" },
     { name = "matplotlib", specifier = ">=3.9.0" },
@@ -3119,8 +3119,8 @@ tutorials = [
 
 [[package]]
 name = "lazyslide-models"
-version = "0.0.2"
-source = { registry = "https://pypi.org/simple" }
+version = "0.0.2.post2.dev0+014fbcd"
+source = { git = "https://github.com/rendeirolab/lazyslide-models.git?branch=main#014fbcdf3a1c934bd58d99fbc811efe705d56201" }
 dependencies = [
     { name = "numpy" },
     { name = "opencv-python-headless" },
@@ -3131,10 +3131,6 @@ dependencies = [
     { name = "timm" },
     { name = "torch" },
     { name = "transformers" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e1/dc/8531dac8f13145b19b648c0bd8fdb3768d3ad7eac7984cd2c8fddb09a1c6/lazyslide_models-0.0.2.tar.gz", hash = "sha256:8bed15fa3066a6f669d958420af64c8037ad4d9af770a7362de3299f3279e25b", size = 219735, upload-time = "2026-05-14T17:16:11.353Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4c/fd/f1f7e39857ba013447623b3f7b1582c5f1c86803b23c050cab5da1e99028/lazyslide_models-0.0.2-py3-none-any.whl", hash = "sha256:26c4bc5a7af33f025086e90f64abb1ac87467d50438f3c41d0d370ed43f2f062", size = 81671, upload-time = "2026-05-14T17:16:10.219Z" },
 ]
 
 [[package]]
