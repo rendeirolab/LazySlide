@@ -1,5 +1,5 @@
 # Git
-# .git  # Commented out - needed for version detection
+.git
 .gitignore
 
 # Python
@@ -19,7 +19,6 @@ nosetests.xml
 coverage.xml
 *.cover
 *.log
-# .git  # Commented out - needed for version detection
 .mypy_cache
 .pytest_cache
 .hypothesis

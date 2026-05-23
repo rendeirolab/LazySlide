@@ -8,22 +8,31 @@ on:
       - 'Dockerfile'
       - '.dockerignore'
       - '.github/workflows/docker_image.yaml'
-      - 'src/**'
-      - 'pyproject.toml'
 
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
     paths:
       - 'Dockerfile'
       - '.dockerignore'
       - '.github/workflows/docker_image.yaml'
       - 'src/**'
       - 'pyproject.toml'
-  
+
   release:
     types: [published]
 
+  workflow_dispatch:
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   Build_and_Push_Docker_Image:
+    # PRs build only when labeled 'docker'; all other events always build.
+    if: >
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'docker')
     runs-on: linux-docker-build # Use a paid runner with 150G disk space
     permissions:
       contents: read
@@ -33,9 +42,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Log in to Github Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -43,6 +54,25 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Compute version
+        id: version
+        run: |
+          raw=$(git describe --tags --always --dirty)
+          # Normalize `git describe` output to PEP440 with sed:
+          #   v0.11.0rc1-4-gbc33cdc        -> 0.11.0rc1+4.gbc33cdc
+          #   v0.11.0rc1-4-gbc33cdc-dirty  -> 0.11.0rc1+4.gbc33cdc.dirty
+          #   v0.11.0                      -> 0.11.0
+          #   v1.2.3-dirty                 -> 1.2.3+dirty
+          #   bc33cdc (no tag)             -> 0.0.0+gbc33cdc
+          pep440=$(echo "$raw" \
+            | sed -E 's/^v//' \
+            | sed -E 's/^([0-9][^-]*)-([0-9]+)-(g[0-9a-f]+)/\1+\2.\3/' \
+            | sed -E 's/^([^0-9].*)$/0.0.0+g\1/' \
+            | sed -E 's/(\+[^-]+)-dirty$/\1.dirty/' \
+            | sed -E 's/^([0-9][^+-]*)-dirty$/\1+dirty/')
+          echo "Raw: $raw -> PEP440: $pep440"
+          echo "value=$pep440" >> "$GITHUB_OUTPUT"
 
       - name: Extract metadata (version)
         id: meta
@@ -54,7 +84,7 @@ jobs:
             type=ref,event=pr
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
-      
+
       - name: Build and push Docker image
         id: push
         uses: docker/build-push-action@v6
@@ -63,9 +93,11 @@ jobs:
           push: ${{ github.event_name == 'release' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      
+          build-args: |
+            VERSION=${{ steps.version.outputs.value }}
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/lazyslide:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/lazyslide:buildcache,mode=max
+
       - name: Generate artifact attestation
         if: github.event_name == 'release'
         uses: actions/attest-build-provenance@v3
@@ -78,4 +110,3 @@ jobs:
         if: github.event_name == 'release'
         run: |
           docker run --rm ghcr.io/${{ github.repository_owner }}/lazyslide:${{ steps.meta.outputs.tags }} lazyslide --version
-

@@ -59,6 +59,20 @@ models = [
     "transformers>=4.49.0",
     "open-clip-torch>=2.32.0",
 ]
+docker = [
+    "jupyterlab",
+    "ipython",
+    "torchstain",
+    "scanpy",
+    "spatialdata-plot",
+    "scyjava",
+    "cucim",
+    "hf-xet",
+    "igraph",
+    "ipywidgets",
+    "marsilea",
+    "mpl-fontkit",
+]
 
 # Define entry points
 [project.scripts]
@@ -200,6 +214,7 @@ model = [
 
 [tool.uv.sources]
 # lazyslide-models = { git = "https://github.com/rendeirolab/lazyslide-models.git", branch = "main" }
+# lazyslide-models = { path = "../lazyslide-models", editable = true }
 # wsidata = { git = "https://github.com/rendeirolab/wsidata", branch = "main" }
 # wsidata = { path = "../wsidata", editable = true }
 conch = { git = "https://github.com/mahmoodlab/CONCH.git" }
