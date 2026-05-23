@@ -21,6 +21,22 @@ sys.modules.update({f"{__name__}.{m}": globals()[m] for m in ["tl", "pp", "pl", 
 del sys
 
 
+def __getattr__(name):
+    # Lazy-load deprecated `models` submodule so FutureWarning + heavy deps
+    # only trigger when user actually accesses `lazyslide.models`.
+    if name == "models":
+        import importlib
+
+        mod = importlib.import_module(".models", __name__)
+        globals()[name] = mod
+        return mod
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    return sorted(list(globals().keys()) + ["models"])
+
+
 __all__ = [
     "open_wsi",
     "agg_wsi",

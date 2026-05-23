@@ -525,15 +525,20 @@ def _encode_slide(
                 key = encoder
             model = MODEL_REGISTRY[key]()
             model.to(device)
-            if encoder == "prism":
-                slide_reprs = model.encode_slide(fs)
-                agg_features = slide_reprs["image_embedding"].cpu().detach().numpy()
-                img_latents = slide_reprs["image_latents"].cpu().detach().numpy()
-                result_dict["latents"] = img_latents
-            elif encoder == "titan":
-                agg_features = model.encode_slide(fs, cs, tile_spec.base_width)
+            if encoder == "titan":
+                slide_reprs = model.encode_slide(
+                    fs, cs, base_tile_size=tile_spec.base_width
+                )
             else:
-                agg_features = model.encode_slide(fs, cs)
+                slide_reprs = model.encode_slide(fs, cs)
+            agg_features = slide_reprs["embeddings"]
+            if isinstance(agg_features, torch.Tensor):
+                agg_features = agg_features.detach().cpu().numpy()
+            if "latents" in slide_reprs:
+                latents = slide_reprs["latents"]
+                if isinstance(latents, torch.Tensor):
+                    latents = latents.detach().cpu().numpy()
+                result_dict["latents"] = latents
 
     # Unknown encoder
     else:

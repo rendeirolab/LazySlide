@@ -40,7 +40,7 @@ dependencies = [
     "seaborn>=0.12.2",
     "psutil>=5.9.0",
     "scikit-image>=0.23.1",
-    "lazyslide-models>=0.0.2",
+    "lazyslide-models>=0.0.3",
 ]
 
 [project.optional-dependencies]
@@ -213,7 +213,7 @@ model = [
 
 
 [tool.uv.sources]
-# lazyslide-models = { git = "https://github.com/rendeirolab/lazyslide-models.git", branch = "main" }
+lazyslide-models = { git = "https://github.com/rendeirolab/lazyslide-models.git", branch = "main" }
 # lazyslide-models = { path = "../lazyslide-models", editable = true }
 # wsidata = { git = "https://github.com/rendeirolab/wsidata", branch = "main" }
 # wsidata = { path = "../wsidata", editable = true }
