@@ -1107,6 +1107,19 @@ toml = [
 ]
 
 [[package]]
+name = "cucim"
+version = "23.10.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "lazy-loader" },
+    { name = "numpy" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/90/9d/b6df8abb3d33ff5f728f00a6074ca68e8790c20d1b9a0828412c9cd17285/cucim-23.10.0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:2c061ad28c3c1fa67bb62260f0a556f354c8ec2d6e3811eece375ed896d62945", size = 9720570, upload-time = "2023-10-17T20:24:03.265Z" },
+]
+
+[[package]]
 name = "cuda-bindings"
 version = "13.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2437,6 +2450,10 @@ dependencies = [
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/48/a2/5d27e81d24eef64668bf702bfe0e091cc48388b4666f36e025243eb9d827/jpype1-1.7.1.tar.gz", hash = "sha256:3cd88838dc3d2d546f7eaeadaaff864e590010c15f2b6a44b6f37e60796a14b2", size = 783791, upload-time = "2026-05-06T23:55:10.664Z" }
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/2f/5e/5611d50222d146a060dbf22e69c4017545341ea6b289a591d5a9bdaad718/jpype1-1.7.1-1-cp311-cp311-macosx_11_0_universal2.whl", hash = "sha256:4c81ee11aee5ed938d7415877cd9c7a0cc9cbf1dac87f7eab928e641323a385b", size = 571633, upload-time = "2026-05-19T20:19:33.536Z" },
+    { url = "https://files.pythonhosted.org/packages/79/32/8b2279b12364f260111c7843bf9ede7dc442d5521d6d2ca728b3d522d445/jpype1-1.7.1-1-cp312-cp312-macosx_11_0_universal2.whl", hash = "sha256:b3ddd9f9099202212a34679dfb95dda590bcfbd23289559d104e24abec9120d1", size = 569654, upload-time = "2026-05-19T20:19:36.41Z" },
+    { url = "https://files.pythonhosted.org/packages/b5/67/5caa0de30bcb1c8786cc988144a68908e0624de20cfed470a67b1dd1f60c/jpype1-1.7.1-1-cp313-cp313-macosx_11_0_universal2.whl", hash = "sha256:6d491a81281407f8a68552eb3c0e635e576e066c069268dc29a1ea27bb4778ae", size = 569800, upload-time = "2026-05-19T20:19:38.877Z" },
+    { url = "https://files.pythonhosted.org/packages/5b/1d/9ee10b1aad9f01ea6ac6159981120eb5ace01962f9cfaa7de6b911de3eb8/jpype1-1.7.1-1-cp314-cp314-macosx_11_0_universal2.whl", hash = "sha256:ace0ba1a67561358fa5b57b8e93ed8bcf16f0a8d5cba79c875089c56827adf8e", size = 569753, upload-time = "2026-05-19T20:19:41.514Z" },
     { url = "https://files.pythonhosted.org/packages/b7/c8/f0f306866dfa2bae97f83db48aa084ed049583f61dfba713124211b08fdf/jpype1-1.7.1-cp311-cp311-macosx_14_0_x86_64.whl", hash = "sha256:2e1459738e9baf560548965b364206890acf34e42673efcfe5048c2c1203e4cf", size = 375606, upload-time = "2026-05-06T23:54:01.62Z" },
     { url = "https://files.pythonhosted.org/packages/28/a9/08eb2c8556598043981692251180479babc56086c5464bb2631929b94acf/jpype1-1.7.1-cp311-cp311-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:fc68b8e94ba5981e6142b4bcbbfa262ebe41438a679e0ebc2daf0759cc8d3e19", size = 408134, upload-time = "2026-05-06T23:54:04.251Z" },
     { url = "https://files.pythonhosted.org/packages/e2/61/36001f0979fa0fffa28dac49f44cbb642cfcbd9f67e090d7fb9a8ace9e80/jpype1-1.7.1-cp311-cp311-manylinux_2_24_i686.manylinux_2_28_i686.whl", hash = "sha256:47bc10f263fc8ea3f97e46a753e355a565c317a61109f298169fcc4365ff415f", size = 454588, upload-time = "2026-05-06T23:54:06.804Z" },
@@ -2869,6 +2886,22 @@ all = [
     { name = "torchvision" },
     { name = "transformers" },
 ]
+docker = [
+    { name = "cucim" },
+    { name = "hf-xet" },
+    { name = "igraph" },
+    { name = "ipython", version = "9.10.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "ipython", version = "9.12.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "ipywidgets" },
+    { name = "jupyterlab" },
+    { name = "marsilea" },
+    { name = "mpl-fontkit" },
+    { name = "scanpy", version = "1.11.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "scanpy", version = "1.12.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "scyjava" },
+    { name = "spatialdata-plot" },
+    { name = "torchstain" },
+]
 models = [
     { name = "einops" },
     { name = "einops-exts" },
@@ -2959,32 +2992,44 @@ tutorials = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cucim", marker = "extra == 'docker'" },
     { name = "cyclopts", specifier = ">=3.0.0" },
     { name = "einops", marker = "extra == 'models'", specifier = ">=0.8.1" },
     { name = "einops-exts", marker = "extra == 'models'", specifier = ">=0.0.4" },
     { name = "environs", marker = "extra == 'models'", specifier = ">=14.1.1" },
-    { name = "lazyslide-models", specifier = ">=0.0.2" },
+    { name = "hf-xet", marker = "extra == 'docker'" },
+    { name = "igraph", marker = "extra == 'docker'" },
+    { name = "ipython", marker = "extra == 'docker'" },
+    { name = "ipywidgets", marker = "extra == 'docker'" },
+    { name = "jupyterlab", marker = "extra == 'docker'" },
+    { name = "lazyslide-models", editable = "../lazyslide-models" },
     { name = "legendkit", specifier = ">=0.3.4" },
+    { name = "marsilea", marker = "extra == 'docker'" },
     { name = "matplotlib", specifier = ">=3.9.0" },
     { name = "matplotlib-scalebar", specifier = ">=0.9.0" },
+    { name = "mpl-fontkit", marker = "extra == 'docker'" },
     { name = "open-clip-torch", marker = "extra == 'models'", specifier = ">=2.32.0" },
     { name = "psutil", specifier = ">=5.9.0" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "sacremoses", marker = "extra == 'models'", specifier = ">=0.1.1" },
     { name = "scanpy", marker = "extra == 'all'", specifier = ">=1.10.4" },
+    { name = "scanpy", marker = "extra == 'docker'" },
     { name = "scikit-image", specifier = ">=0.23.1" },
     { name = "scikit-learn", specifier = ">=1.0" },
     { name = "scipy", marker = "extra == 'all'", specifier = ">=1.15.1" },
+    { name = "scyjava", marker = "extra == 'docker'" },
     { name = "seaborn", specifier = ">=0.12.2" },
+    { name = "spatialdata-plot", marker = "extra == 'docker'" },
     { name = "timm", specifier = ">=1.0.3" },
     { name = "torch", specifier = ">=2.0.0" },
     { name = "torchstain", marker = "extra == 'all'", specifier = ">=1.4.1" },
+    { name = "torchstain", marker = "extra == 'docker'" },
     { name = "torchvision", marker = "extra == 'all'", specifier = ">=0.15" },
     { name = "transformers", marker = "extra == 'all'", specifier = ">=4.49.0" },
     { name = "transformers", marker = "extra == 'models'", specifier = ">=4.49.0" },
     { name = "wsidata", specifier = ">=0.10.0" },
 ]
-provides-extras = ["all", "models"]
+provides-extras = ["all", "docker", "models"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -3064,8 +3109,7 @@ tutorials = [
 
 [[package]]
 name = "lazyslide-models"
-version = "0.0.2"
-source = { registry = "https://pypi.org/simple" }
+source = { editable = "../lazyslide-models" }
 dependencies = [
     { name = "numpy" },
     { name = "opencv-python-headless" },
@@ -3077,9 +3121,46 @@ dependencies = [
     { name = "torch" },
     { name = "transformers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e1/dc/8531dac8f13145b19b648c0bd8fdb3768d3ad7eac7984cd2c8fddb09a1c6/lazyslide_models-0.0.2.tar.gz", hash = "sha256:8bed15fa3066a6f669d958420af64c8037ad4d9af770a7362de3299f3279e25b", size = 219735, upload-time = "2026-05-14T17:16:11.353Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4c/fd/f1f7e39857ba013447623b3f7b1582c5f1c86803b23c050cab5da1e99028/lazyslide_models-0.0.2-py3-none-any.whl", hash = "sha256:26c4bc5a7af33f025086e90f64abb1ac87467d50438f3c41d0d370ed43f2f062", size = 81671, upload-time = "2026-05-14T17:16:10.219Z" },
+
+[package.metadata]
+requires-dist = [
+    { name = "numpy", specifier = ">=2.0.0" },
+    { name = "opencv-python-headless" },
+    { name = "pandas" },
+    { name = "platformdirs" },
+    { name = "scikit-image" },
+    { name = "scipy" },
+    { name = "timm", specifier = ">=1.0.3" },
+    { name = "torch", specifier = ">=2.1.0" },
+    { name = "transformers", specifier = ">=4.0.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "hf-xet", specifier = ">=1.5.0" },
+    { name = "prek", specifier = ">=0.3.13" },
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "pytest-cov", specifier = ">=6.0" },
+    { name = "pytest-xdist", specifier = ">=3.0" },
+    { name = "ruff", specifier = ">=0.15.12" },
+    { name = "taskipy", specifier = ">=1.14.1" },
+]
+model = [
+    { name = "accelerate", specifier = ">=1.12.0" },
+    { name = "cellpose", specifier = ">=4.0.0" },
+    { name = "conch", git = "https://github.com/mahmoodlab/CONCH.git" },
+    { name = "diffusers", specifier = ">=0.36.0" },
+    { name = "einops", specifier = ">=0.8.1" },
+    { name = "einops-exts", specifier = ">=0.0.4" },
+    { name = "environs", specifier = ">=14.1.1" },
+    { name = "fairscale", specifier = ">=0.4.13" },
+    { name = "gigapath", git = "https://github.com/prov-gigapath/prov-gigapath.git" },
+    { name = "musk", git = "https://github.com/lilab-stanford/MUSK.git" },
+    { name = "open-clip-torch", specifier = ">=2.32.0" },
+    { name = "protobuf" },
+    { name = "sacremoses", specifier = ">=0.1.1" },
+    { name = "sentencepiece", specifier = ">=0.2.1" },
+    { name = "transformers", specifier = ">=4.49.0" },
 ]
 
 [[package]]
