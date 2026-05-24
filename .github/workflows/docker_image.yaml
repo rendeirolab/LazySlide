@@ -109,4 +109,6 @@ jobs:
       - name: Verify Docker image
         if: github.event_name == 'release'
         run: |
-          docker run --rm ghcr.io/${{ github.repository_owner }}/lazyslide:${{ steps.meta.outputs.tags }} lazyslide --version
+          docker run --rm \
+            ghcr.io/${{ github.repository_owner }}/lazyslide@${{ steps.push.outputs.digest }} \
+            lazyslide --version
