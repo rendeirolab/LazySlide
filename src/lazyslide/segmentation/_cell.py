@@ -227,8 +227,6 @@ def cell_types(
         model_instance = model
     else:
         model_kwargs = dict(magnification=magnification)
-        if model == "histoplus":
-            model_kwargs["tile_size"] = tile_spec.height
         model = MODEL_REGISTRY.get(model)
         if model is None:
             raise ValueError(f"Unknown model: {model}")
