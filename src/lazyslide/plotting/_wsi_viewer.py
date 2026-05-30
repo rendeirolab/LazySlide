@@ -60,6 +60,12 @@ class Viewport:
         The level of the pyramid to view.
     downsample : int
         The downsample factor of the window.
+    w0 : int
+        The exact width of the window in level 0 pixels.
+        Invariant to the chosen pyramid level, so the displayed extent
+        never drifts when the image resolution changes.
+    h0 : int
+        The exact height of the window in level 0 pixels.
 
     """
 
@@ -68,7 +74,18 @@ class Viewport:
     w: int
     h: int
     level: int
-    downsample: int
+    downsample: float
+    w0: int = None
+    h0: int = None
+
+    def __post_init__(self):
+        # Default the exact level-0 region to the (downsampled) read size.
+        # Carrying it explicitly avoids integer-floor drift between
+        # w*downsample and the original region when the level changes.
+        if self.w0 is None:
+            self.w0 = int(self.w * self.downsample)
+        if self.h0 is None:
+            self.h0 = int(self.h * self.downsample)
 
     @cached_property
     def box(self) -> Polygon:
@@ -77,8 +94,8 @@ class Viewport:
         return box(
             self.x,
             self.y,
-            self.x + self.w * self.downsample,
-            self.y + self.h * self.downsample,
+            self.x + self.w0,
+            self.y + self.h0,
         )
 
 
@@ -178,9 +195,12 @@ class ImageDataSource(DataSource):
         return self._image
 
     def get_image_size(self) -> tuple[int, int]:
-        """Return the width, height of the actual image, not the data."""
-        downsample = self.viewport.downsample
-        return int(self.viewport.w * downsample), int(self.viewport.h * downsample)
+        """Return the width, height of the actual image, not the data.
+
+        This is the level 0 region size, which is invariant to the chosen
+        pyramid level.
+        """
+        return int(self.viewport.w0), int(self.viewport.h0)
 
     def get_extent(self):
         x, y = self.viewport.x, self.viewport.y
@@ -218,6 +238,22 @@ class TileDataSource(DataSource):
             (self._render_tiles - (self.viewport.x, self.viewport.y))
             / self.viewport.downsample
         ).astype(int)
+
+    def grid_indices(self, origin_x, origin_y, w0, h0):
+        """Map the rendered tiles onto a low-resolution grid (one cell/tile).
+
+        The grid spans the level-0 region ``(origin_x, origin_y, w0, h0)`` at
+        the tile pitch, so it can be drawn at the image extent and upscaled by
+        the renderer. Returns ``(gy, gx, grid_height, grid_width)``.
+        """
+        base_w, base_h = self.tile_shape_base
+        gw = max(1, int(np.ceil(w0 / base_w)))
+        gh = max(1, int(np.ceil(h0 / base_h)))
+        tx = self._render_tiles[:, 0]
+        ty = self._render_tiles[:, 1]
+        gx = np.clip(np.floor((tx - origin_x) / base_w).astype(int), 0, gw - 1)
+        gy = np.clip(np.floor((ty - origin_y) / base_h).astype(int), 0, gh - 1)
+        return gy, gx, gh, gw
 
     @property
     def tiles_center(self):
@@ -386,33 +422,36 @@ class HeatmapTilesRenderPlan(RenderPlan):
         self._A = None
 
     def render(self, ax):
-        w, h = self.image_datasource.viewport.w, self.image_datasource.viewport.h
-        tile_image = np.full((h, w), np.nan)
-        tiles = self.datasource.heatmap_tiles
-        tile_width, tile_height = self.datasource.tile_shape
+        # Paint values onto a small per-tile grid (one cell per tile) instead
+        # of a full viewport-resolution canvas. The grid is colorized once and
+        # upscaled by the renderer via the image extent. This avoids the old
+        # per-tile Python loop and the very large GaussianBlur kernel.
+        vp = self.image_datasource.viewport
+        gy, gx, gh, gw = self.datasource.grid_indices(vp.x, vp.y, vp.w0, vp.h0)
         vs = self.datasource.get_data("values")
 
-        for (x, y), v in zip(tiles, vs):
-            tile_image[y : y + tile_height + 1, x : x + tile_width + 1] = v
+        grid = np.full((gh, gw), np.nan)
+        grid[gy, gx] = vs
 
         cmap = plt.get_cmap(self.cmap)
         sm = ScalarMappable(norm=self.norm, cmap=cmap)
         sm.set_clim(self.vmin, self.vmax)
-        sm.set_array(tile_image)
-        # sm.autoscale()
+        sm.set_array(grid)
 
-        A = sm.to_rgba(tile_image, bytes=True, alpha=self.alpha)
+        A = sm.to_rgba(grid, bytes=True, alpha=self.alpha)
+        # Transparent background where there is no tile.
+        A[np.isnan(grid), 3] = 0
 
-        # Apply gaussian blur to the heatmap
-        # kernel size is 2x of tile size
         if self.smooth:
-            ksize = int(self.smooth_scale * max(self.datasource.tile_shape))
+            # Cheap blur on the small grid; smoothing on upscale is done by the
+            # renderer's interpolation, replacing the old full-size GaussianBlur.
+            ksize = max(1, int(self.smooth_scale))
             ksize = ksize if ksize % 2 == 1 else ksize + 1
-            A = cv2.GaussianBlur(A, (ksize, ksize), 0)
-
-        # Downsample and then upscale to the original size
-        # down = cv2.resize(A, (A.shape[1] // 4, A.shape[0] // 4), interpolation=cv2.INTER_AREA)
-        # A = cv2.resize(down, (A.shape[1], A.shape[0]), interpolation=cv2.INTER_CUBIC)
+            if ksize > 1:
+                A = cv2.GaussianBlur(A, (ksize, ksize), 0)
+            interpolation = "bilinear"
+        else:
+            interpolation = "nearest"
 
         self._A = A
         ax.imshow(
@@ -420,7 +459,7 @@ class HeatmapTilesRenderPlan(RenderPlan):
             extent=self.image_datasource.get_extent(),
             origin="upper",
             zorder=-99,
-            interpolation="none",
+            interpolation=interpolation,
         )
         if not self.on_zoom_view:
             if self.palette is not None:
@@ -652,19 +691,29 @@ class ContourRenderPlan(PolygonMixin):
         colors = self.datasource.get_data("colors")
         labels = self.datasource.get_data("labels")
 
+        # Without labels, batch all patches into one collection to avoid the
+        # per-patch add_patch overhead (also speeds up zoom views).
+        batch = labels is None
+        patches = []
         for ix, contour in enumerate(self.datasource.polygons):
             outline_kwargs = self.outline_kws.copy()
             if colors is not None:
                 outline_kwargs["edgecolor"] = colors[ix]
             outlines, holes = self._contour_polygon_patch(
-                contour, outline_kwargs=self.outline_kws, hole_kwargs=self.hole_kws
+                contour, outline_kwargs=outline_kwargs, hole_kwargs=self.hole_kws
             )
-            for outline in outlines:
-                ax.add_patch(outline)
-                if labels is not None:
+            if batch:
+                patches.extend(outlines)
+                patches.extend(holes)
+            else:
+                for outline in outlines:
+                    ax.add_patch(outline)
                     self._label_patch(ax, outline, labels[ix])
-            for hole in holes:
-                ax.add_patch(hole)
+                for hole in holes:
+                    ax.add_patch(hole)
+
+        if patches:
+            ax.add_collection(PatchCollection(patches, match_original=True))
 
         if (self.palette is not None) & (not self.on_zoom_view):
             self.legend = cat_legend(
@@ -705,6 +754,10 @@ class FilledPolygonRenderPlan(PolygonMixin):
         colors = self.datasource.get_data("colors")
         labels = self.datasource.get_data("labels")
 
+        # Without labels, batch all patches into one collection to avoid the
+        # per-patch add_patch overhead (also speeds up zoom views).
+        batch = labels is None
+        collected = []
         for ix, contour in enumerate(self.datasource.polygons):
             kwargs = self.kwargs.copy()
             if colors is not None:
@@ -712,10 +765,15 @@ class FilledPolygonRenderPlan(PolygonMixin):
                 kwargs["facecolor"] = c
                 kwargs["edgecolor"] = c
             patches = self._filled_polygon_patch(contour, **kwargs)
-            for patch in patches:
-                ax.add_patch(patch)
-                if labels is not None:
+            if batch:
+                collected.extend(patches)
+            else:
+                for patch in patches:
+                    ax.add_patch(patch)
                     self._label_patch(ax, patch, labels[ix])
+
+        if collected:
+            ax.add_collection(PatchCollection(collected, match_original=True))
 
         if (self.palette is not None) & (not self.on_zoom_view):
             self.legend = cat_legend(
@@ -763,6 +821,9 @@ class DatashaderFilledPolygonRenderPlan(RenderPlan):
         self.alpha = 1
         self.legend_kws = legend_kws or {}
         self.legend = None
+        # Hard cap on the datashader canvas; lowered to the displayed size by
+        # WSIViewer when display-aware rendering is enabled.
+        self.max_px = 4096
 
     def render(self, ax):
         ds = find_spec("datashader")
@@ -781,7 +842,7 @@ class DatashaderFilledPolygonRenderPlan(RenderPlan):
         w, h = self.image_datasource.get_image_size()
 
         # Safety caps for extremely large canvases
-        max_px = 4096
+        max_px = self.max_px
         if w > max_px or h > max_px:
             scale = max(w / max_px, h / max_px)
             w = max(1, int(round(w / scale)))
@@ -854,6 +915,10 @@ class ZoomRenderPlan(ZoomMixin, RenderPlan):
     # See example:
     # https://matplotlib.org/stable/gallery/subplots_axes_and_figures/zoom_inset_axes.html
 
+    # Optional callback (set by WSIViewer) to resolve the zoom image pyramid
+    # level from the inset size before rendering the zoom plans.
+    _resolve_zoom = None
+
     def __init__(
         self,
         image_datasource: ImageDataSource,  # Which image to subscribe to
@@ -878,6 +943,10 @@ class ZoomRenderPlan(ZoomMixin, RenderPlan):
         self.alpha = alpha
 
     def render(self, ax, plans):
+        # Resolve the zoom image level from the inset size (main axes known now).
+        if self._resolve_zoom is not None:
+            self._resolve_zoom(ax)
+
         xmin, xmax = self.x_range
         ymin, ymax = self.y_range
 
@@ -917,8 +986,21 @@ class WSIViewer:
     in_bounds : bool, default: True
         Whether to render the image in the bounds.
     img_bytes_limit : int, default: 2e9
-        The limit of the bytes to render image.
-        The image size has a strong impact on the rendering time.
+        A safety ceiling on the bytes of the image to read. The pyramid level
+        is primarily chosen from the displayed size (see ``display_aware``);
+        this only caps the worst case.
+    display_aware : bool, default: True
+        Choose the image pyramid level from the displayed axes size at render
+        time. This avoids reading/resampling a high-resolution image into a
+        small figure, which is the dominant rendering cost. Set to False to
+        read at full resolution (bounded by ``img_bytes_limit``).
+    oversample : float, default: 1.5
+        Read this many times more pixels than the axes occupies, for crispness
+        and to absorb layout/DPI margins. Larger is sharper but slower.
+    target_dpi : float, optional
+        Override the figure DPI when sizing the image. Pass the export DPI
+        (e.g. ``target_dpi=300`` to match ``savefig(dpi=300)``) so the image is
+        read at sufficient resolution for high-DPI output.
 
     """
 
@@ -929,10 +1011,16 @@ class WSIViewer:
         wsi: WSIData,
         in_bounds: bool = True,
         img_bytes_limit: int = 2e9,
+        display_aware: bool = True,
+        oversample: float = 1.5,
+        target_dpi: float | None = None,
     ):
         self.wsi = wsi
         self.in_bounds = in_bounds
         self.bytes_limit = img_bytes_limit
+        self.display_aware = display_aware
+        self.oversample = oversample
+        self.target_dpi = target_dpi
         self._render_plans = []
         self._temp_render_plans = []
         self._image_render_plan = None
@@ -958,7 +1046,7 @@ class WSIViewer:
 
     def set_viewport(self, x, y, w, h):
         """Set the window to (x, y, w, h) at level 0"""
-        self._viewport = self._get_viewport(x, y, w, h)
+        self._viewport = self._get_region_geometry(x, y, w, h)
 
         self.image_source.set_viewport(self._viewport)
         for name, source in self.tile_source.items():
@@ -1604,7 +1692,7 @@ class WSIViewer:
                 "xmin, xmax, ymin, ymax must be either all in (0-1) range or all > 1."
             )
 
-        viewport = self._get_viewport(xmin, ymin, xmax - xmin, ymax - ymin)
+        viewport = self._get_region_geometry(xmin, ymin, xmax - xmin, ymax - ymin)
         self.zoom_image_source = ImageDataSource(self.wsi.reader)
         self.zoom_image_source.set_viewport(viewport)
 
@@ -1619,15 +1707,62 @@ class WSIViewer:
             edgecolor=edgecolor,
             alpha=alpha,
         )
+        self._zoom_plan._resolve_zoom = self._apply_zoom_resolution
         if self._has_image:
             self._zoom_image_render_plan = SlideImageRenderPlan(self.zoom_image_source)
 
         if not cache:
             self._is_zoom_cached = False
 
+    def _set_image_viewport(self, source: ImageDataSource, vp: Viewport):
+        """Assign a resolved viewport to an image source and force a re-read.
+
+        Bypasses ``DataSource.set_viewport`` which no-ops on equality and would
+        otherwise skip the refresh when the same viewer is re-shown onto a
+        different-sized axes.
+        """
+        source.viewport = vp
+        source._refresh = True
+
+    def _apply_display_resolution(self, ax):
+        """Resolve the image pyramid level.
+
+        Always applies the byte-limit ceiling. When ``display_aware`` is set,
+        the displayed axes size additionally drives the level down so a
+        high-resolution image isn't read into a small figure.
+        """
+        aw = ah = None
+        if self.display_aware:
+            aw, ah = _axes_device_px(ax, self.target_dpi)
+        if self.image_source.viewport is not None:
+            vp = self._resolve_image_level(self.image_source.viewport, aw, ah)
+            self._set_image_viewport(self.image_source, vp)
+
+        # Shrink the datashader canvas to the displayed size (capped at 4096).
+        if aw and ah:
+            cap = max(256, int(min(4096, max(aw, ah) * self.oversample)))
+            for plan in self.get_render_plans():
+                if isinstance(plan, DatashaderFilledPolygonRenderPlan):
+                    plan.max_px = cap
+
+    def _apply_zoom_resolution(self, main_ax):
+        """Resolve the zoom image level from the inset's size on the main axes."""
+        if self.zoom_image_source is None or self.zoom_image_source.viewport is None:
+            return
+        aw = ah = None
+        if self.display_aware:
+            aw, ah = _axes_device_px(main_ax, self.target_dpi)
+            if aw is not None:
+                aw *= self._zoom_plan.size[0]
+                ah *= self._zoom_plan.size[1]
+        vp = self._resolve_image_level(self.zoom_image_source.viewport, aw, ah)
+        self._set_image_viewport(self.zoom_image_source, vp)
+
     def show(self, ax=None, axis="on", xaxis="top"):
         if ax is None:
             ax = plt.gca()
+
+        self._apply_display_resolution(ax)
 
         legends = []
         for plan in self.get_render_plans():
@@ -1671,33 +1806,91 @@ class WSIViewer:
 
         return ax
 
-    def _get_viewport(self, x, y, w, h):
-        """Get the (x, y, w, h, level, downsample) for the current window"""
-        n_bytes = w * h * 8 * 3  # 8 bytes per pixel, 3 channels
-        target_level = 0
-        downsample = 1
+    def _get_region_geometry(self, x, y, w, h) -> Viewport:
+        """Build a level-0 viewport for a region.
 
-        dw = w
-        dh = h
-        if n_bytes > self.bytes_limit:
-            dh, dw = self.wsi.properties.shape
-            while n_bytes > self.bytes_limit:
-                target_level += 1
-                if target_level >= self.wsi.properties.n_level:
-                    # We've reached the highest level but still exceed the limit
-                    # Set to the highest level and adjust dimensions if needed
-                    target_level = self.wsi.properties.n_level - 1
-                    downsample = self.wsi.properties.level_downsample[target_level]
-                    dw = w // downsample
-                    dh = h // downsample
-                    break
+        This is eager and cheap: no image is read here. The pyramid
+        level/downsample is resolved later (at render time) from the displayed
+        axes size; see :meth:`_resolve_image_level`.
+        """
+        x, y, w, h = int(x), int(y), int(w), int(h)
+        return Viewport(x, y, w, h, level=0, downsample=1, w0=w, h0=h)
 
-                downsample = self.wsi.properties.level_downsample[target_level]
-                dw = w // downsample
-                dh = h // downsample
-                n_bytes = dw * dh * 8 * 3
+    def _resolve_image_level(self, vp, axes_px_w=None, axes_px_h=None) -> Viewport:
+        """Resolve the best pyramid level for a viewport given the display size.
 
-        return Viewport(int(x), int(y), int(dw), int(dh), target_level, downsample)
+        Picks the coarsest pyramid level whose downsample still resolves the
+        displayed axes (``axes pixels * oversample``). The byte limit acts only
+        as a safety ceiling. The level-0 region (``w0``, ``h0``) is preserved,
+        so the displayed extent never moves.
+        """
+        props = self.wsi.properties
+        n_level = props.n_level
+        lvl_ds = getattr(props, "level_downsample", None) or [1.0]
+        w0, h0 = vp.w0, vp.h0
+
+        target = 1.0
+        if axes_px_w and axes_px_h:
+            target = max(
+                1.0,
+                w0 / max(axes_px_w * self.oversample, 1),
+                h0 / max(axes_px_h * self.oversample, 1),
+            )
+
+        level, downsample = _select_level_for_downsample(lvl_ds, target, n_level)
+
+        # Byte ceiling: realistic peak working set is ~4 bytes/pixel (RGBA).
+        # Step to coarser levels only if the read would still exceed the limit.
+        while (w0 / downsample) * (h0 / downsample) * 4 > self.bytes_limit and (
+            level < n_level - 1
+        ):
+            level += 1
+            downsample = float(lvl_ds[level])
+
+        dw = max(1, int(np.ceil(w0 / downsample)))
+        dh = max(1, int(np.ceil(h0 / downsample)))
+        return Viewport(vp.x, vp.y, dw, dh, level, downsample, w0=w0, h0=h0)
+
+
+def _select_level_for_downsample(level_downsamples, target_downsample, n_level):
+    """Pick the largest pyramid level whose downsample is <= target.
+
+    Mirrors the closest-level rule used in wsidata's TileSpec: never drop below
+    the displayed resolution, only avoid wasteful over-sampling.
+
+    Returns
+    -------
+    (level, downsample) : (int, float)
+    """
+    ds = np.asarray(level_downsamples, dtype=float)
+    if ds.size == 0 or not np.isfinite(ds).any() or target_downsample <= 1:
+        return 0, float(ds[0]) if ds.size else 1.0
+    gap = ds - float(target_downsample)
+    gap[gap > 0] = np.inf  # forbid levels coarser than the target
+    if not np.isfinite(gap).any():
+        # Target is finer than even level 1 -> use the finest level.
+        return 0, float(ds[0])
+    # Clamp: wsidata's translate_level raises (does not clamp) out-of-range.
+    level = max(0, min(int(np.argmin(np.abs(gap))), n_level - 1))
+    return level, float(ds[level])
+
+
+def _axes_device_px(ax, target_dpi=None):
+    """Estimate the axes size in device pixels without requiring a prior draw.
+
+    Uses ``get_position() x figsize x dpi`` (valid right after the axes is
+    created, unlike ``get_window_extent`` which needs a renderer). With
+    ``aspect('equal')`` and tight layout this is an upper bound on the pixels
+    actually needed, which is the safe direction. ``target_dpi`` overrides the
+    figure DPI (e.g. to match ``savefig(dpi=...)``).
+    """
+    fig = ax.get_figure()
+    if fig is None:
+        return None, None
+    pos = ax.get_position()
+    fw, fh = fig.get_size_inches()
+    dpi = target_dpi or fig.dpi
+    return max(1.0, pos.width * fw * dpi), max(1.0, pos.height * fh * dpi)
 
 
 def _axes_style(ax, anchor=None, axis="off", xaxis="top"):
