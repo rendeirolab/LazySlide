@@ -313,6 +313,20 @@ class TestInstanceMap:
         if len(polygons) > 0:
             assert "prob" in polygons.columns
 
+    def test_to_polygons_instance_id(self):
+        """Each polygon row must be labelled with its source instance id so
+        callers can map a polygon back to its instance (e.g. to attach features)
+        exactly, instead of guessing via centroid lookup."""
+        im = np.zeros((100, 100), dtype=np.int32)
+        im[10:30, 10:30] = 2
+        im[10:30, 60:80] = 5
+        im[60:80, 35:55] = 7
+        polygons = InstanceMap(im).to_polygons(detect_holes=False)
+        assert "instance_id" in polygons.columns
+        # One row per instance, labelled with the source integer id, in ascending
+        # (np.unique) order.
+        assert list(polygons["instance_id"].astype(int)) == [2, 5, 7]
+
 
 class TestProbabilityMap:
     """Tests for the ProbabilityMap class."""

@@ -26,12 +26,17 @@ from lazyslide.cv import (
 )
 
 
-def _pool_cell_feature(
+def _pool_cell_features(
     instance_map: np.ndarray,
     patch_token_map: np.ndarray,
-    instance_id: int,
-) -> np.ndarray:
-    """Mean-pool patch tokens overlapping a single cell instance.
+    instance_ids,
+) -> dict[int, np.ndarray]:
+    """Mean-pool patch tokens for each instance in ``instance_ids``.
+
+    For every instance, tokens are averaged over the patches whose
+    nearest-neighbour downsampled location falls inside the instance — the same
+    pooling as a per-instance ``(instance_map == id)`` mask, computed for all
+    instances at once.
 
     Parameters
     ----------
@@ -39,32 +44,70 @@ def _pool_cell_feature(
         Integer instance ID map for the tile.
     patch_token_map : np.ndarray, shape ``[D, PH, PW]``
         Patch token feature map from a ViT segmentation model.
-    instance_id : int
-        The instance ID to extract features for.
+    instance_ids : sequence of int
+        The instance IDs to extract features for.
 
     Returns
     -------
-    np.ndarray, shape ``[D]``
-        Mean-pooled feature vector for the cell.
+    dict[int, np.ndarray]
+        Mapping ``instance_id -> mean-pooled feature vector [D]``.
     """
-    cell_mask = instance_map == instance_id  # [H, W]
-    H, W = cell_mask.shape
     D, PH, PW = patch_token_map.shape
+    H, W = instance_map.shape
+    ids = np.asarray(list(instance_ids))
+    if ids.size == 0:
+        return {}
 
-    # Downsample cell mask to patch token resolution (nearest-neighbor)
+    # Nearest-neighbour downsample of the instance labels to patch resolution,
+    # done once and reused for every instance.
     row_idx = np.round(np.linspace(0, H - 1, PH)).astype(int)
     col_idx = np.round(np.linspace(0, W - 1, PW)).astype(int)
-    patch_mask = cell_mask[np.ix_(row_idx, col_idx)]  # [PH, PW]
+    inst_patch = instance_map[np.ix_(row_idx, col_idx)].reshape(-1)  # [P]
+    tokens = patch_token_map.reshape(D, -1)  # [D, P]
 
-    if patch_mask.any():
-        return patch_token_map[:, patch_mask].mean(axis=1)  # [D]
+    # Membership of each patch to each requested instance: [K, P].
+    membership = inst_patch[None, :] == ids[:, None]
+    counts = membership.sum(axis=1)  # [K]
+    # Grouped sum of tokens per instance via one matmul: [K, P] @ [P, D] -> [K, D]
+    sums = membership.astype(tokens.dtype) @ tokens.T
 
-    # Cell smaller than a single patch — use nearest patch token
-    ys, xs = np.where(cell_mask)
-    cy, cx = ys.mean(), xs.mean()
-    py = min(int(cy * PH / H), PH - 1)
-    px = min(int(cx * PW / W), PW - 1)
-    return patch_token_map[:, py, px]  # [D]
+    features: dict[int, np.ndarray] = {}
+    hit = counts > 0
+    hit_idx = np.flatnonzero(hit)
+    if hit_idx.size:
+        means = sums[hit_idx] / counts[hit_idx, None].astype(tokens.dtype)
+        for k, idx in enumerate(hit_idx):
+            features[int(ids[idx])] = means[k]
+
+    # Fallback: instances too small to land on any patch grid point use the
+    # nearest patch token to their full-resolution centroid. Compute every such
+    # centroid in a SINGLE pass over the full-res map (one np.isin + grouped
+    # bincount) rather than one ``np.where`` scan per missed instance.
+    miss_idx = np.flatnonzero(~hit)
+    if miss_idx.size:
+        miss_ids = ids[miss_idx]
+        flat = instance_map.reshape(-1)
+        sel = np.isin(flat, miss_ids)
+        Km = miss_ids.size
+        cnt = np.zeros(Km, dtype=np.int64)
+        sum_y = np.zeros(Km, dtype=np.float64)
+        sum_x = np.zeros(Km, dtype=np.float64)
+        if sel.any():
+            lin = np.flatnonzero(sel)
+            order = np.argsort(miss_ids)
+            slot = order[np.searchsorted(miss_ids[order], flat[lin])]
+            cnt = np.bincount(slot, minlength=Km)
+            sum_y = np.bincount(slot, weights=lin // W, minlength=Km)
+            sum_x = np.bincount(slot, weights=lin % W, minlength=Km)
+        for j, idx in enumerate(miss_idx):
+            inst = int(ids[idx])
+            if cnt[j] == 0:
+                features[inst] = np.zeros(D, dtype=patch_token_map.dtype)
+                continue
+            py = min(int((sum_y[j] / cnt[j]) * PH / H), PH - 1)
+            px = min(int((sum_x[j] / cnt[j]) * PW / W), PW - 1)
+            features[inst] = patch_token_map[:, py, px]
+    return features
 
 
 def semantic(
@@ -519,7 +562,7 @@ class SemanticSegmentationRunner(Runner):
                         # buffer -> union -> unbuffer, with tolerance in base-pixel units
                         tol = max(1.0, float(self.buffer_px) * float(self.downsample))
                         buffered = class_group.geometry.buffer(tol)
-                        united = buffered.unary_union
+                        united = buffered.union_all()
                         cleaned = gpd.GeoDataFrame(geometry=[united.buffer(-tol)])
                         # Explode multi-geometries back to rows
                         cleaned = cleaned.explode(index_parts=False).reset_index(
@@ -578,8 +621,11 @@ class CellSegmentationRunner(Runner):
         self.tile_spec = wsi.tile_spec(tile_key)
         self.downsample = self.tile_spec.base_downsample
 
-    def run(self) -> gpd.GeoDataFrame | tuple[gpd.GeoDataFrame, np.ndarray]:
-        all_features: list[np.ndarray] = []  # per-cell [D] vectors
+    def run(
+        self,
+    ) -> gpd.GeoDataFrame | tuple[gpd.GeoDataFrame, np.ndarray, np.ndarray]:
+        # features keyed by global cell_id so positional drift never corrupts alignment
+        features_by_id: dict[int, np.ndarray] = {}
         global_cell_idx = 0
 
         with default_pbar(disable=not self.pbar) as progress_bar:
@@ -601,6 +647,17 @@ class CellSegmentationRunner(Runner):
 
                 results = []
                 _warned_no_tokens = False
+
+                # Inner boundary of a tile. Cells touching it are clipped by the
+                # tile edge and dropped (the same cell is captured whole in a
+                # neighbouring/overlapping tile). Constant across tiles -> build once
+                # and prepare it for fast repeated intersection tests.
+                tile_box = (
+                    box(0, 0, self.tile_spec.width, self.tile_spec.height)
+                    .buffer(-2)
+                    .boundary
+                )
+                prepare(tile_box)
 
                 task = progress_bar.add_task(
                     "Processing tiles", total=len(tile_dataset)
@@ -663,86 +720,70 @@ class CellSegmentationRunner(Runner):
                         else:
                             prob_map = None
 
-                        # Convert the output to polygons
+                        # Convert the instance map to one polygon per instance.
+                        # ``df`` carries an ``instance_id`` column linking each row
+                        # back to its source instance in ``out``.
                         m = InstanceMap(
                             out,
                             prob_map=prob_map,
                             class_names=self.class_names,
                         )
                         df = m.to_polygons(detect_holes=False)
-                        if len(df) > 0:
-                            # Pre-compute per-instance features before filtering
-                            if has_tokens:
-                                token_map_i = patch_token_map[i]  # [D, PH, PW]
-                                cell_ids = np.unique(out)
-                                cell_ids = cell_ids[cell_ids > 0]
-                                cell_features = {
-                                    int(cid): _pool_cell_feature(
-                                        out, token_map_i, int(cid)
-                                    )
-                                    for cid in cell_ids
-                                }
+                        if len(df) == 0:
+                            continue
 
-                            # Remove the polygons that are on the edge of the tile
-                            tile_box = (
-                                box(0, 0, self.tile_spec.width, self.tile_spec.height)
-                                .buffer(-2)
-                                .boundary
-                            )
-                            prepare(tile_box)
-                            sel = df["geometry"].apply(
-                                lambda geom: not tile_box.intersects(geom)
-                            )
-                            df = df[sel]
-                            # Move the polygons to the global coordinate
-                            df["geometry"] = (
-                                df["geometry"]
-                                .scale(
-                                    xfact=self.downsample,
-                                    yfact=self.downsample,
-                                    origin=(0, 0),
-                                )
-                                .translate(xoff=pos_x, yoff=pos_y)
-                                .buffer(0)
-                            )
-                            if self.size_filter:
-                                df = df[df["geometry"].area.between(*self.nucleus_size)]
+                        # Drop cells touching the tile edge (clipped instances).
+                        df = df[~df["geometry"].intersects(tile_box)]
+                        if len(df) == 0:
+                            continue
 
-                            # Map surviving cells to features via centroid lookup
-                            if has_tokens and len(df) > 0:
-                                H, W = out.shape
-                                idx_values = []
-                                for _, row_data in df.iterrows():
-                                    # Map centroid back to tile pixel coords
-                                    cx = (
-                                        row_data.geometry.centroid.x - pos_x
-                                    ) / self.downsample
-                                    cy = (
-                                        row_data.geometry.centroid.y - pos_y
-                                    ) / self.downsample
-                                    # Look up instance ID at centroid
-                                    py = min(max(int(cy), 0), H - 1)
-                                    px = min(max(int(cx), 0), W - 1)
-                                    cid = int(out[py, px])
-                                    if cid in cell_features:
-                                        all_features.append(cell_features[cid])
-                                    else:
-                                        # Fallback: use nearest valid instance
-                                        all_features.append(
-                                            next(iter(cell_features.values()))
-                                        )
-                                    idx_values.append(global_cell_idx)
-                                    global_cell_idx += 1
-                                df = df.copy()
-                                df["_cell_idx"] = idx_values
-                            results.append(df)
+                        # Move the polygons to the global coordinate
+                        df = df.copy()
+                        df["geometry"] = (
+                            df["geometry"]
+                            .scale(
+                                xfact=self.downsample,
+                                yfact=self.downsample,
+                                origin=(0, 0),
+                            )
+                            .translate(xoff=pos_x, yoff=pos_y)
+                            .buffer(0)
+                        )
+                        if self.size_filter:
+                            df = df[df["geometry"].area.between(*self.nucleus_size)]
+                            if len(df) == 0:
+                                continue
+
+                        # Assign a globally-unique, stable cell_id to every cell.
+                        n = len(df)
+                        cell_ids = np.arange(
+                            global_cell_idx, global_cell_idx + n, dtype=np.int64
+                        )
+                        global_cell_idx += n
+                        df["cell_id"] = cell_ids
+
+                        # Bind per-cell features by instance_id — exact, no centroid
+                        # guessing. Tokens are pooled over each surviving instance's
+                        # full mask, then looked up by the row's instance_id. Every
+                        # row's instance_id produced this polygon, so a feature always
+                        # exists and no cell is silently dropped.
+                        if has_tokens:
+                            token_map_i = patch_token_map[i]  # [D, PH, PW]
+                            inst_arr = df["instance_id"].to_numpy()
+                            cell_features = _pool_cell_features(
+                                out, token_map_i, np.unique(inst_arr)
+                            )
+                            for cid, inst in zip(cell_ids, inst_arr):
+                                features_by_id[int(cid)] = cell_features[int(inst)]
+
+                        results.append(df.drop(columns="instance_id", errors="ignore"))
                     progress_bar.update(task, advance=len(images))
             progress_bar.refresh()
         # If no results
-        empty = gpd.GeoDataFrame(columns=["geometry"])
+        empty = gpd.GeoDataFrame(columns=["geometry", "cell_id"])
         if len(results) == 0:
             if self.extract_features:
-                return empty, np.empty((0, 0))
+                return empty, np.empty((0, 0)), np.empty((0,), dtype=np.int64)
             return empty
         # Concatenate all results into a single GeoDataFrame
         cells = gpd.GeoDataFrame(pd.concat(results, ignore_index=True)).reset_index(
@@ -751,7 +792,7 @@ class CellSegmentationRunner(Runner):
         # If all results are empty dataframe
         if len(cells) == 0:
             if self.extract_features:
-                return empty, np.empty((0, 0))
+                return empty, np.empty((0, 0)), np.empty((0,), dtype=np.int64)
             return empty
         if "prob" not in cells:
             cells["prob"] = 1
@@ -760,19 +801,27 @@ class CellSegmentationRunner(Runner):
         # Remove cells that are not in the tissue
         tissue_key = self.tile_spec.tissue_name
         tissues = self.wsi[tissue_key]  # GeoDataFrame
-        cells = cells[cells.intersects(tissues.unary_union)]
-
-        if self.extract_features and "_cell_idx" in cells.columns:
-            features = np.stack(all_features)  # [N_total, D]
-            surviving_idx = cells["_cell_idx"].values.astype(int)
-            features = features[surviving_idx]
-            cells = cells.drop(columns=["_cell_idx"]).reset_index(drop=True)
-            return cells, features
-
-        if "_cell_idx" in cells.columns:
-            cells = cells.drop(columns=["_cell_idx"])
+        cells = cells[cells.intersects(tissues.union_all())].reset_index(drop=True)
 
         if self.extract_features:
-            return cells, np.empty((len(cells), 0))
+            if len(features_by_id) == 0:
+                # extract_features=True but model never returned patch_token_map.
+                return (
+                    cells,
+                    np.empty((len(cells), 0)),
+                    cells["cell_id"].to_numpy(dtype=np.int64),
+                )
+            # Keep only cells that have a feature vector. Every cell from a tile
+            # with a token map has one; this drops cells from tiles whose model
+            # output lacked a patch_token_map (mixed-output models).
+            cells = cells[cells["cell_id"].isin(features_by_id.keys())].reset_index(
+                drop=True
+            )
+            surviving_ids = cells["cell_id"].to_numpy(dtype=np.int64)
+            unique_ids, first_idx = np.unique(surviving_ids, return_index=True)
+            # Preserve order of first appearance so features rows track cells_gdf.
+            unique_ids = surviving_ids[np.sort(first_idx)]
+            features = np.stack([features_by_id[int(cid)] for cid in unique_ids])
+            return cells, features, unique_ids
 
         return cells
