@@ -32,6 +32,7 @@ jobs:
     env:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
     steps:
+      - uses: actions/checkout@v6
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
         with:
@@ -67,7 +68,7 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - name: Cache HuggingFace datasets
         id: cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           # Only the hub cache (blobs/refs/snapshots) — never the token file.
           path: ${{ env.HF_HOME }}/hub
@@ -112,7 +113,7 @@ jobs:
       - name: Install project
         run: uv sync --dev
       - name: Restore HuggingFace datasets cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           # Primed by prime-datasets; restore-only so the 12 test jobs never re-save.
           path: ${{ env.HF_HOME }}/hub
