@@ -25,10 +25,18 @@ from lazyslide_models.base import (
 # Cell segmentation mock (replaces instanseg)
 # ---------------------------------------------------------------------------
 class MockCellSegmentationModel(SegmentationModel):
-    """Returns instance_map with 3 synthetic cells per tile."""
+    """Returns instance_map with 3 synthetic cells per tile. Cell 2 is a
+    corner-touching "bowtie": two squares sharing a single diagonal corner.
+    That is one 8-connected instance (one contour), but the contour self-touches
+    at the corner, so ``buffer(0)`` later splits it into a MultiPolygon. This
+    exercises the path where a single cell becomes a MultiPolygon and must stay
+    a SINGLE row (1:1 with its feature), not be exploded into two."""
 
-    def __init__(self, **kwargs):
+    _EMBED_DIM = 32
+
+    def __init__(self, emit_tokens: bool = False, **kwargs):
         self.model = nn.Identity()
+        self.emit_tokens = emit_tokens
 
     def get_transform(self):
         from torchvision.transforms.v2 import Compose, ToDtype, ToImage
@@ -38,14 +46,22 @@ class MockCellSegmentationModel(SegmentationModel):
     def segment(self, image) -> SegmentationOutput:
         B, C, H, W = image.shape
         instance_maps = torch.zeros(B, H, W, dtype=torch.long)
-        # Place 3 small cells in center region (away from edges for filtering)
-        centers = [(H // 4, W // 4), (H // 2, W // 2), (3 * H // 4, 3 * W // 4)]
-        for idx, (cy, cx) in enumerate(centers, start=1):
-            r = min(H, W) // 20  # small radius
-            y_lo, y_hi = max(0, cy - r), min(H, cy + r)
-            x_lo, x_hi = max(0, cx - r), min(W, cx + r)
-            instance_maps[:, y_lo:y_hi, x_lo:x_hi] = idx
-        return SegmentationOutput(instance_map=instance_maps)
+        r = min(H, W) // 20  # small radius, away from edges for filtering
+        # Cells 1 and 3: simple square blobs (single Polygon each).
+        for idx, (cy, cx) in [(1, (H // 4, W // 4)), (3, (3 * H // 4, 3 * W // 4))]:
+            instance_maps[:, cy - r : cy + r, cx - r : cx + r] = idx
+        # Cell 2: two squares touching only at a single diagonal corner. They are
+        # 8-connected -> one instance / one contour, but the ring self-touches, so
+        # buffer(0) yields a MultiPolygon.
+        cy, cx = H // 2, W // 2
+        instance_maps[:, cy - r : cy, cx - r : cx] = 2  # upper-left square
+        instance_maps[:, cy : cy + r, cx : cx + r] = 2  # lower-right square
+        token_map = None
+        if self.emit_tokens:
+            PH, PW = H // 16, W // 16
+            gen = np.random.RandomState(0)
+            token_map = gen.randn(B, self._EMBED_DIM, PH, PW).astype(np.float32)
+        return SegmentationOutput(instance_map=instance_maps, patch_token_map=token_map)
 
     @classmethod
     def check_input_tile(cls, tile_spec) -> bool:
@@ -82,19 +98,27 @@ class MockCellTypeSegmentationModel(SegmentationModel):
         n_classes = 6
         instance_maps = np.zeros((B, H, W), dtype=np.int64)
         class_maps = np.zeros((B, n_classes, H, W), dtype=np.float32)
+        r = min(H, W) // 20
 
-        # Place 3 cells, each with different class
-        centers = [(H // 4, W // 4), (H // 2, W // 2), (3 * H // 4, 3 * W // 4)]
+        def paint(b, ys, xs, inst):
+            instance_maps[b, ys, xs] = inst
+            # Assign each cell a different class (1-indexed, skip background)
+            class_id = (inst % (n_classes - 1)) + 1
+            class_maps[b, class_id, ys, xs] = 0.9
+            class_maps[b, 0, ys, xs] = 0.1  # low background prob
+
         for b in range(B):
-            for idx, (cy, cx) in enumerate(centers, start=1):
-                r = min(H, W) // 20
-                y_lo, y_hi = max(0, cy - r), min(H, cy + r)
-                x_lo, x_hi = max(0, cx - r), min(W, cx + r)
-                instance_maps[b, y_lo:y_hi, x_lo:x_hi] = idx
-                # Assign each cell a different class (1-indexed, skip background)
-                class_id = (idx % (n_classes - 1)) + 1
-                class_maps[b, class_id, y_lo:y_hi, x_lo:x_hi] = 0.9
-                class_maps[b, 0, y_lo:y_hi, x_lo:x_hi] = 0.1  # low background prob
+            # Cells 1 and 3: simple square blobs.
+            for inst, (cy, cx) in [
+                (1, (H // 4, W // 4)),
+                (3, (3 * H // 4, 3 * W // 4)),
+            ]:
+                paint(b, slice(cy - r, cy + r), slice(cx - r, cx + r), inst)
+            # Cell 2: corner-touching bowtie -> one instance whose geometry
+            # becomes a MultiPolygon after buffer(0) (see MockCellSegmentationModel).
+            cy, cx = H // 2, W // 2
+            paint(b, slice(cy - r, cy), slice(cx - r, cx), 2)
+            paint(b, slice(cy, cy + r), slice(cx, cx + r), 2)
 
         # Simulate ViT patch token map [B, D, PH, PW]
         PH, PW = H // 16, W // 16  # typical ViT patch size = 16
