@@ -21,7 +21,71 @@ on:
       - 'uv.lock'
 
 jobs:
+  # Resolve the dataset repo's current commit SHA ONCE, so the cache key tracks
+  # actual dataset state: SHA changes -> cache miss -> re-download; unchanged -> hit.
+  # This is the "did the dataset change?" check, done in a single light API call
+  # instead of by every matrix job. Falls back to "none" with no token (fork PRs).
+  resolve-dataset-sha:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.12'
+      - name: Resolve dataset revision SHA
+        id: sha
+        run: |
+          SHA=$(uv run --no-project --with huggingface_hub python -c "from huggingface_hub import HfApi; print(HfApi().repo_info('RendeiroLab/LazySlide-data', repo_type='dataset').sha)" 2>/dev/null || echo none)
+          echo "Resolved dataset SHA: $SHA"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+  # Download the datasets ONCE per OS (3 jobs) before the test matrix, so the matrix
+  # test jobs never stampede HuggingFace on a cold cache. On a warm cache this is
+  # a fast no-op gate (cache hit -> skip install + download).
+  prime-datasets:
+    needs: resolve-dataset-sha
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      HF_HOME: ${{ github.workspace }}/.hf_home
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_HUB_DISABLE_SYMLINKS_WARNING: "1"
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Cache HuggingFace datasets
+        id: cache
+        uses: actions/cache@v5
+        with:
+          # Only the hub cache (blobs/refs/snapshots) — never the token file.
+          path: ${{ env.HF_HOME }}/hub
+          key: ${{ runner.os }}-hfdata-${{ needs.resolve-dataset-sha.outputs.sha }}-${{ hashFiles('src/lazyslide/datasets/_sample.py') }}
+          restore-keys: |
+            ${{ runner.os }}-hfdata-${{ needs.resolve-dataset-sha.outputs.sha }}-
+            ${{ runner.os }}-hfdata-
+      - name: Install project
+        if: steps.cache.outputs.cache-hit != 'true' && env.HF_TOKEN != ''
+        run: uv sync --dev
+      - name: Download datasets
+        if: steps.cache.outputs.cache-hit != 'true' && env.HF_TOKEN != ''
+        run: |
+          uv run python -c "import lazyslide as zs; zs.datasets.sample(); zs.datasets.gtex_artery();"
+
   test:
+    needs: [resolve-dataset-sha, prime-datasets]
     strategy:
       fail-fast: false
       matrix:
@@ -29,6 +93,15 @@ jobs:
         python-version: ['3.11', '3.12', '3.13', '3.14']
 
     runs-on: ${{ matrix.os }}
+    env:
+      # Stable, cross-OS cache location (default ~/.cache/huggingface differs per runner).
+      HF_HOME: ${{ github.workspace }}/.hf_home
+      # huggingface_hub auto-reads HF_TOKEN from env — replaces `hf auth login`,
+      # keeps the token off disk (and out of the cache), and is empty-safe on forks.
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_HUB_DISABLE_SYMLINKS_WARNING: "1"  # quiet Windows copy-fallback noise
+      # Empty secret (fork PRs) -> '1' -> conftest skips dataset download/tests.
+      LAZYSLIDE_SKIP_DATASET_TESTS: ${{ secrets.HF_TOKEN == '' && '1' || '0' }}
     steps:
       - uses: actions/checkout@v6
       - name: Set up uv
@@ -39,9 +112,15 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - name: Install project
         run: uv sync --dev
-      - name: Login to Hugging Face
-        run: |
-          uv run hf auth login --token ${{ secrets.HF_TOKEN }}
+      - name: Restore HuggingFace datasets cache
+        uses: actions/cache/restore@v5
+        with:
+          # Primed by prime-datasets; restore-only so the 12 test jobs never re-save.
+          path: ${{ env.HF_HOME }}/hub
+          key: ${{ runner.os }}-hfdata-${{ needs.resolve-dataset-sha.outputs.sha }}-${{ hashFiles('src/lazyslide/datasets/_sample.py') }}
+          restore-keys: |
+            ${{ runner.os }}-hfdata-${{ needs.resolve-dataset-sha.outputs.sha }}-
+            ${{ runner.os }}-hfdata-
       - name: Tests
         run: |
           uv run pytest tests -n auto --cov=src/lazyslide --cov-report=xml --cov-report=html
