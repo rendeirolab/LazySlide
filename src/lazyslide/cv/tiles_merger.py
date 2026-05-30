@@ -59,43 +59,55 @@ def nms(
         after applying :term:`non-maximum suppression`.
     """
 
+    # Work on a clean positional index so STRtree positions map back to ``gdf``
+    # rows correctly. ``preprocess_gdf`` may DROP invalid/empty geometries, so the
+    # tree is built over a subset; ``valid_pos`` records each kept polygon's
+    # original row position in ``gdf``. Indexing ``gdf`` by tree positions directly
+    # (the previous behaviour) silently selected the wrong rows whenever any row
+    # was dropped.
+    gdf = gdf.reset_index(drop=True)
     pp_gdf = preprocess_gdf(gdf, buffer_px=buffer_px)
+    valid_pos = pp_gdf.index.to_numpy()  # original gdf positions of kept polygons
     polygons = pp_gdf["geometry"].tolist()
+    if len(polygons) == 0:
+        return gdf.iloc[[]]
 
+    probs = gdf[prob_col].to_numpy()
     tree = STRtree(polygons)
     merged, suppressed = set(), set()
 
-    for geom in polygons:
-        if geom in suppressed:
+    # Iterate by tree position (an int), NOT by geometry object: a set membership
+    # test against geometry objects never matched, so suppression was a no-op.
+    for k in range(len(polygons)):
+        if k in suppressed:
             continue
+        geom = polygons[k]
         while True:
-            groups_ix = [
-                g
-                for g in tree.query(geom, predicate="intersects")
-                if g not in suppressed
-            ]
-            groups_ix = np.array(groups_ix)
-            if iou_threshold > 0:
-                ious = np.array([iou(geom, polygons[i]) for i in groups_ix])
-                groups_ix = groups_ix[ious > iou_threshold]
-            n_groups = len(groups_ix)
-            if n_groups == 0:
+            cand = np.array(
+                [
+                    int(g)
+                    for g in tree.query(geom, predicate="intersects")
+                    if int(g) not in suppressed
+                ],
+                dtype=int,
+            )
+            if iou_threshold > 0 and cand.size:
+                ious = np.array([iou(geom, polygons[j]) for j in cand])
+                cand = cand[ious > iou_threshold]
+            if cand.size == 0:
                 break
-            elif n_groups == 1:
-                merged.add(groups_ix[0])
+            elif cand.size == 1:
+                merged.add(int(cand[0]))
                 break
             else:
-                # Find the highest probability polygon in the group
-                probs = [pp_gdf.loc[ix, prob_col] for ix in groups_ix]
-                largest_ix = groups_ix[np.argmax(probs)]
-                merged.add(largest_ix)
-                # Remove largest ix from the group ix
-                groups_ix = list(groups_ix)
-                groups_ix.remove(largest_ix)
-                suppressed.update(groups_ix)
-                geom = polygons[largest_ix]
+                # Keep the highest-probability polygon in the group, suppress rest
+                best = int(cand[np.argmax(probs[valid_pos[cand]])])
+                merged.add(best)
+                suppressed.update(int(c) for c in cand if c != best)
+                geom = polygons[best]
 
-    return gdf.iloc[list(merged)]
+    keep = valid_pos[np.array(sorted(merged), dtype=int)]
+    return gdf.iloc[keep]
 
 
 def merge_connected_polygons(

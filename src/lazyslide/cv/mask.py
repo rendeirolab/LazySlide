@@ -208,9 +208,9 @@ class BinaryMask(Mask):
     ):
         assert mask.ndim == 2, "Binary mask must be 2D."
         if prob_map is not None:
-            assert (
-                prob_map.shape == mask.shape
-            ), "Probability mask must have the same shape as the binary mask."
+            assert prob_map.shape == mask.shape, (
+                "Probability mask must have the same shape as the binary mask."
+            )
         # Coerce the mask to binary (0 and 1)
         mask = np.asarray(mask > 0, dtype=np.uint8)
         super().__init__(mask, prob_map, class_names)
@@ -256,9 +256,9 @@ class MulticlassMask(Mask):
         assert mask.ndim == 2, "Multiclass mask must be 2D."
         assert self._is_integer_dtype(mask), "Multiclass mask must be of integer type."
         if prob_map is not None:
-            assert (
-                prob_map.shape == mask.shape
-            ), "Probability mask must have the same shape as the multiclass mask."
+            assert prob_map.shape == mask.shape, (
+                "Probability mask must have the same shape as the multiclass mask."
+            )
         super().__init__(mask, prob_map)
         self.classes = np.sort(np.unique(self.mask))
         self.n_classes = len(self.classes)
@@ -424,9 +424,9 @@ class InstanceMap(Mask):
     ):
         assert instance_map.ndim == 2, "Instance map must be 2D."
         # The map must be an integer type with unique values for each instance
-        assert np.issubdtype(
-            instance_map.dtype, np.integer
-        ), "Instance map must be of integer type."
+        assert np.issubdtype(instance_map.dtype, np.integer), (
+            "Instance map must be of integer type."
+        )
 
         self._is_classification = False
         if prob_map is not None:
@@ -468,6 +468,7 @@ class InstanceMap(Mask):
             raise ValueError("ignore_index is not supported for InstanceMap.")
         instance_ids = np.unique(self.mask)
         instances = []
+        kept_ids = []
         for instance_id in instance_ids:
             if instance_id <= 0:  # Skip background
                 continue
@@ -481,10 +482,17 @@ class InstanceMap(Mask):
             )
             if len(polys) > 0:
                 instances.append(polys.iloc[0])
+                kept_ids.append(int(instance_id))
         if len(instances) == 0:
             return gpd.GeoDataFrame()
-        # Create a GeoDataFrame from the instances
-        instances = gpd.GeoDataFrame(instances)
+        # Create a GeoDataFrame from the instances. ``instance_id`` is the source
+        # integer label in the instance map: it lets callers map each polygon back
+        # to its instance exactly (e.g. to attach per-instance features) instead of
+        # guessing via centroid lookup. Reset the index first because each row was
+        # taken with ``.iloc[0]`` (so they all share label 0); the column is then
+        # assigned positionally.
+        instances = gpd.GeoDataFrame(instances).reset_index(drop=True)
+        instances["instance_id"] = kept_ids
         if "class" in instances.columns:
             if self.class_names is not None:
                 instances["class"] = instances["class"].map(self.class_names)

@@ -2,14 +2,49 @@ from __future__ import annotations
 
 import warnings
 
+import numpy as np
+import pandas as pd
 import torch
+from anndata import AnnData
 from lazyslide_models import MODEL_REGISTRY, SegmentationModelProtocol
 from wsidata import WSIData
-from wsidata.io import add_features, add_shapes
+from wsidata.io import add_shapes
 
 from .._const import Key
 from .._utils import find_stack_level
 from ._seg_runner import CellSegmentationRunner
+
+
+def _features_to_anndata(features: np.ndarray, cell_ids: np.ndarray) -> AnnData:
+    """Build AnnData with `cell_id` as the join column on `.obs`.
+
+    The AnnData has one row per unique cell. `obs["cell_id"]` (int64) is the
+    join key against the `cell_id` column on the shapes GeoDataFrame.
+    """
+    cell_ids = np.asarray(cell_ids, dtype=np.int64)
+    obs = pd.DataFrame({"cell_id": cell_ids}, index=cell_ids.astype(str))
+    return AnnData(X=features, obs=obs)
+
+
+def _add_cell_features(wsi: WSIData, key: str, tile_key: str, feat_adata: AnnData):
+    """Write a per-cell features AnnData into ``wsi.tables[key]``.
+
+    Bypasses ``wsidata.io.add_features`` because that helper hard-codes
+    ``tile_id = arange(len(features))`` and would clobber our ``cell_id`` /
+    crash when broadcasting ``library_id`` against a non-default obs index.
+    """
+    from spatialdata.models import TableModel
+
+    n = feat_adata.n_obs
+    feat_adata.obs["tile_id"] = feat_adata.obs["cell_id"].astype(np.int64).values
+    feat_adata.obs["library_id"] = pd.Categorical([tile_key] * n, categories=[tile_key])
+    table = TableModel.parse(
+        feat_adata,
+        region=tile_key,
+        region_key="library_id",
+        instance_key="tile_id",
+    )
+    wsi.tables[key] = table
 
 
 def cells(
@@ -113,15 +148,22 @@ def cells(
         )
         result = runner.run()
         if extract_features:
-            cells_gdf, features = result
+            cells_gdf, features, feature_cell_ids = result
         else:
             cells_gdf = result
-        # Add cells to the WSIData
-        cells_gdf = cells_gdf.explode().reset_index(drop=True)
+        # One row per cell. A single cell may be a MultiPolygon (e.g. ``buffer(0)``
+        # split a pinched mask into disjoint parts). Keep it as ONE row so the
+        # shape count stays 1:1 with the per-cell feature rows. Exploding here
+        # would inflate the shape count past the feature count.
+        cells_gdf = cells_gdf.reset_index(drop=True)
         add_shapes(wsi, key=key_added, shapes=cells_gdf)
         if extract_features and features.size > 0:
-            add_features(
-                wsi, key=f"{key_added}_features", tile_key=key_added, features=features
+            feat_adata = _features_to_anndata(features, feature_cell_ids)
+            _add_cell_features(
+                wsi,
+                key=f"{key_added}_features",
+                tile_key=key_added,
+                feat_adata=feat_adata,
             )
 
 
@@ -251,17 +293,28 @@ def cell_types(
         )
         result = runner.run()
         if extract_features:
-            cells_gdf, features = result
+            cells_gdf, features, feature_cell_ids = result
         else:
             cells_gdf = result
-        # Exclude background
+        # Exclude background — filter shapes AND features by cell_id (NOT positional).
         bg_mask = cells_gdf["class"] != "Background"
         cells_gdf = cells_gdf[bg_mask]
         if extract_features and features.size > 0:
-            features = features[bg_mask.values]
-        cells_gdf = cells_gdf.explode().reset_index(drop=True)
+            kept_ids = set(cells_gdf["cell_id"].tolist())
+            keep_feat = np.array(
+                [cid in kept_ids for cid in feature_cell_ids], dtype=bool
+            )
+            features = features[keep_feat]
+            feature_cell_ids = np.asarray(feature_cell_ids)[keep_feat]
+        # One row per cell (see :func:`cells`): keep MultiPolygon cells as a
+        # single row so the shape count matches the per-cell feature count.
+        cells_gdf = cells_gdf.reset_index(drop=True)
         add_shapes(wsi, key=key_added, shapes=cells_gdf)
         if extract_features and features.size > 0:
-            add_features(
-                wsi, key=f"{key_added}_features", tile_key=key_added, features=features
+            feat_adata = _features_to_anndata(features, feature_cell_ids)
+            _add_cell_features(
+                wsi,
+                key=f"{key_added}_features",
+                tile_key=key_added,
+                feat_adata=feat_adata,
             )
