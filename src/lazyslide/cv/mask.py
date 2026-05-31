@@ -9,8 +9,6 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 from geopandas import GeoDataFrame
-from legendkit import cat_legend
-from matplotlib import pyplot as plt
 from shapely import Polygon
 
 from lazyslide._utils import find_stack_level
@@ -194,6 +192,8 @@ class Mask(ABC):
             raise TypeError("Mask type must be a string or a Mask subclass.")
 
     def plot(self, ax=None, **kwargs):
+        import matplotlib.pyplot as plt
+
         ax = ax or plt.gca()
         ax.imshow(self.mask, **kwargs)
         return ax
@@ -323,6 +323,9 @@ class MulticlassMask(Mask):
         return mask
 
     def plot(self, ax=None, **kwargs):
+        import matplotlib.pyplot as plt
+        from legendkit import cat_legend
+
         ax = ax or plt.gca()
         sm = ax.imshow(self.mask, **kwargs)
         # Add legend if class names are provided
@@ -400,6 +403,8 @@ class MultilabelMask(Mask):
         return mask
 
     def plot(self, fig=None, **kwargs):
+        import matplotlib.pyplot as plt
+
         fig = fig or plt.gcf()
         axes = fig.subplots(nrows=1, ncols=self.n_classes)
         fig.set_size_inches(self.n_classes * 3, 3)

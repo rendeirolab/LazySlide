@@ -4,9 +4,6 @@ from contextlib import nullcontext
 from typing import TYPE_CHECKING, Union
 
 import pandas as pd
-import torch
-from lazyslide_models import TilePredictionModelProtocol
-from torch.utils.data import DataLoader
 from wsidata import WSIData
 from wsidata.io import update_shapes_data
 
@@ -15,6 +12,9 @@ from lazyslide._const import Key
 from lazyslide._utils import default_pbar
 
 if TYPE_CHECKING:
+    import torch
+    from lazyslide_models import TilePredictionModelProtocol
+
     TP_MODEL = Union[str, TilePredictionModelProtocol]
 
 
@@ -71,6 +71,9 @@ def tile_prediction(
         The predictions are added to the WSIData object.
 
     """
+    import torch
+    from torch.utils.data import DataLoader
+
     amp = _api.default_value("amp", amp)
     autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
     device = _api.default_value("device", device)
@@ -149,6 +152,8 @@ def _get_model(model: TP_MODEL) -> TilePredictionModelProtocol:
         The tile prediction model instance.
 
     """
+    from lazyslide_models import TilePredictionModelProtocol
+
     if isinstance(model, str):
         from lazyslide_models import MODEL_REGISTRY
         from lazyslide_models.tile_prediction import CV_FEATURES

@@ -1,7 +1,5 @@
 from typing import Literal
 
-import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
 from wsidata import WSIData
 
 from .._const import Key
@@ -81,6 +79,9 @@ def tissue(
         >>> zs.pl.tissue(wsi, tissue_id="all")
 
     """
+    import matplotlib.pyplot as plt
+    from matplotlib.gridspec import GridSpec
+
     # We need to prepare the following variables
     # axes, list of ax
     # tissue_id, list of tissue ids
@@ -280,6 +281,9 @@ def tiles(
         >>> zs.pl.tiles(wsi, tissue_id=0, color='contrast')
 
     """
+    import matplotlib.pyplot as plt
+    from matplotlib.gridspec import GridSpec
+
     tile_spec = wsi.tile_spec(tile_key)
     # Prepare tissue_id
     if tissue_key is None:
@@ -497,6 +501,9 @@ def annotations(
         >>> zs.pl.annotations(wsi, key="annotations", tissue_id="all")
 
     """
+    import matplotlib.pyplot as plt
+    from matplotlib.gridspec import GridSpec
+
     # Prepare tissue_id
     if tissue_key in wsi:
         if tissue_id is None:

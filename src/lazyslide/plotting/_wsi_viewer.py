@@ -6,25 +6,24 @@ from functools import cached_property
 from importlib.util import find_spec
 from itertools import cycle
 from numbers import Number
-from typing import Any, Dict, List, Literal, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Sequence, Union
 
 import cv2
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from legendkit import cat_legend, colorart, vstack
-from matplotlib import pyplot as plt
-from matplotlib.artist import Artist
-from matplotlib.cm import ScalarMappable
-from matplotlib.collections import PatchCollection
-from matplotlib.colors import ListedColormap, is_color_like, to_hex, to_rgba
-from matplotlib.patches import Patch, Rectangle
-from matplotlib.typing import ColorType
 from shapely import MultiPolygon, Polygon, box, get_parts
 from wsidata import TileSpec, WSIData
 from wsidata.reader import ReaderBase
 
 from .._utils import find_stack_level
+
+if TYPE_CHECKING:
+    from matplotlib.artist import Artist
+    from matplotlib.patches import Patch
+    from matplotlib.typing import ColorType
+
+    PaletteType = Union[Dict, Sequence[ColorType], ColorType]
 
 LAZYSLIDE_PALETTE = (
     "#e60049",
@@ -37,8 +36,6 @@ LAZYSLIDE_PALETTE = (
     "#b3d4ff",
     "#00bfa0",
 )
-
-PaletteType = Union[Dict, Sequence[ColorType], ColorType]
 
 
 @dataclass
@@ -402,6 +399,8 @@ class HeatmapTilesRenderPlan(RenderPlan):
     ):
         self.datasource: TileDataSource = tile_datasource
         self.image_datasource: ImageDataSource = image_datasource
+        from matplotlib.colors import ListedColormap
+
         # If is categorical
         if palette is not None:
             # encode values into numerical and create a cmap from palette
@@ -432,6 +431,10 @@ class HeatmapTilesRenderPlan(RenderPlan):
 
         grid = np.full((gh, gw), np.nan)
         grid[gy, gx] = vs
+
+        import matplotlib.pyplot as plt
+        from legendkit import cat_legend, colorart
+        from matplotlib.cm import ScalarMappable
 
         cmap = plt.get_cmap(self.cmap)
         sm = ScalarMappable(norm=self.norm, cmap=cmap)
@@ -491,6 +494,8 @@ class ScatterTilesRenderPlan(RenderPlan):
         **kwargs: Any,  # noqa: ANN001
     ):
         self.datasource: TileDataSource = datasource
+        from matplotlib.colors import ListedColormap
+
         # If is categorical
         if palette is not None:
             # encode values into numerical and create a cmap from palette
@@ -512,6 +517,8 @@ class ScatterTilesRenderPlan(RenderPlan):
         self.legend_kws = legend_kws or {}
 
     def render(self, ax):
+        from legendkit import cat_legend, colorart
+
         tiles = self.datasource.tiles_center
         values = self.datasource.get_data("values")
         # Determine the size of the scatter points
@@ -554,6 +561,9 @@ class GridTilesRenderPlan(RenderPlan):
         self.linewidth = linewidth
 
     def render(self, ax):
+        from matplotlib.collections import PatchCollection
+        from matplotlib.patches import Rectangle
+
         width, height = self.datasource.tile_shape_base
         patches = []
         for x, y in self.datasource.tiles:
@@ -688,6 +698,9 @@ class ContourRenderPlan(PolygonMixin):
         self.legend_kws = legend_kws or {}
 
     def render(self, ax):
+        from legendkit import cat_legend
+        from matplotlib.collections import PatchCollection
+
         colors = self.datasource.get_data("colors")
         labels = self.datasource.get_data("labels")
 
@@ -739,6 +752,8 @@ class FilledPolygonRenderPlan(PolygonMixin):
         self.palette = palette
         self.alpha = alpha
 
+        from matplotlib.colors import is_color_like, to_rgba
+
         if colors is not None:
             colors = [to_rgba(c, alpha) if is_color_like(c) else c for c in colors]
         super().__init__(polygons, labels=labels, colors=colors)
@@ -751,6 +766,9 @@ class FilledPolygonRenderPlan(PolygonMixin):
             self.kwargs.update(kwargs)
 
     def render(self, ax):
+        from legendkit import cat_legend
+        from matplotlib.collections import PatchCollection
+
         colors = self.datasource.get_data("colors")
         labels = self.datasource.get_data("labels")
 
@@ -826,6 +844,9 @@ class DatashaderFilledPolygonRenderPlan(RenderPlan):
         self.max_px = 4096
 
     def render(self, ax):
+        from legendkit import cat_legend
+        from matplotlib.colors import to_hex
+
         ds = find_spec("datashader")
         if ds is None:
             warnings.warn(
@@ -1759,6 +1780,9 @@ class WSIViewer:
         self._set_image_viewport(self.zoom_image_source, vp)
 
     def show(self, ax=None, axis="on", xaxis="top"):
+        import matplotlib.pyplot as plt
+        from legendkit import vstack
+
         if ax is None:
             ax = plt.gca()
 
@@ -1926,6 +1950,9 @@ def get_dict_palette(palette: PaletteType, category: list) -> Dict:
 
     The category must be a sequence of unique values.
     """
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import is_color_like, to_rgba
+
     if palette is None:
         if len(category) <= len(LAZYSLIDE_PALETTE):
             palette = LAZYSLIDE_PALETTE

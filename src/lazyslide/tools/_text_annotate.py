@@ -1,17 +1,21 @@
+from __future__ import annotations
+
 import warnings
 from contextlib import nullcontext
-from typing import Callable, List
+from typing import TYPE_CHECKING, Callable, List
 
 import numpy as np
 import pandas as pd
-import torch
-from lazyslide_models import MODEL_REGISTRY, ImageTextModelProtocol
 from wsidata import WSIData
 from wsidata.io import add_features
 
 from lazyslide import _api
 from lazyslide._const import Key
 from lazyslide._utils import find_stack_level
+
+if TYPE_CHECKING:
+    import torch
+    from lazyslide_models import ImageTextModelProtocol
 
 
 def text_embedding(
@@ -59,6 +63,9 @@ def text_embedding(
         >>> zs.tl.text_embedding(terms, model="plip")
 
     """
+    import torch
+    from lazyslide_models import MODEL_REGISTRY
+
     amp = _api.default_value("amp", amp)
     autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
     device = _api.default_value("device", device)

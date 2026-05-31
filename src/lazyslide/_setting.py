@@ -1,20 +1,20 @@
-from typing import Literal, Set
-
-import torch
+from typing import TYPE_CHECKING, Literal, Set
 
 from ._utils import get_torch_device
 
-_ALLOWED_AUTOCAST_DTYPES = {torch.float16, torch.bfloat16, torch.float32}
+if TYPE_CHECKING:
+    import torch
 
 
 class Settings:
     def __init__(self) -> None:
-        # Route initial values through setters to ensure validation on construction
+        # Route initial values through setters to ensure validation on construction.
+        # ``autocast_dtype`` and ``device`` are intentionally NOT set here so that
+        # ``import lazyslide`` does not import torch; they resolve lazily on first
+        # access (see their property getters).
         self.amp = False
-        self.autocast_dtype = torch.float16
         self.pbar = True
         self.pbar_impl = "rich"
-        self.device = get_torch_device()
 
     @property
     def _attributes(self) -> Set[str]:
@@ -43,11 +43,19 @@ class Settings:
 
     # autocast_dtype
     @property
-    def autocast_dtype(self) -> torch.dtype:  # type: ignore[override]
-        return getattr(self, "_autocast_dtype", torch.float16)
+    def autocast_dtype(self) -> "torch.dtype":  # type: ignore[override]
+        val = getattr(self, "_autocast_dtype", None)
+        if val is None:
+            import torch
+
+            val = torch.float16
+        return val
 
     @autocast_dtype.setter
     def autocast_dtype(self, value) -> None:  # type: ignore[override]
+        import torch
+
+        allowed_dtypes = {torch.float16, torch.bfloat16, torch.float32}
         if not isinstance(value, torch.dtype):
             if isinstance(value, str):
                 normalized = value.lower().replace("fp", "float").strip()
@@ -68,17 +76,23 @@ class Settings:
                 raise TypeError(
                     "autocast_dtype must be a torch.dtype or a supported string."
                 )
-        if value not in _ALLOWED_AUTOCAST_DTYPES:
-            allowed = ", ".join(str(d) for d in _ALLOWED_AUTOCAST_DTYPES)
+        if value not in allowed_dtypes:
+            allowed = ", ".join(str(d) for d in allowed_dtypes)
             raise ValueError(f"autocast_dtype must be one of: {allowed}.")
         self._autocast_dtype = value
 
     @property
-    def device(self) -> torch.device:
-        return getattr(self, "_device", None)
+    def device(self) -> "torch.device":
+        val = getattr(self, "_device", None)
+        if val is None:
+            val = get_torch_device()
+            self._device = val
+        return val
 
     @device.setter
     def device(self, value) -> None:
+        import torch
+
         self._device = torch.device(value)
 
     # pbar
@@ -136,6 +150,8 @@ class Settings:
         """
         # Local import to avoid polluting module namespace when not used
         import html as _html
+
+        import torch
 
         def _fmt(value) -> str:
             # Pretty booleans with icons

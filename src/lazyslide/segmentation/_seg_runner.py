@@ -4,15 +4,12 @@ import warnings
 from abc import ABC, abstractmethod
 from contextlib import nullcontext
 from functools import cached_property
-from typing import Callable, List, Literal, Mapping
+from typing import TYPE_CHECKING, Callable, List, Literal, Mapping
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-import torch
-from lazyslide_models import SegmentationModelProtocol
 from shapely import box, prepare
-from torch.utils.data import DataLoader
 from wsidata import TileSpec, WSIData
 from wsidata.io import add_shapes
 
@@ -24,6 +21,10 @@ from lazyslide.cv import (
     ProbabilityMap,
     nms,
 )
+
+if TYPE_CHECKING:
+    import torch
+    from lazyslide_models import SegmentationModelProtocol
 
 
 def _pool_cell_features(
@@ -228,6 +229,8 @@ def create_importance_map(
     sigma_scale: float = 0.125,
     mode: Literal["constant", "gaussian"] = "gaussian",
 ):
+    import torch
+
     if mode == "constant":
         return torch.ones(patch_size)
     elif mode == "gaussian":
@@ -284,7 +287,20 @@ class Runner(ABC):
                     yield tile, (i, i_end, j, j_end)
 
 
-class TileDataset(torch.utils.data.Dataset):
+class TileDataset:
+    """A map-style dataset over the tiles of a WSI.
+
+    Deliberately a plain class rather than a ``torch.utils.data.Dataset``
+    subclass. It uses no torch itself, and PyTorch's ``DataLoader`` accepts any
+    object implementing ``__len__`` and ``__getitem__`` as a map-style dataset,
+    so keeping it torch-free means importing this module does not import torch.
+
+    Defining it at module level (instead of inside a closure) is what keeps it
+    picklable: ``DataLoader(num_workers>0)`` pickles the dataset under the spawn
+    start method (the default on macOS/Windows), which requires the class to be
+    importable by its qualified name.
+    """
+
     def __init__(
         self,
         wsi: WSIData,
@@ -400,6 +416,9 @@ class SemanticSegmentationRunner(Runner):
         )
 
     def run(self) -> gpd.GeoDataFrame:
+        import torch
+        from torch.utils.data import DataLoader
+
         # For each tissue, we will run the segmentation
         results = []
         with default_pbar(disable=not self.pbar) as progress_bar:
@@ -597,7 +616,7 @@ class CellSegmentationRunner(Runner):
         num_workers: int = 0,
         device: str | None = None,
         amp: bool = False,
-        autocast_dtype: torch.dtype = torch.float16,
+        autocast_dtype: torch.dtype = None,
         class_names: List[str] | Mapping[int, str] | None = None,
         pbar: bool = True,
         extract_features: bool = False,
@@ -624,13 +643,19 @@ class CellSegmentationRunner(Runner):
     def run(
         self,
     ) -> gpd.GeoDataFrame | tuple[gpd.GeoDataFrame, np.ndarray, np.ndarray]:
+        import torch
+        from torch.utils.data import DataLoader
+
         # features keyed by global cell_id so positional drift never corrupts alignment
         features_by_id: dict[int, np.ndarray] = {}
         global_cell_idx = 0
 
+        autocast_dtype = (
+            self.autocast_dtype if self.autocast_dtype is not None else torch.float16
+        )
         with default_pbar(disable=not self.pbar) as progress_bar:
             amp_ctx = (
-                torch.autocast(self.device, self.autocast_dtype)
+                torch.autocast(self.device, autocast_dtype)
                 if self.amp
                 else nullcontext()
             )
