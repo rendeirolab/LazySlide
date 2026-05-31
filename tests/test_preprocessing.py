@@ -1,8 +1,9 @@
 import numpy as np
 import pytest
-from shapely.geometry import Polygon
+from shapely.geometry import MultiPolygon, Polygon
 
 import lazyslide as zs
+from lazyslide.preprocess._tiles import tiles_from_bbox
 
 
 class TestPPFindTissues:
@@ -447,6 +448,113 @@ class TestPPTileTissues:
         # Check if all tiles have the same area (for square tiles)
         areas = [geom.area for geom in wsi[key].geometry]
         assert np.allclose(areas, areas[0])
+
+    # --- regression tests for the tiling rewrite (correctness + perf) ---
+
+    def test_divisible_dimension_no_oob(self):
+        """No out-of-bounds tile when the bbox is an exact multiple of stride."""
+        tiles = tiles_from_bbox(
+            0, 0, 300, 300, 100, 100, stride_w=100, stride_h=100, edge=False
+        )
+        assert len(tiles) == 9
+        b = tiles.geometry.bounds
+        assert b["maxx"].max() <= 300
+        assert b["maxy"].max() <= 300
+
+    def test_edge_true_vs_false_count(self):
+        """edge=True appends one overrunning tile per axis; no-op when divisible."""
+        non_div_false = tiles_from_bbox(
+            0, 0, 350, 350, 100, 100, stride_w=100, stride_h=100, edge=False
+        )
+        non_div_true = tiles_from_bbox(
+            0, 0, 350, 350, 100, 100, stride_w=100, stride_h=100, edge=True
+        )
+        assert len(non_div_false) == 9
+        assert len(non_div_true) == 16
+
+        div_false = tiles_from_bbox(
+            0, 0, 300, 300, 100, 100, stride_w=100, stride_h=100, edge=False
+        )
+        div_true = tiles_from_bbox(
+            0, 0, 300, 300, 100, 100, stride_w=100, stride_h=100, edge=True
+        )
+        assert len(div_false) == len(div_true) == 9
+
+    def test_small_tissue_island_covered(self):
+        """A tissue smaller than a tile (no corner inside) still yields its tile."""
+        island = Polygon([(40, 40), (60, 40), (60, 60), (40, 60)])
+        tiles = tiles_from_bbox(
+            0, 0, 100, 100, 100, 100, stride_w=100, stride_h=100, mask=island
+        )
+        assert len(tiles) == 1
+        assert tiles.geometry.iloc[0].intersects(island)
+
+    def test_thin_strip_covered(self):
+        """A tissue strip thinner than a tile crossing tile interiors is kept."""
+        strip = Polygon([(0, 45), (300, 45), (300, 55), (0, 55)])
+        tiles = tiles_from_bbox(
+            0, 0, 300, 100, 100, 100, stride_w=100, stride_h=100, mask=strip
+        )
+        assert len(tiles) == 3
+        assert all(g.intersects(strip) for g in tiles.geometry)
+
+    def test_multipolygon_mask(self):
+        """Disjoint tissue parts (MultiPolygon) each retain their covering tile."""
+        mp = MultiPolygon(
+            [
+                Polygon([(10, 10), (50, 10), (50, 50), (10, 50)]),
+                Polygon([(210, 210), (250, 210), (250, 250), (210, 250)]),
+            ]
+        )
+        tiles = tiles_from_bbox(
+            0, 0, 300, 300, 100, 100, stride_w=100, stride_h=100, mask=mp
+        )
+        assert len(tiles) == 2
+        assert all(g.intersects(mp) for g in tiles.geometry)
+
+    def test_background_filter_mode_deprecated(self, wsi):
+        """background_filter_mode is deprecated and warns when passed."""
+        with pytest.warns(DeprecationWarning):
+            zs.pp.tile_tissues(
+                wsi, 256, background_filter_mode="exact", key_added="tiles_dep"
+            )
+
+    def test_background_filter_exact_coverage(self, wsi):
+        """Every kept tile meets the coverage threshold, even for concave tissue."""
+        import geopandas as gpd
+        import shapely as sh
+        from wsidata.io import add_shapes
+
+        # A concave 'U' tissue exercises the contains + coverage path: tiles in
+        # the notch are mostly background and must be dropped.
+        u = Polygon(
+            [
+                (1000, 1000),
+                (5000, 1000),
+                (5000, 2000),
+                (2000, 2000),
+                (2000, 4000),
+                (5000, 4000),
+                (5000, 5000),
+                (1000, 5000),
+            ]
+        )
+        add_shapes(
+            wsi, "syn_u_tissue", gpd.GeoDataFrame({"tissue_id": [0], "geometry": [u]})
+        )
+        bf = 0.3
+        tiles, _ = zs.pp.tile_tissues(
+            wsi,
+            256,
+            tissue_key="syn_u_tissue",
+            background_fraction=bf,
+            key_added="syn_u_tiles",
+            return_tiles=True,
+        )
+        assert len(tiles) > 0
+        geoms = tiles.geometry.to_numpy()
+        cov = sh.area(sh.intersection(geoms, u)) / sh.area(geoms)
+        assert (cov >= (1 - bf) - 1e-9).all()
 
 
 class TestPPTileGraph:

@@ -6,7 +6,7 @@ from typing import Literal, Tuple
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from shapely import box, contains_xy, prepare
+import shapely
 from spatialdata.models import ShapesModel
 from wsidata import TileSpec, WSIData
 
@@ -26,7 +26,7 @@ def tile_tissues(
     ops_level: int = None,
     background_filter: bool = True,
     background_fraction: float = 0.3,
-    background_filter_mode: Literal["approx", "exact"] = "approx",
+    background_filter_mode: Literal["approx", "exact"] | None = None,
     tissue_key: str | None = Key.tissue,
     key_added: str | None = Key.tiles,
     return_tiles: bool = False,
@@ -62,11 +62,11 @@ def tile_tissues(
     background_fraction : float, default: 0.3
         Only used if `background_filter` is True.
         The fraction of background in the tile, if more than this, discard the tile.
-    background_filter_mode : {'approx', 'exact'}, default: 'approx'
-        The mode of the background filter.
-        If 'approx', it will filter out tiles that are on the border of the tissue.
-        If 'exact', it will filter out tiles that are not within the tissue,
-        but it may be much slower for smaller tiles.
+    background_filter_mode : {'approx', 'exact'}, optional
+        .. deprecated::
+            No longer has any effect. Background filtering is now always exact
+            and vectorized: tiles fully inside the tissue are kept directly and
+            border tiles are filtered by their exact tissue-coverage fraction.
     tissue_key : str, default: 'tissues'
         The key of the tissue contours.
     key_added : str, default: 'tiles'
@@ -96,6 +96,14 @@ def tile_tissues(
         >>> zs.pl.tiles(wsi, linewidth=0.5)
 
     """
+
+    if background_filter_mode is not None:
+        warnings.warn(
+            "`background_filter_mode` is deprecated and no longer has any effect. "
+            "Background filtering is now always exact and vectorized.",
+            DeprecationWarning,
+            stacklevel=find_stack_level(),
+        )
 
     # Check if tissue contours are present
     if tissue_key not in wsi.shapes:
@@ -162,35 +170,27 @@ def tile_tissues(
         )
 
         if background_filter:
-            if background_filter_mode == "approx":
-                # check for tiles that are on the border of the tissue
-                border_tiles = tiles[tiles["pt_count"] < 4]
-            elif background_filter_mode == "exact":
-                border_tiles = tiles
-                if len(border_tiles) > 5000:
-                    # If there are too many tiles, warn the user
-                    # This is to avoid performance issues with exact mode
-                    warnings.warn(
-                        "Using 'exact' mode for background_filter_mode may be computationally expensive "
-                        "for large numbers of tiles. Consider using 'approx' mode for better performance.",
-                        stacklevel=find_stack_level(),
-                    )
-            else:
-                raise ValueError(
-                    f"Unknown background filter mode: {background_filter_mode}. "
-                    "Use 'approx' or 'exact'."
+            # Tiles the tissue fully contains are 100% covered -> keep them
+            # directly. The rest (border tiles) get an exact, vectorized
+            # coverage check. `contains` handles concave tissue and holes
+            # correctly, so the filtering is exact everywhere.
+            geoms = tiles.geometry.to_numpy()
+            shapely.prepare(cnt)
+            tree = shapely.STRtree(geoms)
+            keep = np.zeros(len(geoms), dtype=bool)
+            keep[tree.query(cnt, predicate="contains")] = True
+            border = np.flatnonzero(~keep)
+            if border.size:
+                bgeoms = geoms[border]
+                cov = shapely.area(shapely.intersection(bgeoms, cnt)) / shapely.area(
+                    bgeoms
                 )
-            # calculate the background fraction of each tile
-            ov_ratio = border_tiles.intersection(cnt).area / border_tiles.area
-
-            # filter out the tiles that are not within the tissue
-            exclude_tiles = ov_ratio[ov_ratio < (1 - background_fraction)]
-            overlap_tiles = tiles.drop(index=exclude_tiles.index, errors="ignore")
+                keep[border] = cov >= (1 - background_fraction)
+            overlap_tiles = tiles.iloc[keep]
 
         else:
-            # If no background filter, just use the intersecting tiles
-            overlap_tiles = tiles.drop(columns="index_right", errors="ignore")
-            # overlap_tiles = tiles
+            # If no background filter, keep all intersecting tiles
+            overlap_tiles = tiles
 
         # Add to the final collection and match the tissue id
         tiles_collections.append(overlap_tiles)
@@ -229,6 +229,26 @@ def _add_tiles(wsi, tiles_gdf, tile_spec, key_added=None):
         wsi.attrs[wsi.TILE_SPEC_KEY] = spec_data
 
 
+def _starts(origin, length, tile, stride, edge):
+    """Tile start coordinates along one axis covering ``[origin, origin+length]``.
+
+    A tile spans ``[start, start + tile]`` and fits inside the bounding box when
+    ``start <= origin + (length - tile)``. With ``edge=True`` a single extra tile
+    is appended that overruns the box to cover the trailing remainder.
+    """
+    if length < tile:
+        # The box is smaller than one tile: emit a single tile at the origin.
+        n_fit = 1
+        last_fit_start = origin
+    else:
+        n_fit = (length - tile) // stride + 1
+        last_fit_start = origin + (n_fit - 1) * stride
+    starts = origin + np.arange(n_fit, dtype=np.int64) * stride
+    if edge and length >= tile and (last_fit_start + tile) < (origin + length):
+        starts = np.append(starts, last_fit_start + stride)
+    return starts
+
+
 def tiles_from_bbox(
     x,
     y,
@@ -262,7 +282,7 @@ def tiles_from_bbox(
         The list of tiles.
 
     """
-    # A new implementation in pure numpy and return shapely geometry
+    # A vectorized implementation using shapely 2.x array ufuncs.
     x, y, w, h = int(x), int(y), int(w), int(h)
 
     if stride_w is None:
@@ -270,60 +290,25 @@ def tiles_from_bbox(
     if stride_h is None:
         stride_h = tile_h
 
-    # calculate the number of expected tiles
-    # If the width/height is divisible by stride,
-    # We need to add 1 to include the starting point
-    nw = w // stride_w + 1
-    nh = h // stride_h + 1
+    xs = _starts(x, w, tile_w, stride_w, edge)
+    ys = _starts(y, h, tile_h, stride_h, edge)
 
-    # To include the edge tiles
-    if edge and w % stride_w != 0:
-        nw += 1
-    if edge and h % stride_h != 0:
-        nh += 1
+    # Build all candidate tile boxes at once
+    gx, gy = np.meshgrid(xs, ys, indexing="ij")
+    x0 = gx.ravel()
+    y0 = gy.ravel()
+    x1 = x0 + tile_w
+    y1 = y0 + tile_h
+    boxes = shapely.box(x0, y0, x1, y1)
 
-    xs = np.arange(nw, dtype=np.uint) * stride_w + x
-    ys = np.arange(nh, dtype=np.uint) * stride_h + y
-    # points = np.array(np.meshgrid(xs, ys)).T.reshape(-1, 2)
+    if mask is None:
+        return gpd.GeoDataFrame(geometry=boxes)
 
-    # Add xs and ys after stride
-    if stride_h != tile_h:
-        yss = ys + tile_h
-        yss = np.sort(np.unique(np.concatenate((ys, yss))))
-    else:
-        yss = ys
-    if stride_w != tile_w:
-        xss = xs + tile_w
-        xss = np.sort(np.unique(np.concatenate((xs, xss))))
-    else:
-        xss = xs
-
-    tiles = []
-    pt_counts = []
-    if mask is not None:
-        # Filter the points that are within the mask
-        tile_points = np.array(np.meshgrid(xss, yss)).T.reshape(-1, 2)
-        prepare(mask)
-        is_in = contains_xy(mask, x=tile_points[:, 0], y=tile_points[:, 1])
-        # make a dict mapping if the point is in the mask
-        in_dict = dict(zip(map(tuple, tile_points), is_in))
-        for i in range(nw):
-            for j in range(nh):
-                x, y = xs[i], ys[j]
-                p1, p2, p3, p4 = (
-                    (x, y),
-                    (x + tile_w, y),
-                    (x + tile_w, y + tile_h),
-                    (x, y + tile_h),
-                )
-                pt_count = sum(in_dict.get(p, 0) for p in (p1, p2, p3, p4))
-                if pt_count > 0:
-                    tiles.append(box(x, y, x + tile_w, y + tile_h))
-                    pt_counts.append(pt_count)
-    else:
-        for i in range(nw):
-            for j in range(nh):
-                x, y = xs[i], ys[j]
-                tiles.append(box(x, y, x + tile_w, y + tile_h))
-        pt_counts = 4
-    return gpd.GeoDataFrame({"geometry": tiles, "pt_count": pt_counts})
+    # Keep every tile that truly intersects the tissue. An STRtree
+    # intersects-query (instead of corner sampling) avoids dropping tiles whose
+    # interior overlaps tissue while none of their corners are inside it
+    # (thin strips, tissue islands smaller than a tile).
+    shapely.prepare(mask)
+    keep = np.zeros(boxes.shape[0], dtype=bool)
+    keep[shapely.STRtree(boxes).query(mask, predicate="intersects")] = True
+    return gpd.GeoDataFrame(geometry=boxes[keep])
