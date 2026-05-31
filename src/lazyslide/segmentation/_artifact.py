@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import warnings
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
-import torch
-from lazyslide_models import MODEL_REGISTRY, SegmentationModelProtocol
 from wsidata import WSIData
 from wsidata.io import add_shapes
 
 from lazyslide._utils import find_stack_level
 
 from ._seg_runner import SemanticSegmentationRunner
+
+if TYPE_CHECKING:
+    import torch
+    from lazyslide_models import SegmentationModelProtocol
 
 # Define class mapping
 CLASS_MAPPING = {
@@ -136,6 +138,8 @@ def artifact(
                 "The tiles has no overlap, using constant mode instead. "
                 "Please consider rerun pp.tile_tissue to create overlapping tiles."
             )
+
+    from lazyslide_models import MODEL_REGISTRY
 
     if isinstance(model, str):
         model = MODEL_REGISTRY.get("grandqc-artifact")(variant=variant)

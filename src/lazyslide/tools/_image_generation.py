@@ -1,12 +1,16 @@
-from contextlib import nullcontext
-from typing import List
+from __future__ import annotations
 
-import torch
-from lazyslide_models import MODEL_REGISTRY, ImageGenerationModelProtocol
+from contextlib import nullcontext
+from typing import TYPE_CHECKING, List
+
 from PIL import Image
 from wsidata import WSIData
 
 from lazyslide import _api
+
+if TYPE_CHECKING:
+    import torch
+    from lazyslide_models import ImageGenerationModelProtocol
 
 
 def image_generation(
@@ -69,6 +73,9 @@ def image_generation(
     >>> imgs = zs.tl.image_generation(wsi, prompt_tiles=slice(0, 2)) # Generate images for the first two tiles
 
     """
+    import torch
+    from lazyslide_models import MODEL_REGISTRY, ImageGenerationModelProtocol
+
     device = _api.default_value("device", device)
     amp = _api.default_value("amp", amp)
     autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)

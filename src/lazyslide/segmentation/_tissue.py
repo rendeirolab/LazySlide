@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import warnings
 from contextlib import nullcontext
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import cv2
 import numpy as np
-import torch
 from shapely import box
 from shapely.affinity import scale
 from wsidata import WSIData
@@ -15,6 +14,9 @@ from wsidata.io import add_tissues
 from lazyslide import _api
 from lazyslide._const import Key
 from lazyslide.cv import BinaryMask
+
+if TYPE_CHECKING:
+    import torch
 
 
 def tissue(
@@ -80,6 +82,8 @@ def tissue(
         of the WSIData object.
 
     """
+    import torch
+
     amp = _api.default_value("amp", amp)
     autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
     device = _api.default_value("device", device)

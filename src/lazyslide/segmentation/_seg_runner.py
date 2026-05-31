@@ -3,16 +3,13 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from contextlib import nullcontext
-from functools import cached_property
-from typing import Callable, List, Literal, Mapping
+from functools import cached_property, lru_cache
+from typing import TYPE_CHECKING, Callable, List, Literal, Mapping
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-import torch
-from lazyslide_models import SegmentationModelProtocol
 from shapely import box, prepare
-from torch.utils.data import DataLoader
 from wsidata import TileSpec, WSIData
 from wsidata.io import add_shapes
 
@@ -24,6 +21,10 @@ from lazyslide.cv import (
     ProbabilityMap,
     nms,
 )
+
+if TYPE_CHECKING:
+    import torch
+    from lazyslide_models import SegmentationModelProtocol
 
 
 def _pool_cell_features(
@@ -228,6 +229,8 @@ def create_importance_map(
     sigma_scale: float = 0.125,
     mode: Literal["constant", "gaussian"] = "gaussian",
 ):
+    import torch
+
     if mode == "constant":
         return torch.ones(patch_size)
     elif mode == "gaussian":
@@ -284,44 +287,52 @@ class Runner(ABC):
                     yield tile, (i, i_end, j, j_end)
 
 
-class TileDataset(torch.utils.data.Dataset):
-    def __init__(
-        self,
-        wsi: WSIData,
-        tiles: gpd.GeoDataFrame,
-        tile_spec: TileSpec,
-        transform: Callable = None,
-    ):
-        self.tiles_xy = tiles.bounds[["minx", "miny"]].to_numpy()
-        self.tile_spec = tile_spec
-        self.reader = wsi.reader
-        self.reader.detach_reader()
-        self.transform = transform
+@lru_cache(maxsize=1)
+def _tile_dataset_cls():
+    """Build the torch ``Dataset`` subclass lazily so importing this module
+    does not eagerly import torch (the class subclasses ``torch.utils.data.Dataset``)."""
+    import torch
 
-    def __len__(self):
-        return len(self.tiles_xy)
+    class TileDataset(torch.utils.data.Dataset):
+        def __init__(
+            self,
+            wsi: WSIData,
+            tiles: gpd.GeoDataFrame,
+            tile_spec: TileSpec,
+            transform: Callable = None,
+        ):
+            self.tiles_xy = tiles.bounds[["minx", "miny"]].to_numpy()
+            self.tile_spec = tile_spec
+            self.reader = wsi.reader
+            self.reader.detach_reader()
+            self.transform = transform
 
-    def __getitem__(self, idx):
-        x, y = self.tiles_xy[idx]
-        # Read the tile image from the WSI
-        img = self.reader.get_region(
-            x,
-            y,
-            width=self.tile_spec.ops_width,
-            height=self.tile_spec.ops_height,
-            level=self.tile_spec.ops_level,
-        )
-        img = self.reader.resize_img(
-            img, dsize=[self.tile_spec.width, self.tile_spec.height]
-        )
-        if self.transform:
-            img = self.transform(img)
+        def __len__(self):
+            return len(self.tiles_xy)
 
-        return {
-            "image": img,
-            "x": x,
-            "y": y,
-        }
+        def __getitem__(self, idx):
+            x, y = self.tiles_xy[idx]
+            # Read the tile image from the WSI
+            img = self.reader.get_region(
+                x,
+                y,
+                width=self.tile_spec.ops_width,
+                height=self.tile_spec.ops_height,
+                level=self.tile_spec.ops_level,
+            )
+            img = self.reader.resize_img(
+                img, dsize=[self.tile_spec.width, self.tile_spec.height]
+            )
+            if self.transform:
+                img = self.transform(img)
+
+            return {
+                "image": img,
+                "x": x,
+                "y": y,
+            }
+
+    return TileDataset
 
 
 class SemanticSegmentationRunner(Runner):
@@ -400,6 +411,9 @@ class SemanticSegmentationRunner(Runner):
         )
 
     def run(self) -> gpd.GeoDataFrame:
+        import torch
+        from torch.utils.data import DataLoader
+
         # For each tissue, we will run the segmentation
         results = []
         with default_pbar(disable=not self.pbar) as progress_bar:
@@ -434,7 +448,7 @@ class SemanticSegmentationRunner(Runner):
                         current_tiles = self.wsi[self.tile_key]
 
                     if len(current_tiles) > 0:
-                        ds = TileDataset(
+                        ds = _tile_dataset_cls()(
                             wsi=self.wsi,
                             tiles=current_tiles,
                             tile_spec=self.tile_spec,
@@ -597,7 +611,7 @@ class CellSegmentationRunner(Runner):
         num_workers: int = 0,
         device: str | None = None,
         amp: bool = False,
-        autocast_dtype: torch.dtype = torch.float16,
+        autocast_dtype: torch.dtype = None,
         class_names: List[str] | Mapping[int, str] | None = None,
         pbar: bool = True,
         extract_features: bool = False,
@@ -624,13 +638,19 @@ class CellSegmentationRunner(Runner):
     def run(
         self,
     ) -> gpd.GeoDataFrame | tuple[gpd.GeoDataFrame, np.ndarray, np.ndarray]:
+        import torch
+        from torch.utils.data import DataLoader
+
         # features keyed by global cell_id so positional drift never corrupts alignment
         features_by_id: dict[int, np.ndarray] = {}
         global_cell_idx = 0
 
+        autocast_dtype = (
+            self.autocast_dtype if self.autocast_dtype is not None else torch.float16
+        )
         with default_pbar(disable=not self.pbar) as progress_bar:
             amp_ctx = (
-                torch.autocast(self.device, self.autocast_dtype)
+                torch.autocast(self.device, autocast_dtype)
                 if self.amp
                 else nullcontext()
             )

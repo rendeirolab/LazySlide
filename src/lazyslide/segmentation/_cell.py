@@ -1,18 +1,21 @@
 from __future__ import annotations
 
 import warnings
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
-import torch
 from anndata import AnnData
-from lazyslide_models import MODEL_REGISTRY, SegmentationModelProtocol
 from wsidata import WSIData
 from wsidata.io import add_shapes
 
 from .._const import Key
 from .._utils import find_stack_level
 from ._seg_runner import CellSegmentationRunner
+
+if TYPE_CHECKING:
+    import torch
+    from lazyslide_models import SegmentationModelProtocol
 
 
 def _features_to_anndata(features: np.ndarray, cell_ids: np.ndarray) -> AnnData:
@@ -116,6 +119,8 @@ def cells(
         of the WSIData object.
 
     """
+
+    from lazyslide_models import MODEL_REGISTRY, SegmentationModelProtocol
 
     if isinstance(model, SegmentationModelProtocol):
         model_instance = model
@@ -264,6 +269,8 @@ def cell_types(
         "20x",
         "40x",
     }, f"Unsupported magnification: {magnification}, use '20x' or '40x'"
+
+    from lazyslide_models import MODEL_REGISTRY, SegmentationModelProtocol
 
     if isinstance(model, SegmentationModelProtocol):
         model_instance = model

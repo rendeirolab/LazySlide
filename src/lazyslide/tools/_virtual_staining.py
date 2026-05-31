@@ -1,18 +1,21 @@
+from __future__ import annotations
+
 import tempfile
 from contextlib import nullcontext
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
-import torch
-from lazyslide_models import MODEL_REGISTRY
 from spatialdata.models import Image2DModel
 from spatialdata.transformations import Scale
-from torch.utils.data import DataLoader
 from wsidata import WSIData
 
 from lazyslide import _api
 from lazyslide._const import Key
 from lazyslide._utils import default_pbar
+
+if TYPE_CHECKING:
+    import torch
 
 
 def virtual_stain(
@@ -73,6 +76,10 @@ def virtual_stain(
         >>> wsi.images["rosie_prediction"]
 
     """
+    import torch
+    from lazyslide_models import MODEL_REGISTRY
+    from torch.utils.data import DataLoader
+
     amp = _api.default_value("amp", amp)
     autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
     device = _api.default_value("device", device)

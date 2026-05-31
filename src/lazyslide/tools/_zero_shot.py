@@ -4,8 +4,6 @@ from typing import Iterable, List, Sequence
 
 import numpy as np
 import pandas as pd
-import torch
-from lazyslide_models import MODEL_REGISTRY
 from wsidata import WSIData
 
 from lazyslide._utils import get_torch_device
@@ -108,6 +106,9 @@ def zero_shot_score(
         >>> print(zs.tl.zero_shot_score(wsi, classes, feature_key="virchow_tiles"))
 
     """
+    import torch
+    from lazyslide_models import MODEL_REGISTRY
+
     if device is None:
         device = get_torch_device()
 
@@ -182,6 +183,8 @@ def slide_caption(
         any annotation columns if aggregation groups were used.
 
     """
+
+    import torch
 
     if device is None:
         device = get_torch_device()

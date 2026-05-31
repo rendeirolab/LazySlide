@@ -6,7 +6,6 @@ from typing import Dict, List, Optional, Tuple, Union
 import cv2
 import geopandas as gpd
 import numpy as np
-from lazyslide_models import MODEL_REGISTRY
 from shapely import Polygon
 from shapely.affinity import scale
 from skimage.filters import threshold_otsu
@@ -40,6 +39,8 @@ def _initialize_model(
     Tuple[object, str]
         The initialized model instance and the device it's running on.
     """
+    from lazyslide_models import MODEL_REGISTRY
+
     if model_name == "sam":
         model_instance = MODEL_REGISTRY["sam"](**(model_kwargs or {}))
     else:

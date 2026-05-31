@@ -7,18 +7,7 @@ from typing import TYPE_CHECKING, Callable, Literal, Sequence
 
 import geopandas as gpd
 import numpy as np
-import torch
-from lazyslide_models import (
-    MODEL_REGISTRY,
-    ImageModel,
-    ImageModelProtocol,
-    ImageTextModelProtocol,
-    ModelBaseProtocol,
-    ViTModelProtocol,
-    list_models,
-)
 from shapely import box
-from torch.utils.data import DataLoader
 from wsidata import TileSpec, WSIData
 from wsidata.io import add_features
 
@@ -28,11 +17,13 @@ from lazyslide._utils import default_pbar, find_stack_level
 from lazyslide.preprocess._tiles import _add_tiles
 
 if TYPE_CHECKING:
-    from lazyslide_models import DenseTokens
+    import torch
+    from lazyslide_models import DenseTokens, ImageModel
 
 
 def load_models(model_name: str, dense=False, model_path=None, token=None, **kwargs):
     """Load a model with timm or torch.hub.load"""
+    from lazyslide_models import MODEL_REGISTRY
 
     if model_name in MODEL_REGISTRY:
         model = MODEL_REGISTRY[model_name](model_path=model_path, token=token, **kwargs)
@@ -181,6 +172,15 @@ def feature_extraction(
         >>> wsi.fetch.features_anndata("resnet50")
 
     """
+
+    import torch
+    from lazyslide_models import (
+        ImageModelProtocol,
+        ImageTextModelProtocol,
+        ModelBaseProtocol,
+        ViTModelProtocol,
+    )
+    from torch.utils.data import DataLoader
 
     device = _api.default_value("device", device)
     amp = _api.default_value("amp", amp)
@@ -333,7 +333,7 @@ def feature_aggregation(
     by: str | Sequence[str] | None = None,
     agg_key: str = None,
     amp: bool = False,
-    autocast_dtype: torch.dtype = torch.float16,
+    autocast_dtype: torch.dtype = None,
     device: str = "cpu",
 ):
     """
@@ -479,7 +479,7 @@ def _encode_slide(
     encoder,
     coords=None,
     amp: bool = False,
-    autocast_dtype: torch.dtype = torch.float16,
+    autocast_dtype: torch.dtype = None,
     device=None,
     tile_spec=None,
 ):
@@ -505,6 +505,12 @@ def _encode_slide(
         Dictionary with 'features' key containing the encoded features
         and optionally other keys like 'latents'
     """
+    import torch
+    from lazyslide_models import MODEL_REGISTRY, list_models
+
+    if autocast_dtype is None:
+        autocast_dtype = torch.float16
+
     result_dict = {"features": None}
 
     # Simple statistical aggregation methods
