@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from contextlib import nullcontext
-from functools import cached_property, lru_cache
+from functools import cached_property
 from typing import TYPE_CHECKING, Callable, List, Literal, Mapping
 
 import geopandas as gpd
@@ -287,52 +287,57 @@ class Runner(ABC):
                     yield tile, (i, i_end, j, j_end)
 
 
-@lru_cache(maxsize=1)
-def _tile_dataset_cls():
-    """Build the torch ``Dataset`` subclass lazily so importing this module
-    does not eagerly import torch (the class subclasses ``torch.utils.data.Dataset``)."""
-    import torch
+class TileDataset:
+    """A map-style dataset over the tiles of a WSI.
 
-    class TileDataset(torch.utils.data.Dataset):
-        def __init__(
-            self,
-            wsi: WSIData,
-            tiles: gpd.GeoDataFrame,
-            tile_spec: TileSpec,
-            transform: Callable = None,
-        ):
-            self.tiles_xy = tiles.bounds[["minx", "miny"]].to_numpy()
-            self.tile_spec = tile_spec
-            self.reader = wsi.reader
-            self.reader.detach_reader()
-            self.transform = transform
+    Deliberately a plain class rather than a ``torch.utils.data.Dataset``
+    subclass. It uses no torch itself, and PyTorch's ``DataLoader`` accepts any
+    object implementing ``__len__`` and ``__getitem__`` as a map-style dataset,
+    so keeping it torch-free means importing this module does not import torch.
 
-        def __len__(self):
-            return len(self.tiles_xy)
+    Defining it at module level (instead of inside a closure) is what keeps it
+    picklable: ``DataLoader(num_workers>0)`` pickles the dataset under the spawn
+    start method (the default on macOS/Windows), which requires the class to be
+    importable by its qualified name.
+    """
 
-        def __getitem__(self, idx):
-            x, y = self.tiles_xy[idx]
-            # Read the tile image from the WSI
-            img = self.reader.get_region(
-                x,
-                y,
-                width=self.tile_spec.ops_width,
-                height=self.tile_spec.ops_height,
-                level=self.tile_spec.ops_level,
-            )
-            img = self.reader.resize_img(
-                img, dsize=[self.tile_spec.width, self.tile_spec.height]
-            )
-            if self.transform:
-                img = self.transform(img)
+    def __init__(
+        self,
+        wsi: WSIData,
+        tiles: gpd.GeoDataFrame,
+        tile_spec: TileSpec,
+        transform: Callable = None,
+    ):
+        self.tiles_xy = tiles.bounds[["minx", "miny"]].to_numpy()
+        self.tile_spec = tile_spec
+        self.reader = wsi.reader
+        self.reader.detach_reader()
+        self.transform = transform
 
-            return {
-                "image": img,
-                "x": x,
-                "y": y,
-            }
+    def __len__(self):
+        return len(self.tiles_xy)
 
-    return TileDataset
+    def __getitem__(self, idx):
+        x, y = self.tiles_xy[idx]
+        # Read the tile image from the WSI
+        img = self.reader.get_region(
+            x,
+            y,
+            width=self.tile_spec.ops_width,
+            height=self.tile_spec.ops_height,
+            level=self.tile_spec.ops_level,
+        )
+        img = self.reader.resize_img(
+            img, dsize=[self.tile_spec.width, self.tile_spec.height]
+        )
+        if self.transform:
+            img = self.transform(img)
+
+        return {
+            "image": img,
+            "x": x,
+            "y": y,
+        }
 
 
 class SemanticSegmentationRunner(Runner):
@@ -448,7 +453,7 @@ class SemanticSegmentationRunner(Runner):
                         current_tiles = self.wsi[self.tile_key]
 
                     if len(current_tiles) > 0:
-                        ds = _tile_dataset_cls()(
+                        ds = TileDataset(
                             wsi=self.wsi,
                             tiles=current_tiles,
                             tile_spec=self.tile_spec,
