@@ -369,7 +369,7 @@ def tiles(
                     label_by="tissue_id" if show_id else None,
                 )
             if tid is not None:
-                viewer.set_tissue_id(tid)
+                viewer.set_tissue_id(tid, tissue_key=tissue_key)
             if mark_origin:
                 viewer.mark_origin()
             if scalebar:
@@ -555,7 +555,7 @@ def annotations(
         if scalebar:
             viewer.add_scalebar()
         if tissue_id is not None:
-            viewer.set_tissue_id(tid)
+            viewer.set_tissue_id(tid, tissue_key=tissue_key)
         if fill:
             viewer.add_polygons(
                 key,
