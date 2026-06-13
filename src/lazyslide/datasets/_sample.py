@@ -40,7 +40,11 @@ def _load_dataset(slide_file, zarr_file, with_data=True, pbar=False):
 
     # Avoid network calls in offline mode; CI primes the cache before tests.
     REPO_ID = "RendeiroLab/LazySlide-data"
-    if not _hf_offline():
+    if _hf_offline() and (
+        version.public != version.base_version or version.local is not None
+    ):
+        tag = None
+    elif not _hf_offline():
         api = HfApi()
         refs = api.list_repo_refs(REPO_ID, repo_type="dataset")
         tags = [t.name for t in refs.tags]
