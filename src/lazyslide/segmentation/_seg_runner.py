@@ -187,8 +187,12 @@ class _CellFeatureStore:
         self,
         surviving_ids: np.ndarray,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        feature_ids = np.concatenate(self._id_chunks).astype(np.int64, copy=False)
         surviving_ids = np.asarray(surviving_ids, dtype=np.int64)
+        if surviving_ids.size == 0:
+            features = np.empty((0, self._dim), dtype=self._dtype)
+            return features, surviving_ids, np.zeros(0, dtype=bool)
+
+        feature_ids = np.concatenate(self._id_chunks).astype(np.int64, copy=False)
         order = np.argsort(feature_ids)
         sorted_ids = feature_ids[order]
         loc = np.searchsorted(sorted_ids, surviving_ids)
@@ -231,7 +235,7 @@ def semantic(
     tile_key=Key.tiles,
     class_names: List[str] | Mapping[int, str] | None = None,
     transform=None,
-    mode: Literal["constant", "gaussian"] = "constant",
+    mode: Literal["constant", "gaussian"] = "gaussian",
     sigma_scale: float = 0.125,
     low_memory: bool = False,
     threshold: float = 0.5,

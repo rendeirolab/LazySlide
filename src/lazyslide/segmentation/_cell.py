@@ -193,6 +193,8 @@ def cells(
     # shape count stays 1:1 with the per-cell feature rows. Exploding here
     # would inflate the shape count past the feature count.
     cells_gdf = cells_gdf.reset_index(drop=True)
+    if len(cells_gdf) == 0:
+        return
     add_shapes(wsi, key=key_added, shapes=cells_gdf)
     if extract_features and features.size > 0:
         feat_adata = _features_to_anndata(features, feature_cell_ids)

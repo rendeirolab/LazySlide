@@ -182,6 +182,32 @@ class TestCellSegmentation:
             feat.obs["cell_id"].astype(int).tolist()
         )
 
+    def test_cell_segmentation_no_cells_with_features(self, wsi):
+        class MockNoCellsSegmentationModel(MockCellTypeSegmentationModel):
+            def segment(self, image) -> SegmentationOutput:
+                B, C, H, W = image.shape
+                n_classes = len(self.classes)
+                return SegmentationOutput(
+                    instance_map=np.zeros((B, H, W), dtype=np.int64),
+                    probability_map=np.zeros((B, n_classes, H, W), dtype=np.float32),
+                    patch_token_map=np.zeros(
+                        (B, self._EMBED_DIM, H // 16, W // 16), dtype=np.float32
+                    ),
+                    classes=self.classes,
+                )
+
+        zs.pp.tile_tissues(wsi, tile_px=512, mpp=0.5, key_added="empty_cell_tiles")
+        zs.seg.cells(
+            wsi,
+            MockNoCellsSegmentationModel(),
+            tile_key="empty_cell_tiles",
+            key_added="empty_cells",
+            extract_features=True,
+        )
+
+        assert "empty_cells" not in wsi.shapes
+        assert "empty_cells_features" not in wsi.tables
+
     def test_cell_features_skip_background_before_pooling(self, wsi, monkeypatch):
         """Background-class instances should not allocate pooled features."""
 
@@ -192,8 +218,8 @@ class TestCellSegmentation:
                 prob_map = np.asarray(output.probability_map)
 
                 bg = instance_map == 1
-                prob_map[:, :, bg[0]] = 0.0
                 for b in range(instance_map.shape[0]):
+                    prob_map[b, :, bg[b]] = 0.0
                     prob_map[b, 0, instance_map[b] == 1] = 0.9
 
                 return SegmentationOutput(
