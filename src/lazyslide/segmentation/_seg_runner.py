@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tempfile
 import warnings
 from abc import ABC, abstractmethod
 from contextlib import nullcontext
@@ -111,13 +112,126 @@ def _pool_cell_features(
     return features
 
 
+def _nms_by_tissue(
+    cells: gpd.GeoDataFrame,
+    tissues: gpd.GeoDataFrame,
+    prob_col: str,
+) -> gpd.GeoDataFrame:
+    """Run NMS independently for each tissue row.
+
+    Cells are assigned to the first tissue piece they intersect so a cell that
+    touches multiple tissue geometries is not duplicated in the output.
+    """
+    if len(cells) == 0:
+        return cells
+    if len(tissues) == 0:
+        return cells.iloc[[]].reset_index(drop=True)
+
+    chunks = []
+    assigned = np.zeros(len(cells), dtype=bool)
+    for tissue_geom in tissues.geometry:
+        if tissue_geom is None or tissue_geom.is_empty:
+            continue
+        mask = (~assigned) & cells.geometry.intersects(tissue_geom).to_numpy()
+        if not mask.any():
+            continue
+        assigned[mask] = True
+        chunk = nms(cells.iloc[np.flatnonzero(mask)], prob_col)
+        if len(chunk) > 0:
+            chunks.append(chunk)
+
+    if len(chunks) == 0:
+        return cells.iloc[[]].reset_index(drop=True)
+    return gpd.GeoDataFrame(
+        pd.concat(chunks, ignore_index=True),
+        crs=cells.crs,
+    ).reset_index(drop=True)
+
+
+class _CellFeatureStore:
+    def __init__(self, low_memory: bool = False):
+        self.low_memory = low_memory
+        self._tmpdir = tempfile.TemporaryDirectory() if low_memory else None
+        self._chunks = []
+        self._id_chunks: list[np.ndarray] = []
+        self._dtype = None
+        self._dim = None
+
+    def append(self, features: np.ndarray, cell_ids: np.ndarray):
+        if features.size == 0:
+            return
+        features = np.asarray(features)
+        cell_ids = np.asarray(cell_ids, dtype=np.int64)
+        if self._dtype is None:
+            self._dtype = features.dtype
+            self._dim = features.shape[1]
+        self._id_chunks.append(cell_ids.copy())
+        if self.low_memory:
+            path = f"{self._tmpdir.name}/cell_features_{len(self._chunks)}.npy"
+            chunk = np.lib.format.open_memmap(
+                path,
+                mode="w+",
+                dtype=features.dtype,
+                shape=features.shape,
+            )
+            chunk[:] = features
+            chunk.flush()
+            self._chunks.append(path)
+        else:
+            self._chunks.append(features)
+
+    def __len__(self) -> int:
+        return len(self._chunks)
+
+    def select(
+        self,
+        surviving_ids: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        feature_ids = np.concatenate(self._id_chunks).astype(np.int64, copy=False)
+        surviving_ids = np.asarray(surviving_ids, dtype=np.int64)
+        order = np.argsort(feature_ids)
+        sorted_ids = feature_ids[order]
+        loc = np.searchsorted(sorted_ids, surviving_ids)
+        valid = loc < sorted_ids.size
+        valid[valid] &= sorted_ids[loc[valid]] == surviving_ids[valid]
+        loc = loc[valid]
+        selected_ids = surviving_ids[valid]
+        selected_pos = order[loc]
+        if self.low_memory:
+            features = self._select_low_memory(selected_pos)
+        else:
+            all_features = np.concatenate(self._chunks, axis=0)
+            features = all_features[selected_pos]
+        return features, selected_ids, valid
+
+    def _select_low_memory(self, selected_pos: np.ndarray) -> np.ndarray:
+        features = np.empty(
+            (len(selected_pos), self._dim),
+            dtype=self._dtype,
+        )
+        offsets = np.cumsum([0, *[len(ids) for ids in self._id_chunks]])
+        for chunk_ix, path in enumerate(self._chunks):
+            start, end = offsets[chunk_ix], offsets[chunk_ix + 1]
+            mask = (selected_pos >= start) & (selected_pos < end)
+            if not mask.any():
+                continue
+            chunk = np.load(path, mmap_mode="r")
+            features[mask] = chunk[selected_pos[mask] - start]
+        return features
+
+    def close(self):
+        if self._tmpdir is not None:
+            self._tmpdir.cleanup()
+            self._tmpdir = None
+
+
 def semantic(
     wsi: WSIData,
     model: SegmentationModelProtocol,
     tile_key=Key.tiles,
     class_names: List[str] | Mapping[int, str] | None = None,
     transform=None,
-    mode: Literal["constant", "gaussian"] = "gaussian",
+    mode: Literal["constant", "gaussian"] = "constant",
     sigma_scale: float = 0.125,
     low_memory: bool = False,
     threshold: float = 0.5,
@@ -620,6 +734,7 @@ class CellSegmentationRunner(Runner):
         class_names: List[str] | Mapping[int, str] | None = None,
         pbar: bool = True,
         extract_features: bool = False,
+        low_memory: bool = False,
     ):
         self.wsi = wsi
         self.model = model
@@ -636,6 +751,7 @@ class CellSegmentationRunner(Runner):
         self.class_names = class_names
         self.pbar = pbar
         self.extract_features = extract_features
+        self.low_memory = low_memory
 
         self.tile_spec = wsi.tile_spec(tile_key)
         self.downsample = self.tile_spec.base_downsample
@@ -646,8 +762,11 @@ class CellSegmentationRunner(Runner):
         import torch
         from torch.utils.data import DataLoader
 
-        # features keyed by global cell_id so positional drift never corrupts alignment
-        features_by_id: dict[int, np.ndarray] = {}
+        # Feature chunks track the same globally unique cell_id assigned to
+        # polygon rows. In low-memory mode, chunks are backed by on-disk mmap.
+        feature_store = _CellFeatureStore(
+            low_memory=self.extract_features and self.low_memory
+        )
         global_cell_idx = 0
 
         autocast_dtype = (
@@ -683,6 +802,10 @@ class CellSegmentationRunner(Runner):
                     .boundary
                 )
                 prepare(tile_box)
+                tissue_key = self.tile_spec.tissue_name
+                tissues = self.wsi[tissue_key]
+                tissue = tissues.union_all()
+                prepare(tissue)
 
                 task = progress_bar.add_task(
                     "Processing tiles", total=len(tile_dataset)
@@ -778,6 +901,13 @@ class CellSegmentationRunner(Runner):
                             df = df[df["geometry"].area.between(*self.nucleus_size)]
                             if len(df) == 0:
                                 continue
+                        df = df[df["geometry"].intersects(tissue)]
+                        if len(df) == 0:
+                            continue
+                        if "class" in df.columns:
+                            df = df[df["class"] != "Background"]
+                            if len(df) == 0:
+                                continue
 
                         # Assign a globally-unique, stable cell_id to every cell.
                         n = len(df)
@@ -798,8 +928,12 @@ class CellSegmentationRunner(Runner):
                             cell_features = _pool_cell_features(
                                 out, token_map_i, np.unique(inst_arr)
                             )
-                            for cid, inst in zip(cell_ids, inst_arr):
-                                features_by_id[int(cid)] = cell_features[int(inst)]
+                            feature_store.append(
+                                np.stack(
+                                    [cell_features[int(inst)] for inst in inst_arr]
+                                ),
+                                cell_ids,
+                            )
 
                         results.append(df.drop(columns="instance_id", errors="ignore"))
                     progress_bar.update(task, advance=len(images))
@@ -807,6 +941,7 @@ class CellSegmentationRunner(Runner):
         # If no results
         empty = gpd.GeoDataFrame(columns=["geometry", "cell_id"])
         if len(results) == 0:
+            feature_store.close()
             if self.extract_features:
                 return empty, np.empty((0, 0)), np.empty((0,), dtype=np.int64)
             return empty
@@ -816,37 +951,31 @@ class CellSegmentationRunner(Runner):
         )
         # If all results are empty dataframe
         if len(cells) == 0:
+            feature_store.close()
             if self.extract_features:
                 return empty, np.empty((0, 0)), np.empty((0,), dtype=np.int64)
             return empty
         if "prob" not in cells:
             cells["prob"] = 1
-        # Drop the overlapping cells, preserving the largest one
-        cells = nms(cells, "prob")
-        # Remove cells that are not in the tissue
-        tissue_key = self.tile_spec.tissue_name
-        tissues = self.wsi[tissue_key]  # GeoDataFrame
-        cells = cells[cells.intersects(tissues.union_all())].reset_index(drop=True)
+        # Drop overlapping cells independently within each tissue piece.
+        cells = _nms_by_tissue(cells, tissues, "prob")
 
         if self.extract_features:
-            if len(features_by_id) == 0:
+            if len(feature_store) == 0:
+                feature_store.close()
                 # extract_features=True but model never returned patch_token_map.
                 return (
                     cells,
                     np.empty((len(cells), 0)),
                     cells["cell_id"].to_numpy(dtype=np.int64),
                 )
-            # Keep only cells that have a feature vector. Every cell from a tile
-            # with a token map has one; this drops cells from tiles whose model
-            # output lacked a patch_token_map (mixed-output models).
-            cells = cells[cells["cell_id"].isin(features_by_id.keys())].reset_index(
-                drop=True
-            )
             surviving_ids = cells["cell_id"].to_numpy(dtype=np.int64)
-            unique_ids, first_idx = np.unique(surviving_ids, return_index=True)
-            # Preserve order of first appearance so features rows track cells_gdf.
-            unique_ids = surviving_ids[np.sort(first_idx)]
-            features = np.stack([features_by_id[int(cid)] for cid in unique_ids])
-            return cells, features, unique_ids
+            features, surviving_ids, valid = feature_store.select(surviving_ids)
+            feature_store.close()
+            if not valid.all():
+                # Mixed-output models can produce some cells without token maps.
+                cells = cells[valid].reset_index(drop=True)
+            return cells, features, surviving_ids
 
+        feature_store.close()
         return cells

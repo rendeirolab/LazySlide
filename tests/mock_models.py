@@ -63,10 +63,6 @@ class MockCellSegmentationModel(SegmentationModel):
             token_map = gen.randn(B, self._EMBED_DIM, PH, PW).astype(np.float32)
         return SegmentationOutput(instance_map=instance_maps, patch_token_map=token_map)
 
-    @classmethod
-    def check_input_tile(cls, tile_spec) -> bool:
-        return True
-
 
 # ---------------------------------------------------------------------------
 # Cell type segmentation mock (replaces nulite)
@@ -132,10 +128,6 @@ class MockCellTypeSegmentationModel(SegmentationModel):
             classes=self.classes,
         )
 
-    @classmethod
-    def check_input_tile(cls, tile_spec) -> bool:
-        return True
-
 
 # ---------------------------------------------------------------------------
 # Semantic segmentation mock (replaces grandqc-artifact)
@@ -166,10 +158,6 @@ class MockSemanticSegmentationModel(SegmentationModel):
         # Class 2 (Fold) gets a small region with high prob
         prob_map[:, 2, H // 4 : H // 2, W // 4 : W // 2] = 0.9
         return SegmentationOutput(probability_map=prob_map)
-
-    @classmethod
-    def check_input_tile(cls, tile_spec) -> bool:
-        return True
 
 
 # ---------------------------------------------------------------------------
@@ -318,9 +306,6 @@ class MockStyleTransferModel(StyleTransferModel):
 
     def get_channel_names(self) -> Tuple[str, ...]:
         return _ROSIE_MARKERS
-
-    def check_input_tile(self, mpp, size_x=None, size_y=None) -> bool:
-        return True
 
 
 # ---------------------------------------------------------------------------

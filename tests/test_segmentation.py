@@ -1,4 +1,8 @@
+import geopandas as gpd
 import numpy as np
+import pytest
+from lazyslide_models.base import SegmentationOutput
+from shapely import box
 
 import lazyslide as zs
 
@@ -53,12 +57,37 @@ def test_pool_cell_features_matches_reference():
     assert _pool_cell_features(im, tok, []) == {}
 
 
+def test_nms_by_tissue_runs_per_tissue_piece():
+    from lazyslide.segmentation._seg_runner import _nms_by_tissue
+
+    cells = gpd.GeoDataFrame(
+        {
+            "prob": [0.2, 0.9, 0.8, 0.1, 1.0],
+            "cell_id": [1, 2, 3, 4, 5],
+            "geometry": [
+                box(10, 10, 20, 20),
+                box(10, 10, 20, 20),
+                box(110, 10, 120, 20),
+                box(110, 10, 120, 20),
+                box(250, 10, 260, 20),
+            ],
+        }
+    )
+    tissues = gpd.GeoDataFrame({"geometry": [box(0, 0, 50, 50), box(100, 0, 150, 50)]})
+
+    out = _nms_by_tissue(cells, tissues, "prob")
+
+    assert set(out["cell_id"]) == {2, 3}
+
+
 def test_tissue_segmentation(wsi):
     zs.seg.tissue(wsi, key_added="tissues")
 
 
 class TestCellSegmentation:
     def test_cell_segmentation(self, wsi):
+        # Regression for #261: segmentation models do not need a legacy tile
+        # validation hook to run.
         zs.pp.tile_tissues(wsi, tile_px=512, mpp=0.5, key_added="cell_tiles")
 
         model = MockCellSegmentationModel()
@@ -68,7 +97,15 @@ class TestCellSegmentation:
         zs.pp.tile_tissues(wsi, tile_px=512, mpp=0.5, key_added="cell_tiles")
 
         model = MockCellTypeSegmentationModel()
-        zs.seg.cell_types(wsi, model, tile_key="cell_tiles", key_added="cell_types")
+        zs.seg.cells(wsi, model, tile_key="cell_tiles", key_added="cell_types")
+
+    def test_cell_types_deprecated(self, wsi):
+        zs.pp.tile_tissues(wsi, tile_px=512, mpp=0.5, key_added="cell_tiles")
+
+        model = MockCellTypeSegmentationModel()
+        with pytest.warns(FutureWarning, match="zs.seg.cell_types"):
+            zs.seg.cell_types(wsi, model, tile_key="cell_tiles", key_added="cell_types")
+        assert "cell_types" in wsi.shapes
 
     def test_cell_classification_with_features(self, wsi):
         # Overlapping tiles: the exact configuration that previously produced a
@@ -79,7 +116,7 @@ class TestCellSegmentation:
         )
 
         model = MockCellTypeSegmentationModel()
-        zs.seg.cell_types(
+        zs.seg.cells(
             wsi,
             model,
             tile_key="cell_feat_tiles",
@@ -144,6 +181,79 @@ class TestCellSegmentation:
         assert set(shapes["cell_id"].astype(int)) == set(
             feat.obs["cell_id"].astype(int).tolist()
         )
+
+    def test_cell_features_skip_background_before_pooling(self, wsi, monkeypatch):
+        """Background-class instances should not allocate pooled features."""
+
+        class MockCellTypeWithBackground(MockCellTypeSegmentationModel):
+            def segment(self, image) -> SegmentationOutput:
+                output = super().segment(image)
+                instance_map = np.asarray(output.instance_map)
+                prob_map = np.asarray(output.probability_map)
+
+                bg = instance_map == 1
+                prob_map[:, :, bg[0]] = 0.0
+                for b in range(instance_map.shape[0]):
+                    prob_map[b, 0, instance_map[b] == 1] = 0.9
+
+                return SegmentationOutput(
+                    instance_map=instance_map,
+                    probability_map=prob_map,
+                    patch_token_map=output.patch_token_map,
+                    classes=output.classes,
+                )
+
+        pooled_ids = []
+
+        def record_pool(instance_map, patch_token_map, instance_ids):
+            pooled_ids.extend(np.asarray(instance_ids, dtype=int).tolist())
+            return _ref_pool(instance_map, patch_token_map, instance_ids)
+
+        from lazyslide.segmentation import _seg_runner
+
+        _ref_pool = _seg_runner._pool_cell_features
+        monkeypatch.setattr(_seg_runner, "_pool_cell_features", record_pool)
+
+        zs.pp.tile_tissues(wsi, tile_px=512, mpp=0.5, key_added="bg_feat_tiles")
+        zs.seg.cells(
+            wsi,
+            MockCellTypeWithBackground(),
+            tile_key="bg_feat_tiles",
+            key_added="bg_feat_cells",
+            extract_features=True,
+        )
+
+        shapes = wsi.shapes["bg_feat_cells"]
+        feat = wsi.tables["bg_feat_cells_features"]
+        assert "Background" not in set(shapes["class"])
+        assert 1 not in pooled_ids
+        assert len(shapes) == feat.n_obs
+
+    def test_cell_features_low_memory_uses_memmap(self, wsi, monkeypatch):
+        opened = []
+        original_open_memmap = np.lib.format.open_memmap
+
+        def record_open_memmap(*args, **kwargs):
+            opened.append(args[0])
+            return original_open_memmap(*args, **kwargs)
+
+        monkeypatch.setattr(np.lib.format, "open_memmap", record_open_memmap)
+
+        zs.pp.tile_tissues(wsi, tile_px=512, mpp=0.5, key_added="low_mem_tiles")
+        zs.seg.cells(
+            wsi,
+            MockCellSegmentationModel(emit_tokens=True),
+            tile_key="low_mem_tiles",
+            key_added="low_mem_cells",
+            extract_features=True,
+            low_memory=True,
+        )
+
+        shapes = wsi.shapes["low_mem_cells"]
+        feat = wsi.tables["low_mem_cells_features"]
+        assert opened
+        assert len(shapes) == feat.n_obs
+        assert feat.X.shape[1] == MockCellSegmentationModel._EMBED_DIM
 
 
 class TestSemanticSegmentation:

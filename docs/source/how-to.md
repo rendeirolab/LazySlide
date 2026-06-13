@@ -50,6 +50,6 @@ zs.tl.feature_extraction(wsi, model="uni", tile_key="cells")
 
 For ViT-based cell segmentation models, you can get both the cell segmentation and cell features at the same time.
 ```python
-zs.seg.cell_types(wsi, model="histoplus", extract_features=True)
+zs.seg.cells(wsi, model="histoplus", extract_features=True)
 ```
 :::
