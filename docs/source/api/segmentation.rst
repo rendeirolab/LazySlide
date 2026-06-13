@@ -8,7 +8,6 @@ Segmentation :code:`seg`
     :nosignatures:
 
     seg.cells
-    seg.cell_types
     seg.semantic
     seg.tissue
     seg.artifact
