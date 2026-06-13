@@ -99,6 +99,9 @@ jobs:
       # keeps the token off disk (and out of the cache), and is empty-safe on forks.
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
       HF_HUB_DISABLE_SYMLINKS_WARNING: "1"  # quiet Windows copy-fallback noise
+      HF_HUB_OFFLINE: "1"
+      HF_DATASETS_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
       # Empty secret (fork PRs) -> '1' -> conftest skips dataset download/tests.
       LAZYSLIDE_SKIP_DATASET_TESTS: ${{ secrets.HF_TOKEN == '' && '1' || '0' }}
     steps:
