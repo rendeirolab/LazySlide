@@ -1,3 +1,4 @@
+import os
 import warnings
 from pathlib import Path
 
@@ -5,6 +6,26 @@ from huggingface_hub import HfApi, hf_hub_download
 from wsidata import open_wsi
 
 from lazyslide._utils import find_stack_level
+
+_OFFLINE_ENV_VARS = ("HF_HUB_OFFLINE", "HF_DATASETS_OFFLINE", "TRANSFORMERS_OFFLINE")
+_TRUE_VALUES = {"1", "ON", "TRUE", "YES"}
+
+
+def _hf_offline() -> bool:
+    return any(
+        os.environ.get(name, "").strip().upper() in _TRUE_VALUES
+        for name in _OFFLINE_ENV_VARS
+    )
+
+
+def _download_dataset_file(repo_id: str, filename: str, revision: str | None) -> str:
+    return hf_hub_download(
+        repo_id,
+        filename,
+        repo_type="dataset",
+        revision=revision,
+        local_files_only=_hf_offline(),
+    )
 
 
 def _load_dataset(slide_file, zarr_file, with_data=True, pbar=False):
@@ -17,13 +38,18 @@ def _load_dataset(slide_file, zarr_file, with_data=True, pbar=False):
     # Get clean version
     tag = f"v{version.base_version}"
 
-    # Get all the tags from huggingface repo
+    # Avoid network calls in offline mode; CI primes the cache before tests.
     REPO_ID = "RendeiroLab/LazySlide-data"
-    api = HfApi()
-    refs = api.list_repo_refs(REPO_ID, repo_type="dataset")
-    tags = [t.name for t in refs.tags]
-    if tag not in tags:
+    if _hf_offline() and (
+        version.public != version.base_version or version.local is not None
+    ):
         tag = None
+    elif not _hf_offline():
+        api = HfApi()
+        refs = api.list_repo_refs(REPO_ID, repo_type="dataset")
+        tags = [t.name for t in refs.tags]
+        if tag not in tags:
+            tag = None
 
     if pbar:
         warnings.warn(
@@ -32,12 +58,10 @@ def _load_dataset(slide_file, zarr_file, with_data=True, pbar=False):
             stacklevel=find_stack_level(),
         )
 
-    slide = hf_hub_download(REPO_ID, slide_file, repo_type="dataset", revision=tag)
+    slide = _download_dataset_file(REPO_ID, slide_file, revision=tag)
     slide_zarr = None
     if with_data:
-        slide_zarr_zip = hf_hub_download(
-            REPO_ID, zarr_file, repo_type="dataset", revision=tag
-        )
+        slide_zarr_zip = _download_dataset_file(REPO_ID, zarr_file, revision=tag)
         slide_zarr = Path(slide_zarr_zip.replace(".zip", ""))
         # Unzip the zarr file if it is a zip file
         # But only if it is not already unzipped
