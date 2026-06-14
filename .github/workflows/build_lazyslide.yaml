@@ -71,7 +71,7 @@ jobs:
         with:
           # Only the hub cache (blobs/refs/snapshots) — never the token file.
           path: ${{ env.HF_HOME }}/hub
-          key: ${{ runner.os }}-hfdata-v2-${{ needs.resolve-dataset-sha.outputs.sha }}-${{ hashFiles('src/lazyslide/datasets/_sample.py', '.github/workflows/build_lazyslide.yaml') }}
+          key: ${{ runner.os }}-hfdata-v2-${{ needs.resolve-dataset-sha.outputs.sha }}-${{ hashFiles('src/lazyslide/datasets/_sample.py', 'scripts/prime_hf_cache.py', '.github/workflows/build_lazyslide.yaml') }}
           restore-keys: |
             ${{ runner.os }}-hfdata-v2-${{ needs.resolve-dataset-sha.outputs.sha }}-
             ${{ runner.os }}-hfdata-v2-
@@ -80,22 +80,7 @@ jobs:
         run: uv sync --dev
       - name: Download datasets and test models
         if: steps.cache.outputs.cache-hit != 'true' && env.HF_TOKEN != ''
-        run: |
-          uv run python - <<'PY'
-          import lazyslide as zs
-          from huggingface_hub import hf_hub_download
-          from lazyslide.tools._features import load_models
-
-          zs.datasets.sample()
-          zs.datasets.gtex_artery()
-          for repo_id in [
-              "timm/resnet50.a1_in1k",
-              "timm/test_resnet.r160_in1k",
-              "timm/test_vit.r160_in1k",
-          ]:
-              hf_hub_download(repo_id, "model.safetensors")
-          load_models("resnet50")
-          PY
+        run: uv run python scripts/prime_hf_cache.py
 
   test:
     needs: [resolve-dataset-sha, prime-datasets]
@@ -133,7 +118,7 @@ jobs:
         with:
           # Primed by prime-datasets; restore-only so the 12 test jobs never re-save.
           path: ${{ env.HF_HOME }}/hub
-          key: ${{ runner.os }}-hfdata-v2-${{ needs.resolve-dataset-sha.outputs.sha }}-${{ hashFiles('src/lazyslide/datasets/_sample.py', '.github/workflows/build_lazyslide.yaml') }}
+          key: ${{ runner.os }}-hfdata-v2-${{ needs.resolve-dataset-sha.outputs.sha }}-${{ hashFiles('src/lazyslide/datasets/_sample.py', 'scripts/prime_hf_cache.py', '.github/workflows/build_lazyslide.yaml') }}
           restore-keys: |
             ${{ runner.os }}-hfdata-v2-${{ needs.resolve-dataset-sha.outputs.sha }}-
             ${{ runner.os }}-hfdata-v2-
