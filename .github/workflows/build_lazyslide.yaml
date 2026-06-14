@@ -44,8 +44,8 @@ jobs:
           echo "Resolved dataset SHA: $SHA"
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
-  # Download the datasets ONCE per OS (3 jobs) before the test matrix, so the matrix
-  # test jobs never stampede HuggingFace on a cold cache. On a warm cache this is
+  # Download the HuggingFace assets ONCE per OS (3 jobs) before the test matrix,
+  # so the matrix test jobs never stampede HuggingFace on a cold cache. On a warm cache this is
   # a fast no-op gate (cache hit -> skip install + download).
   prime-datasets:
     needs: resolve-dataset-sha
@@ -65,23 +65,37 @@ jobs:
         with:
           python-version: '3.12'
           enable-cache: false
-      - name: Cache HuggingFace datasets
+      - name: Cache HuggingFace assets
         id: cache
         uses: actions/cache@v5
         with:
           # Only the hub cache (blobs/refs/snapshots) — never the token file.
           path: ${{ env.HF_HOME }}/hub
-          key: ${{ runner.os }}-hfdata-${{ needs.resolve-dataset-sha.outputs.sha }}-${{ hashFiles('src/lazyslide/datasets/_sample.py') }}
+          key: ${{ runner.os }}-hfdata-v2-${{ needs.resolve-dataset-sha.outputs.sha }}-${{ hashFiles('src/lazyslide/datasets/_sample.py', '.github/workflows/build_lazyslide.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-hfdata-${{ needs.resolve-dataset-sha.outputs.sha }}-
-            ${{ runner.os }}-hfdata-
+            ${{ runner.os }}-hfdata-v2-${{ needs.resolve-dataset-sha.outputs.sha }}-
+            ${{ runner.os }}-hfdata-v2-
       - name: Install project
         if: steps.cache.outputs.cache-hit != 'true' && env.HF_TOKEN != ''
         run: uv sync --dev
-      - name: Download datasets
+      - name: Download datasets and test models
         if: steps.cache.outputs.cache-hit != 'true' && env.HF_TOKEN != ''
         run: |
-          uv run python -c "import lazyslide as zs; zs.datasets.sample(); zs.datasets.gtex_artery();"
+          uv run python - <<'PY'
+          import lazyslide as zs
+          from huggingface_hub import hf_hub_download
+          from lazyslide.tools._features import load_models
+
+          zs.datasets.sample()
+          zs.datasets.gtex_artery()
+          for repo_id in [
+              "timm/resnet50.a1_in1k",
+              "timm/test_resnet.r160_in1k",
+              "timm/test_vit.r160_in1k",
+          ]:
+              hf_hub_download(repo_id, "model.safetensors")
+          load_models("resnet50")
+          PY
 
   test:
     needs: [resolve-dataset-sha, prime-datasets]
@@ -114,15 +128,15 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - name: Install project
         run: uv sync --dev
-      - name: Restore HuggingFace datasets cache
+      - name: Restore HuggingFace assets cache
         uses: actions/cache/restore@v5
         with:
           # Primed by prime-datasets; restore-only so the 12 test jobs never re-save.
           path: ${{ env.HF_HOME }}/hub
-          key: ${{ runner.os }}-hfdata-${{ needs.resolve-dataset-sha.outputs.sha }}-${{ hashFiles('src/lazyslide/datasets/_sample.py') }}
+          key: ${{ runner.os }}-hfdata-v2-${{ needs.resolve-dataset-sha.outputs.sha }}-${{ hashFiles('src/lazyslide/datasets/_sample.py', '.github/workflows/build_lazyslide.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-hfdata-${{ needs.resolve-dataset-sha.outputs.sha }}-
-            ${{ runner.os }}-hfdata-
+            ${{ runner.os }}-hfdata-v2-${{ needs.resolve-dataset-sha.outputs.sha }}-
+            ${{ runner.os }}-hfdata-v2-
       - name: Tests
         run: |
           uv run pytest tests -n auto --cov=src/lazyslide --cov-report=xml --cov-report=html
