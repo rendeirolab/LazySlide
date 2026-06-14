@@ -11,6 +11,13 @@ TIMM_TEST_MODEL_REPOS = (
     "timm/test_vit.r160_in1k",
 )
 
+HF_MODEL_FILES = (
+    (
+        "RendeiroLab/LazySlide-models-gpl",
+        "PathProfiler/PathProfiler_tissue_seg_exported.pt2",
+    ),
+)
+
 
 def main():
     zs.datasets.sample()
@@ -18,6 +25,9 @@ def main():
 
     for repo_id in TIMM_TEST_MODEL_REPOS:
         hf_hub_download(repo_id, "model.safetensors")
+
+    for repo_id, filename in HF_MODEL_FILES:
+        hf_hub_download(repo_id, filename)
 
     load_models("resnet50")
 
