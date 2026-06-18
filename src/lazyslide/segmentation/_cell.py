@@ -66,6 +66,8 @@ def cells(
     pbar=True,
     extract_features: bool = False,
     low_memory: bool = False,
+    postprocess_workers: int = 0,
+    overlap_ownership: bool = False,
     key_added="cells",
     **model_kwargs,
 ):
@@ -119,6 +121,14 @@ def cells(
         When ``extract_features=True``, write intermediate feature chunks to
         on-disk mmap files and only materialize features that survive filtering
         and NMS.
+    postprocess_workers : int, default: 0
+        Number of CPU threads used to polygonize completed inference batches.
+        Set to 1 to overlap GPU inference with CPU postprocessing. In-flight
+        work is bounded to two batches per worker.
+    overlap_ownership : bool, default: False
+        For overlapping tiles, polygonize an instance only in the covering tile
+        whose center is nearest to its centroid. This removes most duplicate
+        polygonization while retaining NMS as a safety net.
     key_added : str, default: "cells"
         The key for the added cell shapes.
 
@@ -170,6 +180,8 @@ def cells(
         pbar=pbar,
         extract_features=extract_features,
         low_memory=low_memory,
+        postprocess_workers=postprocess_workers,
+        overlap_ownership=overlap_ownership,
     )
     result = runner.run()
     if extract_features:
@@ -248,6 +260,8 @@ def cell_types(
     pbar=True,
     extract_features: bool = False,
     low_memory: bool = False,
+    postprocess_workers: int = 0,
+    overlap_ownership: bool = False,
     key_added="cell_types",
     **model_kwargs,
 ):
@@ -300,6 +314,11 @@ def cell_types(
         When ``extract_features=True``, write intermediate feature chunks to
         on-disk mmap files and only materialize features that survive filtering
         and NMS.
+    postprocess_workers : int, default: 0
+        Number of CPU threads used to polygonize completed inference batches.
+    overlap_ownership : bool, default: False
+        For overlapping tiles, discard duplicate instances before polygonization
+        using nearest-tile-center ownership.
     key_added : str, default: "cell_types"
         The key for the added cell type shapes.
 
@@ -332,6 +351,8 @@ def cell_types(
         pbar=pbar,
         extract_features=extract_features,
         low_memory=low_memory,
+        postprocess_workers=postprocess_workers,
+        overlap_ownership=overlap_ownership,
         key_added=key_added,
         **model_kwargs,
     )

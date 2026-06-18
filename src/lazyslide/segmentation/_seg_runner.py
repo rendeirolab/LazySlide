@@ -3,6 +3,8 @@ from __future__ import annotations
 import tempfile
 import warnings
 from abc import ABC, abstractmethod
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from functools import cached_property
 from typing import TYPE_CHECKING, Callable, List, Literal, Mapping
@@ -10,7 +12,7 @@ from typing import TYPE_CHECKING, Callable, List, Literal, Mapping
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from shapely import box, prepare
+from shapely import STRtree, box, prepare
 from wsidata import TileSpec, WSIData
 from wsidata.io import add_shapes
 
@@ -739,6 +741,8 @@ class CellSegmentationRunner(Runner):
         pbar: bool = True,
         extract_features: bool = False,
         low_memory: bool = False,
+        postprocess_workers: int = 0,
+        overlap_ownership: bool = False,
     ):
         self.wsi = wsi
         self.model = model
@@ -756,9 +760,145 @@ class CellSegmentationRunner(Runner):
         self.pbar = pbar
         self.extract_features = extract_features
         self.low_memory = low_memory
+        if postprocess_workers < 0:
+            raise ValueError("postprocess_workers must be non-negative")
+        self.postprocess_workers = postprocess_workers
 
         self.tile_spec = wsi.tile_spec(tile_key)
         self.downsample = self.tile_spec.base_downsample
+        self.overlap_ownership = overlap_ownership and (
+            self.tile_spec.overlap_x > 0 or self.tile_spec.overlap_y > 0
+        )
+        self._tile_bounds = None
+        self._tile_centers = None
+        self._tile_neighbors = None
+        self._tile_position_indices = None
+        if self.overlap_ownership:
+            tiles = self.wsi[self.tile_key]
+            bounds = tiles.bounds[["minx", "miny", "maxx", "maxy"]].to_numpy()
+            self._tile_bounds = bounds
+            self._tile_centers = np.column_stack(
+                ((bounds[:, 0] + bounds[:, 2]) / 2, (bounds[:, 1] + bounds[:, 3]) / 2)
+            )
+            tree = STRtree(tiles.geometry.to_numpy())
+            self._tile_neighbors = [
+                np.asarray(tree.query(geom, predicate="intersects"), dtype=np.int64)
+                for geom in tiles.geometry
+            ]
+            self._tile_position_indices = {
+                (float(row[0]), float(row[1])): i for i, row in enumerate(bounds)
+            }
+
+    def _instance_owner_filter(self, pos_x: float, pos_y: float):
+        if not self.overlap_ownership:
+            return None
+        current = self._tile_position_indices.get((float(pos_x), float(pos_y)))
+        if current is None:
+            return None
+        neighbors = self._tile_neighbors[current]
+
+        def owns_region(region) -> bool:
+            row, col = region.centroid
+            point = np.asarray(
+                [
+                    float(pos_x) + col * self.downsample,
+                    float(pos_y) + row * self.downsample,
+                ]
+            )
+            bounds = self._tile_bounds[neighbors]
+            covered = (
+                (bounds[:, 0] <= point[0])
+                & (point[0] <= bounds[:, 2])
+                & (bounds[:, 1] <= point[1])
+                & (point[1] <= bounds[:, 3])
+            )
+            candidates = neighbors[covered]
+            if candidates.size == 0 or current not in candidates:
+                return True
+            delta = self._tile_centers[candidates] - point
+            distance = np.einsum("ij,ij->i", delta, delta)
+            owner = int(candidates[np.argmin(distance)])
+            return owner == current
+
+        return owns_region
+
+    def _postprocess_batch(
+        self,
+        instance_map: np.ndarray,
+        probability_map: np.ndarray | None,
+        patch_token_map: np.ndarray | None,
+        xs: np.ndarray,
+        ys: np.ndarray,
+        tile_box,
+        tissue,
+        class_names,
+    ) -> list[tuple[gpd.GeoDataFrame, np.ndarray | None]]:
+        """Polygonize and filter one inference batch on a CPU worker."""
+        batch_results = []
+        has_tokens = self.extract_features and patch_token_map is not None
+        for i in range(len(xs)):
+            pos_x = xs[i]
+            pos_y = ys[i]
+            out = instance_map[i]
+            prob_map = probability_map[i] if probability_map is not None else None
+
+            m = InstanceMap(out, prob_map=prob_map, class_names=class_names)
+            df = m.to_polygons(
+                detect_holes=False,
+                region_filter=self._instance_owner_filter(pos_x, pos_y),
+            )
+            if len(df) == 0:
+                continue
+
+            df = df[~df["geometry"].intersects(tile_box)]
+            if len(df) == 0:
+                continue
+
+            df = df.copy()
+            geometry = df["geometry"].affine_transform(
+                [self.downsample, 0, 0, self.downsample, pos_x, pos_y]
+            )
+            invalid = ~geometry.is_valid
+            if invalid.any():
+                geometry = geometry.copy()
+                geometry.loc[invalid] = geometry.loc[invalid].buffer(0)
+            df["geometry"] = geometry
+
+            if self.size_filter:
+                df = df[df["geometry"].area.between(*self.nucleus_size)]
+                if len(df) == 0:
+                    continue
+            df = df[df["geometry"].intersects(tissue)]
+            if len(df) == 0:
+                continue
+            if "class" in df.columns:
+                df = df[df["class"] != "Background"]
+                if len(df) == 0:
+                    continue
+
+            features = None
+            if has_tokens:
+                inst_arr = df["instance_id"].to_numpy()
+                pooled = _pool_cell_features(
+                    out, patch_token_map[i], np.unique(inst_arr)
+                )
+                features = np.stack([pooled[int(inst)] for inst in inst_arr])
+
+            batch_results.append(
+                (df.drop(columns="instance_id", errors="ignore"), features)
+            )
+        if not batch_results:
+            return []
+
+        # Collapse tile-sized frames while the batch is still on the CPU worker.
+        # The main thread then accumulates O(batches), rather than O(tiles),
+        # frames for the final concatenation.
+        frames, feature_chunks = zip(*batch_results)
+        batch_frame = gpd.GeoDataFrame(pd.concat(frames, ignore_index=True))
+        batch_features = None
+        if has_tokens:
+            batch_features = np.concatenate(feature_chunks, axis=0)
+        return [(batch_frame, batch_features)]
 
     def run(
         self,
@@ -787,10 +927,12 @@ class CellSegmentationRunner(Runner):
                     tile_key=self.tile_key, transform=self.transform
                 )
 
+                pin_memory = torch.device(self.device).type == "cuda"
                 tile_loader = DataLoader(
                     tile_dataset,
                     batch_size=self.batch_size,
                     num_workers=self.num_workers,
+                    pin_memory=pin_memory,
                 )
 
                 results = []
@@ -815,132 +957,104 @@ class CellSegmentationRunner(Runner):
                     "Processing tiles", total=len(tile_dataset)
                 )
 
-                for chunk in tile_loader:
-                    images = chunk["image"]
-                    xs, ys = np.asarray(chunk["x"]), np.asarray(chunk["y"])
-                    if self.device is not None:
-                        images = images.to(self.device)
-                    output = self.model.segment(images)
-
-                    instance_map = output.instance_map
-                    if instance_map is None:
-                        raise ValueError(
-                            "Cell segmentation requires instance_map "
-                            "but the model returned None. "
-                            "This model may only support semantic segmentation."
-                        )
-                    probability_map = output.probability_map
-                    patch_token_map = output.patch_token_map
-
-                    # Resolve class_names from output if not provided
-                    if self.class_names is None and output.classes is not None:
-                        self.class_names = {
-                            i: name for i, name in enumerate(output.classes)
-                        }
-
-                    # Get output and convert to numpy
-                    if isinstance(instance_map, torch.Tensor):
-                        instance_map = instance_map.detach().cpu().to(torch.int).numpy()
-                    if probability_map is not None:
-                        if isinstance(probability_map, torch.Tensor):
-                            probability_map = probability_map.detach().cpu().numpy()
-                    if patch_token_map is not None:
-                        if isinstance(patch_token_map, torch.Tensor):
-                            patch_token_map = (
-                                patch_token_map.detach().cpu().float().numpy()
-                            )
-
-                    has_tokens = self.extract_features and patch_token_map is not None
-                    if (
-                        self.extract_features
-                        and patch_token_map is None
-                        and not _warned_no_tokens
-                    ):
-                        warnings.warn(
-                            "extract_features=True but model does not return "
-                            "patch_token_map. Feature extraction will be skipped.",
-                            stacklevel=find_stack_level(),
-                        )
-                        _warned_no_tokens = True
-
-                    for i in range(len(xs)):
-                        pos_x = xs[i]
-                        pos_y = ys[i]
-                        out = instance_map[i]
-                        if probability_map is not None:
-                            prob_map = probability_map[i]
-                        else:
-                            prob_map = None
-
-                        # Convert the instance map to one polygon per instance.
-                        # ``df`` carries an ``instance_id`` column linking each row
-                        # back to its source instance in ``out``.
-                        m = InstanceMap(
-                            out,
-                            prob_map=prob_map,
-                            class_names=self.class_names,
-                        )
-                        df = m.to_polygons(detect_holes=False)
-                        if len(df) == 0:
-                            continue
-
-                        # Drop cells touching the tile edge (clipped instances).
-                        df = df[~df["geometry"].intersects(tile_box)]
-                        if len(df) == 0:
-                            continue
-
-                        # Move the polygons to the global coordinate
-                        df = df.copy()
-                        df["geometry"] = (
-                            df["geometry"]
-                            .scale(
-                                xfact=self.downsample,
-                                yfact=self.downsample,
-                                origin=(0, 0),
-                            )
-                            .translate(xoff=pos_x, yoff=pos_y)
-                            .buffer(0)
-                        )
-                        if self.size_filter:
-                            df = df[df["geometry"].area.between(*self.nucleus_size)]
-                            if len(df) == 0:
-                                continue
-                        df = df[df["geometry"].intersects(tissue)]
-                        if len(df) == 0:
-                            continue
-                        if "class" in df.columns:
-                            df = df[df["class"] != "Background"]
-                            if len(df) == 0:
-                                continue
-
-                        # Assign a globally-unique, stable cell_id to every cell.
+                def collect(batch_results):
+                    nonlocal global_cell_idx
+                    for df, features in batch_results:
                         n = len(df)
                         cell_ids = np.arange(
                             global_cell_idx, global_cell_idx + n, dtype=np.int64
                         )
                         global_cell_idx += n
+                        df = df.copy()
                         df["cell_id"] = cell_ids
+                        if features is not None:
+                            feature_store.append(features, cell_ids)
+                        results.append(df)
 
-                        # Bind per-cell features by instance_id — exact, no centroid
-                        # guessing. Tokens are pooled over each surviving instance's
-                        # full mask, then looked up by the row's instance_id. Every
-                        # row's instance_id produced this polygon, so a feature always
-                        # exists and no cell is silently dropped.
-                        if has_tokens:
-                            token_map_i = patch_token_map[i]  # [D, PH, PW]
-                            inst_arr = df["instance_id"].to_numpy()
-                            cell_features = _pool_cell_features(
-                                out, token_map_i, np.unique(inst_arr)
+                executor = (
+                    ThreadPoolExecutor(
+                        max_workers=self.postprocess_workers,
+                        thread_name_prefix="lazyslide-cell-postprocess",
+                    )
+                    if self.postprocess_workers
+                    else None
+                )
+                pending = deque()
+                max_pending = max(1, self.postprocess_workers * 2)
+                try:
+                    for chunk in tile_loader:
+                        images = chunk["image"]
+                        xs, ys = np.asarray(chunk["x"]), np.asarray(chunk["y"])
+                        if self.device is not None:
+                            images = images.to(
+                                self.device,
+                                non_blocking=pin_memory,
                             )
-                            feature_store.append(
-                                np.stack(
-                                    [cell_features[int(inst)] for inst in inst_arr]
-                                ),
-                                cell_ids,
+                        output = self.model.segment(images)
+
+                        instance_map = output.instance_map
+                        if instance_map is None:
+                            raise ValueError(
+                                "Cell segmentation requires instance_map "
+                                "but the model returned None. "
+                                "This model may only support semantic segmentation."
+                            )
+                        probability_map = output.probability_map
+                        patch_token_map = output.patch_token_map
+
+                        if self.class_names is None and output.classes is not None:
+                            self.class_names = {
+                                i: name for i, name in enumerate(output.classes)
+                            }
+
+                        if isinstance(instance_map, torch.Tensor):
+                            instance_map = (
+                                instance_map.detach().cpu().to(torch.int).numpy()
+                            )
+                        if isinstance(probability_map, torch.Tensor):
+                            probability_map = probability_map.detach().cpu().numpy()
+                        if isinstance(patch_token_map, torch.Tensor):
+                            patch_token_map = (
+                                patch_token_map.detach().cpu().float().numpy()
                             )
 
-                        results.append(df.drop(columns="instance_id", errors="ignore"))
-                    progress_bar.update(task, advance=len(images))
+                        if (
+                            self.extract_features
+                            and patch_token_map is None
+                            and not _warned_no_tokens
+                        ):
+                            warnings.warn(
+                                "extract_features=True but model does not return "
+                                "patch_token_map. Feature extraction will be skipped.",
+                                stacklevel=find_stack_level(),
+                            )
+                            _warned_no_tokens = True
+
+                        args = (
+                            instance_map,
+                            probability_map,
+                            patch_token_map,
+                            xs,
+                            ys,
+                            tile_box,
+                            tissue,
+                            self.class_names,
+                        )
+                        if executor is None:
+                            collect(self._postprocess_batch(*args))
+                        else:
+                            pending.append(
+                                executor.submit(self._postprocess_batch, *args)
+                            )
+                            if len(pending) >= max_pending:
+                                collect(pending.popleft().result())
+                        progress_bar.update(task, advance=len(images))
+
+                    while pending:
+                        collect(pending.popleft().result())
+                finally:
+                    if executor is not None:
+                        executor.shutdown(wait=True, cancel_futures=True)
             progress_bar.refresh()
         # If no results
         empty = gpd.GeoDataFrame(columns=["geometry", "cell_id"])

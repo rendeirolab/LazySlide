@@ -5,10 +5,6 @@ import numpy as np
 from shapely.ops import unary_union
 from shapely.strtree import STRtree
 
-# There are two ways to merge polygons:
-# 1. For semantic segmentation: Merge overlapping polygons using a spatial index (STRtree)
-# 2. For cell segmentation: Only preserve the largest polygon in each group of overlapping polygons.
-
 
 def iou(a, b):
     inter = a.intersection(b).area
@@ -19,7 +15,14 @@ def iou(a, b):
 def preprocess_gdf(gdf: gpd.GeoDataFrame, buffer_px: float = 0) -> gpd.GeoDataFrame:
     """Preprocess the :term:`polygons <polygon>` by applying a buffer and filtering invalid geometries."""
     new_gdf = gdf.copy()
-    new_gdf["geometry"] = gdf["geometry"].buffer(buffer_px)
+    if buffer_px != 0:
+        new_gdf["geometry"] = gdf["geometry"].buffer(buffer_px)
+    else:
+        invalid = ~new_gdf["geometry"].is_valid
+        if invalid.any():
+            geometry = new_gdf["geometry"].copy()
+            geometry.loc[invalid] = geometry.loc[invalid].buffer(0)
+            new_gdf["geometry"] = geometry
     # Filter out invalid and empty geometries efficiently
     return new_gdf[new_gdf["geometry"].is_valid & ~new_gdf["geometry"].is_empty]
 
