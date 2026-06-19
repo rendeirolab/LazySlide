@@ -93,6 +93,28 @@ class TestCellSegmentation:
         model = MockCellSegmentationModel()
         zs.seg.cells(wsi, model, tile_key="cell_tiles", key_added="cells")
 
+    def test_cell_postprocess_worker_matches_inline(self, wsi):
+        zs.pp.tile_tissues(wsi, tile_px=512, mpp=0.5, key_added="worker_tiles")
+        zs.seg.cells(
+            wsi,
+            MockCellSegmentationModel(),
+            tile_key="worker_tiles",
+            key_added="cells_inline",
+        )
+        zs.seg.cells(
+            wsi,
+            MockCellSegmentationModel(),
+            tile_key="worker_tiles",
+            key_added="cells_worker",
+            postprocess_workers=1,
+        )
+
+        inline = wsi.shapes["cells_inline"].reset_index(drop=True)
+        worker = wsi.shapes["cells_worker"].reset_index(drop=True)
+        assert list(inline.columns) == list(worker.columns)
+        assert inline.drop(columns="geometry").equals(worker.drop(columns="geometry"))
+        assert inline.geometry.geom_equals_exact(worker.geometry, tolerance=0).all()
+
     def test_cell_classification(self, wsi):
         zs.pp.tile_tissues(wsi, tile_px=512, mpp=0.5, key_added="cell_tiles")
 
