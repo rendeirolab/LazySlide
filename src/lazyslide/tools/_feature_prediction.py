@@ -30,7 +30,7 @@ def feature_prediction(
     amp: bool | None = None,
     autocast_dtype: torch.dtype | None = None,
     device: str | None = None,
-    pbar: bool | None = False,
+    pbar: bool | None = None,
 ) -> AnnData:
     """Predict tile-level values from an existing feature matrix.
 
@@ -62,8 +62,7 @@ def feature_prediction(
 
     Returns
     -------
-    :class:`AnnData <anndata.AnnData>`
-        Tile-aligned predictions. Prediction names are stored in ``var_names``.
+    None
 
     Notes
     -----
