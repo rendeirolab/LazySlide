@@ -468,8 +468,10 @@ class InstanceMap(Mask):
 
         Returns
         -------
-        Dict[int, Sequence[Polygon]]
-            Dictionary of :term:`polygons <polygon>` for each :term:`instance`.
+        geopandas.GeoDataFrame
+            One row per instance, with its polygon in ``geometry`` and source
+            label in ``instance_id``. Probability and class columns are included
+            when a probability map is available.
 
         """
         if ignore_index is not None:
