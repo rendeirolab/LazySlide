@@ -40,7 +40,7 @@ dependencies = [
     "seaborn>=0.12.2",
     "psutil>=5.9.0",
     "scikit-image>=0.23.1",
-    "lazyslide-models>=0.0.3",
+    "lazyslide-models>=0.0.4",
 ]
 
 [project.optional-dependencies]

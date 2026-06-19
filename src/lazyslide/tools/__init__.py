@@ -1,4 +1,5 @@
 from ._domain import spatial_domain, tile_shaper
+from ._feature_prediction import feature_prediction
 from ._features import feature_aggregation, feature_extraction
 from ._image_generation import image_generation
 from ._signatures import RNALinker
@@ -14,6 +15,7 @@ __all__ = [
     "tile_shaper",
     "feature_extraction",
     "feature_aggregation",
+    "feature_prediction",
     "image_generation",
     "RNALinker",
     "spatial_features",
