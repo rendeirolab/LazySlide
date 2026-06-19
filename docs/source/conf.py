@@ -269,6 +269,11 @@ def generate_models_rst(app, config):
             },
         ),
         "tile_prediction": ("Tile prediction models", "tile_prediction", set()),
+        "feature_prediction": (
+            "Feature prediction models",
+            "feature_prediction",
+            set(),
+        ),
         "slide_encoder": ("Slide encoder models", None, set()),
         "cv_feature": (
             "Computer vision features",
@@ -288,6 +293,7 @@ def generate_models_rst(app, config):
                 mb.SegmentationModel,
                 mb.SlideEncoderModel,
                 mb.TilePredictionModel,
+                mb.FeaturePredictionModel,
                 mb.StyleTransferModel,
                 mb.TimmModel,
             ],

@@ -347,3 +347,33 @@ class MockPrismModel(ModelBase):
         # Deterministic logits
         logits = torch.arange(n_classes, dtype=torch.float32).unsqueeze(0).expand(B, -1)
         return torch.softmax(logits, dim=-1)
+
+
+class MockFeaturePredictionModel:
+    """Deterministic feature predictor that records its input batches."""
+
+    name = "mock_feature_prediction"
+    features_model_name = "mock_input"
+
+    def __init__(self):
+        self.model = nn.Identity()
+        self.batches = []
+        self.device = None
+
+    def to(self, device):
+        self.device = device
+        return self
+
+    def get_transform(self):
+        return None
+
+    def try_compile(self, **compile_kws):
+        return None
+
+    def predict(self, features):
+        self.batches.append(features)
+        values = np.asarray(features)
+        return {
+            "feature_sum": values.sum(axis=1),
+            "feature_mean": values.mean(axis=1),
+        }
