@@ -5,12 +5,143 @@ from itertools import cycle
 from pathlib import Path
 from typing import List, Literal, Mapping, Sequence
 
+try:
+    from defusedxml import ElementTree  # type: ignore[import-not-found]
+except Exception:  # pragma: no cover
+    from xml.etree import ElementTree
+
 import pandas as pd
 from geopandas import GeoDataFrame
+from shapely.geometry import LineString, Point, Polygon
 from wsidata import WSIData
 from wsidata.io import add_shapes, update_shapes_data
 
 from lazyslide._const import Key
+
+
+def _raw_float(raw_properties: Mapping, *keys: str) -> float | None:
+    for key in keys:
+        value = raw_properties.get(key)
+        if value is not None:
+            return float(value)
+    return None
+
+
+def _ndpa_coordinate_transform(wsi: WSIData):
+    """Return a converter from NDPA nanometers to level-0 pixels."""
+    raw_properties = wsi.raw_properties
+    mpp_x = _raw_float(raw_properties, "openslide.mpp-x", "mpp-x")
+    mpp_y = _raw_float(raw_properties, "openslide.mpp-y", "mpp-y")
+    mpp_x = wsi.properties.mpp if mpp_x is None else mpp_x
+    mpp_y = wsi.properties.mpp if mpp_y is None else mpp_y
+    if mpp_x is None or mpp_y is None or mpp_x <= 0 or mpp_y <= 0:
+        raise ValueError(
+            "NDPA annotations require positive slide microns-per-pixel metadata"
+        )
+
+    x_offset = _raw_float(
+        raw_properties,
+        "hamamatsu.XOffsetFromSlideCentre",
+        "XOffsetFromSlideCentre",
+    )
+    y_offset = _raw_float(
+        raw_properties,
+        "hamamatsu.YOffsetFromSlideCentre",
+        "YOffsetFromSlideCentre",
+    )
+    if x_offset is None or y_offset is None:
+        raise ValueError(
+            "NDPA annotations require Hamamatsu X/YOffsetFromSlideCentre metadata"
+        )
+
+    height, width = wsi.properties.shape
+
+    def transform(x_nm: float, y_nm: float) -> tuple[float, float]:
+        # NDPA coordinates and offsets are nanometers relative to the physical
+        # slide centre. Translate to the main-image centre, scale to pixels,
+        # then move the origin to the top-left corner of the level-0 image.
+        x_px = (x_nm - x_offset) / (mpp_x * 1000) + width / 2
+        y_px = (y_nm - y_offset) / (mpp_y * 1000) + height / 2
+        return x_px, y_px
+
+    return transform
+
+
+def read_ndpa(wsi: WSIData, annotations: str | Path) -> GeoDataFrame:
+    """Read Hamamatsu NDPA annotations as level-0 pixel geometries.
+
+    NDPA coordinates are stored in nanometers relative to the physical slide
+    centre. The matching NDPI slide supplies the offsets, pixel size, and
+    level-0 dimensions needed to place them in the image reference frame.
+
+    Parameters
+    ----------
+    wsi : :class:`WSIData <wsidata.WSIData>`
+        The WSIData object for the NDPI slide associated with the annotations.
+    annotations : str or Path
+        Path to the NDPA XML file.
+
+    Returns
+    -------
+    GeoDataFrame
+        Annotation metadata and level-0 pixel geometries.
+    """
+    transform = _ndpa_coordinate_transform(wsi)
+    root = ElementTree.parse(annotations).getroot()
+    records = []
+
+    for viewstate in root.findall(".//ndpviewstate"):
+        for annotation in viewstate.findall("./annotation"):
+            points = []
+            for point in annotation.findall("./pointlist/point"):
+                x = point.findtext("x")
+                y = point.findtext("y")
+                if x is not None and y is not None:
+                    points.append(transform(float(x), float(y)))
+
+            # Pins can store their location directly on the annotation or on
+            # the surrounding view state rather than in a point list.
+            if not points:
+                x = annotation.findtext("x") or viewstate.findtext("x")
+                y = annotation.findtext("y") or viewstate.findtext("y")
+                if x is not None and y is not None:
+                    points.append(transform(float(x), float(y)))
+
+            if not points:
+                continue
+
+            closed = annotation.findtext("closed") == "1"
+            if len(points) == 1:
+                geometry = Point(points[0])
+            elif closed and len(points) >= 3:
+                geometry = Polygon(points)
+            else:
+                geometry = LineString(points)
+
+            records.append(
+                {
+                    "ndpa_id": viewstate.get("id"),
+                    "title": viewstate.findtext("title"),
+                    "details": viewstate.findtext("details"),
+                    "annotation_type": annotation.get("type"),
+                    "display_name": annotation.get("displayname"),
+                    "color": annotation.get("color"),
+                    "closed": closed,
+                    "geometry": geometry,
+                }
+            )
+
+    columns = [
+        "ndpa_id",
+        "title",
+        "details",
+        "annotation_type",
+        "display_name",
+        "color",
+        "closed",
+        "geometry",
+    ]
+    return GeoDataFrame(records, columns=columns, geometry="geometry")
 
 
 def _in_bounds_transform(wsi: WSIData, annos: GeoDataFrame, reverse: bool = False):
@@ -67,7 +198,10 @@ def load_annotations(
 
     if isinstance(annotations, (str, Path)):
         geo_path = Path(annotations)
-        anno_df = gpd.read_file(geo_path)
+        if geo_path.suffix.lower() == ".ndpa":
+            anno_df = read_ndpa(wsi, geo_path)
+        else:
+            anno_df = gpd.read_file(geo_path)
     elif isinstance(annotations, GeoDataFrame):
         anno_df = annotations
     else:
@@ -77,13 +211,11 @@ def load_annotations(
     anno_df.crs = None
 
     if explode:
-        anno_df = (
-            anno_df.explode()
-            .assign(**{"__area__": lambda x: x.geometry.area})
-            .query(f"__area__ > {min_area}")
-            .drop(columns=["__area__"], errors="ignore")
-            .reset_index(drop=True)
-        )
+        anno_df = anno_df.explode().reset_index(drop=True)
+        is_area_geometry = anno_df.geometry.geom_type.isin(["Polygon", "MultiPolygon"])
+        anno_df = anno_df[
+            ~is_area_geometry | (anno_df.geometry.area > min_area)
+        ].reset_index(drop=True)
 
     if json_flatten is not None:
 
