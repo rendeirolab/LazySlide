@@ -44,7 +44,8 @@ def test_feature_prediction_batches_without_copying_input(feature_wsi):
         pbar=False,
     )
 
-    assert result is wsi.tables["mock_feature_prediction_no_spec_tiles"]
+    assert result is None
+    result = wsi.tables["mock_feature_prediction_no_spec_tiles"]
     assert result.shape == (5, 2)
     assert list(result.var_names) == ["feature_sum", "feature_mean"]
     np.testing.assert_allclose(result.X[:, 0], features.sum(axis=1))
@@ -67,7 +68,8 @@ def test_feature_prediction_explicit_keys(feature_wsi):
         pbar=False,
     )
 
-    assert result is wsi.tables["custom_predictions"]
+    assert result is None
+    assert "custom_predictions" in wsi.tables
 
 
 def test_feature_prediction_resolves_registered_model(feature_wsi, monkeypatch):
@@ -87,7 +89,8 @@ def test_feature_prediction_resolves_registered_model(feature_wsi, monkeypatch):
         pbar=False,
     )
 
-    assert result.shape == (5, 2)
+    assert result is None
+    assert wsi.tables["mock-predictor_no_spec_tiles"].shape == (5, 2)
     assert "mock-predictor_no_spec_tiles" in wsi.tables
 
 
