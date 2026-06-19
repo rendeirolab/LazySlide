@@ -4,7 +4,11 @@ import json
 from itertools import cycle
 from pathlib import Path
 from typing import List, Literal, Mapping, Sequence
-from xml.etree import ElementTree
+
+try:
+    from defusedxml import ElementTree  # type: ignore[import-not-found]
+except Exception:  # pragma: no cover
+    from xml.etree import ElementTree
 
 import pandas as pd
 from geopandas import GeoDataFrame
