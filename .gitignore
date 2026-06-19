@@ -171,6 +171,8 @@ cython_debug/
 work/
 .nextflow.log*
 data/
+!tests/data/
+!tests/data/*.ndpa
 checkpoints/
 annotations/
 # JetBrains AI Agent
