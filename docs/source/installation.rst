@@ -40,6 +40,29 @@ You can install :code:`lazyslide` with different package manager you prefer.
             pip install git+https://github.com/rendeirolab/lazyslide.git
 
 
+Verify the installation
+-----------------------
+
+Confirm the installed version:
+
+.. code-block:: bash
+
+    python -c "import lazyslide as zs; print(zs.__version__)"
+
+Then run a small test that does not download model weights:
+
+.. code-block:: python
+
+    import lazyslide as zs
+
+    wsi = zs.datasets.sample(with_data=False)
+    zs.pp.find_tissues(wsi, level=-1)
+    print(wsi.shapes.keys())
+
+Continue with :doc:`getting-started/first-analysis`, or see
+:doc:`how-to/installation` if a reader or model dependency is unavailable.
+
+
 Installation of slide readers
 -----------------------------
 
@@ -114,3 +137,35 @@ The reader will be automatically detected by `wsidata <https://wsidata.readthedo
         `CuCIM <https://github.com/rapidsai/cucim>`_ is a GPU-accelerated image I/O library.
 
         Please refer to the `CuCIM GitHub <https://github.com/rapidsai/cucim>`_.
+
+    .. tab-item:: fastslide
+
+        `fastslide <https://github.com/NKI-AI/fastslide>`_ is a high-performance C++ whole-slide image reader with native Python bindings.
+
+        .. code-block:: bash
+
+            pip install fastslide
+
+    .. tab-item:: pyisyntax
+
+        `pyisyntax <https://github.com/anibali/pyisyntax>`_ reads Philips iSyntax pathology images using libisyntax.
+
+        .. code-block:: bash
+
+            pip install pyisyntax
+
+    .. tab-item:: pylibCZIrw
+
+        `pylibCZIrw <https://github.com/ZEISS/pylibczirw>`_ is the official Python binding for reading and writing Zeiss CZI images.
+        It is the recommended CZI backend on Apple Silicon because it decodes JPEG-XR natively.
+
+        .. code-block:: bash
+
+            pip install pylibCZIrw
+
+        Wheels are available for Linux (x86_64 and aarch64), Apple Silicon macOS, and Windows x86_64.
+        Intel macOS users need to build it from source or use Bio-Formats.
+
+Reader availability and platform support can change independently of LazySlide. See the
+`current wsidata reader installation guide <https://wsidata.readthedocs.io/en/latest/installation.html#installation-for-slide-readers>`_
+for authoritative backend-specific details.
