@@ -1,4 +1,3 @@
-import os
 import re
 import shutil
 import subprocess
@@ -50,7 +49,7 @@ autosectionlabel_prefix_document = True
 autosummary_generate = True
 # Generated model pages can be referenced from more than one task category.
 # Their stubs are created during the same Sphinx initialization pass.
-suppress_warnings = ["autosummary", "autosummary.stub"]
+suppress_warnings = ["autosummary.stub"]
 numpydoc_show_class_members = False
 add_module_names = False
 
@@ -345,10 +344,7 @@ def setup(app):
     # Must hook into the very first event before autosummary executed
     app.connect("config-inited", generate_models_rst)
 
-    # Keep ordinary builds reproducible and usable offline. Maintainers can
-    # explicitly refresh content mirrored from companion repositories.
-    if os.environ.get("LAZYSLIDE_DOCS_REFRESH_REMOTE") == "1":
-        app.connect("config-inited", pull_tutorials)
-        app.connect("config-inited", combine_references)
+    app.connect("config-inited", pull_tutorials)
+    app.connect("config-inited", combine_references)
 
     return {"version": "0.1", "parallel_read_safe": True}

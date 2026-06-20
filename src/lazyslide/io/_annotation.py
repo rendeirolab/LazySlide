@@ -177,7 +177,7 @@ def load_annotations(
         The WSIData object to work on.
     annotations : str, Path, GeoDataFrame
         The path to the annotation file or the GeoDataFrame.
-        Currently, we support geo file format and NDPA file format.
+        Currently, we support geospatial files readable by GeoPandas (e.g., GeoJSON) and Hamamatsu .ndpa files.
     explode : bool, default: True
         Whether to explode the annotations.
     in_bounds : bool, default: False
