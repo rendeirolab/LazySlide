@@ -84,11 +84,8 @@ To access gated models, follow these steps:
    hf auth login --token YOUR_TOKEN
    ```
 
-Below is a list of available models categorized by their type:
-
-```{eval-rst}
-.. include:: api/models.rst
-```
+The complete, generated list is organized by task in the [Models API reference](api/models).
+Use `list_models()` when code needs to discover the models available in the installed version.
 
 ## Use model in an offline environment
 
@@ -128,6 +125,12 @@ Alternatively, You can set it at the start of your python session
 ```python
 import os
 os.environ['HF_HUB_OFFLINE'] = 1
+```
+
+Below is a list of available models categorized by their type:
+
+```{eval-rst}
+.. include:: api/models.rst
 ```
 
 How to use new models

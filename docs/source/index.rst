@@ -14,7 +14,7 @@ LazySlide: Accessible and interoperable whole slide image analysis
       :columns: 12 8 8 8
       :child-align: center
 
-      **LasySlide** LazySlide is a Python framework for whole slide image (:term:`WSI`) analysis,
+      **LazySlide** is a Python framework for whole slide image (:term:`WSI`) analysis,
       designed to integrate seamlessly with the `scverse`_ ecosystem.
 
       By adopting standardized data structures and APIs familiar to the single-cell and genomics community,
@@ -43,10 +43,13 @@ Whether you're a novice in digital pathology or an expert computational biologis
     :hidden:
 
     installation
+    getting-started/index
+    concepts/index
     tutorials/index
+    how-to/index
+    reference/index
     avail_models
     api/index
-    how-to
     contributing/index
     contributors
     glossary
@@ -55,6 +58,30 @@ Whether you're a novice in digital pathology or an expert computational biologis
 
 .. grid:: 1 2 2 2
    :gutter: 2
+
+   .. grid-item-card:: New to digital pathology?
+      :link: getting-started/index
+      :link-type: doc
+
+      Learn the essential concepts and complete your first whole-slide analysis.
+
+   .. grid-item-card:: Analyze your first slide
+      :link: getting-started/first-analysis
+      :link-type: doc
+
+      Go from a slide file to tissue regions, tiles, features, and a saved result.
+
+   .. grid-item-card:: Find a specific answer
+      :link: how-to/index
+      :link-type: doc
+
+      Short recipes for installation, preprocessing, models, annotations, scaling, and troubleshooting.
+
+   .. grid-item-card:: Quick lookup
+      :link: reference/index
+      :link-type: doc
+
+      Look up workflows, generated keys, file formats, readers, and APIs.
 
    .. grid-item-card:: Installation
       :link: installation
@@ -80,6 +107,12 @@ Whether you're a novice in digital pathology or an expert computational biologis
 
       API reference in LazySlide
 
+   .. grid-item-card:: Concepts
+      :link: concepts/index
+      :link-type: doc
+
+      Understand resolution, the data model, models, and the LazySlide workflow
+
    .. grid-item-card:: Contributing
       :link: contributing/index
       :link-type: doc
@@ -98,4 +131,3 @@ Whether you're a novice in digital pathology or an expert computational biologis
 .. _Scanpy: https://scanpy.readthedocs.io/
 .. _Anndata: https://anndata.readthedocs.io/
 .. _Squidpy: https://squidpy.readthedocs.io/
-
