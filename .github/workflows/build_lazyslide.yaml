@@ -118,6 +118,7 @@ jobs:
       - name: Install project
         run: uv sync --dev
       - name: Restore HuggingFace assets cache
+        if: env.LAZYSLIDE_SKIP_DATASET_TESTS != '1'
         uses: actions/cache/restore@v5
         with:
           # Primed by prime-datasets; restore-only so the 12 test jobs never re-save.
