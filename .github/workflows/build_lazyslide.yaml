@@ -58,6 +58,8 @@ jobs:
       HF_HOME: ${{ github.workspace }}/.hf_home
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
       HF_HUB_DISABLE_SYMLINKS_WARNING: "1"
+      # Prime the exact immutable revision consumed by the offline test jobs.
+      LAZYSLIDE_DATASET_REVISION: ${{ needs.resolve-dataset-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@v6
       - name: Set up uv
@@ -101,6 +103,8 @@ jobs:
       HF_HUB_OFFLINE: "1"
       HF_DATASETS_OFFLINE: "1"
       TRANSFORMERS_OFFLINE: "1"
+      # Avoid package-version tags during CI. Release tags are created only after tests pass.
+      LAZYSLIDE_DATASET_REVISION: ${{ needs.resolve-dataset-sha.outputs.sha }}
       # Empty secret (fork PRs) -> '1' -> conftest skips dataset download/tests.
       LAZYSLIDE_SKIP_DATASET_TESTS: ${{ secrets.HF_TOKEN == '' && '1' || '0' }}
     steps:
@@ -119,9 +123,11 @@ jobs:
           # Primed by prime-datasets; restore-only so the 12 test jobs never re-save.
           path: ${{ env.HF_HOME }}/hub
           key: ${{ runner.os }}-hfdata-v2-${{ needs.resolve-dataset-sha.outputs.sha }}-${{ hashFiles('src/lazyslide/datasets/_sample.py', 'scripts/prime_hf_cache.py', '.github/workflows/build_lazyslide.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-hfdata-v2-${{ needs.resolve-dataset-sha.outputs.sha }}-
-            ${{ runner.os }}-hfdata-v2-
+          # prime-datasets must have saved this exact cache before the matrix starts.
+          fail-on-cache-miss: true
+      - name: Verify HuggingFace assets are available offline
+        if: env.LAZYSLIDE_SKIP_DATASET_TESTS != '1'
+        run: uv run python scripts/prime_hf_cache.py
       - name: Tests
         run: |
           uv run pytest tests -n auto --cov=src/lazyslide --cov-report=xml --cov-report=html
@@ -153,7 +159,7 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [resolve-dataset-sha, test]
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     permissions:
       id-token: write
@@ -176,8 +182,13 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           VERSION=${{ github.ref_name }}
+          DATASET_SHA=${{ needs.resolve-dataset-sha.outputs.sha }}
           echo "Detected version: $VERSION"
-          uv run scripts/tag_datasets.py create RendeiroLab/LazySlide-data "$VERSION"
+          if [ "$DATASET_SHA" = "none" ]; then
+            echo "Could not resolve the dataset revision for this release"
+            exit 1
+          fi
+          uv run scripts/tag_datasets.py create RendeiroLab/LazySlide-data "$VERSION" "$DATASET_SHA"
       - name: Tag LazySlide-tutorials
         env:
           GH_TOKEN: ${{ secrets.TUTORIAL_RELEASE_TOKEN }}

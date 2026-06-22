@@ -9,6 +9,7 @@ from lazyslide._utils import find_stack_level
 
 _OFFLINE_ENV_VARS = ("HF_HUB_OFFLINE", "HF_DATASETS_OFFLINE", "TRANSFORMERS_OFFLINE")
 _TRUE_VALUES = {"1", "ON", "TRUE", "YES"}
+_DATASET_REVISION_ENV = "LAZYSLIDE_DATASET_REVISION"
 
 
 def _hf_offline() -> bool:
@@ -28,28 +29,33 @@ def _download_dataset_file(repo_id: str, filename: str, revision: str | None) ->
     )
 
 
-def _load_dataset(slide_file, zarr_file, with_data=True, pbar=False):
-    # Get the current version
+def _dataset_revision(repo_id: str) -> str | None:
+    """Resolve the dataset revision, honoring an explicit immutable CI pin."""
+    revision = os.environ.get(_DATASET_REVISION_ENV, "").strip()
+    if revision:
+        return revision
+
     from packaging.version import Version
 
     from lazyslide import __version__
 
     version = Version(__version__)
-    # Get clean version
-    tag = f"v{version.base_version}"
+    revision = f"v{version.base_version}"
 
-    # Avoid network calls in offline mode; CI primes the cache before tests.
+    if _hf_offline():
+        if version.public != version.base_version or version.local is not None:
+            return None
+        return revision
+
+    api = HfApi()
+    refs = api.list_repo_refs(repo_id, repo_type="dataset")
+    tags = [tag.name for tag in refs.tags]
+    return revision if revision in tags else None
+
+
+def _load_dataset(slide_file, zarr_file, with_data=True, pbar=False):
     REPO_ID = "RendeiroLab/LazySlide-data"
-    if _hf_offline() and (
-        version.public != version.base_version or version.local is not None
-    ):
-        tag = None
-    elif not _hf_offline():
-        api = HfApi()
-        refs = api.list_repo_refs(REPO_ID, repo_type="dataset")
-        tags = [t.name for t in refs.tags]
-        if tag not in tags:
-            tag = None
+    revision = _dataset_revision(REPO_ID)
 
     if pbar:
         warnings.warn(
@@ -58,10 +64,10 @@ def _load_dataset(slide_file, zarr_file, with_data=True, pbar=False):
             stacklevel=find_stack_level(),
         )
 
-    slide = _download_dataset_file(REPO_ID, slide_file, revision=tag)
+    slide = _download_dataset_file(REPO_ID, slide_file, revision=revision)
     slide_zarr = None
     if with_data:
-        slide_zarr_zip = _download_dataset_file(REPO_ID, zarr_file, revision=tag)
+        slide_zarr_zip = _download_dataset_file(REPO_ID, zarr_file, revision=revision)
         slide_zarr = Path(slide_zarr_zip.replace(".zip", ""))
         # Unzip the zarr file if it is a zip file
         # But only if it is not already unzipped
