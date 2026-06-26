@@ -106,7 +106,7 @@ def tile_tissues(
         )
 
     # Check if tissue contours are present
-    if tissue_key not in wsi.shapes:
+    if tissue_key not in wsi.shapes and tissue_key is not None:
         msg = f"Contours for {tissue_key} not found. Consider run pp.find_tissue first."
         warnings.warn(msg, stacklevel=find_stack_level())
         tissue_key = None
