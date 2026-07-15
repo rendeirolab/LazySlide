@@ -131,3 +131,33 @@ zs.tl.feature_aggregation(wsi, feature_key="uni", encoder="mean")
 ```
 
 Aggregation metadata and results are stored inside the feature `AnnData`; they are not a new shape layer. See the {func}`lazyslide.tl.feature_aggregation` API for learned slide encoders and exact output locations.
+
+## How do I predict spatial gene expression from H&E?
+
+[DeepSpot-M](https://github.com/ratschlab/DeepSpotM) predicts transcriptome-wide spatial gene expression directly from H&E tiles. It is a `tile_prediction` model, so it runs through {func}`lazyslide.tl.tile_prediction` on a 224 px, ~20x tile grid and writes one column per gene onto the tile table:
+
+```python
+import lazyslide as zs
+from lazyslide_models.tile_prediction import DeepSpotM
+
+zs.pp.find_tissues(wsi)
+zs.pp.tile_tissues(wsi, tile_px=224, mpp=0.5)
+
+# A marker panel is fast and lean: only these gene queries are computed,
+# and each becomes a column on the tile shapes.
+zs.tl.tile_prediction(wsi, DeepSpotM(genes=["BRAF", "CD37", "COL1A1"]))
+
+# Read the predictions and overlay one gene on the tissue
+print(wsi.shapes["tiles"][["BRAF", "CD37", "COL1A1"]].head())
+zs.pl.tiles(wsi, color="BRAF")
+```
+
+Pass the registry key to predict the full ~19k-gene panel instead of a marker list:
+
+```python
+zs.tl.tile_prediction(wsi, "deepspotm")
+```
+
+The full panel is transcriptome-wide but adds ~19k columns to the tile table, so prefer a marker panel for routine analysis and interactive visualization.
+
+The weights are gated and non-commercial: request access on the [model page](https://huggingface.co/ratschlab/DeepSpotM) and authenticate with `huggingface-cli login` before first use. See [Choosing a model](../concepts/choosing-models) for licensing guidance.
