@@ -14,7 +14,6 @@ from wsidata.io import add_shapes
 
 from lazyslide._utils import default_pbar, get_torch_device
 from lazyslide.cv import BinaryMask
-from lazyslide.models.segmentation import SAM
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -40,8 +39,10 @@ def _initialize_model(
     Tuple[object, str]
         The initialized model instance and the device it's running on.
     """
+    from lazyslide_models import MODEL_REGISTRY
+
     if model_name == "sam":
-        model_instance = SAM(**(model_kwargs or {}))
+        model_instance = MODEL_REGISTRY["sam"](**(model_kwargs or {}))
     else:
         raise ValueError(
             f"Unsupported model: {model_name}. Currently only 'sam' is supported."
@@ -225,7 +226,7 @@ def _segment_with_model(
         all_labels = [1] * len(pos_prompts) + [0] * len(neg_prompts)
 
         # Perform segmentation
-        mask = model_instance.segment(
+        result = model_instance.segment(
             image,
             image_embedding=embeddings,
             input_points=[all_prompts],
@@ -233,7 +234,7 @@ def _segment_with_model(
             input_boxes=[boxes],
         )
 
-        return mask
+        return result.probability_map
     except Exception as e:
         logger.error(f"Error during segmentation: {str(e)}")
         # Return empty mask in case of error

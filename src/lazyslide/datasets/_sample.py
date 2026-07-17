@@ -1,3 +1,4 @@
+import os
 import warnings
 from pathlib import Path
 
@@ -6,24 +7,55 @@ from wsidata import open_wsi
 
 from lazyslide._utils import find_stack_level
 
+_OFFLINE_ENV_VARS = ("HF_HUB_OFFLINE", "HF_DATASETS_OFFLINE", "TRANSFORMERS_OFFLINE")
+_TRUE_VALUES = {"1", "ON", "TRUE", "YES"}
+_DATASET_REVISION_ENV = "LAZYSLIDE_DATASET_REVISION"
 
-def _load_dataset(slide_file, zarr_file, with_data=True, pbar=False):
-    # Get the current version
+
+def _hf_offline() -> bool:
+    return any(
+        os.environ.get(name, "").strip().upper() in _TRUE_VALUES
+        for name in _OFFLINE_ENV_VARS
+    )
+
+
+def _download_dataset_file(repo_id: str, filename: str, revision: str | None) -> str:
+    return hf_hub_download(
+        repo_id,
+        filename,
+        repo_type="dataset",
+        revision=revision,
+        local_files_only=_hf_offline(),
+    )
+
+
+def _dataset_revision(repo_id: str) -> str | None:
+    """Resolve the dataset revision, honoring an explicit immutable CI pin."""
+    revision = os.environ.get(_DATASET_REVISION_ENV, "").strip()
+    if revision:
+        return revision
+
     from packaging.version import Version
 
     from lazyslide import __version__
 
     version = Version(__version__)
-    # Get clean version
-    tag = f"v{version.base_version}"
+    revision = f"v{version.base_version}"
 
-    # Get all the tags from huggingface repo
-    REPO_ID = "RendeiroLab/LazySlide-data"
+    if _hf_offline():
+        if version.public != version.base_version or version.local is not None:
+            return None
+        return revision
+
     api = HfApi()
-    refs = api.list_repo_refs(REPO_ID, repo_type="dataset")
-    tags = [t.name for t in refs.tags]
-    if tag not in tags:
-        tag = None
+    refs = api.list_repo_refs(repo_id, repo_type="dataset")
+    tags = [tag.name for tag in refs.tags]
+    return revision if revision in tags else None
+
+
+def _load_dataset(slide_file, zarr_file, with_data=True, pbar=False):
+    REPO_ID = "RendeiroLab/LazySlide-data"
+    revision = _dataset_revision(REPO_ID)
 
     if pbar:
         warnings.warn(
@@ -32,12 +64,10 @@ def _load_dataset(slide_file, zarr_file, with_data=True, pbar=False):
             stacklevel=find_stack_level(),
         )
 
-    slide = hf_hub_download(REPO_ID, slide_file, repo_type="dataset", revision=tag)
+    slide = _download_dataset_file(REPO_ID, slide_file, revision=revision)
     slide_zarr = None
     if with_data:
-        slide_zarr_zip = hf_hub_download(
-            REPO_ID, zarr_file, repo_type="dataset", revision=tag
-        )
+        slide_zarr_zip = _download_dataset_file(REPO_ID, zarr_file, revision=revision)
         slide_zarr = Path(slide_zarr_zip.replace(".zip", ""))
         # Unzip the zarr file if it is a zip file
         # But only if it is not already unzipped
@@ -46,7 +76,7 @@ def _load_dataset(slide_file, zarr_file, with_data=True, pbar=False):
 
             with ZipFile(slide_zarr_zip, "r") as zip_ref:
                 zip_ref.extractall(slide_zarr.parent)
-    return open_wsi(slide, store=str(slide_zarr) if with_data else None, pbar=pbar)
+    return open_wsi(slide, store=str(slide_zarr) if with_data else None)
 
 
 def sample(with_data: bool = True, pbar: bool = False):
@@ -61,6 +91,11 @@ def sample(with_data: bool = True, pbar: bool = False):
         Whether to load the associated zarr storage data.
     pbar : bool, default: False
         Whether to show the progress bar.
+
+    Returns
+    -------
+    :class:`WSIData <wsidata.WSIData>`
+        The loaded whole-slide image object.
 
     """
     return _load_dataset(
@@ -80,6 +115,11 @@ def gtex_artery(with_data: bool = True, pbar: bool = False):
         Whether to load the associated zarr storage data.
     pbar : bool, default: False
         Whether to show the progress bar.
+
+    Returns
+    -------
+    :class:`WSIData <wsidata.WSIData>`
+        The loaded whole-slide image object.
 
     """
     return _load_dataset(
@@ -103,6 +143,11 @@ def gtex_small_intestine(with_data: bool = True, pbar: bool = False):
     pbar : bool, default: False
         Whether to show the progress bar.
 
+    Returns
+    -------
+    :class:`WSIData <wsidata.WSIData>`
+        The loaded whole-slide image object.
+
     """
     return _load_dataset(
         "GTEX-11DXX-1626.svs",
@@ -124,6 +169,11 @@ def lung_carcinoma(with_data: bool = True, pbar: bool = False):
         Whether to load the associated zarr storage data.
     pbar : bool, default: False
         Whether to show the progress bar.
+
+    Returns
+    -------
+    :class:`WSIData <wsidata.WSIData>`
+        The loaded whole-slide image object.
 
     """
 

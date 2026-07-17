@@ -1,18 +1,21 @@
-from contextlib import nullcontext
-from typing import List
+from __future__ import annotations
 
-import torch
+from contextlib import nullcontext
+from typing import TYPE_CHECKING, List
+
 from PIL import Image
 from wsidata import WSIData
 
 from lazyslide import _api
-from lazyslide.models import MODEL_REGISTRY
-from lazyslide.models.base import ImageGenerationModel
+
+if TYPE_CHECKING:
+    import torch
+    from lazyslide_models import ImageGenerationModelProtocol
 
 
 def image_generation(
     wsi: WSIData = None,
-    model: str | ImageGenerationModel = "cytosyn",
+    model: str | ImageGenerationModelProtocol = "cytosyn",
     prompt_tiles: slice = None,
     tile_key: str = "tiles",
     device: str = None,
@@ -40,22 +43,23 @@ def image_generation(
         Which tile table to use.
     device : str, optional
         The device to use for inference. If not provided, the device will be automatically selected.
-    amp : bool, default: False
+    amp : bool, optional
         Whether to use automatic mixed precision.
-    autocast_dtype : torch.dtype, default: torch.float16
+    autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
     num_images_per_tiles : int, default: 2
         The number of images to generate for each tile if conditional generation is used.
         Otherwise, it's the total number of images to generate if unconditional generation is used.
     seed : int, default: 0
         The random seed to ensure reproducible image generation (May not work for all models).
-    kwargs : dict, optional
-        Please refer to the documentation of the specific model for additional parameters.
+    **kwargs : dict
+        Additional keyword arguments passed to the model's generation function.
+        Please refer to the documentation of the specific model for details.
 
     Returns
     -------
-    :class:`PIL.Image.Image`
-        The function returns a list of generated images in PIL format.
+    list of :class:`PIL.Image.Image`
+        A list of generated images in PIL format.
 
     Examples
     --------
@@ -69,14 +73,17 @@ def image_generation(
     >>> imgs = zs.tl.image_generation(wsi, prompt_tiles=slice(0, 2)) # Generate images for the first two tiles
 
     """
+    import torch
+    from lazyslide_models import MODEL_REGISTRY, ImageGenerationModelProtocol
+
     device = _api.default_value("device", device)
     amp = _api.default_value("amp", amp)
     autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
 
-    if isinstance(model, ImageGenerationModel):
+    if isinstance(model, ImageGenerationModelProtocol):
         raise NotImplementedError("Currently only supports cytosyn model.")
 
-    generation_model: ImageGenerationModel = MODEL_REGISTRY[model]()
+    generation_model: ImageGenerationModelProtocol = MODEL_REGISTRY[model]()
     try:
         generation_model.to(device)
     except:  # noqa: E722

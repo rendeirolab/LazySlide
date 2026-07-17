@@ -1,0 +1,199 @@
+name: Test & Build LazySlide
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+    paths:
+      - '.github/workflows/build_lazyslide.yaml'
+      - 'src/lazyslide/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+  pull_request:
+    paths:
+      - '.github/workflows/build_lazyslide.yaml'
+      - 'src/lazyslide/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+
+jobs:
+  # Resolve the dataset repo's current commit SHA ONCE, so the cache key tracks
+  # actual dataset state: SHA changes -> cache miss -> re-download; unchanged -> hit.
+  # This is the "did the dataset change?" check, done in a single light API call
+  # instead of by every matrix job. Falls back to "none" with no token (fork PRs).
+  resolve-dataset-sha:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.12'
+      - name: Resolve dataset revision SHA
+        id: sha
+        run: |
+          SHA=$(uv run --no-project --with huggingface_hub python -c "from huggingface_hub import HfApi; print(HfApi().repo_info('RendeiroLab/LazySlide-data', repo_type='dataset').sha)" 2>/dev/null || echo none)
+          echo "Resolved dataset SHA: $SHA"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+  # Download the HuggingFace assets ONCE per OS (3 jobs) before the test matrix,
+  # so the matrix test jobs never stampede HuggingFace on a cold cache. On a warm cache this is
+  # a fast no-op gate (cache hit -> skip install + download).
+  prime-datasets:
+    needs: resolve-dataset-sha
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      HF_HOME: ${{ github.workspace }}/.hf_home
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_HUB_DISABLE_SYMLINKS_WARNING: "1"
+      # Prime the exact immutable revision consumed by the offline test jobs.
+      LAZYSLIDE_DATASET_REVISION: ${{ needs.resolve-dataset-sha.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.12'
+          enable-cache: false
+      - name: Cache HuggingFace assets
+        id: cache
+        uses: actions/cache@v5
+        with:
+          # Only the hub cache (blobs/refs/snapshots) — never the token file.
+          path: ${{ env.HF_HOME }}/hub
+          key: ${{ runner.os }}-hfdata-v2-${{ needs.resolve-dataset-sha.outputs.sha }}-${{ hashFiles('src/lazyslide/datasets/_sample.py', 'scripts/prime_hf_cache.py', '.github/workflows/build_lazyslide.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-hfdata-v2-${{ needs.resolve-dataset-sha.outputs.sha }}-
+            ${{ runner.os }}-hfdata-v2-
+      - name: Install project
+        if: steps.cache.outputs.cache-hit != 'true' && env.HF_TOKEN != ''
+        run: uv sync --dev
+      - name: Download datasets and test models
+        if: steps.cache.outputs.cache-hit != 'true' && env.HF_TOKEN != ''
+        run: uv run python scripts/prime_hf_cache.py
+
+  test:
+    needs: [resolve-dataset-sha, prime-datasets]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.11', '3.12', '3.13', '3.14']
+
+    runs-on: ${{ matrix.os }}
+    env:
+      # Stable, cross-OS cache location (default ~/.cache/huggingface differs per runner).
+      HF_HOME: ${{ github.workspace }}/.hf_home
+      # huggingface_hub auto-reads HF_TOKEN from env — replaces `hf auth login`,
+      # keeps the token off disk (and out of the cache), and is empty-safe on forks.
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_HUB_DISABLE_SYMLINKS_WARNING: "1"  # quiet Windows copy-fallback noise
+      HF_HUB_OFFLINE: "1"
+      HF_DATASETS_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      # Avoid package-version tags during CI. Release tags are created only after tests pass.
+      LAZYSLIDE_DATASET_REVISION: ${{ needs.resolve-dataset-sha.outputs.sha }}
+      # Empty secret (fork PRs) -> '1' -> conftest skips dataset download/tests.
+      LAZYSLIDE_SKIP_DATASET_TESTS: ${{ secrets.HF_TOKEN == '' && '1' || '0' }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install project
+        run: uv sync --dev
+      - name: Restore HuggingFace assets cache
+        if: env.LAZYSLIDE_SKIP_DATASET_TESTS != '1'
+        uses: actions/cache/restore@v5
+        with:
+          # Primed by prime-datasets; restore-only so the 12 test jobs never re-save.
+          path: ${{ env.HF_HOME }}/hub
+          key: ${{ runner.os }}-hfdata-v2-${{ needs.resolve-dataset-sha.outputs.sha }}-${{ hashFiles('src/lazyslide/datasets/_sample.py', 'scripts/prime_hf_cache.py', '.github/workflows/build_lazyslide.yaml') }}
+          # prime-datasets must have saved this exact cache before the matrix starts.
+          fail-on-cache-miss: true
+      - name: Verify HuggingFace assets are available offline
+        if: env.LAZYSLIDE_SKIP_DATASET_TESTS != '1'
+        run: uv run python scripts/prime_hf_cache.py
+      - name: Tests
+        run: |
+          uv run pytest tests -n auto --cov=src/lazyslide --cov-report=xml --cov-report=html
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  publish-test-pypi:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push'
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Publish to test pypi
+        run: |
+          uv build
+          uv publish --publish-url https://test.pypi.org/legacy/ || exit 0
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [resolve-dataset-sha, test]
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Publish to pypi
+        run: |
+          uv build
+          uv publish
+      - name: Tag huggingface dataset
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          VERSION=${{ github.ref_name }}
+          DATASET_SHA=${{ needs.resolve-dataset-sha.outputs.sha }}
+          echo "Detected version: $VERSION"
+          if [ "$DATASET_SHA" = "none" ]; then
+            echo "Could not resolve the dataset revision for this release"
+            exit 1
+          fi
+          uv run scripts/tag_datasets.py create RendeiroLab/LazySlide-data "$VERSION" "$DATASET_SHA"
+      - name: Tag LazySlide-tutorials
+        env:
+          GH_TOKEN: ${{ secrets.TUTORIAL_RELEASE_TOKEN }}
+        run: |
+          TAG=${{ github.ref_name }}
+          echo "Tagging tutorials repo with $TAG"
+          gh release create "$TAG" --repo RendeiroLab/LazySlide-tutorials --notes "New release: $TAG"

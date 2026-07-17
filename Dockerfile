@@ -9,6 +9,9 @@ FROM python:3.13-slim AS builder
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+# Version injected by CI/local build; bypasses uv-dynamic-versioning git lookup
+ARG VERSION=0.0.0+docker
+
 # Set environment variables for faster builds and better performance
 ENV PYTHONUNBUFFERED=1 \
     MAX_JOBS=4 \
@@ -17,6 +20,7 @@ ENV PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive \
     UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
+    UV_DYNAMIC_VERSIONING_BYPASS=$VERSION \
     JAVA_HOME=/usr/lib/jvm/default-java \
     PATH="/usr/lib/jvm/default-java/bin:$PATH"
 
@@ -29,21 +33,12 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copy git directory first for version detection
-COPY .git/ ./.git/
-
 # Copy dependency files and README (required for package metadata)
 COPY pyproject.toml uv.lock README.md ./
 
-# Install dependencies without the project
+# Install all dependencies (all + models + docker extras) without the project
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --extra all --extra models --no-install-project
-
-# Install Jupyter Lab and IPython for interactive use
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install jupyterlab ipython \
-    torchstain scanpy spatialdata-plot scyjava cucim hf-xet \
-    igraph ipywidgets marsilea mpl-fontkit
+    uv sync --extra all --extra models --extra docker --no-install-project
 
 # Copy source and build
 COPY src/ ./src/

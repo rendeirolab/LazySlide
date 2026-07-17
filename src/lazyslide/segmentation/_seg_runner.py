@@ -1,33 +1,239 @@
 from __future__ import annotations
 
+import tempfile
+import warnings
 from abc import ABC, abstractmethod
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from functools import cached_property
-from typing import Callable, List, Literal, Mapping
+from typing import TYPE_CHECKING, Callable, List, Literal, Mapping
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-import torch
-from shapely import box, prepare
-from torch.utils.data import DataLoader
+from shapely import STRtree, box, prepare
 from wsidata import TileSpec, WSIData
 from wsidata.io import add_shapes
 
 from lazyslide import _api
 from lazyslide._const import Key
-from lazyslide._utils import default_pbar, get_torch_device
+from lazyslide._utils import default_pbar, find_stack_level, get_torch_device
 from lazyslide.cv import (
     InstanceMap,
     ProbabilityMap,
     nms,
 )
-from lazyslide.models.base import SegmentationModel
+
+if TYPE_CHECKING:
+    import torch
+    from lazyslide_models import SegmentationModelProtocol
+
+
+def _pool_cell_features(
+    instance_map: np.ndarray,
+    patch_token_map: np.ndarray,
+    instance_ids,
+) -> dict[int, np.ndarray]:
+    """Mean-pool patch tokens for each instance in ``instance_ids``.
+
+    For every instance, tokens are averaged over the patches whose
+    nearest-neighbour downsampled location falls inside the instance — the same
+    pooling as a per-instance ``(instance_map == id)`` mask, computed for all
+    instances at once.
+
+    Parameters
+    ----------
+    instance_map : np.ndarray, shape ``[H, W]``
+        Integer instance ID map for the tile.
+    patch_token_map : np.ndarray, shape ``[D, PH, PW]``
+        Patch token feature map from a ViT segmentation model.
+    instance_ids : sequence of int
+        The instance IDs to extract features for.
+
+    Returns
+    -------
+    dict[int, np.ndarray]
+        Mapping ``instance_id -> mean-pooled feature vector [D]``.
+    """
+    D, PH, PW = patch_token_map.shape
+    H, W = instance_map.shape
+    ids = np.asarray(list(instance_ids))
+    if ids.size == 0:
+        return {}
+
+    # Nearest-neighbour downsample of the instance labels to patch resolution,
+    # done once and reused for every instance.
+    row_idx = np.round(np.linspace(0, H - 1, PH)).astype(int)
+    col_idx = np.round(np.linspace(0, W - 1, PW)).astype(int)
+    inst_patch = instance_map[np.ix_(row_idx, col_idx)].reshape(-1)  # [P]
+    tokens = patch_token_map.reshape(D, -1)  # [D, P]
+
+    # Membership of each patch to each requested instance: [K, P].
+    membership = inst_patch[None, :] == ids[:, None]
+    counts = membership.sum(axis=1)  # [K]
+    # Grouped sum of tokens per instance via one matmul: [K, P] @ [P, D] -> [K, D]
+    sums = membership.astype(tokens.dtype) @ tokens.T
+
+    features: dict[int, np.ndarray] = {}
+    hit = counts > 0
+    hit_idx = np.flatnonzero(hit)
+    if hit_idx.size:
+        means = sums[hit_idx] / counts[hit_idx, None].astype(tokens.dtype)
+        for k, idx in enumerate(hit_idx):
+            features[int(ids[idx])] = means[k]
+
+    # Fallback: instances too small to land on any patch grid point use the
+    # nearest patch token to their full-resolution centroid. Compute every such
+    # centroid in a SINGLE pass over the full-res map (one np.isin + grouped
+    # bincount) rather than one ``np.where`` scan per missed instance.
+    miss_idx = np.flatnonzero(~hit)
+    if miss_idx.size:
+        miss_ids = ids[miss_idx]
+        flat = instance_map.reshape(-1)
+        sel = np.isin(flat, miss_ids)
+        Km = miss_ids.size
+        cnt = np.zeros(Km, dtype=np.int64)
+        sum_y = np.zeros(Km, dtype=np.float64)
+        sum_x = np.zeros(Km, dtype=np.float64)
+        if sel.any():
+            lin = np.flatnonzero(sel)
+            order = np.argsort(miss_ids)
+            slot = order[np.searchsorted(miss_ids[order], flat[lin])]
+            cnt = np.bincount(slot, minlength=Km)
+            sum_y = np.bincount(slot, weights=lin // W, minlength=Km)
+            sum_x = np.bincount(slot, weights=lin % W, minlength=Km)
+        for j, idx in enumerate(miss_idx):
+            inst = int(ids[idx])
+            if cnt[j] == 0:
+                features[inst] = np.zeros(D, dtype=patch_token_map.dtype)
+                continue
+            py = min(int((sum_y[j] / cnt[j]) * PH / H), PH - 1)
+            px = min(int((sum_x[j] / cnt[j]) * PW / W), PW - 1)
+            features[inst] = patch_token_map[:, py, px]
+    return features
+
+
+def _nms_by_tissue(
+    cells: gpd.GeoDataFrame,
+    tissues: gpd.GeoDataFrame,
+    prob_col: str,
+) -> gpd.GeoDataFrame:
+    """Run NMS independently for each tissue row.
+
+    Cells are assigned to the first tissue piece they intersect so a cell that
+    touches multiple tissue geometries is not duplicated in the output.
+    """
+    if len(cells) == 0:
+        return cells
+    if len(tissues) == 0:
+        return cells.iloc[[]].reset_index(drop=True)
+
+    chunks = []
+    assigned = np.zeros(len(cells), dtype=bool)
+    for tissue_geom in tissues.geometry:
+        if tissue_geom is None or tissue_geom.is_empty:
+            continue
+        mask = (~assigned) & cells.geometry.intersects(tissue_geom).to_numpy()
+        if not mask.any():
+            continue
+        assigned[mask] = True
+        chunk = nms(cells.iloc[np.flatnonzero(mask)], prob_col)
+        if len(chunk) > 0:
+            chunks.append(chunk)
+
+    if len(chunks) == 0:
+        return cells.iloc[[]].reset_index(drop=True)
+    return gpd.GeoDataFrame(
+        pd.concat(chunks, ignore_index=True),
+        crs=cells.crs,
+    ).reset_index(drop=True)
+
+
+class _CellFeatureStore:
+    def __init__(self, low_memory: bool = False):
+        self.low_memory = low_memory
+        self._tmpdir = tempfile.TemporaryDirectory() if low_memory else None
+        self._chunks = []
+        self._id_chunks: list[np.ndarray] = []
+        self._dtype = None
+        self._dim = None
+
+    def append(self, features: np.ndarray, cell_ids: np.ndarray):
+        if features.size == 0:
+            return
+        features = np.asarray(features)
+        cell_ids = np.asarray(cell_ids, dtype=np.int64)
+        if self._dtype is None:
+            self._dtype = features.dtype
+            self._dim = features.shape[1]
+        self._id_chunks.append(cell_ids.copy())
+        if self.low_memory:
+            path = f"{self._tmpdir.name}/cell_features_{len(self._chunks)}.npy"
+            chunk = np.lib.format.open_memmap(
+                path,
+                mode="w+",
+                dtype=features.dtype,
+                shape=features.shape,
+            )
+            chunk[:] = features
+            chunk.flush()
+            self._chunks.append(path)
+        else:
+            self._chunks.append(features)
+
+    def __len__(self) -> int:
+        return len(self._chunks)
+
+    def select(
+        self,
+        surviving_ids: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        surviving_ids = np.asarray(surviving_ids, dtype=np.int64)
+        if surviving_ids.size == 0:
+            features = np.empty((0, self._dim), dtype=self._dtype)
+            return features, surviving_ids, np.zeros(0, dtype=bool)
+
+        feature_ids = np.concatenate(self._id_chunks).astype(np.int64, copy=False)
+        order = np.argsort(feature_ids)
+        sorted_ids = feature_ids[order]
+        loc = np.searchsorted(sorted_ids, surviving_ids)
+        valid = loc < sorted_ids.size
+        valid[valid] &= sorted_ids[loc[valid]] == surviving_ids[valid]
+        loc = loc[valid]
+        selected_ids = surviving_ids[valid]
+        selected_pos = order[loc]
+        if self.low_memory:
+            features = self._select_low_memory(selected_pos)
+        else:
+            all_features = np.concatenate(self._chunks, axis=0)
+            features = all_features[selected_pos]
+        return features, selected_ids, valid
+
+    def _select_low_memory(self, selected_pos: np.ndarray) -> np.ndarray:
+        features = np.empty(
+            (len(selected_pos), self._dim),
+            dtype=self._dtype,
+        )
+        offsets = np.cumsum([0, *[len(ids) for ids in self._id_chunks]])
+        for chunk_ix, path in enumerate(self._chunks):
+            start, end = offsets[chunk_ix], offsets[chunk_ix + 1]
+            mask = (selected_pos >= start) & (selected_pos < end)
+            if not mask.any():
+                continue
+            chunk = np.load(path, mmap_mode="r")
+            features[mask] = chunk[selected_pos[mask] - start]
+        return features
+
+    def close(self):
+        if self._tmpdir is not None:
+            self._tmpdir.cleanup()
+            self._tmpdir = None
 
 
 def semantic(
     wsi: WSIData,
-    model: SegmentationModel,
+    model: SegmentationModelProtocol,
     tile_key=Key.tiles,
     class_names: List[str] | Mapping[int, str] | None = None,
     transform=None,
@@ -53,7 +259,7 @@ def semantic(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object to work on.
-    model : SegmentationModel
+    model : SegmentationModelProtocol
         The segmentation model.
     tile_key : str, default: "tiles"
         The key of the tile table.
@@ -82,11 +288,11 @@ def semantic(
         The number of workers for data loading.
     device : str, default: None
         The device for the model (e.g., "cpu" or "cuda"). If None, automatically selected.
-    amp : bool, optional, default: False
+    amp : bool, optional
         Whether to use automatic mixed precision.
-    autocast_dtype : torch.dtype, optional, default: torch.float16
+    autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
-    pbar : bool, default: True
+    pbar : bool, optional
         Whether to show the progress bar.
     key_added : str, default: "anatomical_structures"
         The key for the added :term:`instance` shapes in the WSIData object.
@@ -143,6 +349,8 @@ def create_importance_map(
     sigma_scale: float = 0.125,
     mode: Literal["constant", "gaussian"] = "gaussian",
 ):
+    import torch
+
     if mode == "constant":
         return torch.ones(patch_size)
     elif mode == "gaussian":
@@ -199,7 +407,20 @@ class Runner(ABC):
                     yield tile, (i, i_end, j, j_end)
 
 
-class TileDataset(torch.utils.data.Dataset):
+class TileDataset:
+    """A map-style dataset over the tiles of a WSI.
+
+    Deliberately a plain class rather than a ``torch.utils.data.Dataset``
+    subclass. It uses no torch itself, and PyTorch's ``DataLoader`` accepts any
+    object implementing ``__len__`` and ``__getitem__`` as a map-style dataset,
+    so keeping it torch-free means importing this module does not import torch.
+
+    Defining it at module level (instead of inside a closure) is what keeps it
+    picklable: ``DataLoader(num_workers>0)`` pickles the dataset under the spawn
+    start method (the default on macOS/Windows), which requires the class to be
+    importable by its qualified name.
+    """
+
     def __init__(
         self,
         wsi: WSIData,
@@ -243,7 +464,7 @@ class SemanticSegmentationRunner(Runner):
     def __init__(
         self,
         wsi: WSIData,
-        model: SegmentationModel,
+        model: SegmentationModelProtocol,
         tile_key: str = Key.tiles,
         transform: Callable = None,
         mode: Literal["constant", "gaussian"] = "gaussian",
@@ -300,7 +521,6 @@ class SemanticSegmentationRunner(Runner):
             tissues = wsi[tissue_key]
         self.tissues = tissues
         self.downsample = self.tile_spec.base_downsample
-        self._supported_output = self.model.supported_output()
 
     @cached_property
     def importance_map(self):
@@ -316,6 +536,9 @@ class SemanticSegmentationRunner(Runner):
         )
 
     def run(self) -> gpd.GeoDataFrame:
+        import torch
+        from torch.utils.data import DataLoader
+
         # For each tissue, we will run the segmentation
         results = []
         with default_pbar(disable=not self.pbar) as progress_bar:
@@ -372,7 +595,13 @@ class SemanticSegmentationRunner(Runner):
                             # TODO: output may not be tensor
                             output = self.model.segment(images)
 
-                            probability_map = output["probability_map"]
+                            probability_map = output.probability_map
+                            if probability_map is None:
+                                raise ValueError(
+                                    "Semantic segmentation requires probability_map "
+                                    "but the model returned None. "
+                                    "This model may only support instance segmentation."
+                                )
 
                             if isinstance(probability_map, torch.Tensor):
                                 # Update the out tensor with the importance map
@@ -472,7 +701,7 @@ class SemanticSegmentationRunner(Runner):
                         # buffer -> union -> unbuffer, with tolerance in base-pixel units
                         tol = max(1.0, float(self.buffer_px) * float(self.downsample))
                         buffered = class_group.geometry.buffer(tol)
-                        united = buffered.unary_union
+                        united = buffered.union_all()
                         cleaned = gpd.GeoDataFrame(geometry=[united.buffer(-tol)])
                         # Explode multi-geometries back to rows
                         cleaned = cleaned.explode(index_parts=False).reset_index(
@@ -498,7 +727,7 @@ class CellSegmentationRunner(Runner):
     def __init__(
         self,
         wsi: WSIData,
-        model: SegmentationModel,
+        model: SegmentationModelProtocol,
         tile_key: str = Key.tiles,
         transform: Callable = None,
         size_filter: bool = True,
@@ -507,9 +736,13 @@ class CellSegmentationRunner(Runner):
         num_workers: int = 0,
         device: str | None = None,
         amp: bool = False,
-        autocast_dtype: torch.dtype = torch.float16,
+        autocast_dtype: torch.dtype = None,
         class_names: List[str] | Mapping[int, str] | None = None,
         pbar: bool = True,
+        extract_features: bool = False,
+        low_memory: bool = False,
+        postprocess_workers: int = 0,
+        overlap_ownership: bool = False,
     ):
         self.wsi = wsi
         self.model = model
@@ -525,17 +758,167 @@ class CellSegmentationRunner(Runner):
         self.autocast_dtype = autocast_dtype
         self.class_names = class_names
         self.pbar = pbar
+        self.extract_features = extract_features
+        self.low_memory = low_memory
+        if postprocess_workers < 0:
+            raise ValueError("postprocess_workers must be non-negative")
+        self.postprocess_workers = postprocess_workers
 
         self.tile_spec = wsi.tile_spec(tile_key)
         self.downsample = self.tile_spec.base_downsample
-        self._supported_output = self.model.supported_output()
-        if "instance_map" not in self._supported_output:
-            raise ValueError("The model does not support instance segmentation.")
+        self.overlap_ownership = overlap_ownership and (
+            self.tile_spec.overlap_x > 0 or self.tile_spec.overlap_y > 0
+        )
+        self._tile_bounds = None
+        self._tile_centers = None
+        self._tile_neighbors = None
+        self._tile_position_indices = None
+        if self.overlap_ownership:
+            tiles = self.wsi[self.tile_key]
+            bounds = tiles.bounds[["minx", "miny", "maxx", "maxy"]].to_numpy()
+            self._tile_bounds = bounds
+            self._tile_centers = np.column_stack(
+                ((bounds[:, 0] + bounds[:, 2]) / 2, (bounds[:, 1] + bounds[:, 3]) / 2)
+            )
+            tree = STRtree(tiles.geometry.to_numpy())
+            self._tile_neighbors = [
+                np.asarray(tree.query(geom, predicate="intersects"), dtype=np.int64)
+                for geom in tiles.geometry
+            ]
+            self._tile_position_indices = {
+                (float(row[0]), float(row[1])): i for i, row in enumerate(bounds)
+            }
 
-    def run(self) -> gpd.GeoDataFrame:
+    def _instance_owner_filter(self, pos_x: float, pos_y: float):
+        if not self.overlap_ownership:
+            return None
+        current = self._tile_position_indices.get((float(pos_x), float(pos_y)))
+        if current is None:
+            return None
+        neighbors = self._tile_neighbors[current]
+
+        def owns_region(region) -> bool:
+            row, col = region.centroid
+            point = np.asarray(
+                [
+                    float(pos_x) + col * self.downsample,
+                    float(pos_y) + row * self.downsample,
+                ]
+            )
+            bounds = self._tile_bounds[neighbors]
+            covered = (
+                (bounds[:, 0] <= point[0])
+                & (point[0] <= bounds[:, 2])
+                & (bounds[:, 1] <= point[1])
+                & (point[1] <= bounds[:, 3])
+            )
+            candidates = neighbors[covered]
+            if candidates.size == 0 or current not in candidates:
+                return True
+            delta = self._tile_centers[candidates] - point
+            distance = np.einsum("ij,ij->i", delta, delta)
+            owner = int(candidates[np.argmin(distance)])
+            return owner == current
+
+        return owns_region
+
+    def _postprocess_batch(
+        self,
+        instance_map: np.ndarray,
+        probability_map: np.ndarray | None,
+        patch_token_map: np.ndarray | None,
+        xs: np.ndarray,
+        ys: np.ndarray,
+        tile_box,
+        tissue,
+        class_names,
+    ) -> list[tuple[gpd.GeoDataFrame, np.ndarray | None]]:
+        """Polygonize and filter one inference batch on a CPU worker."""
+        batch_results = []
+        has_tokens = self.extract_features and patch_token_map is not None
+        for i in range(len(xs)):
+            pos_x = xs[i]
+            pos_y = ys[i]
+            out = instance_map[i]
+            prob_map = probability_map[i] if probability_map is not None else None
+
+            m = InstanceMap(out, prob_map=prob_map, class_names=class_names)
+            df = m.to_polygons(
+                detect_holes=False,
+                region_filter=self._instance_owner_filter(pos_x, pos_y),
+            )
+            if len(df) == 0:
+                continue
+
+            df = df[~df["geometry"].intersects(tile_box)]
+            if len(df) == 0:
+                continue
+
+            df = df.copy()
+            geometry = df["geometry"].affine_transform(
+                [self.downsample, 0, 0, self.downsample, pos_x, pos_y]
+            )
+            invalid = ~geometry.is_valid
+            if invalid.any():
+                geometry = geometry.copy()
+                geometry.loc[invalid] = geometry.loc[invalid].buffer(0)
+            df["geometry"] = geometry
+
+            if self.size_filter:
+                df = df[df["geometry"].area.between(*self.nucleus_size)]
+                if len(df) == 0:
+                    continue
+            df = df[df["geometry"].intersects(tissue)]
+            if len(df) == 0:
+                continue
+            if "class" in df.columns:
+                df = df[df["class"] != "Background"]
+                if len(df) == 0:
+                    continue
+
+            features = None
+            if has_tokens:
+                inst_arr = df["instance_id"].to_numpy()
+                pooled = _pool_cell_features(
+                    out, patch_token_map[i], np.unique(inst_arr)
+                )
+                features = np.stack([pooled[int(inst)] for inst in inst_arr])
+
+            batch_results.append(
+                (df.drop(columns="instance_id", errors="ignore"), features)
+            )
+        if not batch_results:
+            return []
+
+        # Collapse tile-sized frames while the batch is still on the CPU worker.
+        # The main thread then accumulates O(batches), rather than O(tiles),
+        # frames for the final concatenation.
+        frames, feature_chunks = zip(*batch_results)
+        batch_frame = gpd.GeoDataFrame(pd.concat(frames, ignore_index=True))
+        batch_features = None
+        if has_tokens:
+            batch_features = np.concatenate(feature_chunks, axis=0)
+        return [(batch_frame, batch_features)]
+
+    def run(
+        self,
+    ) -> gpd.GeoDataFrame | tuple[gpd.GeoDataFrame, np.ndarray, np.ndarray]:
+        import torch
+        from torch.utils.data import DataLoader
+
+        # Feature chunks track the same globally unique cell_id assigned to
+        # polygon rows. In low-memory mode, chunks are backed by on-disk mmap.
+        feature_store = _CellFeatureStore(
+            low_memory=self.extract_features and self.low_memory
+        )
+        global_cell_idx = 0
+
+        autocast_dtype = (
+            self.autocast_dtype if self.autocast_dtype is not None else torch.float16
+        )
         with default_pbar(disable=not self.pbar) as progress_bar:
             amp_ctx = (
-                torch.autocast(self.device, self.autocast_dtype)
+                torch.autocast(self.device, autocast_dtype)
                 if self.amp
                 else nullcontext()
             )
@@ -544,92 +927,173 @@ class CellSegmentationRunner(Runner):
                     tile_key=self.tile_key, transform=self.transform
                 )
 
+                pin_memory = torch.device(self.device).type == "cuda"
                 tile_loader = DataLoader(
                     tile_dataset,
                     batch_size=self.batch_size,
                     num_workers=self.num_workers,
+                    pin_memory=pin_memory,
                 )
 
                 results = []
-                # is_classification = "class_map" in self._supported_output
+                _warned_no_tokens = False
+
+                # Inner boundary of a tile. Cells touching it are clipped by the
+                # tile edge and dropped (the same cell is captured whole in a
+                # neighbouring/overlapping tile). Constant across tiles -> build once
+                # and prepare it for fast repeated intersection tests.
+                tile_box = (
+                    box(0, 0, self.tile_spec.width, self.tile_spec.height)
+                    .buffer(-2)
+                    .boundary
+                )
+                prepare(tile_box)
+                tissue_key = self.tile_spec.tissue_name
+                tissues = self.wsi[tissue_key]
+                tissue = tissues.union_all()
+                prepare(tissue)
 
                 task = progress_bar.add_task(
                     "Processing tiles", total=len(tile_dataset)
                 )
 
-                for chunk in tile_loader:
-                    images = chunk["image"]
-                    xs, ys = np.asarray(chunk["x"]), np.asarray(chunk["y"])
-                    if self.device is not None:
-                        images = images.to(self.device)
-                    output = self.model.segment(images)
-
-                    instance_map = output["instance_map"]
-                    class_map = output.get("class_map", None)
-
-                    # Get output and covert to numpy
-                    if isinstance(instance_map, torch.Tensor):
-                        instance_map = instance_map.detach().cpu().to(torch.int).numpy()
-                    if class_map is not None:
-                        if isinstance(class_map, torch.Tensor):
-                            class_map = class_map.detach().cpu().numpy()
-                    for i in range(len(xs)):
-                        pos_x = xs[i]
-                        pos_y = ys[i]
-                        out = instance_map[i]
-                        if class_map is not None:
-                            prob_map = class_map[i]
-                        else:
-                            prob_map = None
-
-                        # Convert the output to polygons
-                        m = InstanceMap(
-                            out,
-                            prob_map=prob_map,
-                            class_names=self.class_names,
+                def collect(batch_results):
+                    nonlocal global_cell_idx
+                    for df, features in batch_results:
+                        n = len(df)
+                        cell_ids = np.arange(
+                            global_cell_idx, global_cell_idx + n, dtype=np.int64
                         )
-                        df = m.to_polygons(detect_holes=False)
-                        if len(df) > 0:
-                            # Remove the polygons that are on the edge of the tile
-                            tile_box = (
-                                box(0, 0, self.tile_spec.width, self.tile_spec.height)
-                                .buffer(-2)
-                                .boundary
+                        global_cell_idx += n
+                        df = df.copy()
+                        df["cell_id"] = cell_ids
+                        if features is not None:
+                            feature_store.append(features, cell_ids)
+                        results.append(df)
+
+                executor = (
+                    ThreadPoolExecutor(
+                        max_workers=self.postprocess_workers,
+                        thread_name_prefix="lazyslide-cell-postprocess",
+                    )
+                    if self.postprocess_workers
+                    else None
+                )
+                pending = deque()
+                max_pending = max(1, self.postprocess_workers * 2)
+                try:
+                    for chunk in tile_loader:
+                        images = chunk["image"]
+                        xs, ys = np.asarray(chunk["x"]), np.asarray(chunk["y"])
+                        if self.device is not None:
+                            images = images.to(
+                                self.device,
+                                non_blocking=pin_memory,
                             )
-                            prepare(tile_box)
-                            sel = df["geometry"].apply(
-                                lambda geom: not tile_box.intersects(geom)
+                        output = self.model.segment(images)
+
+                        instance_map = output.instance_map
+                        if instance_map is None:
+                            raise ValueError(
+                                "Cell segmentation requires instance_map "
+                                "but the model returned None. "
+                                "This model may only support semantic segmentation."
                             )
-                            df = df[sel]
-                            # Move the polygons to the global coordinate
-                            df["geometry"] = (
-                                df["geometry"]
-                                .scale(
-                                    xfact=self.downsample,
-                                    yfact=self.downsample,
-                                    origin=(0, 0),
-                                )
-                                .translate(xoff=pos_x, yoff=pos_y)
-                                .buffer(0)
+                        probability_map = output.probability_map
+                        patch_token_map = output.patch_token_map
+
+                        if self.class_names is None and output.classes is not None:
+                            self.class_names = {
+                                i: name for i, name in enumerate(output.classes)
+                            }
+
+                        if isinstance(instance_map, torch.Tensor):
+                            instance_map = (
+                                instance_map.detach().cpu().to(torch.int).numpy()
                             )
-                            if self.size_filter:
-                                df = df[df["geometry"].area.between(*self.nucleus_size)]
-                            results.append(df)
-                    progress_bar.update(task, advance=len(images))
+                        if isinstance(probability_map, torch.Tensor):
+                            probability_map = probability_map.detach().cpu().numpy()
+                        if isinstance(patch_token_map, torch.Tensor):
+                            patch_token_map = (
+                                patch_token_map.detach().cpu().float().numpy()
+                            )
+
+                        if (
+                            self.extract_features
+                            and patch_token_map is None
+                            and not _warned_no_tokens
+                        ):
+                            warnings.warn(
+                                "extract_features=True but model does not return "
+                                "patch_token_map. Feature extraction will be skipped.",
+                                stacklevel=find_stack_level(),
+                            )
+                            _warned_no_tokens = True
+
+                        args = (
+                            instance_map,
+                            probability_map,
+                            patch_token_map,
+                            xs,
+                            ys,
+                            tile_box,
+                            tissue,
+                            self.class_names,
+                        )
+                        if executor is None:
+                            collect(self._postprocess_batch(*args))
+                        else:
+                            pending.append(
+                                executor.submit(self._postprocess_batch, *args)
+                            )
+                            if len(pending) >= max_pending:
+                                collect(pending.popleft().result())
+                        progress_bar.update(task, advance=len(images))
+
+                    while pending:
+                        collect(pending.popleft().result())
+                finally:
+                    if executor is not None:
+                        executor.shutdown(wait=True, cancel_futures=True)
             progress_bar.refresh()
+        # If no results
+        empty = gpd.GeoDataFrame(columns=["geometry", "cell_id"])
+        if len(results) == 0:
+            feature_store.close()
+            if self.extract_features:
+                return empty, np.empty((0, 0)), np.empty((0,), dtype=np.int64)
+            return empty
         # Concatenate all results into a single GeoDataFrame
         cells = gpd.GeoDataFrame(pd.concat(results, ignore_index=True)).reset_index(
             drop=True
         )
+        # If all results are empty dataframe
         if len(cells) == 0:
-            return gpd.GeoDataFrame(columns=["geometry"])
+            feature_store.close()
+            if self.extract_features:
+                return empty, np.empty((0, 0)), np.empty((0,), dtype=np.int64)
+            return empty
         if "prob" not in cells:
             cells["prob"] = 1
-        # Drop the overlapping cells, preserving the largest one
-        cells = nms(cells, "prob")
-        # Remove cells that are not in the tissue
-        tissue_key = self.tile_spec.tissue_name
-        tissues = self.wsi[tissue_key]  # GeoDataFrame
-        cells = cells[cells.intersects(tissues.unary_union)]
+        # Drop overlapping cells independently within each tissue piece.
+        cells = _nms_by_tissue(cells, tissues, "prob")
 
+        if self.extract_features:
+            if len(feature_store) == 0:
+                feature_store.close()
+                # extract_features=True but model never returned patch_token_map.
+                return (
+                    cells,
+                    np.empty((len(cells), 0)),
+                    cells["cell_id"].to_numpy(dtype=np.int64),
+                )
+            surviving_ids = cells["cell_id"].to_numpy(dtype=np.int64)
+            features, surviving_ids, valid = feature_store.select(surviving_ids)
+            feature_store.close()
+            if not valid.all():
+                # Mixed-output models can produce some cells without token maps.
+                cells = cells[valid].reset_index(drop=True)
+            return cells, features, surviving_ids
+
+        feature_store.close()
         return cells

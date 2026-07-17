@@ -72,6 +72,7 @@ instance/
 docs/build/
 docs/.jupyter_cache/
 docs/jupyter_execute
+docs/source/references_combined.bib
 
 
 # PyBuilder
@@ -165,10 +166,13 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
 .DS_Store
+.claude/
 
 work/
 .nextflow.log*
 data/
+!tests/data/
+!tests/data/*.ndpa
 checkpoints/
 annotations/
 # JetBrains AI Agent

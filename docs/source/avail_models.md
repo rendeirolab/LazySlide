@@ -9,6 +9,13 @@ cite the original paper or repository as appropriate.
 LazySlide does not redistribute any source code that's not compatible with LazySlide's MIT license.
 :::
 
+:::{note}
+As of LazySlide version 0.11.0, we have transferred all LazySlide models to a separate package,
+[lazyslide-models](https://github.com/rendeirolab/lazyslide-models).
+All models are now imported from `lazyslide_models` instead of `lazyslide.models`. 
+Please make sure to update your code accordingly.
+:::
+
 ## Get model names
 
 In most of the cases, you only need to pass the model name as string to the function, for example, to use
@@ -17,7 +24,7 @@ the `UNI` model in feature extraction, you can do: `zs.tl.feature_extraction(wsi
 To get all available models, you can use the `list_models` function:
 
 ```python
-from lazyslide.models import list_models
+from lazyslide_models import list_models
 
 models = list_models()
 ```
@@ -26,7 +33,7 @@ models = list_models()
 You can also filter models by type:
 
 ```python
-from lazyslide.models import list_models
+from lazyslide_models import list_models
 
 vision_models = list_models("vision")  # for vision models only
 multimodal_models = list_models("multimodal")  # for multimodal models only
@@ -46,7 +53,7 @@ timm_models = list_models()
 To retrive a specific model class:
 
 ```python
-from lazyslide.models import MODEL_REGISTRY
+from lazyslide_models import MODEL_REGISTRY
 model_module = MODEL_REGISTRY['instanseg']
 model = model_module()  # Initiate the model
 ```
@@ -77,31 +84,53 @@ To access gated models, follow these steps:
    hf auth login --token YOUR_TOKEN
    ```
 
-Below is a list of available models categorized by their type:
+The complete, generated list is organized by task in the [Models API reference](api/models).
+Use `list_models()` when code needs to discover the models available in the installed version.
 
-```{eval-rst}
-.. include:: api/models.rst
-```
-
-## Use model in offline environment
+## Use model in an offline environment
 
 For huggingface gated models, to run in an environment without internet access.
-The model must be download first, for example, run the model initiation code on a HPC login node.
+The model must be downloaded first, for example, run the model initiation code on an HPC login node or your local machine.
 
+::::{tab-set}
+
+:::{tab-item} Python
 ```python
-from lazyslide.models import MODEL_REGISTRY
+from huggingface_hub import snapshot_download
 
-# This will cache the model
-model = MODEL_REGISTRY['uni']()
+snapshot_download("model-repo-name")
 ```
+:::
+
+:::{tab-item} CLI
+```bash
+hf download model-repo-name
+```
+:::
+
+::::
+
+If you need to copy from your local machine to an HPC login node, you would need to mimic the same directory structure
+as the model repository. The huggingface model is by default downloaded to `~/.cache/huggingface`. This is controlled
+by the environment variable [`HF_HOME`](https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables#hfhome).
+
+You can either copy the whole local `~/.cache/huggingface` directory to the same path on HPC login node, or copy the specific model
+directory to the HPC login node.
 
 When you submit a job to compute node without internet connection. Please set the environment variable
 `HF_HUB_OFFLINE=1` so huggingface will not make any HTTP request.
+
 Alternatively, You can set it at the start of your python session
 
 ```python
 import os
 os.environ['HF_HUB_OFFLINE'] = 1
+```
+
+Below is a list of available models categorized by their type:
+
+```{eval-rst}
+.. include:: api/models.rst
 ```
 
 How to use new models
@@ -116,7 +145,7 @@ one of our base classes (here is `ImageModel`) and implement necessary methods.
 ```python
 import torch
 
-from lazyslide.models.base import ImageModel
+from lazyslide_models.base import ImageModel
 
 class MyGreatModel(ImageModel):
 

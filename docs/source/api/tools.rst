@@ -13,6 +13,7 @@ Image Embedding
 
     tl.feature_extraction
     tl.feature_aggregation
+    tl.feature_prediction
     tl.spatial_features
 
 Tissue/Tile Properties
@@ -69,7 +70,7 @@ Zero-shot Learning
 
 
 Generative Modeling
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 .. currentmodule:: lazyslide
 

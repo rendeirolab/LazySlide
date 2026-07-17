@@ -4,7 +4,6 @@ from typing import Iterable, List, Sequence
 
 import numpy as np
 import pandas as pd
-import torch
 from wsidata import WSIData
 
 from lazyslide._utils import get_torch_device
@@ -72,18 +71,18 @@ def zero_shot_score(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object to work on.
-    prompts : array of str
+    prompts : list of list of str
         The text labels to classify. You can use a list of strings to
         add more information to one class.
     feature_key : str
         The tile :term:`features` to be used.
-    agg_key : str
-        The aggregation key
-    agg_by : str or list of str
+    agg_key : str, default: None
+        The aggregation key.
+    agg_by : str or list of str, default: None
         The aggregation keys that were used to create the slide features.
-    model: {"prism", "titan"}
+    model : {"prism", "titan"}, default: "prism"
         The model to use for zero-shot classification.
-    device : str
+    device : str, default: None
         The device to use for inference. If None, the default device will be used.
 
     Returns
@@ -107,19 +106,16 @@ def zero_shot_score(
         >>> print(zs.tl.zero_shot_score(wsi, classes, feature_key="virchow_tiles"))
 
     """
+    import torch
+    from lazyslide_models import MODEL_REGISTRY
+
     if device is None:
         device = get_torch_device()
 
     prompts = _preprocess_prompts(prompts)
 
-    if model == "prism":
-        from lazyslide.models.multimodal import Prism
-
-        model = Prism()
-    elif model == "titan":
-        from lazyslide.models.multimodal import Titan
-
-        model = Titan()
+    if isinstance(model, str):
+        model = MODEL_REGISTRY[model]()
     model.to(device)
     # Get the embeddings from the WSI
     agg_info, annos = _get_agg_info(
@@ -169,23 +165,31 @@ def slide_caption(
         The text instruction to generate the caption.
     feature_key : str
         The slide :term:`features` to be used.
-    agg_key : str
-        The aggregation key
-    agg_by : str or list of str
+    agg_key : str, default: None
+        The aggregation key.
+    agg_by : str or list of str, default: None
         The aggregation keys that were used to create the slide features.
-    max_length : int
+    max_length : int, default: 100
         The maximum length of the generated caption.
-    model : {"prism"}
+    model : {"prism"}, default: "prism"
         The caption generation model to use.
-    device : str
+    device : str, default: None
         The device to use for inference. If None, the default device will be used.
 
+    Returns
+    -------
+    :class:`DataFrame <pandas.DataFrame>`
+        The generated captions. Contains a 'caption' column, plus
+        any annotation columns if aggregation groups were used.
+
     """
+
+    import torch
 
     if device is None:
         device = get_torch_device()
 
-    from lazyslide.models.multimodal import Prism
+    from lazyslide_models.multimodal import Prism
 
     model = Prism()
     model.to(device)

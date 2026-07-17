@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<annotations>
+  <ndpviewstate id="polygon-1">
+    <title>Tumor</title>
+    <details>Closed freehand region</details>
+    <annotation type="freehand" displayname="Freehand Area" color="#ff0000">
+      <closed>1</closed>
+      <pointlist>
+        <point><x>-350000</x><y>-500000</y></point>
+        <point><x>-250000</x><y>-500000</y></point>
+        <point><x>-250000</x><y>-300000</y></point>
+        <point><x>-350000</x><y>-300000</y></point>
+      </pointlist>
+    </annotation>
+  </ndpviewstate>
+  <ndpviewstate id="line-1">
+    <title>Margin</title>
+    <details>Open freehand line</details>
+    <annotation type="freehand" displayname="Freehand Line" color="#00ff00">
+      <closed>0</closed>
+      <pointlist>
+        <point><x>-150000</x><y>-100000</y></point>
+        <point><x>-50000</x><y>100000</y></point>
+      </pointlist>
+    </annotation>
+  </ndpviewstate>
+  <ndpviewstate id="pin-1">
+    <title>Review here</title>
+    <details>Point annotation</details>
+    <annotation type="pin" displayname="Pin" color="#0000ff">
+      <x>50000</x><y>-600000</y>
+    </annotation>
+  </ndpviewstate>
+  <ndpviewstate id="empty-1">
+    <title>Empty annotation</title>
+    <annotation type="unknown" displayname="Unsupported" color="#999999" />
+  </ndpviewstate>
+</annotations>

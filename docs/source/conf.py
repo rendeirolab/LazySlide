@@ -2,6 +2,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import urllib.request
 from datetime import datetime
 from pathlib import Path
 
@@ -46,13 +47,16 @@ autodoc_typehints = "none"
 autosectionlabel_prefix_document = True
 # setting autosummary
 autosummary_generate = True
+# Generated model pages can be referenced from more than one task category.
+# Their stubs are created during the same Sphinx initialization pass.
+suppress_warnings = ["autosummary.stub"]
 numpydoc_show_class_members = False
 add_module_names = False
 
 templates_path = ["_templates"]
 exclude_patterns = []
 
-bibtex_bibfiles = ["references.bib"]
+bibtex_bibfiles = ["references_combined.bib"]
 bibtex_default_style = "unsrt"
 bibtex_reference_style = "author_year"
 
@@ -89,11 +93,12 @@ plot_formats = [("png", 200)]
 nitpicky = True
 # Alternative approach - ignore specific references
 nitpick_ignore = [
-    ("py:class", "lazyslide.models.tile_prediction.cv_features._CVFeatures"),
+    ("py:class", "lazyslide_models.tile_prediction.cv_features._CVFeatures"),
     ("py:class", "abc.ABC"),
     ("py:class", "Scorer"),
-    ("py:class", "lazyslide.models.vision.hibou.Hibou"),
-    ("py:class", "lazyslide.models.tile_prediction.spider.Spider"),
+    ("py:class", "lazyslide_models.vision.hibou.Hibou"),
+    ("py:class", "lazyslide_models.tile_prediction.spider.Spider"),
+    ("py:class", "lazyslide.models.vision.Virchow"),
 ]
 
 intersphinx_mapping = {
@@ -121,6 +126,32 @@ def get_clean_version(version):
     if match:
         return match.group(1)
     return version
+
+
+def combine_references(app, config):
+    """Download references.bib from lazyslide-models and merge with local copy."""
+    remote_url = "https://raw.githubusercontent.com/rendeirolab/lazyslide-models/main/references.bib"
+    local_bib = Path(app.srcdir) / "references.bib"
+    combined_bib = Path(app.srcdir) / "references_combined.bib"
+
+    try:
+        with urllib.request.urlopen(remote_url) as response:
+            remote_content = response.read().decode("utf-8")
+        print("Downloaded references.bib from lazyslide-models")
+    except Exception as e:
+        print(f"Warning: Could not download references.bib from lazyslide-models: {e}")
+        return
+
+    # Read local references.bib (may be empty)
+    local_content = local_bib.read_text().strip() if local_bib.exists() else ""
+
+    # Combine: remote first, then local
+    combined = remote_content.strip()
+    if local_content:
+        combined += "\n\n" + local_content
+
+    combined_bib.write_text(combined)
+    print(f"Combined references.bib written to {combined_bib}")
 
 
 def pull_tutorials(app, config):
@@ -188,7 +219,7 @@ def pull_tutorials(app, config):
 
 # -- Dynamic documentation generation for models ---------------------------
 def template_model_api(title, module_name, models):
-    currentmodule = "lazyslide.models"
+    currentmodule = "lazyslide_models"
     if module_name is not None:
         currentmodule += f".{module_name}"
 
@@ -209,7 +240,7 @@ def template_model_api(title, module_name, models):
         names = [model.__name__ for model in models]
     else:
         names = [
-            model.__module__.split(".")[2] + "." + model.__name__ for model in models
+            model.__module__.split(".")[1] + "." + model.__name__ for model in models
         ]
     for name in natsorted(names):
         content.append(f"    {name}")
@@ -222,9 +253,9 @@ def generate_models_rst(app, config):
     models_dir = Path(app.srcdir) / "api"
     models_file = models_dir / "models.rst"
 
-    from lazyslide.models import MODEL_REGISTRY
-    from lazyslide.models import base as mb
-    from lazyslide.models.segmentation import SMPBase
+    from lazyslide_models import MODEL_REGISTRY
+    from lazyslide_models import base as mb
+    from lazyslide_models.segmentation import SMPBase
 
     # Define model lists manually based on the current models.rst file
     model_sections = {
@@ -238,6 +269,11 @@ def generate_models_rst(app, config):
             },
         ),
         "tile_prediction": ("Tile prediction models", "tile_prediction", set()),
+        "feature_prediction": (
+            "Feature prediction models",
+            "feature_prediction",
+            set(),
+        ),
         "slide_encoder": ("Slide encoder models", None, set()),
         "cv_feature": (
             "Computer vision features",
@@ -257,6 +293,7 @@ def generate_models_rst(app, config):
                 mb.SegmentationModel,
                 mb.SlideEncoderModel,
                 mb.TilePredictionModel,
+                mb.FeaturePredictionModel,
                 mb.StyleTransferModel,
                 mb.TimmModel,
             ],
@@ -277,7 +314,10 @@ def generate_models_rst(app, config):
         "Models",
         "------",
         "",
-        ".. currentmodule:: lazyslide.models",
+        ".. attention::",
+        "    The :code:`.models` namespace is deprecated; import the ``lazyslide_models`` package instead.",
+        "",
+        ".. currentmodule:: lazyslide_models",
         "",
         ".. autosummary::",
         "    :toctree: _autogen",
@@ -304,8 +344,7 @@ def setup(app):
     # Must hook into the very first event before autosummary executed
     app.connect("config-inited", generate_models_rst)
 
-    # Connect the pull_tutorials function to the builder-inited event
-    # This ensures it runs after the configuration is initialized but before the build starts
     app.connect("config-inited", pull_tutorials)
+    app.connect("config-inited", combine_references)
 
     return {"version": "0.1", "parallel_read_safe": True}

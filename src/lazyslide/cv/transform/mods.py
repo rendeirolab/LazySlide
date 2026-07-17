@@ -201,6 +201,87 @@ class ArtifactFilterThreshold(Transform):
         return out
 
 
+class EntropyThreshold(Transform):
+    """
+    HED entropy thresholding transform to create a binary tissue mask.
+
+    Converts the input RGB image into the HED (Hematoxylin-Eosin-DAB) color
+    space, computes per-channel local entropy with a disk structuring element,
+    and applies Otsu thresholding to produce a binary mask.
+
+    Parameters
+    ----------
+    disk_radius : int, default: 4
+        Radius of the disk structuring element used for entropy filtering.
+    relaxed_threshold : bool, default: True
+        If True, use a more permissive threshold (0.85x Otsu) and aggregate
+        only hematoxylin and eosin entropy. If False, also subtract DAB
+        entropy, producing a stricter mask.
+    invert_check : bool, default: True
+        Whether to detect a flipped mask (>95% of border pixels foreground)
+        and invert it. Note: this heuristic assumes the slide border is
+        mostly background; it may misfire on tightly-cropped ROIs.
+
+    """
+
+    #: Empirical multiplier applied to the Otsu threshold in relaxed mode
+    #: to include faint tissue that strict Otsu would miss.
+    RELAXED_THRESHOLD_FACTOR = 0.85
+
+    def __init__(self, disk_radius=4, relaxed_threshold=True, invert_check=True):
+        if disk_radius < 1:
+            raise ValueError("disk_radius must be >= 1")
+        self.set_params(
+            disk_radius=disk_radius,
+            relaxed_threshold=relaxed_threshold,
+            invert_check=invert_check,
+        )
+
+    def apply(self, image):
+        from skimage.color import rgb2hed
+        from skimage.exposure import rescale_intensity
+        from skimage.filters import threshold_otsu
+        from skimage.filters.rank import entropy as rank_entropy
+        from skimage.morphology import disk
+        from skimage.util import img_as_ubyte
+
+        disk_radius = self.params["disk_radius"]
+        relaxed = self.params["relaxed_threshold"]
+        invert_check = self.params["invert_check"]
+
+        selem = disk(disk_radius)
+
+        hed = rgb2hed(image)
+        hed = img_as_ubyte(rescale_intensity(hed, in_range=(hed.min(), hed.max())))
+        h, e, d = hed[:, :, 0], hed[:, :, 1], hed[:, :, 2]
+
+        h_entropy = rank_entropy(h, selem)
+        e_entropy = rank_entropy(e, selem)
+
+        if relaxed:
+            entropy = h_entropy + e_entropy
+        else:
+            d_entropy = rank_entropy(d, selem)
+            entropy = np.maximum(h_entropy + e_entropy - d_entropy, 0)
+
+        threshold_val = threshold_otsu(entropy)
+        if relaxed:
+            threshold_val *= self.RELAXED_THRESHOLD_FACTOR
+
+        mask = entropy > threshold_val
+
+        if invert_check:
+            top = mask[0, :]
+            right = mask[:, -1]
+            bottom = mask[-1, :]
+            left = mask[:, 0]
+            edge = np.concatenate([top, right[1:-1], bottom, left[1:-1]])
+            if edge.mean() > 0.95:
+                mask = ~mask
+
+        return (mask.astype(np.uint8)) * 255
+
+
 # ================= Morphological Modules =================
 
 

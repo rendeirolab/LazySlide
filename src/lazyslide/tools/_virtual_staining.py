@@ -1,18 +1,21 @@
+from __future__ import annotations
+
 import tempfile
 from contextlib import nullcontext
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
-import torch
 from spatialdata.models import Image2DModel
 from spatialdata.transformations import Scale
-from torch.utils.data import DataLoader
 from wsidata import WSIData
 
 from lazyslide import _api
 from lazyslide._const import Key
 from lazyslide._utils import default_pbar
-from lazyslide.models import MODEL_REGISTRY
+
+if TYPE_CHECKING:
+    import torch
 
 
 def virtual_stain(
@@ -43,11 +46,11 @@ def virtual_stain(
         The key to store the new image.
     tile_key : str, default: "tiles"
         The key for the tile table.
-    device : str, default: None
+    device : str, optional
         Which device to use for inference. If None, the default device is used.
-    amp : bool, default: False
+    amp : bool, optional
         Whether to use automatic mixed precision.
-    autocast_dtype : torch.dtype, default: torch.float16
+    autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
     batch_size : int, default: 32
         The batch size for inference.
@@ -55,6 +58,12 @@ def virtual_stain(
         The number of workers for data loading.
     pbar : bool, default: True
         If the progress bar should be shown.
+
+    Returns
+    -------
+    None
+        The virtual stain image is added to the :bdg-danger:`images` slot
+        of the WSIData object under the key ``'{model_name}_prediction'``.
 
     Examples
     --------
@@ -67,12 +76,25 @@ def virtual_stain(
         >>> wsi.images["rosie_prediction"]
 
     """
+    import torch
+    from lazyslide_models import MODEL_REGISTRY
+    from torch.utils.data import DataLoader
+
     amp = _api.default_value("amp", amp)
     autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
     device = _api.default_value("device", device)
 
     tile_spec = wsi.tile_spec(tile_key)
-    if model == "rosie":
+
+    # Resolve model name vs model instance
+    if isinstance(model, str):
+        model_name = model
+        staining_model = MODEL_REGISTRY[model]()
+    else:
+        staining_model = model
+        model_name = getattr(model, "name", model.__class__.__name__).lower()
+
+    if model_name == "rosie":
         image_shape = (
             wsi.properties.shape[0] // tile_spec.base_stride_height,
             wsi.properties.shape[1] // tile_spec.base_stride_width,
@@ -80,24 +102,23 @@ def virtual_stain(
         )
         scale_x = image_shape[1] / wsi.properties.shape[1]
         scale_y = image_shape[0] / wsi.properties.shape[0]
-    elif model == "gigatime":
+    elif model_name == "gigatime":
         # The output of Giga-TIME is the same size as the input image
         img_y, img_x = wsi.properties.shape[:2]
         scale_x = 1 / tile_spec.base_downsample
         scale_y = 1 / tile_spec.base_downsample
         image_shape = (int(img_y * scale_y), int(img_x * scale_x), 23)
     else:
-        raise ValueError(f"Model {model} not supported.")
+        raise ValueError(f"Model {model_name} not supported.")
 
     if image_key is None:
-        image_key = f"{model}_prediction"
+        image_key = f"{model_name}_prediction"
 
     with tempfile.TemporaryDirectory() as tmpdir:
         new_image = np.memmap(
             f"{tmpdir}/image.npy", dtype=np.float32, mode="w+", shape=image_shape
         )
 
-        staining_model = MODEL_REGISTRY[model]()
         staining_model.to(device)
 
         transform = staining_model.get_transform()
@@ -116,7 +137,7 @@ def virtual_stain(
                 device = device.type
             amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()
             with amp_ctx, torch.inference_mode():
-                if model == "rosie":
+                if model_name == "rosie":
                     for batch in dl:
                         expression = staining_model.predict(batch["image"].to(device))
                         image_x = (batch["x"] * scale_x).long() + 1
@@ -128,7 +149,7 @@ def virtual_stain(
 
                         new_image[image_y, image_x] = expression
                         progress_bar.update(task, advance=len(batch["image"]))
-                elif model == "gigatime":
+                elif model_name == "gigatime":
                     weight_image = np.zeros(image_shape[:2], dtype=np.float32)
                     # Create a weight mask for blending
                     _, tile_h, tile_w = ds[0]["image"].shape
@@ -186,7 +207,7 @@ def virtual_stain(
             progress_bar.refresh()
 
         # Postprocessing
-        if model == "rosie":
+        if model_name == "rosie":
             # Apply postprocessing from the ROSIE codebase
             content_region = new_image[mask_y, mask_x]
             bg_threshold = np.percentile(content_region, 1, axis=0)

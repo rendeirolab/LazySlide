@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import warnings
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
-import torch
 from wsidata import WSIData
 from wsidata.io import add_shapes
 
 from lazyslide._utils import find_stack_level
 
-from ..models.segmentation import GrandQCArtifact
 from ._seg_runner import SemanticSegmentationRunner
+
+if TYPE_CHECKING:
+    import torch
+    from lazyslide_models import SegmentationModelProtocol
 
 # Define class mapping
 CLASS_MAPPING = {
@@ -28,7 +30,7 @@ CLASS_MAPPING = {
 def artifact(
     wsi: WSIData,
     tile_key: str,
-    model: str = "grandqc",
+    model: str | SegmentationModelProtocol = "grandqc",
     variant: str = "7x",
     mode: Literal["constant", "gaussian"] = "gaussian",
     sigma_scale: float = None,
@@ -86,10 +88,20 @@ def artifact(
         The number of workers for data loading.
     device : str, default: None
         The device for the model.
+    amp : bool, optional
+        Whether to use automatic mixed precision.
+    autocast_dtype : torch.dtype, optional
+        The dtype for automatic mixed precision.
     key_added : str, default: "artifacts"
         The key for the added artifact shapes.
-    pbar : bool, default: True
+    pbar : bool, optional
         Whether to show a progress bar during segmentation.
+
+    Returns
+    -------
+    None
+        The artifact shapes are added to the :bdg-danger:`shapes` slot
+        of the WSIData object.
 
     """
 
@@ -127,7 +139,11 @@ def artifact(
                 "Please consider rerun pp.tile_tissue to create overlapping tiles."
             )
 
-    model = GrandQCArtifact(variant=variant)
+    from lazyslide_models import MODEL_REGISTRY
+
+    if isinstance(model, str):
+        model = MODEL_REGISTRY.get("grandqc-artifact")(variant=variant)
+    # else: model is already a SegmentationModel instance
 
     runner = SemanticSegmentationRunner(
         wsi=wsi,

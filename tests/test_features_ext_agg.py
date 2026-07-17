@@ -1,8 +1,11 @@
-import pytest
+import torch
+import torch.nn as nn
+from torchvision.transforms.v2 import Compose, Resize, ToDtype, ToImage
 
 import lazyslide as zs
 
-TIMM_MODEL = "mobilenetv3_small_050"
+TIMM_MODEL = "test_resnet"
+TIMM_VIT_MODEL = "test_vit"
 
 
 class TestFeatureExtraction:
@@ -15,49 +18,46 @@ class TestFeatureExtraction:
         zs.tl.feature_extraction(wsi_small, model_path=torch_jit_file)
 
     def test_timm_model(self, wsi_small):
-        zs.tl.feature_extraction(wsi_small, model=TIMM_MODEL)
+        zs.tl.feature_extraction(
+            wsi_small, model=TIMM_MODEL, load_kws=dict(pretrained=False)
+        )
+
+    def test_timm_vit_model(self, wsi_small):
+        zs.tl.feature_extraction(
+            wsi_small, model=TIMM_VIT_MODEL, dense=True, load_kws=dict(pretrained=False)
+        )
 
 
-@pytest.mark.large_runner
-class TestSlideEncoders:
-    """Tests for all slide encoder models in lazyslide."""
+class _PoolModel(nn.Module):
+    """Minimal model: global avg pool -> 3-dim feature."""
 
-    def test_madeleine_encoder(self, wsi_small):
-        """Test the Madeleine slide encoder."""
-        # Extract features with CONCH model
-        zs.tl.feature_extraction(wsi_small, model="conch")
+    def __init__(self):
+        super().__init__()
+        self.pool = nn.AdaptiveAvgPool2d(1)
 
-        # Test Madeleine slide encoder
-        zs.tl.feature_aggregation(wsi_small, feature_key="conch", encoder="madeleine")
-        assert "agg_slide" in wsi_small.tables["conch_tiles"].uns["agg_ops"]
+    def forward(self, x):
+        return self.pool(x).flatten(1)
 
-    def test_titan_encoder(self, wsi_small):
-        """Test the Titan slide encoder."""
-        # Extract features with Titan model
-        zs.tl.feature_extraction(wsi_small, model="titan")
 
-        # Test Titan slide encoder
-        zs.tl.feature_aggregation(wsi_small, feature_key="titan", encoder="titan")
-        assert "agg_slide" in wsi_small.tables["titan_tiles"].uns["agg_ops"]
+class TestFeatureExtractionWithoutTileSpec:
+    """Feature extraction on tiles added via add_shapes (no TileSpec)."""
 
-    def test_chief_encoder(self, wsi_small):
-        """Test the CHIEF slide encoder."""
-        # Extract features with CHIEF model
-        zs.tl.feature_extraction(wsi_small, model="chief")
-
-        # Test CHIEF slide encoder
-        zs.tl.feature_aggregation(wsi_small, feature_key="chief", encoder="chief")
-        assert "agg_slide" in wsi_small.tables["chief_tiles"].uns["agg_ops"]
-
-    def test_prism_encoder(self, wsi_small):
-        """Test the Prism slide encoder."""
-        # Extract features with Virchow model
-        zs.tl.feature_extraction(wsi_small, model="virchow")
-
-        # Test Prism slide encoder
-        zs.tl.feature_aggregation(wsi_small, feature_key="virchow", encoder="prism")
-        assert "agg_slide" in wsi_small.tables["virchow_tiles"].uns["agg_ops"]
-
-        # Check that latents were generated
-        agg_info = wsi_small.tables["virchow_tiles"].uns["agg_ops"]["agg_slide"]
-        assert "latents" in agg_info
+    def test_basic(self, wsi_no_spec):
+        transform = Compose(
+            [
+                ToImage(),
+                ToDtype(dtype=torch.float32, scale=True),
+                Resize((224, 224), antialias=False),
+            ]
+        )
+        model = _PoolModel()
+        zs.tl.feature_extraction(
+            wsi_no_spec,
+            model=model,
+            tile_key="no_spec_tiles",
+            key_added="pool_no_spec_tiles",
+            transform=transform,
+        )
+        feat = wsi_no_spec.tables["pool_no_spec_tiles"]
+        assert feat.X.shape[0] == 5
+        assert feat.X.shape[1] == 3

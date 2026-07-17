@@ -9,9 +9,9 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 from geopandas import GeoDataFrame
-from legendkit import cat_legend
-from matplotlib import pyplot as plt
 from shapely import Polygon
+from shapely.affinity import translate
+from skimage.measure import regionprops
 
 from lazyslide._utils import find_stack_level
 
@@ -194,6 +194,8 @@ class Mask(ABC):
             raise TypeError("Mask type must be a string or a Mask subclass.")
 
     def plot(self, ax=None, **kwargs):
+        import matplotlib.pyplot as plt
+
         ax = ax or plt.gca()
         ax.imshow(self.mask, **kwargs)
         return ax
@@ -208,9 +210,9 @@ class BinaryMask(Mask):
     ):
         assert mask.ndim == 2, "Binary mask must be 2D."
         if prob_map is not None:
-            assert (
-                prob_map.shape == mask.shape
-            ), "Probability mask must have the same shape as the binary mask."
+            assert prob_map.shape == mask.shape, (
+                "Probability mask must have the same shape as the binary mask."
+            )
         # Coerce the mask to binary (0 and 1)
         mask = np.asarray(mask > 0, dtype=np.uint8)
         super().__init__(mask, prob_map, class_names)
@@ -256,9 +258,9 @@ class MulticlassMask(Mask):
         assert mask.ndim == 2, "Multiclass mask must be 2D."
         assert self._is_integer_dtype(mask), "Multiclass mask must be of integer type."
         if prob_map is not None:
-            assert (
-                prob_map.shape == mask.shape
-            ), "Probability mask must have the same shape as the multiclass mask."
+            assert prob_map.shape == mask.shape, (
+                "Probability mask must have the same shape as the multiclass mask."
+            )
         super().__init__(mask, prob_map)
         self.classes = np.sort(np.unique(self.mask))
         self.n_classes = len(self.classes)
@@ -323,6 +325,9 @@ class MulticlassMask(Mask):
         return mask
 
     def plot(self, ax=None, **kwargs):
+        import matplotlib.pyplot as plt
+        from legendkit import cat_legend
+
         ax = ax or plt.gca()
         sm = ax.imshow(self.mask, **kwargs)
         # Add legend if class names are provided
@@ -400,6 +405,8 @@ class MultilabelMask(Mask):
         return mask
 
     def plot(self, fig=None, **kwargs):
+        import matplotlib.pyplot as plt
+
         fig = fig or plt.gcf()
         axes = fig.subplots(nrows=1, ncols=self.n_classes)
         fig.set_size_inches(self.n_classes * 3, 3)
@@ -424,9 +431,9 @@ class InstanceMap(Mask):
     ):
         assert instance_map.ndim == 2, "Instance map must be 2D."
         # The map must be an integer type with unique values for each instance
-        assert np.issubdtype(
-            instance_map.dtype, np.integer
-        ), "Instance map must be of integer type."
+        assert np.issubdtype(instance_map.dtype, np.integer), (
+            "Instance map must be of integer type."
+        )
 
         self._is_classification = False
         if prob_map is not None:
@@ -443,6 +450,7 @@ class InstanceMap(Mask):
         min_hole_area: float = 0,
         detect_holes: bool = True,
         ignore_index: int | Sequence[int] | None = None,
+        region_filter=None,
     ) -> gpd.GeoDataFrame:
         """
         Convert :term:`instance mask` to :term:`polygons <polygon>`.
@@ -460,31 +468,68 @@ class InstanceMap(Mask):
 
         Returns
         -------
-        Dict[int, Sequence[Polygon]]
-            Dictionary of :term:`polygons <polygon>` for each :term:`instance`.
+        geopandas.GeoDataFrame
+            One row per instance, with its polygon in ``geometry`` and source
+            label in ``instance_id``. Probability and class columns are included
+            when a probability map is available.
 
         """
         if ignore_index is not None:
             raise ValueError("ignore_index is not supported for InstanceMap.")
-        instance_ids = np.unique(self.mask)
-        instances = []
-        for instance_id in instance_ids:
-            if instance_id <= 0:  # Skip background
+        min_area_px = int(min_area * self.mask.size) if min_area < 1 else min_area
+        min_hole_area_px = (
+            int(min_hole_area * self.mask.size) if min_hole_area < 1 else min_hole_area
+        )
+        data = []
+        for region in regionprops(self.mask, cache=False):
+            instance_id = int(region.label)
+            if instance_id <= 0:
                 continue
-            instance_mask = np.asarray(self.mask == instance_id, dtype=np.uint8)
-            polys = binary_mask_to_polygons_with_prob(
-                instance_mask,
-                prob_map=self.prob_map,
-                min_area=min_area,
-                min_hole_area=min_hole_area,
+            if region_filter is not None and not region_filter(region):
+                continue
+            min_row, min_col, max_row, max_col = region.bbox
+            instance_crop = np.asarray(region.image, dtype=np.uint8)
+            polys = binary_mask_to_polygons(
+                instance_crop,
+                min_area=min_area_px,
+                min_hole_area=min_hole_area_px,
                 detect_holes=detect_holes,
+                contour_method=cv2.CHAIN_APPROX_SIMPLE,
             )
-            if len(polys) > 0:
-                instances.append(polys.iloc[0])
-        if len(instances) == 0:
+            if not polys:
+                continue
+
+            # Preserve the existing one-row-per-instance contract. In the rare
+            # case that a label has disconnected components, the first contour is
+            # selected just as ``polys.iloc[0]`` did in the previous path.
+            local_poly = polys[0]
+            row = {
+                "geometry": translate(local_poly, xoff=min_col, yoff=min_row),
+                "instance_id": instance_id,
+            }
+            if self.prob_map is not None:
+                if self.prob_map.ndim == 3:
+                    prob_crop = self.prob_map[:, min_row:max_row, min_col:max_col]
+                else:
+                    prob_crop = self.prob_map[min_row:max_row, min_col:max_col]
+                row.update(
+                    _polygon_probability_data(
+                        local_poly,
+                        instance_crop.shape,
+                        prob_crop,
+                        detect_holes=detect_holes,
+                    )
+                )
+            data.append(row)
+        if len(data) == 0:
             return gpd.GeoDataFrame()
-        # Create a GeoDataFrame from the instances
-        instances = gpd.GeoDataFrame(instances)
+        # Create a GeoDataFrame from the instances. ``instance_id`` is the source
+        # integer label in the instance map: it lets callers map each polygon back
+        # to its instance exactly (e.g. to attach per-instance features) instead of
+        # guessing via centroid lookup. Reset the index first because each row was
+        # taken with ``.iloc[0]`` (so they all share label 0); the column is then
+        # assigned positionally.
+        instances = gpd.GeoDataFrame(data).reset_index(drop=True)
         if "class" in instances.columns:
             if self.class_names is not None:
                 instances["class"] = instances["class"].map(self.class_names)
@@ -590,6 +635,7 @@ def binary_mask_to_polygons(
     min_area: float = 0,
     min_hole_area: float = 0,
     detect_holes: bool = True,
+    contour_method: int = cv2.CHAIN_APPROX_NONE,
 ) -> Sequence[Polygon]:
     """
     Convert :term:`binary mask` to :term:`polygon`.
@@ -618,7 +664,7 @@ def binary_mask_to_polygons(
 
     mode = cv2.RETR_CCOMP if detect_holes else cv2.RETR_EXTERNAL
     contours, hierarchy = cv2.findContours(
-        binary_mask, mode=mode, method=cv2.CHAIN_APPROX_NONE
+        binary_mask, mode=mode, method=contour_method
     )
 
     if hierarchy is None:
@@ -673,6 +719,31 @@ def binary_mask_to_polygons(
             )
 
         return polys
+
+
+def _polygon_probability_data(
+    polygon: Polygon,
+    mask_shape: tuple[int, int],
+    prob_map: np.ndarray,
+    detect_holes: bool,
+) -> dict[str, float | int]:
+    """Calculate probability/class data inside a polygon-sized local crop."""
+    poly_mask = np.zeros(mask_shape, dtype=np.uint8)
+    points = np.asarray(polygon.exterior.coords, dtype=np.int32)
+    cv2.drawContours(poly_mask, [points], -1, 1, thickness=cv2.FILLED)
+    if detect_holes:
+        for hole in polygon.interiors:
+            hole_points = np.asarray(hole.coords, dtype=np.int32)
+            cv2.fillPoly(poly_mask, [hole_points], 0)
+
+    count = int(poly_mask.sum())
+    if count == 0:
+        return {"prob": 0.0}
+    if prob_map.ndim == 3:
+        class_probs = np.sum(prob_map * poly_mask, axis=(1, 2)) / count
+        class_id = int(np.argmax(class_probs))
+        return {"prob": float(class_probs[class_id]), "class": class_id}
+    return {"prob": float(np.sum(prob_map * poly_mask) / count)}
 
 
 def binary_mask_to_polygons_with_prob(

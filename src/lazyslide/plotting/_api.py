@@ -1,7 +1,5 @@
 from typing import Literal
 
-import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
 from wsidata import WSIData
 
 from .._const import Key
@@ -20,6 +18,9 @@ def tissue(
     in_bounds=True,
     zoom=None,
     img_bytes_limit=2e9,
+    display_aware=True,
+    oversample=1.5,
+    target_dpi=None,
     ax=None,
     ncols=4,
     wspace=0.5,
@@ -54,7 +55,16 @@ def tissue(
         If in range [0, 1], will be interpreted as a fraction of the image size.
         If > 1, will be interpreted as the absolute size in pixels.
     img_bytes_limit : int, default: 2e9
-        The image bytes limits.
+        A safety ceiling on the bytes of the image to read. The level is
+        primarily chosen from the displayed size (see ``display_aware``).
+    display_aware : bool, default: True
+        Choose the image pyramid level from the displayed figure size at render
+        time, avoiding reading a high-resolution image into a small figure.
+    oversample : float, default: 1.5
+        Read this many times more pixels than the axes occupies, for crispness.
+    target_dpi : float, optional
+        Override the figure DPI when sizing the image. Set to the export DPI
+        (e.g. ``target_dpi=300`` for ``savefig(dpi=300)``) for high-DPI output.
     ax : matplotlib.axes.Axes, default: None
         The axes to plot on.
 
@@ -69,6 +79,9 @@ def tissue(
         >>> zs.pl.tissue(wsi, tissue_id="all")
 
     """
+    import matplotlib.pyplot as plt
+    from matplotlib.gridspec import GridSpec
+
     # We need to prepare the following variables
     # axes, list of ax
     # tissue_id, list of tissue ids
@@ -114,6 +127,9 @@ def tissue(
             wsi,
             in_bounds=in_bounds,
             img_bytes_limit=img_bytes_limit,
+            display_aware=display_aware,
+            oversample=oversample,
+            target_dpi=target_dpi,
         )
         viewer.add_image()
         if show_contours and tissue_key in wsi:
@@ -154,6 +170,9 @@ def tiles(
     scalebar=True,
     in_bounds=True,
     img_bytes_limit=2e9,
+    display_aware=True,
+    oversample=1.5,
+    target_dpi=None,
     zoom=None,
     alpha=0.9,
     smooth=False,
@@ -225,12 +244,28 @@ def tiles(
         The normalization of the color map.
     palette : str, default: None
         The color palette.
-    size : int, default: 50
+    smooth : bool, default: False
+        Whether to apply spatial smoothing to the plotted values.
+    smooth_scale : int, default: 2
+        The scale factor for spatial smoothing.
+    size : int, default: None
         The size of the points.
+    gridcolor : str, default: "k"
+        The color of the tile grid lines.
+    linewidth : float, default: 0.1
+        The width of the tile grid lines.
     ax : matplotlib.axes.Axes, default: None
         The axes to plot on.
-    rasterized : bool, default: False
+    rasterized : bool, default: True
         Rasterize the points.
+    display_aware : bool, default: True
+        Choose the image pyramid level from the displayed figure size at render
+        time, avoiding reading a high-resolution image into a small figure.
+    oversample : float, default: 1.5
+        Read this many times more pixels than the axes occupies, for crispness.
+    target_dpi : float, optional
+        Override the figure DPI when sizing the image. Set to the export DPI
+        (e.g. ``target_dpi=300`` for ``savefig(dpi=300)``) for high-DPI output.
     kwargs : dict
         Additional keyword arguments for plotting.
 
@@ -246,6 +281,9 @@ def tiles(
         >>> zs.pl.tiles(wsi, tissue_id=0, color='contrast')
 
     """
+    import matplotlib.pyplot as plt
+    from matplotlib.gridspec import GridSpec
+
     tile_spec = wsi.tile_spec(tile_key)
     # Prepare tissue_id
     if tissue_key is None:
@@ -315,7 +353,12 @@ def tiles(
             ix += 1
 
             viewer = WSIViewer(
-                wsi, in_bounds=in_bounds, img_bytes_limit=img_bytes_limit
+                wsi,
+                in_bounds=in_bounds,
+                img_bytes_limit=img_bytes_limit,
+                display_aware=display_aware,
+                oversample=oversample,
+                target_dpi=target_dpi,
             )
             if show_image:
                 viewer.add_image()
@@ -326,7 +369,7 @@ def tiles(
                     label_by="tissue_id" if show_id else None,
                 )
             if tid is not None:
-                viewer.set_tissue_id(tid)
+                viewer.set_tissue_id(tid, tissue_key=tissue_key)
             if mark_origin:
                 viewer.mark_origin()
             if scalebar:
@@ -359,6 +402,9 @@ def annotations(
     scalebar=True,
     in_bounds=True,
     img_bytes_limit=2e9,
+    display_aware=True,
+    oversample=1.5,
+    target_dpi=None,
     tissue_key=Key.tissue,
     tissue_id=None,
     zoom=None,
@@ -397,7 +443,16 @@ def annotations(
     in_bounds : bool, default: True
         Whether to restrict annotations to the image bounds.
     img_bytes_limit : int, default: 2e9
-        The maximum number of bytes for the image.
+        A safety ceiling on the bytes of the image to read. The level is
+        primarily chosen from the displayed size (see ``display_aware``).
+    display_aware : bool, default: True
+        Choose the image pyramid level from the displayed figure size at render
+        time, avoiding reading a high-resolution image into a small figure.
+    oversample : float, default: 1.5
+        Read this many times more pixels than the axes occupies, for crispness.
+    target_dpi : float, optional
+        Override the figure DPI when sizing the image. Set to the export DPI
+        (e.g. ``target_dpi=300`` for ``savefig(dpi=300)``) for high-DPI output.
     tissue_key : str, default: "tissue"
         The key for tissue segmentation.
     tissue_id : int or 'all', optional
@@ -446,6 +501,9 @@ def annotations(
         >>> zs.pl.annotations(wsi, key="annotations", tissue_id="all")
 
     """
+    import matplotlib.pyplot as plt
+    from matplotlib.gridspec import GridSpec
+
     # Prepare tissue_id
     if tissue_key in wsi:
         if tissue_id is None:
@@ -482,7 +540,14 @@ def annotations(
         gs = GridSpec(nrows, ncols, wspace=wspace, hspace=hspace)
         axes = [figure.add_subplot(gs[i]) for i in range(n_axes)]
     for tid, t, ax in zip(tissue_ids, titles, axes):
-        viewer = WSIViewer(wsi, in_bounds=in_bounds, img_bytes_limit=img_bytes_limit)
+        viewer = WSIViewer(
+            wsi,
+            in_bounds=in_bounds,
+            img_bytes_limit=img_bytes_limit,
+            display_aware=display_aware,
+            oversample=oversample,
+            target_dpi=target_dpi,
+        )
         if show_image:
             viewer.add_image()
         if mark_origin:
@@ -490,7 +555,7 @@ def annotations(
         if scalebar:
             viewer.add_scalebar()
         if tissue_id is not None:
-            viewer.set_tissue_id(tid)
+            viewer.set_tissue_id(tid, tissue_key=tissue_key)
         if fill:
             viewer.add_polygons(
                 key,

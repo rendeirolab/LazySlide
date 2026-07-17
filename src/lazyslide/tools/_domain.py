@@ -28,10 +28,10 @@ def spatial_domain(
         The key for the tile table.
     layer : str, optional
         The layer in the feature table to use for clustering.
-    resolution : float, optional
-        The resolution parameter for :term:`Leiden clustering`. Defaults to 0.1.
-    key_added : str, optional
-        The key under which to store the domain labels. Defaults to "domain".
+    resolution : float, default: 0.1
+        The resolution parameter for :term:`Leiden clustering`.
+    key_added : str, default: "domain"
+        The key under which to store the domain labels.
 
     Returns
     -------
@@ -83,11 +83,11 @@ def tile_shaper(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object.
-    groupby : str
+    groupby : str, default: "domain"
         The groupby key.
-    tile_key : str
+    tile_key : str, default: "tiles"
         The :term:`tile` key.
-    key_added : str
+    key_added : str, default: "domain_shapes"
         The key to add the shapes to.
 
     Returns

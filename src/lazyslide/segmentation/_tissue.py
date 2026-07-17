@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import warnings
 from contextlib import nullcontext
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import cv2
 import numpy as np
-import torch
 from shapely import box
 from shapely.affinity import scale
 from wsidata import WSIData
@@ -15,6 +14,9 @@ from wsidata.io import add_tissues
 from lazyslide import _api
 from lazyslide._const import Key
 from lazyslide.cv import BinaryMask
+
+if TYPE_CHECKING:
+    import torch
 
 
 def tissue(
@@ -45,7 +47,7 @@ def tissue(
 
     Parameters
     ----------
-    wsi : :class:`wsidata.WSIData`
+    wsi : :class:`WSIData <wsidata.WSIData>`
         The :term:`whole slide image <WSI>`.
     model : {"grandqc", "pathprofiler", "hest"}, default: "pathprofiler"
         The model to use for :term:`tissue segmentation`.
@@ -66,14 +68,22 @@ def tissue(
         The probability threshold to consider a pixel as tissue.
     device : str, default: None
         The device to run the model.
-    amp : bool, optional, default: False
+    amp : bool, optional
         Whether to use automatic mixed precision.
-    autocast_dtype : torch.dtype, optional, default: torch.float16
+    autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
     key_added : str, default: 'tissues'
         The key to add the tissue polygons.
 
+    Returns
+    -------
+    None
+        The tissue polygons are added to the :bdg-danger:`shapes` slot
+        of the WSIData object.
+
     """
+    import torch
+
     amp = _api.default_value("amp", amp)
     autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
     device = _api.default_value("device", device)
@@ -81,21 +91,21 @@ def tissue(
     # Load the model
     model_name = model
     if model == "grandqc":
-        from lazyslide.models.segmentation import GrandQCTissue
+        from lazyslide_models.segmentation import GrandQCTissue
 
         model = GrandQCTissue()
         target_mpp = 10
         min_size = 32
         divider = 32
     elif model == "pathprofiler":
-        from lazyslide.models.segmentation import PathProfilerTissueSegmentation
+        from lazyslide_models.segmentation import PathProfilerTissueSegmentation
 
         model = PathProfilerTissueSegmentation()
         target_mpp = 2.5
         divider = 64
         min_size = 128
     elif model == "hest":
-        from lazyslide.models.segmentation import HESTTissueSegmentation
+        from lazyslide_models.segmentation import HESTTissueSegmentation
 
         model = HESTTissueSegmentation()
         target_mpp = 1
@@ -179,7 +189,7 @@ def tissue(
     amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()
     with amp_ctx, torch.inference_mode():
         pred = model.segment(img_t)
-    pred = pred["probability_map"]
+    pred = pred.probability_map
 
     pred = pred.squeeze(0).detach().cpu().numpy()
     if model_name == "grandqc":
