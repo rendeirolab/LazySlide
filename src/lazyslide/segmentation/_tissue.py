@@ -182,6 +182,9 @@ def tissue(
     result, img = cv2.imencode(".jpg", img, encode_param)
     img = cv2.imdecode(img, 1)
 
+    # OpenCV decodes in BGR; model transforms expect RGB (CLAHE or ImageNet norm)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    
     img = torch.tensor(img).permute(2, 0, 1)
 
     img_t = transform(img).unsqueeze(0)
