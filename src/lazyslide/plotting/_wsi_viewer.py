@@ -248,8 +248,8 @@ class TileDataSource(DataSource):
         gh = max(1, int(np.ceil(h0 / base_h)))
         tx = self._render_tiles[:, 0]
         ty = self._render_tiles[:, 1]
-        gx = np.clip(np.floor((tx - origin_x) / base_w).astype(int), 0, gw - 1)
-        gy = np.clip(np.floor((ty - origin_y) / base_h).astype(int), 0, gh - 1)
+        gx = np.clip(np.floor((tx - origin_x) / base_w).astype(int)+1, 0, gw - 1)
+        gy = np.clip(np.floor((ty - origin_y) / base_h).astype(int)+1, 0, gh - 1)
         return gy, gx, gh, gw
 
     @property
