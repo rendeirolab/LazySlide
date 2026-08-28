@@ -1,5 +1,4 @@
 from collections import namedtuple
-from typing import ClassVar
 
 import cv2
 import numpy as np
@@ -13,7 +12,12 @@ class Transform:
     Image -> Image
     """
 
-    params: ClassVar[dict] = {}
+    # Empty default only. `set_params` rebinds this to a per-instance dict and
+    # never mutates it, so the shared default stays empty for the process
+    # lifetime - the usual mutable-default hazard RUF012 guards against cannot
+    # happen here. Not `ClassVar`: instances do assign to `params`, which is
+    # exactly what a ClassVar annotation forbids.
+    params: dict = {}  # noqa: RUF012
 
     def __repr__(self):
         # print params
@@ -33,7 +37,9 @@ class Transform:
         raise NotImplementedError
 
     def set_params(self, **params):
-        self.params.update(params)
+        # Replace, never mutate: `params` is a class attribute, so updating it
+        # in place would share one dict across every Transform instance.
+        self.params = {**self.params, **params}
         for k, v in params.items():
             if hasattr(self, k):
                 raise ValueError(

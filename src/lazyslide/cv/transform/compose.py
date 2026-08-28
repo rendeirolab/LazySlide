@@ -23,7 +23,13 @@ class TissueDetectionHE(Transform):
         Whether to convert to HSV and use saturation channel for tissue detection.
         If False, convert from RGB to greyscale and use greyscale image_ref for tissue detection. Defaults to True.
     blur_ksize : int
-        kernel size used to apply median blurring. Defaults to 15.
+        kernel size used to apply median blurring. Defaults to 7.
+
+        .. note::
+            This default changed from 17 to 7, so that a default
+            ``TissueDetectionHE`` keeps blurring with the same kernel it used
+            when ``Transform.params`` was shared and the blur silently picked
+            up ``morph_k_size``.
     threshold : int
         threshold for binary thresholding. If None, uses Otsu's method. Defaults to None.
     morph_n_iter : int
@@ -36,7 +42,7 @@ class TissueDetectionHE(Transform):
     def __init__(
         self,
         use_saturation=False,
-        blur_ksize=17,
+        blur_ksize=7,
         threshold=7,
         morph_n_iter=3,
         morph_k_size=7,
