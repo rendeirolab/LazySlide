@@ -9,7 +9,7 @@ def spatial_features(
     feature_key: str,
     method: str = "smoothing",
     tile_key: str = Key.tiles,
-    graph_key: str = None,
+    graph_key: str | None = None,
     layer_key: str = "spatial_features",
 ):
     """

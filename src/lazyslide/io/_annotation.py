@@ -165,7 +165,7 @@ def load_annotations(
     explode: bool = True,
     in_bounds: bool = False,
     join_with: str | list[str] = Key.tissue,
-    join_to: str = None,
+    join_to: str | None = None,
     json_flatten: str | list[str] = "classification",
     min_area: float = 1e2,
     key_added: str = "annotations",
@@ -279,10 +279,10 @@ def export_annotations(
     key: str,
     *,
     in_bounds: bool = False,
-    classes: str = None,
-    colors: str | Mapping | Sequence = None,
+    classes: str | None = None,
+    colors: str | Mapping | Sequence | None = None,
     format: Literal["qupath"] = "qupath",
-    file: str | Path = None,
+    file: str | Path | None = None,
 ):
     """
     Export the annotations

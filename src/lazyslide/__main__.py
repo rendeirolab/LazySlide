@@ -175,7 +175,7 @@ def feature(
     slide: str,
     model: str,
     slide_agg: str = "mean",
-    device: str = None,
+    device: str | None = None,
     num_workers: int | str = "auto",
     output: str | None = None,
 ):

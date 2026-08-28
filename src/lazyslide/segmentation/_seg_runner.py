@@ -248,9 +248,9 @@ def semantic(
     batch_size=4,
     num_workers=0,
     device=None,
-    amp: bool = None,
+    amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
-    pbar: bool = None,
+    pbar: bool | None = None,
     key_added="anatomical_structures",
 ):
     """
@@ -426,7 +426,7 @@ class TileDataset:
         wsi: WSIData,
         tiles: gpd.GeoDataFrame,
         tile_spec: TileSpec,
-        transform: Callable = None,
+        transform: Callable | None = None,
     ):
         self.tiles_xy = tiles.bounds[["minx", "miny"]].to_numpy()
         self.tile_spec = tile_spec
@@ -466,7 +466,7 @@ class SemanticSegmentationRunner(Runner):
         wsi: WSIData,
         model: SegmentationModelProtocol,
         tile_key: str = Key.tiles,
-        transform: Callable = None,
+        transform: Callable | None = None,
         mode: Literal["constant", "gaussian"] = "gaussian",
         sigma_scale: float = 0.125,
         low_memory: bool = False,
@@ -478,9 +478,9 @@ class SemanticSegmentationRunner(Runner):
         batch_size: int = 4,
         num_workers: int = 0,
         device: str | None = None,
-        amp: bool = None,
+        amp: bool | None = None,
         autocast_dtype: torch.dtype = None,
-        pbar: bool = None,
+        pbar: bool | None = None,
     ):
         self.wsi = wsi
         self.model = model
@@ -729,7 +729,7 @@ class CellSegmentationRunner(Runner):
         wsi: WSIData,
         model: SegmentationModelProtocol,
         tile_key: str = Key.tiles,
-        transform: Callable = None,
+        transform: Callable | None = None,
         size_filter: bool = True,
         nucleus_size: (int, int) = (20, 1000),
         batch_size: int = 4,

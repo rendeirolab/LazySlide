@@ -34,7 +34,7 @@ class Mask(ABC):
         self,
         mask: np.ndarray,
         prob_map: np.ndarray | None = None,
-        class_names: Sequence[str] | Mapping[int, str] = None,
+        class_names: Sequence[str] | Mapping[int, str] | None = None,
     ):
         self.mask = mask
         self.prob_map = prob_map
@@ -206,7 +206,7 @@ class BinaryMask(Mask):
         self,
         mask: np.ndarray,
         prob_map: np.ndarray | None = None,
-        class_names: Sequence[str] | Mapping[int, str] = None,
+        class_names: Sequence[str] | Mapping[int, str] | None = None,
     ):
         assert mask.ndim == 2, "Binary mask must be 2D."
         if prob_map is not None:
@@ -253,7 +253,7 @@ class MulticlassMask(Mask):
         self,
         mask: np.ndarray,
         prob_map: np.ndarray | None = None,
-        class_names: Sequence[str] | Mapping[int, str] = None,
+        class_names: Sequence[str] | Mapping[int, str] | None = None,
     ):
         assert mask.ndim == 2, "Multiclass mask must be 2D."
         assert self._is_integer_dtype(mask), "Multiclass mask must be of integer type."
@@ -344,7 +344,7 @@ class MultilabelMask(Mask):
         self,
         mask: np.ndarray,
         prob_map: np.ndarray | None = None,
-        class_names: Sequence[str] | Mapping[int, str] = None,
+        class_names: Sequence[str] | Mapping[int, str] | None = None,
     ):
         assert mask.ndim == 3, "Multiclass mask must be C, H, W."
         assert self._is_integer_dtype(mask), "Multiclass mask must be of integer type."
@@ -427,7 +427,7 @@ class InstanceMap(Mask):
         self,
         instance_map: np.ndarray,
         prob_map: np.ndarray | None = None,
-        class_names: Sequence[str] | Mapping[int, str] = None,
+        class_names: Sequence[str] | Mapping[int, str] | None = None,
     ):
         assert instance_map.ndim == 2, "Instance map must be 2D."
         # The map must be an integer type with unique values for each instance
@@ -541,7 +541,7 @@ class ProbabilityMap(Mask):
         self,
         probability_map: np.ndarray,
         prob_map: np.ndarray | None = None,
-        class_names: Sequence[str] | Mapping[int, str] = None,
+        class_names: Sequence[str] | Mapping[int, str] | None = None,
     ):
         # The probability map can be 2D or 3D, but must be of the floating point type
         assert probability_map.ndim in (2, 3), "Probability map must be 2D or 3D."

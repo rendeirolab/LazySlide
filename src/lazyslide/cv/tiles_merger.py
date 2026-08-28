@@ -115,7 +115,7 @@ def nms(
 
 def merge_connected_polygons(
     gdf: gpd.GeoDataFrame,
-    prob_col: str = None,
+    prob_col: str | None = None,
     buffer_px: float = 0,
 ):
     """

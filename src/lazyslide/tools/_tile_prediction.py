@@ -25,7 +25,7 @@ def tile_prediction(
     batch_size: int = 16,
     num_workers: int = 0,
     tile_key: str = Key.tiles,
-    amp: bool = None,
+    amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
     device: str | None = None,
     pbar: bool = True,

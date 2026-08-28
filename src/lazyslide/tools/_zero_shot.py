@@ -27,8 +27,8 @@ def _preprocess_prompts(prompts: list[str | list[str]]) -> list[list[str]]:
 def _get_agg_info(
     wsi: WSIData,
     feature_key,
-    agg_key: str = None,
-    agg_by: str | Sequence[str] = None,
+    agg_key: str | None = None,
+    agg_by: str | Sequence[str] | None = None,
 ):
     if agg_key is None:
         if agg_by is None:
@@ -52,10 +52,10 @@ def zero_shot_score(
     prompts: list[list[str]],
     feature_key,
     *,
-    agg_key: str = None,
-    agg_by: str | Sequence[str] = None,
+    agg_key: str | None = None,
+    agg_by: str | Sequence[str] | None = None,
     model: str = "prism",
-    device: str = None,
+    device: str | None = None,
 ):
     """
     Perform :term:`zero-shot learning` classification on the :term:`WSI`
@@ -148,11 +148,11 @@ def slide_caption(
     prompt: list[str],
     feature_key,
     *,
-    agg_key: str = None,
-    agg_by: str | Sequence[str] = None,
+    agg_key: str | None = None,
+    agg_by: str | Sequence[str] | None = None,
     max_length: int = 100,
     model: str = "prism",
-    device: str = None,
+    device: str | None = None,
 ):
     """
     Generate captions for the slide.

@@ -21,10 +21,10 @@ if TYPE_CHECKING:
 def virtual_stain(
     wsi: WSIData,
     model: str = "rosie",
-    image_key: str = None,
+    image_key: str | None = None,
     tile_key: str = Key.tiles,
-    device: str = None,
-    amp: bool = None,
+    device: str | None = None,
+    amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
     batch_size: int = 32,
     num_workers: int = 0,

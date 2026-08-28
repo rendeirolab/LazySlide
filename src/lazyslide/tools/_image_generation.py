@@ -16,10 +16,10 @@ if TYPE_CHECKING:
 def image_generation(
     wsi: WSIData = None,
     model: str | ImageGenerationModelProtocol = "cytosyn",
-    prompt_tiles: slice = None,
+    prompt_tiles: slice | None = None,
     tile_key: str = "tiles",
-    device: str = None,
-    amp: bool = None,
+    device: str | None = None,
+    amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
     num_images_per_tiles: int = 2,
     seed: int = 0,
