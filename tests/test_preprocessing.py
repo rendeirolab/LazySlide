@@ -421,7 +421,7 @@ class TestPPTileTissues:
         assert len(wsi["tiles_return"]) > 0
 
         # Check if returned tiles match what's in wsi.shapes
-        tiles_df, tile_spec = result
+        tiles_df, _tile_spec = result
         assert len(tiles_df) == len(wsi["tiles_return"])
 
     def test_tile_geometry_properties(self, wsi):

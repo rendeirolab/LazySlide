@@ -179,7 +179,7 @@ def tissue(
 
     # Simulate JPEG compression
     encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
-    result, img = cv2.imencode(".jpg", img, encode_param)
+    _result, img = cv2.imencode(".jpg", img, encode_param)
     img = cv2.imdecode(img, 1)
 
     # OpenCV decodes in BGR; model transforms expect RGB (CLAHE or ImageNet norm)

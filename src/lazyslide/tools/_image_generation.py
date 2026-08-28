@@ -92,10 +92,10 @@ def image_generation(
         device = device.type
     amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()
     with amp_ctx, torch.inference_mode():
-        opts = dict(
-            num_images_per_prompt=num_images_per_tiles,
-            seed=seed,
-        )
+        opts = {
+            "num_images_per_prompt": num_images_per_tiles,
+            "seed": seed,
+        }
         opts.update(kwargs)
         # Unconditional generation
         if prompt_tiles is None:

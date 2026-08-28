@@ -16,7 +16,7 @@ class TestZeroShotClassification:
         zs.pp.tile_tissues(wsi, 512)
 
         # Extract features using a lightweight timm model
-        zs.tl.feature_extraction(wsi, model=TIMM_MODEL, load_kws=dict(pretrained=False))
+        zs.tl.feature_extraction(wsi, model=TIMM_MODEL, load_kws={"pretrained": False})
 
         # Aggregate features using mock prism
         mock_prism = MockPrismModel()

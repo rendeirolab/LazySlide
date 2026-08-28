@@ -362,17 +362,17 @@ class OriginXYArrowRenderPlan(RenderPlan):
     def __init__(self, length=30, linewidth=1, color="k", **kwargs):
         self.length = length
         self.kwargs = kwargs
-        self._arrow_props = dict(
-            arrowstyle="<|-", shrinkA=0, shrinkB=0, color=color, linewidth=linewidth
-        )
-        self._annotate_props = dict(
-            xy=(0, 1),
-            xycoords="axes fraction",
-            textcoords="offset points",
-            va="center",
-            ha="center",
-            arrowprops=self._arrow_props,
-        )
+        self._arrow_props = {
+            "arrowstyle": "<|-", "shrinkA": 0, "shrinkB": 0, "color": color, "linewidth": linewidth
+        }
+        self._annotate_props = {
+            "xy": (0, 1),
+            "xycoords": "axes fraction",
+            "textcoords": "offset points",
+            "va": "center",
+            "ha": "center",
+            "arrowprops": self._arrow_props,
+        }
 
     def render(self, ax):
         ax.annotate("x", xytext=(self.length, 0), **self._annotate_props)
@@ -586,13 +586,13 @@ class PolygonMixin(RenderPlan):
     @staticmethod
     def _label_patch(ax, patch: Patch, name, pad=0.1, box_color="white", **kwargs):
         kwargs = {} if kwargs is None else kwargs
-        options = dict(
-            color="black",
-            fontsize=8,
-            ha="center",
-            va="bottom",
-            bbox=dict(facecolor=box_color, pad=2, lw=1),
-        )
+        options = {
+            "color": "black",
+            "fontsize": 8,
+            "ha": "center",
+            "va": "bottom",
+            "bbox": {"facecolor": box_color, "pad": 2, "lw": 1},
+        }
         options.update(kwargs)
         # Check if patch is inside the axis limits
         xrange = np.sort(ax.get_xlim())
@@ -688,11 +688,11 @@ class ContourRenderPlan(PolygonMixin):
         outline_kws = {} if outline_kws is None else outline_kws
         hole_kws = {} if hole_kws is None else hole_kws
 
-        self.outline_kws = dict(
-            edgecolor=outline_color, linewidth=linewidth, fill=False
-        )
+        self.outline_kws = {
+            "edgecolor": outline_color, "linewidth": linewidth, "fill": False
+        }
         self.outline_kws.update(outline_kws)
-        self.hole_kws = dict(edgecolor=hole_color, linewidth=linewidth, fill=False)
+        self.hole_kws = {"edgecolor": hole_color, "linewidth": linewidth, "fill": False}
         self.hole_kws.update(hole_kws)
         self.legend_kws = legend_kws or {}
 
@@ -758,9 +758,9 @@ class FilledPolygonRenderPlan(PolygonMixin):
         super().__init__(polygons, labels=labels, colors=colors)
 
         self.legend_kws = legend_kws or {}
-        self.kwargs = dict(
-            facecolor=to_rgba(color, alpha), edgecolor=color, linewidth=linewidth
-        )
+        self.kwargs = {
+            "facecolor": to_rgba(color, alpha), "edgecolor": color, "linewidth": linewidth
+        }
         if kwargs is not None:
             self.kwargs.update(kwargs)
 
@@ -865,8 +865,8 @@ class DatashaderFilledPolygonRenderPlan(RenderPlan):
         max_px = self.max_px
         if w > max_px or h > max_px:
             scale = max(w / max_px, h / max_px)
-            w = max(1, int(round(w / scale)))
-            h = max(1, int(round(h / scale)))
+            w = max(1, round(w / scale))
+            h = max(1, round(h / scale))
 
         cvs = ds.Canvas(
             plot_width=int(w),
@@ -890,7 +890,7 @@ class DatashaderFilledPolygonRenderPlan(RenderPlan):
                 agg,
                 cmap=cmap,
                 how="linear",
-                alpha=int(round(self.alpha * 255)),
+                alpha=round(self.alpha * 255),
                 min_alpha=0,
             )
         else:
@@ -909,7 +909,7 @@ class DatashaderFilledPolygonRenderPlan(RenderPlan):
                 agg,
                 color_key=color_key,
                 how="linear",
-                alpha=int(round(self.alpha * 255)),
+                alpha=round(self.alpha * 255),
                 min_alpha=255,
             )
 
@@ -970,7 +970,7 @@ class ZoomRenderPlan(ZoomMixin, RenderPlan):
         xmin, xmax = self.x_range
         ymin, ymax = self.y_range
 
-        if all([0 <= x <= 1 for x in [xmin, xmax, ymin, ymax]]):
+        if all(0 <= x <= 1 for x in [xmin, xmax, ymin, ymax]):
             w, h = self.image_datasource.get_image_size()
             x_start, y_start = (
                 self.image_datasource.viewport.x,
@@ -1069,9 +1069,9 @@ class WSIViewer:
         self._viewport = self._get_region_geometry(x, y, w, h)
 
         self.image_source.set_viewport(self._viewport)
-        for name, source in self.tile_source.items():
+        for source in self.tile_source.values():
             source.set_viewport(self._viewport)
-        for name, source in self.polygon_source.items():
+        for source in self.polygon_source.values():
             source.set_viewport(self._viewport)
 
     def set_tissue_id(self, tissue_id, tissue_key="tissues"):
@@ -1175,27 +1175,27 @@ class WSIViewer:
 
         dx = self.wsi.properties.mpp
 
-        options = dict(
-            label=label,
-            length_fraction=length_fraction,
-            width_fraction=width_fraction,
-            location=location,
-            pad=pad,
-            border_pad=border_pad,
-            sep=sep,
-            frameon=frameon,
-            color=color,
-            box_alpha=box_alpha,
-            box_color=box_color,
-            scale_loc=scale_loc,
-            label_loc=label_loc,
-            font_properties=font_properties,
-            fixed_value=fixed_value,
-            fixed_units=fixed_units,
-            rotation=rotation,
+        options = {
+            "label": label,
+            "length_fraction": length_fraction,
+            "width_fraction": width_fraction,
+            "location": location,
+            "pad": pad,
+            "border_pad": border_pad,
+            "sep": sep,
+            "frameon": frameon,
+            "color": color,
+            "box_alpha": box_alpha,
+            "box_color": box_color,
+            "scale_loc": scale_loc,
+            "label_loc": label_loc,
+            "font_properties": font_properties,
+            "fixed_value": fixed_value,
+            "fixed_units": fixed_units,
+            "rotation": rotation,
             # bbox_to_anchor=bbox_to_anchor,
             # bbox_transform=bbox_transform,
-        )
+        }
 
         plan = ScaleBarRenderPlan(self.image_source, dx, **options)
         plan.zoom_view_visible = in_zoom
@@ -1514,14 +1514,14 @@ class WSIViewer:
         if is_categorical:
             cats = pd.unique(values)  # Set sorted=False to avoid NA in the data
             palette = get_dict_palette(palette, cats)
-        container = dict(
-            ds=self.tile_source[key],
-            values=values,
-            title=title,
-            cmap=cmap,
-            palette=palette,
-            is_categorical=is_categorical,
-        )
+        container = {
+            "ds": self.tile_source[key],
+            "values": values,
+            "title": title,
+            "cmap": cmap,
+            "palette": palette,
+            "is_categorical": is_categorical,
+        }
 
         return container
 
@@ -1696,14 +1696,14 @@ class WSIViewer:
                     stacklevel=find_stack_level(),
                 )
 
-        if all([0 <= x <= 1 for x in [xmin, xmax, ymin, ymax]]):
+        if all(0 <= x <= 1 for x in [xmin, xmax, ymin, ymax]):
             current_viewport = self._viewport
             downsample = current_viewport.downsample
             xmin = (current_viewport.x + xmin * current_viewport.w) * downsample
             xmax = (current_viewport.x + xmax * current_viewport.w) * downsample
             ymin = (current_viewport.y + ymin * current_viewport.h) * downsample
             ymax = (current_viewport.y + ymax * current_viewport.h) * downsample
-        elif all([x > 1 for x in [xmin, xmax, ymin, ymax]]):
+        elif all(x > 1 for x in [xmin, xmax, ymin, ymax]):
             pass
         else:
             raise ValueError(
@@ -1805,9 +1805,9 @@ class WSIViewer:
             ax.set_ylim(ymax, ymin)
         ax = _axes_style(ax, axis=axis, xaxis=xaxis)
 
-        legend_placement = dict(
-            loc="center left", bbox_transform=ax.transAxes, bbox_to_anchor=(1.01, 0.5)
-        )
+        legend_placement = {
+            "loc": "center left", "bbox_transform": ax.transAxes, "bbox_to_anchor": (1.01, 0.5)
+        }
         if self._zoom_plan is not None:
             self._zoom_plan.render(ax, self.get_render_plans(in_zoom=True))
             if not self._is_zoom_cached:

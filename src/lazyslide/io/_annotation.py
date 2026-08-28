@@ -260,18 +260,17 @@ def load_annotations(
     add_shapes(wsi, key_added, join_anno_df)
 
     # TODO: still Buggy
-    if join_to is not None:
-        if join_to in wsi:
-            shapes_df = wsi[join_to]
-            # join the annotations with the tiles
-            shapes_df = (
-                gpd.sjoin(
-                    shapes_df[["geometry"]], anno_df, how="left", predicate="intersects"
-                )
-                .reset_index(drop=True)
-                .drop(columns=["index_right"], errors="ignore")
+    if join_to is not None and join_to in wsi:
+        shapes_df = wsi[join_to]
+        # join the annotations with the tiles
+        shapes_df = (
+            gpd.sjoin(
+                shapes_df[["geometry"]], anno_df, how="left", predicate="intersects"
             )
-            update_shapes_data(wsi, join_to, shapes_df)
+            .reset_index(drop=True)
+            .drop(columns=["index_right"], errors="ignore")
+        )
+        update_shapes_data(wsi, join_to, shapes_df)
 
 
 def export_annotations(

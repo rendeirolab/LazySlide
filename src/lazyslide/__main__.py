@@ -258,10 +258,9 @@ def agg(
     if output is None:
         output = Path(f"./agg_{feature_key}.zarr")
 
-    if not output.name.endswith(".zarr"):
-        if not is_zarr_dir(output):
-            if not is_dir_empty(output):
-                raise FileExistsError(f"Output directory {output} is not empty")
+    if not output.name.endswith(".zarr") and not is_zarr_dir(output):
+        if not is_dir_empty(output):
+            raise FileExistsError(f"Output directory {output} is not empty")
 
     data.write_zarr(output)
 

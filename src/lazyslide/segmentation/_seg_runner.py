@@ -393,7 +393,7 @@ class Runner(ABC):
 
     @staticmethod
     def tiler(array, tile_size=512):
-        C, H, W = array.shape
+        _C, H, W = array.shape
 
         if H <= tile_size and W <= tile_size:
             # Image is smaller than the tile size — yield once

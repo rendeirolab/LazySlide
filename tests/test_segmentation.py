@@ -18,7 +18,7 @@ def _ref_pool_cell_feature(instance_map, patch_token_map, instance_id):
     the vectorized :func:`_pool_cell_features`."""
     cell_mask = instance_map == instance_id
     H, W = cell_mask.shape
-    D, PH, PW = patch_token_map.shape
+    _D, PH, PW = patch_token_map.shape
     row_idx = np.round(np.linspace(0, H - 1, PH)).astype(int)
     col_idx = np.round(np.linspace(0, W - 1, PW)).astype(int)
     patch_mask = cell_mask[np.ix_(row_idx, col_idx)]
@@ -207,7 +207,7 @@ class TestCellSegmentation:
     def test_cell_segmentation_no_cells_with_features(self, wsi):
         class MockNoCellsSegmentationModel(MockCellTypeSegmentationModel):
             def segment(self, image) -> SegmentationOutput:
-                B, C, H, W = image.shape
+                B, _C, H, W = image.shape
                 n_classes = len(self.classes)
                 return SegmentationOutput(
                     instance_map=np.zeros((B, H, W), dtype=np.int64),

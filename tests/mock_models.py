@@ -44,7 +44,7 @@ class MockCellSegmentationModel(SegmentationModel):
         return Compose([ToImage(), ToDtype(dtype=torch.float32, scale=False)])
 
     def segment(self, image) -> SegmentationOutput:
-        B, C, H, W = image.shape
+        B, _C, H, W = image.shape
         instance_maps = torch.zeros(B, H, W, dtype=torch.long)
         r = min(H, W) // 20  # small radius, away from edges for filtering
         # Cells 1 and 3: simple square blobs (single Polygon each).
@@ -90,7 +90,7 @@ class MockCellTypeSegmentationModel(SegmentationModel):
     _EMBED_DIM = 64
 
     def segment(self, image) -> SegmentationOutput:
-        B, C, H, W = image.shape
+        B, _C, H, W = image.shape
         n_classes = 6
         instance_maps = np.zeros((B, H, W), dtype=np.int64)
         class_maps = np.zeros((B, n_classes, H, W), dtype=np.float32)
@@ -150,7 +150,7 @@ class MockSemanticSegmentationModel(SegmentationModel):
         )
 
     def segment(self, image) -> SegmentationOutput:
-        B, C, H, W = image.shape
+        B, _C, H, W = image.shape
         n_classes = 8
         prob_map = torch.zeros(B, n_classes, H, W)
         # Class 1 (Normal Tissue) gets high probability everywhere

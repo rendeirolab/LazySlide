@@ -62,9 +62,7 @@ class Mask(ABC):
         # Check values
         bt_1 = np.min(prob_map) >= 0
         lt_1 = np.max(prob_map) <= 1
-        if not (bt_1 and lt_1):
-            return False
-        return True
+        return bt_1 and lt_1
 
     @classmethod
     def from_polygons(
@@ -530,9 +528,8 @@ class InstanceMap(Mask):
         # taken with ``.iloc[0]`` (so they all share label 0); the column is then
         # assigned positionally.
         instances = gpd.GeoDataFrame(data).reset_index(drop=True)
-        if "class" in instances.columns:
-            if self.class_names is not None:
-                instances["class"] = instances["class"].map(self.class_names)
+        if "class" in instances.columns and self.class_names is not None:
+            instances["class"] = instances["class"].map(self.class_names)
         return instances
 
 

@@ -148,9 +148,9 @@ def merge_connected_polygons(
         if geom in visited:
             continue
 
-        groups_ix = set(
-            [g for g in tree.query(geom, predicate="intersects") if g not in visited]
-        )
+        groups_ix = {
+            g for g in tree.query(geom, predicate="intersects") if g not in visited
+        }
         if len(groups_ix) == 0:
             continue
         else:

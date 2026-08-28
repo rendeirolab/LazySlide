@@ -236,9 +236,8 @@ def feature_extraction(
     except:  # noqa: E722
         pass
 
-    if transform is None:
-        if isinstance(model, ModelBaseProtocol):
-            transform = model.get_transform()
+    if transform is None and isinstance(model, ModelBaseProtocol):
+        transform = model.get_transform()
 
     n_tiles = len(wsi.shapes[tile_key])
 
@@ -619,7 +618,7 @@ def subdivide_tiles(
 
     for idx, row in tiles_table.iterrows():
         bounds = row.geometry.bounds  # (minx, miny, maxx, maxy)
-        minx, miny, maxx, maxy = bounds
+        minx, miny, _maxx, _maxy = bounds
 
         tile_id = row["tile_id"] if has_tile_id else idx
         tissue_id = row["tissue_id"] if has_tissue_id else None
