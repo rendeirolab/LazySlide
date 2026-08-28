@@ -126,12 +126,8 @@ extend-select = ["I"]
 #   __main__.py     - is_zarr_dir() probes a path; zarr raises many types
 #   _zero_shot.py   - per-prompt resilience in a batch loop, logs and degrades
 #   conf.py         - docs build should not die on one failed model lookup
-# compose.py is NOT in that category: it swallows the exception, prints, and
-# carries on with an unmodified mask. Ignored here only to keep this migration
-# lint-only - it wants a real fix, tracked separately.
 "docs/source/conf.py" = ["BLE001"]
 "src/lazyslide/__main__.py" = ["BLE001"]
-"src/lazyslide/cv/transform/compose.py" = ["BLE001"]
 "src/lazyslide/io/_annotation.py" = ["BLE001"]
 "src/lazyslide/segmentation/_zero_shot.py" = ["BLE001"]
 # B017: these tests assert that *some* error surfaces from a third-party call
