@@ -207,7 +207,9 @@ def load_annotations(
     elif isinstance(annotations, GeoDataFrame):
         anno_df = annotations
     else:
-        raise ValueError(f"Invalid annotations: {annotations}")
+        # TRY004 suggests TypeError, but ValueError is the documented
+        # behaviour here and tests/test_io.py asserts on it.
+        raise ValueError(f"Invalid annotations: {annotations}")  # noqa: TRY004
 
     # remove crs
     anno_df.crs = None

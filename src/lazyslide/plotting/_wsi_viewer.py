@@ -363,7 +363,11 @@ class OriginXYArrowRenderPlan(RenderPlan):
         self.length = length
         self.kwargs = kwargs
         self._arrow_props = {
-            "arrowstyle": "<|-", "shrinkA": 0, "shrinkB": 0, "color": color, "linewidth": linewidth
+            "arrowstyle": "<|-",
+            "shrinkA": 0,
+            "shrinkB": 0,
+            "color": color,
+            "linewidth": linewidth,
         }
         self._annotate_props = {
             "xy": (0, 1),
@@ -689,7 +693,9 @@ class ContourRenderPlan(PolygonMixin):
         hole_kws = {} if hole_kws is None else hole_kws
 
         self.outline_kws = {
-            "edgecolor": outline_color, "linewidth": linewidth, "fill": False
+            "edgecolor": outline_color,
+            "linewidth": linewidth,
+            "fill": False,
         }
         self.outline_kws.update(outline_kws)
         self.hole_kws = {"edgecolor": hole_color, "linewidth": linewidth, "fill": False}
@@ -759,7 +765,9 @@ class FilledPolygonRenderPlan(PolygonMixin):
 
         self.legend_kws = legend_kws or {}
         self.kwargs = {
-            "facecolor": to_rgba(color, alpha), "edgecolor": color, "linewidth": linewidth
+            "facecolor": to_rgba(color, alpha),
+            "edgecolor": color,
+            "linewidth": linewidth,
         }
         if kwargs is not None:
             self.kwargs.update(kwargs)
@@ -1075,7 +1083,6 @@ class WSIViewer:
             source.set_viewport(self._viewport)
 
     def set_tissue_id(self, tissue_id, tissue_key="tissues"):
-        """ """
         tissues = self.wsi[tissue_key]
         tissue_geo = tissues[tissues["tissue_id"] == tissue_id].geometry.iloc[0]
         xmin, ymin, xmax, ymax = tissue_geo.bounds
@@ -1507,9 +1514,10 @@ class WSIViewer:
 
         # Decide the color palette of tiles
         is_categorical = False
-        if values is not None:
-            if isinstance(values, pd.CategoricalDtype) or not isinstance(values[0], Number):
-                is_categorical = True
+        if values is not None and (
+            isinstance(values, pd.CategoricalDtype) or not isinstance(values[0], Number)
+        ):
+            is_categorical = True
 
         if is_categorical:
             cats = pd.unique(values)  # Set sorted=False to avoid NA in the data
@@ -1806,7 +1814,9 @@ class WSIViewer:
         ax = _axes_style(ax, axis=axis, xaxis=xaxis)
 
         legend_placement = {
-            "loc": "center left", "bbox_transform": ax.transAxes, "bbox_to_anchor": (1.01, 0.5)
+            "loc": "center left",
+            "bbox_transform": ax.transAxes,
+            "bbox_to_anchor": (1.01, 0.5),
         }
         if self._zoom_plan is not None:
             self._zoom_plan.render(ax, self.get_render_plans(in_zoom=True))

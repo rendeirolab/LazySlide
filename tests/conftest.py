@@ -113,26 +113,25 @@ def wsi_with_annotations():
     wsi = zs.datasets.gtex_artery()
 
     # Create some simple annotations if they don't exist
-    if "annotations" not in wsi.shapes:
-        # Get a tissue polygon to use as an annotation
-        if len(wsi["tissues"]) > 0:
-            tissue_poly = wsi["tissues"].geometry.iloc[0]
-            # Create a smaller polygon inside the tissue
-            minx, miny, maxx, maxy = tissue_poly.bounds
-            width, height = maxx - minx, maxy - miny
+    # Get a tissue polygon to use as an annotation
+    if "annotations" not in wsi.shapes and len(wsi["tissues"]) > 0:
+        tissue_poly = wsi["tissues"].geometry.iloc[0]
+        # Create a smaller polygon inside the tissue
+        minx, miny, maxx, maxy = tissue_poly.bounds
+        width, height = maxx - minx, maxy - miny
 
-            # Create a polygon that's 25% of the size in the center
-            small_poly = [
-                (minx + width * 0.375, miny + height * 0.375),
-                (minx + width * 0.625, miny + height * 0.375),
-                (minx + width * 0.625, miny + height * 0.625),
-                (minx + width * 0.375, miny + height * 0.625),
-            ]
+        # Create a polygon that's 25% of the size in the center
+        small_poly = [
+            (minx + width * 0.375, miny + height * 0.375),
+            (minx + width * 0.625, miny + height * 0.375),
+            (minx + width * 0.625, miny + height * 0.625),
+            (minx + width * 0.375, miny + height * 0.625),
+        ]
 
-            # Add to wsi as annotations
-            annot_gdf = gpd.GeoDataFrame(
-                {"geometry": [Polygon(small_poly)], "class": ["test_annotation"]}
-            )
-            wsi.shapes["annotations"] = annot_gdf
+        # Add to wsi as annotations
+        annot_gdf = gpd.GeoDataFrame(
+            {"geometry": [Polygon(small_poly)], "class": ["test_annotation"]}
+        )
+        wsi.shapes["annotations"] = annot_gdf
 
     return wsi

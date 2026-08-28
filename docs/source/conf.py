@@ -3,7 +3,7 @@ import shutil
 import subprocess
 import tempfile
 import urllib.request
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from natsort import natsorted
@@ -11,7 +11,7 @@ from natsort import natsorted
 import lazyslide
 
 project = "LazySlide"
-copyright = f"{datetime.now().year}, Rendeiro Lab"
+copyright = f"{datetime.now(tz=UTC).year}, Rendeiro Lab"
 author = "LazySlide Contributors"
 release = lazyslide.__version__
 

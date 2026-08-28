@@ -26,6 +26,8 @@ from .._const import Key
 from .._utils import find_stack_level
 from ..cv import merge_connected_polygons
 
+logger = logging.getLogger(__name__)
+
 
 def _tissue_mask(
     image,
@@ -217,7 +219,7 @@ def find_tissues(
     tissue_polys = tissue_polys.geometry
 
     if len(tissue_polys) == 0:
-        logging.warning("No tissue is found.", stacklevel=find_stack_level())
+        logger.warning("No tissue is found.", stacklevel=find_stack_level())
         return False
 
     tissues = []

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from contextlib import nullcontext
+from contextlib import nullcontext, suppress
 from typing import TYPE_CHECKING
 
 from PIL import Image
@@ -84,10 +84,8 @@ def image_generation(
         raise NotImplementedError("Currently only supports cytosyn model.")
 
     generation_model: ImageGenerationModelProtocol = MODEL_REGISTRY[model]()
-    try:
+    with suppress(Exception):
         generation_model.to(device)
-    except:  # noqa: E722
-        pass
     if isinstance(device, torch.device):
         device = device.type
     amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()

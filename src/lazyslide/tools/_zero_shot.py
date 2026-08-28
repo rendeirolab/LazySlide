@@ -20,7 +20,9 @@ def _preprocess_prompts(prompts: list[str | list[str]]) -> list[list[str]]:
         elif isinstance(prompt, Iterable):
             processed_prompts.append(list(prompt))
         else:
-            raise ValueError(f"Invalid prompt type: {type(prompt)}")
+            # TRY004 suggests TypeError; kept as ValueError for consistency
+            # with the rest of the public API surface.
+            raise ValueError(f"Invalid prompt type: {type(prompt)}")  # noqa: TRY004
     return processed_prompts
 
 

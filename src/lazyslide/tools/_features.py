@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Sequence
-from contextlib import nullcontext
+from contextlib import nullcontext, suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -202,10 +202,10 @@ def feature_extraction(
             if model_name is None:
                 model_name = default_model_name
         elif isinstance(model, ImageModelProtocol):
-            model = model
             model_name = model.name
         elif isinstance(model, Callable):
-            model = model
+            # Callable models are used as given; nothing to derive here.
+            pass
         else:
             raise ValueError("Model must be a model name or a model object.")
     else:
@@ -231,10 +231,8 @@ def feature_extraction(
         else:
             key_added = "features"
         key_added = Key.feature(key_added, tile_key)
-    try:
+    with suppress(Exception):
         model.to(device)
-    except:  # noqa: E722
-        pass
 
     if transform is None and isinstance(model, ModelBaseProtocol):
         transform = model.get_transform()

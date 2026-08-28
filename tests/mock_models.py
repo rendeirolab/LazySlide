@@ -6,7 +6,7 @@ so tests validate pipeline logic without downloading weights.
 
 from __future__ import annotations
 
-from typing import Self
+from typing import ClassVar, Self
 
 import numpy as np
 import torch
@@ -314,7 +314,10 @@ class MockStyleTransferModel(StyleTransferModel):
 class MockPrismModel(ModelBase):
     """Mock Prism model for zero-shot scoring and slide encoding."""
 
-    task = [ModelTask.multimodal, ModelTask.slide_encoder]
+    task: ClassVar[list[ModelTask]] = [
+        ModelTask.multimodal,
+        ModelTask.slide_encoder,
+    ]
 
     def __init__(self, **kwargs):
         self._device = "cpu"
