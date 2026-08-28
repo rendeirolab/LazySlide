@@ -240,8 +240,7 @@ def find_tissues(
                 current_refine_level = _decide_level(wsi, refine_level, proportion)
                 if current_refine_level == ops_level:
                     current_refine_level -= 1
-                if current_refine_level < 0:
-                    current_refine_level = 0
+                current_refine_level = max(current_refine_level, 0)
 
             else:
                 current_refine_level = refine_level

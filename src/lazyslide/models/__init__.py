@@ -67,16 +67,7 @@ _register_compat_modules()
 del _register_compat_modules
 
 __all__ = [
-    "multimodal",
-    "segmentation",
-    "style_transfer",
-    "tile_prediction",
-    "vision",
-    "image_generation",
-    "base",
     "MODEL_REGISTRY",
-    "register",
-    "list_models",
     "ImageGenerationModel",
     "ImageGenerationModelProtocol",
     "ImageModel",
@@ -95,4 +86,13 @@ __all__ = [
     "TimmModel",
     "TimmViTModel",
     "ViTModelProtocol",
+    "base",
+    "image_generation",
+    "list_models",
+    "multimodal",
+    "register",
+    "segmentation",
+    "style_transfer",
+    "tile_prediction",
+    "vision",
 ]

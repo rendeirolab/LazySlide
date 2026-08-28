@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 from cyclopts import App, Parameter, validators
 from rich import print
@@ -177,7 +177,7 @@ def feature(
     slide_agg: str = "mean",
     device: str = None,
     num_workers: int | str = "auto",
-    output: Optional[str] = None,
+    output: str | None = None,
 ):
     """
     Extract features from a whole slide image

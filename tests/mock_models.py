@@ -6,11 +6,10 @@ so tests validate pipeline logic without downloading weights.
 
 from __future__ import annotations
 
-from typing import Self, Tuple
+from typing import Self
 
 import numpy as np
 import torch
-import torch.nn as nn
 from lazyslide_models.base import (
     ImageTextModel,
     ModelBase,
@@ -19,6 +18,7 @@ from lazyslide_models.base import (
     SegmentationOutput,
     StyleTransferModel,
 )
+from torch import nn
 
 
 # ---------------------------------------------------------------------------
@@ -304,7 +304,7 @@ class MockStyleTransferModel(StyleTransferModel):
         # Non-zero values so post-processing doesn't produce all-zeros
         return torch.rand(B, 50) * 10 + 1
 
-    def get_channel_names(self) -> Tuple[str, ...]:
+    def get_channel_names(self) -> tuple[str, ...]:
         return _ROSIE_MARKERS
 
 

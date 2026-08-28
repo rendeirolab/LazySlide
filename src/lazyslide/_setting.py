@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Literal, Set
+from typing import TYPE_CHECKING, Literal
 
 from ._utils import get_torch_device
 
@@ -17,7 +17,7 @@ class Settings:
         self.pbar_impl = "rich"
 
     @property
-    def _attributes(self) -> Set[str]:
+    def _attributes(self) -> set[str]:
         return {
             "amp",
             "autocast_dtype",

@@ -1,5 +1,5 @@
 import torch
-import torch.nn as nn
+from torch import nn
 from torchvision.transforms.v2 import Compose, Resize, ToDtype, ToImage
 
 import lazyslide as zs

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from PIL import Image
 from wsidata import WSIData
@@ -24,7 +24,7 @@ def image_generation(
     num_images_per_tiles: int = 2,
     seed: int = 0,
     **kwargs,
-) -> List[Image.Image]:
+) -> list[Image.Image]:
     """
     Generation of :term:`tile` images unconditionally or conditionally.
 

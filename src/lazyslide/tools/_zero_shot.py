@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable, List, Sequence
+from collections.abc import Iterable, Sequence
 
 import numpy as np
 import pandas as pd
@@ -9,7 +9,7 @@ from wsidata import WSIData
 from lazyslide._utils import get_torch_device
 
 
-def _preprocess_prompts(prompts: List[str | List[str]]) -> List[List[str]]:
+def _preprocess_prompts(prompts: list[str | list[str]]) -> list[list[str]]:
     """
     Preprocess the prompts to ensure they are in the correct format.
     """

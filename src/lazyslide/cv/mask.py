@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from typing import Mapping, Sequence
+from collections.abc import Mapping, Sequence
 
 import cv2
 import geopandas as gpd
@@ -222,7 +222,7 @@ class BinaryMask(Mask):
         min_area: float = 0,
         min_hole_area: float = 0,
         detect_holes: bool = True,
-        ignore_index: int | Sequence[int] | None = None,  # noqa
+        ignore_index: int | Sequence[int] | None = None,
     ) -> gpd.GeoDataFrame:
         return binary_mask_to_polygons_with_prob(
             self.mask,

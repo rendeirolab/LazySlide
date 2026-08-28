@@ -38,16 +38,16 @@ def __dir__():
 
 
 __all__ = [
-    "open_wsi",
     "agg_wsi",
-    "pp",
-    "tl",
-    "pl",
-    "seg",
     "cv",
-    "models",
-    "io",
     "datasets",
+    "io",
     "metrics",
+    "models",
+    "open_wsi",
+    "pl",
+    "pp",
+    "seg",
     "settings",
+    "tl",
 ]

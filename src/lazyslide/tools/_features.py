@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Callable, Sequence
 from contextlib import nullcontext
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Literal, Sequence
+from typing import TYPE_CHECKING, Literal
 
 import geopandas as gpd
 import numpy as np
@@ -11,7 +12,7 @@ from shapely import box
 from wsidata import TileSpec, WSIData
 from wsidata.io import add_features
 
-import lazyslide._api as _api
+from lazyslide import _api
 from lazyslide._const import Key
 from lazyslide._utils import default_pbar, find_stack_level
 from lazyslide.preprocess._tiles import _add_tiles

@@ -4,10 +4,11 @@ import tempfile
 import warnings
 from abc import ABC, abstractmethod
 from collections import deque
+from collections.abc import Callable, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from functools import cached_property
-from typing import TYPE_CHECKING, Callable, List, Literal, Mapping
+from typing import TYPE_CHECKING, Literal
 
 import geopandas as gpd
 import numpy as np
@@ -235,7 +236,7 @@ def semantic(
     wsi: WSIData,
     model: SegmentationModelProtocol,
     tile_key=Key.tiles,
-    class_names: List[str] | Mapping[int, str] | None = None,
+    class_names: list[str] | Mapping[int, str] | None = None,
     transform=None,
     mode: Literal["constant", "gaussian"] = "gaussian",
     sigma_scale: float = 0.125,
@@ -382,7 +383,6 @@ class Runner(ABC):
         Run the segmentation.
         This method should be implemented by subclasses.
         """
-        pass
 
     def __call__(self):
         """
@@ -472,7 +472,7 @@ class SemanticSegmentationRunner(Runner):
         low_memory: bool = False,
         threshold: float = 0.5,
         ignore_index: int | None = 0,
-        class_names: List[str] | Mapping[int, str] | None = None,
+        class_names: list[str] | Mapping[int, str] | None = None,
         buffer_px: int = 2,
         chunk_size: int = 512,
         batch_size: int = 4,
@@ -737,7 +737,7 @@ class CellSegmentationRunner(Runner):
         device: str | None = None,
         amp: bool = False,
         autocast_dtype: torch.dtype = None,
-        class_names: List[str] | Mapping[int, str] | None = None,
+        class_names: list[str] | Mapping[int, str] | None = None,
         pbar: bool = True,
         extract_features: bool = False,
         low_memory: bool = False,

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping, Sequence
 from itertools import cycle
 from pathlib import Path
-from typing import List, Literal, Mapping, Sequence
+from typing import Literal
 
 try:
     from defusedxml import ElementTree  # type: ignore[import-not-found]
@@ -163,9 +164,9 @@ def load_annotations(
     *,
     explode: bool = True,
     in_bounds: bool = False,
-    join_with: str | List[str] = Key.tissue,
+    join_with: str | list[str] = Key.tissue,
     join_to: str = None,
-    json_flatten: str | List[str] = "classification",
+    json_flatten: str | list[str] = "classification",
     min_area: float = 1e2,
     key_added: str = "annotations",
 ):

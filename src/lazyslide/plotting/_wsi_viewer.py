@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import cached_property
 from importlib.util import find_spec
 from itertools import cycle
 from numbers import Number
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Sequence, Union
+from typing import TYPE_CHECKING, Any, Literal
 
 import cv2
 import geopandas as gpd
@@ -105,14 +106,14 @@ class DataSource:
         The current viewport.
     _sel : np.ndarray
         The selection mask of the data depending on the viewport.
-    _sel_attrs : Dict
+    _sel_attrs : dict
         The selection of data depending on the viewport.
     """
 
     # Type hinting for class attributes (defaults handled in __init__)
     viewport: Viewport | None
     _sel: np.ndarray[Any, np.dtype[np.bool_]] | None
-    _sel_attrs: Dict
+    _sel_attrs: dict
 
     def __init__(self, viewport: Viewport | None = None):
         """
@@ -135,7 +136,6 @@ class DataSource:
         """
         The hook that runs if the viewport is updated.
         """
-        pass
 
     def set_viewport(self, viewport: Viewport):
         if self.viewport == viewport:
@@ -275,7 +275,7 @@ class TileDataSource(DataSource):
 
 
 class PolygonDataSource(DataSource):
-    def __init__(self, polygons: List[Polygon]):
+    def __init__(self, polygons: list[Polygon]):
         super().__init__()
         self._polygons = polygons
         self._render_polygons = polygons
@@ -315,7 +315,6 @@ class RenderPlan:
 
     def render(self, ax):
         """The rendering logics of the plan."""
-        pass
 
     def get_legend(self) -> Artist | None:
         """Return the legend of the plan."""
@@ -386,7 +385,7 @@ class HeatmapTilesRenderPlan(RenderPlan):
         tile_datasource: TileDataSource,
         image_datasource: ImageDataSource,
         values: np.ndarray,
-        palette: Dict = None,
+        palette: dict = None,
         cmap="coolwarm",
         norm=None,
         vmin=None,
@@ -395,7 +394,7 @@ class HeatmapTilesRenderPlan(RenderPlan):
         smooth=False,
         smooth_scale=2,
         legend_kws=None,
-        **kwargs: Any,  # noqa: ANN001
+        **kwargs: Any,
     ):
         self.datasource: TileDataSource = tile_datasource
         self.image_datasource: ImageDataSource = image_datasource
@@ -480,7 +479,7 @@ class ScatterTilesRenderPlan(RenderPlan):
         self,
         datasource: TileDataSource,
         values: np.ndarray,
-        palette: Dict = None,
+        palette: dict = None,
         cmap="coolwarm",
         norm=None,
         vmin=None,
@@ -491,7 +490,7 @@ class ScatterTilesRenderPlan(RenderPlan):
         marker="o",
         rasterized=True,
         legend_kws=None,
-        **kwargs: Any,  # noqa: ANN001
+        **kwargs: Any,
     ):
         self.datasource: TileDataSource = datasource
         from matplotlib.colors import ListedColormap
@@ -675,7 +674,7 @@ class ContourRenderPlan(PolygonMixin):
         polygons: PolygonDataSource,
         labels: Sequence = None,
         colors: Sequence = None,
-        palette: Dict = None,
+        palette: dict = None,
         outline_color: ColorType = "#117554",
         hole_color: ColorType = "#4379F2",
         linewidth: int = 1,
@@ -742,7 +741,7 @@ class FilledPolygonRenderPlan(PolygonMixin):
         polygons: PolygonDataSource,
         labels: Sequence = None,
         colors: Sequence = None,
-        palette: Dict = None,
+        palette: dict = None,
         color="#FFE31A",
         linewidth: int = 1,
         alpha=0.3,
@@ -826,10 +825,10 @@ class DatashaderFilledPolygonRenderPlan(RenderPlan):
         shapes: gpd.GeoDataFrame,
         image_datasource: ImageDataSource,
         color_by: str | None = None,
-        palette: Dict | None = None,
+        palette: dict | None = None,
         color: ColorType = "#5CE65C",
         alpha: float = 1,
-        legend_kws: Dict | None = None,
+        legend_kws: dict | None = None,
     ):
         self.shapes = shapes
         self.image_datasource = image_datasource
@@ -1054,9 +1053,9 @@ class WSIViewer:
         # There is only one zoom image source
         self.zoom_image_source: ImageDataSource | None = None
         # There can be multiple tile sources
-        self.tile_source: Dict[str, TileDataSource] = {}
+        self.tile_source: dict[str, TileDataSource] = {}
         # There can be multiple polygon sources
-        self.polygon_source: Dict[str, PolygonDataSource] = {}
+        self.polygon_source: dict[str, PolygonDataSource] = {}
         self._has_image = False
         self.title = None
 
@@ -1251,9 +1250,9 @@ class WSIViewer:
         outline_color: ColorType = "#117554",
         hole_color: ColorType = "#4379F2",
         linewidth: int = 1,
-        outline_kwargs: Dict = None,
-        hole_kwargs: Dict = None,
-        legend_kws: Dict = None,
+        outline_kwargs: dict = None,
+        hole_kwargs: dict = None,
+        legend_kws: dict = None,
         legend: bool = True,
         in_zoom: bool = True,
         cache=True,
@@ -1329,7 +1328,7 @@ class WSIViewer:
         alpha: float = 0.9,
         color: ColorType = "#D3F527",
         linewidth: int = 1,
-        legend_kws: Dict = None,
+        legend_kws: dict = None,
         legend: bool = True,
         in_zoom: bool = True,
         cache=True,
@@ -1509,9 +1508,7 @@ class WSIViewer:
         # Decide the color palette of tiles
         is_categorical = False
         if values is not None:
-            if isinstance(values, pd.CategoricalDtype):
-                is_categorical = True
-            elif not isinstance(values[0], Number):
+            if isinstance(values, pd.CategoricalDtype) or not isinstance(values[0], Number):
                 is_categorical = True
 
         if is_categorical:
@@ -1945,7 +1942,7 @@ MPL_QUAL_PALS = {
 }
 
 
-def get_dict_palette(palette: PaletteType, category: list) -> Dict:
+def get_dict_palette(palette: PaletteType, category: list) -> dict:
     """Convert a palette to a dictionary if it is not already.
 
     The category must be a sequence of unique values.

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Callable
 from contextlib import nullcontext
-from typing import TYPE_CHECKING, Callable, List
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
 
 
 def text_embedding(
-    texts: List[str],
+    texts: list[str],
     model: str | ImageTextModelProtocol = "plip",
     amp: bool = None,
     autocast_dtype: torch.dtype = None,
@@ -179,7 +180,7 @@ def text_image_similarity(
                 similarity_score = scoring_func(text_embeddings.values, feature_X.T).T
             except Exception as e:
                 raise ValueError(
-                    f"Error in custom scoring_func: {str(e)}. "
+                    f"Error in custom scoring_func: {e!s}. "
                     f"Function should accept (n_texts, feature_dim) and "
                     f"(feature_dim, n_features) matrices and return "
                     f"(n_texts, n_features) similarity matrix."
