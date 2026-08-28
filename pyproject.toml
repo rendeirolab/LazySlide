@@ -148,7 +148,8 @@ test-ci = "python -X faulthandler -m pytest tests -v --tb=short --disable-warnin
 doc-build = "sphinx-build -b html -j auto -T docs/source docs/build"
 doc-clean-build = "python docs/clean_up.py && sphinx-build -b html -j auto -T docs/source docs/build"
 doc-serve = "python -m http.server -d docs/build"
-fmt = "ruff format docs/source src/lazyslide tests"
+fmt = "ruff format ."
+lint = "ruff check --fix ."
 
 [tool.uv]
 default-groups = ["dev", "tests", "docs", "tutorials", "model"]
@@ -158,7 +159,7 @@ cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true 
 dev = [
     "jupyterlab>=4.3.5",
     "prek>=0.3.0",
-    "ruff>=0.9.4",
+    "ruff>=0.16.5,<0.17",
     "taskipy>=1.14.1",
     "torchvision>=0.21.0",
     "torchstain>=1.4.1",

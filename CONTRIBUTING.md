@@ -28,10 +28,11 @@ Instead, create a new branch for your changes and submit a pull request.
 
     ```bash
     uv lock
-    uv run pre-commit install
+    uv run prek install
     ```
    
-    We use [pre-commit](https://pre-commit.com/) to run code formatting and linting checks before each commit.
+    We use [prek](https://prek.j178.dev/) to run code formatting and linting checks before each commit.
+    See [the setup guide](https://lazyslide.readthedocs.io/en/stable/contributing/setup.html) for the full walkthrough.
 
 4. Start a IPython/Jupyter session
 
