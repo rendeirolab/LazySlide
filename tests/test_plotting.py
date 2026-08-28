@@ -368,3 +368,92 @@ class TestWSIViewer:
         viewer.show(ax=ax)
 
         plt.close(fig)
+
+
+class TestHeatmapGrid:
+    """The heatmap mesh must land on the tiles it came from (#277)."""
+
+    @staticmethod
+    def _datasource(tile=256, stride=256, n=(4, 3), anchors=((3011, 5077),)):
+        import numpy as np
+        from wsidata import TileSpec
+
+        from lazyslide.plotting._wsi_viewer import TileDataSource, Viewport
+
+        spec = TileSpec(
+            height=tile, width=tile, stride_height=stride, stride_width=stride
+        )
+        tiles = np.array(
+            [
+                (ax + i * stride, ay + j * stride)
+                for ax, ay in anchors
+                for i in range(n[0])
+                for j in range(n[1])
+            ]
+        )
+        ds = TileDataSource(tiles, spec)
+        # A viewport whose origin and size are unrelated to the tile lattice:
+        # this is what used to shift the mesh by ~1 tile.
+        ds.set_viewport(Viewport(0, 0, 32914, 27615, level=0, downsample=1))
+        return ds, tiles
+
+    @staticmethod
+    def _cell_corners(gy, gx, gh, gw, extent):
+        """Where imshow puts the top-left corner of each cell."""
+        x0, x1, y1, y0 = extent
+        return x0 + gx * (x1 - x0) / gw, y0 + gy * (y1 - y0) / gh
+
+    def test_cells_align_with_tiles(self):
+        import numpy as np
+
+        ds, tiles = self._datasource()
+        layouts = list(ds.grid_layouts())
+        assert len(layouts) == 1
+
+        sel, gy, gx, gh, gw, extent = layouts[0]
+        cx, cy = self._cell_corners(gy, gx, gh, gw, extent)
+        assert np.allclose(cx, tiles[sel][:, 0])
+        assert np.allclose(cy, tiles[sel][:, 1])
+        # One cell per tile, sized as the tile.
+        assert (gh, gw) == (3, 4)
+        assert ((extent[1] - extent[0]) / gw, (extent[2] - extent[3]) / gh) == (
+            256,
+            256,
+        )
+
+    def test_separate_tissue_lattices_stay_exact(self):
+        """Tiles of a second tissue sit off the first one's lattice."""
+        import numpy as np
+
+        # Anchors deliberately not a stride apart, as tissue bounding boxes are.
+        ds, tiles = self._datasource(anchors=((3011, 5077), (9160, 12289)))
+        layouts = list(ds.grid_layouts())
+        assert len(layouts) == 2
+
+        seen = np.zeros(len(tiles), dtype=bool)
+        for sel, gy, gx, gh, gw, extent in layouts:
+            cx, cy = self._cell_corners(gy, gx, gh, gw, extent)
+            assert np.allclose(cx, tiles[sel][:, 0])
+            assert np.allclose(cy, tiles[sel][:, 1])
+            seen |= sel
+        assert seen.all()
+
+    def test_overlapping_tiles_do_not_collide(self):
+        ds, tiles = self._datasource(tile=256, stride=128)
+        ((sel, gy, gx, gh, gw, extent),) = ds.grid_layouts()
+
+        # Using the tile size as the pitch silently mapped two tiles per cell.
+        assert len({*zip(gy.tolist(), gx.tolist())}) == len(tiles)
+        assert ((extent[1] - extent[0]) / gw) == 128
+
+    def test_falls_back_to_one_grid_without_a_lattice(self):
+        import numpy as np
+
+        # Tiles that share no lattice at all, e.g. hand-made tile shapes.
+        ds, tiles = self._datasource(n=(7, 6))
+        assert len(tiles) > ds.MAX_LATTICES
+        rng = np.random.default_rng(0)
+        ds._render_tiles = ds._render_tiles + rng.integers(
+            1, 256, ds._render_tiles.shape
+        )
+        assert len(list(ds.grid_layouts())) == 1

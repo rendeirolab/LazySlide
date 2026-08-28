@@ -207,6 +207,9 @@ class ImageDataSource(DataSource):
 
 
 class TileDataSource(DataSource):
+    # Above this many tile lattices, stop treating the tiles as a grid.
+    MAX_LATTICES = 32
+
     def __init__(self, tiles: np.ndarray, tile_spec: TileSpec):
         # tiles are expected as top-left coordinates at level 0 (base) in pixels
         super().__init__()
@@ -229,28 +232,44 @@ class TileDataSource(DataSource):
     def tiles(self):
         return self._render_tiles
 
-    @property
-    def heatmap_tiles(self):
-        return (
-            (self._render_tiles - (self.viewport.x, self.viewport.y))
-            / self.viewport.downsample
-        ).astype(int)
+    def grid_layouts(self):
+        """Map the rendered tiles onto low-resolution grids (one cell/tile).
 
-    def grid_indices(self, origin_x, origin_y, w0, h0):
-        """Map the rendered tiles onto a low-resolution grid (one cell/tile).
-
-        The grid spans the level-0 region ``(origin_x, origin_y, w0, h0)`` at
-        the tile pitch, so it can be drawn at the image extent and upscaled by
-        the renderer. Returns ``(gy, gx, grid_height, grid_width)``.
+        Yields ``(sel, gy, gx, grid_height, grid_width, extent)``, where
+        ``sel`` picks the group out of the rendered tiles and ``extent`` is
+        ``[left, right, bottom, top]`` for ``imshow(origin="upper")``.
         """
         base_w, base_h = self.tile_shape_base
-        gw = max(1, int(np.ceil(w0 / base_w)))
-        gh = max(1, int(np.ceil(h0 / base_h)))
-        tx = self._render_tiles[:, 0]
-        ty = self._render_tiles[:, 1]
-        gx = np.clip(np.floor((tx - origin_x) / base_w).astype(int), 0, gw - 1)
-        gy = np.clip(np.floor((ty - origin_y) / base_h).astype(int), 0, gh - 1)
-        return gy, gx, gh, gw
+        pitch_w, pitch_h = self.tile_stride_base
+        tiles = self._render_tiles
+        # Tiles of one lattice share their offset within the stride.
+        lattice = np.unique(
+            np.column_stack((tiles[:, 0] % pitch_w, tiles[:, 1] % pitch_h)),
+            axis=0,
+            return_inverse=True,
+        )[1].ravel()
+        if lattice.max() + 1 > self.MAX_LATTICES:
+            # ponytail: tiles that share no lattice at all (hand-made tile
+            # shapes) would be one grid each, so put them on a single grid and
+            # let them snap to it. Group them geometrically if it ever matters.
+            lattice = np.zeros(len(tiles), dtype=int)
+
+        for k in range(lattice.max() + 1):
+            sel = lattice == k
+            tx, ty = tiles[sel, 0], tiles[sel, 1]
+            x_anchor, y_anchor = tx.min(), ty.min()
+            # Round, don't floor: within a lattice the offsets are exact
+            # multiples of the stride, and flooring a hair below would put the
+            # tile in the cell before it.
+            gx = np.rint((tx - x_anchor) / pitch_w).astype(int)
+            gy = np.rint((ty - y_anchor) / pitch_h).astype(int)
+            gw = int(gx.max()) + 1
+            gh = int(gy.max()) + 1
+            # Cells are stride-sized and centered on their tile: no shift when
+            # tiles don't overlap, and contiguous cells when they do.
+            x0 = x_anchor + (base_w - pitch_w) / 2
+            y0 = y_anchor + (base_h - pitch_h) / 2
+            yield sel, gy, gx, gh, gw, [x0, x0 + gw * pitch_w, y0 + gh * pitch_h, y0]
 
     @property
     def tiles_center(self):
@@ -272,6 +291,11 @@ class TileDataSource(DataSource):
     def tile_shape_base(self) -> tuple[int, int]:
         """The W, H of the tile at level 0."""
         return self.tile_spec.base_width, self.tile_spec.base_height
+
+    @property
+    def tile_stride_base(self) -> tuple[int, int]:
+        """The W, H of the tile stride at level 0, ie. the lattice pitch."""
+        return self.tile_spec.base_stride_width, self.tile_spec.base_stride_height
 
 
 class PolygonDataSource(DataSource):
@@ -384,7 +408,6 @@ class HeatmapTilesRenderPlan(RenderPlan):
     def __init__(
         self,
         tile_datasource: TileDataSource,
-        image_datasource: ImageDataSource,
         values: np.ndarray,
         palette: Dict = None,
         cmap="coolwarm",
@@ -398,7 +421,6 @@ class HeatmapTilesRenderPlan(RenderPlan):
         **kwargs: Any,  # noqa: ANN001
     ):
         self.datasource: TileDataSource = tile_datasource
-        self.image_datasource: ImageDataSource = image_datasource
         from matplotlib.colors import ListedColormap
 
         # If is categorical
@@ -418,19 +440,15 @@ class HeatmapTilesRenderPlan(RenderPlan):
         self.smooth = smooth
         self.smooth_scale = smooth_scale
         self.legend_kws = legend_kws or {}
-        self._A = None
 
     def render(self, ax):
         # Paint values onto a small per-tile grid (one cell per tile) instead
         # of a full viewport-resolution canvas. The grid is colorized once and
-        # upscaled by the renderer via the image extent. This avoids the old
+        # upscaled by the renderer via the grid extent. This avoids the old
         # per-tile Python loop and the very large GaussianBlur kernel.
-        vp = self.image_datasource.viewport
-        gy, gx, gh, gw = self.datasource.grid_indices(vp.x, vp.y, vp.w0, vp.h0)
+        if len(self.datasource.tiles) == 0:
+            return
         vs = self.datasource.get_data("values")
-
-        grid = np.full((gh, gw), np.nan)
-        grid[gy, gx] = vs
 
         import matplotlib.pyplot as plt
         from legendkit import cat_legend, colorart
@@ -439,31 +457,38 @@ class HeatmapTilesRenderPlan(RenderPlan):
         cmap = plt.get_cmap(self.cmap)
         sm = ScalarMappable(norm=self.norm, cmap=cmap)
         sm.set_clim(self.vmin, self.vmax)
-        sm.set_array(grid)
-
-        A = sm.to_rgba(grid, bytes=True, alpha=self.alpha)
-        # Transparent background where there is no tile.
-        A[np.isnan(grid), 3] = 0
+        # Pin the color scale on every value up front, so lattices drawn as
+        # separate grids below don't each autoscale to their own range.
+        sm.set_array(vs)
+        sm.autoscale_None()
 
         if self.smooth:
             # Cheap blur on the small grid; smoothing on upscale is done by the
             # renderer's interpolation, replacing the old full-size GaussianBlur.
             ksize = max(1, int(self.smooth_scale))
             ksize = ksize if ksize % 2 == 1 else ksize + 1
-            if ksize > 1:
-                A = cv2.GaussianBlur(A, (ksize, ksize), 0)
             interpolation = "bilinear"
         else:
+            ksize = 1
             interpolation = "nearest"
 
-        self._A = A
-        ax.imshow(
-            A,
-            extent=self.image_datasource.get_extent(),
-            origin="upper",
-            zorder=-99,
-            interpolation=interpolation,
-        )
+        for sel, gy, gx, gh, gw, extent in self.datasource.grid_layouts():
+            grid = np.full((gh, gw), np.nan)
+            grid[gy, gx] = vs[sel]
+
+            A = sm.to_rgba(grid, bytes=True, alpha=self.alpha)
+            # Transparent background where there is no tile.
+            A[np.isnan(grid), 3] = 0
+            if ksize > 1:
+                A = cv2.GaussianBlur(A, (ksize, ksize), 0)
+
+            ax.imshow(
+                A,
+                extent=extent,
+                origin="upper",
+                zorder=-99,
+                interpolation=interpolation,
+            )
         if not self.on_zoom_view:
             if self.palette is not None:
                 self.legend = cat_legend(
@@ -1626,7 +1651,6 @@ class WSIViewer:
             elif style == "heatmap":
                 plan = HeatmapTilesRenderPlan(
                     container["ds"],
-                    self.image_source,
                     container["values"],
                     palette=container["palette"],
                     cmap=cmap,
