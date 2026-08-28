@@ -33,7 +33,7 @@ def _tissue_mask(
     image,
     to_hsv,
     filter_artifacts: bool = True,
-    blur_ksize: int = 17,
+    blur_ksize: int = 7,
     threshold: int = 7,
     morph_ksize: int = 7,
     morph_n_iter: int = 3,
@@ -88,7 +88,7 @@ def find_tissues(
     refine_level: int | str | None = None,
     method: Literal["otsu", "entropy"] = "otsu",
     to_hsv: bool = False,
-    blur_ksize: int = 17,
+    blur_ksize: int = 7,
     threshold: int = 7,
     morph_n_iter: int = 3,
     morph_ksize: int = 7,
@@ -131,8 +131,16 @@ def find_tissues(
     to_hsv : bool, default: False
         (otsu only) The tissue image will be converted from RGB to HSV space,
         the saturation channel (color purity) will be used for tissue detection.
-    blur_ksize : int, default: 17
+    blur_ksize : int, default: 7
         (otsu only) The kernel size used to apply median blurring.
+
+        .. note::
+            This default changed from 17 to 7. Previously a shared mutable dict
+            on ``Transform`` meant the blur silently ran with ``morph_ksize``
+            (7) rather than ``blur_ksize``, so 17 was never the kernel actually
+            used. Now that the two are independent, defaulting to 7 keeps the
+            output of a default call unchanged. Pass ``blur_ksize=17`` for the
+            blur the old signature advertised.
     threshold : int, default: 7
         (otsu only) The threshold for binary thresholding.
     morph_n_iter : int, default: 3

@@ -1,7 +1,19 @@
+from inspect import signature
+
+import cv2
 import numpy as np
 import pytest
 
-from lazyslide.cv.transform import EntropyThreshold
+from lazyslide.cv.transform import (
+    Compose,
+    EntropyThreshold,
+    GaussianBlur,
+    MedianBlur,
+    MorphClose,
+    mods,
+)
+from lazyslide.cv.transform.mods import Transform
+from lazyslide.preprocess._tissue import _tissue_mask, find_tissues
 
 
 class TestEntropyThreshold:
@@ -142,3 +154,94 @@ class TestEntropyThreshold:
             EntropyThreshold(disk_radius=0)
         with pytest.raises(ValueError):
             EntropyThreshold(disk_radius=-1)
+
+
+class TestTransformParamsIsolation:
+    """Regression tests: `params` must be per-instance, not a shared class dict."""
+
+    def test_params_are_independent_between_instances(self):
+        """Constructing a second transform must not overwrite the first's params."""
+        first = MedianBlur(kernel_size=3)
+        second = GaussianBlur(kernel_size=7, sigma=2)
+
+        assert first.params == {"kernel_size": 3}
+        assert second.params == {"kernel_size": 7, "sigma": 2}
+        assert first.params is not second.params
+        assert repr(first) == "MedianBlur(kernel_size=3)"
+
+    def test_class_attribute_is_never_mutated(self):
+        """The class-level default stays empty, so Compose reports no foreign params."""
+        MorphClose(kernel_size=9, n_iterations=2)
+
+        assert Transform.params == {}
+        assert MedianBlur.params == {}
+        assert Compose([]).params == {}
+        assert repr(Compose([])) == "Compose()"
+
+    def test_tissue_mask_blurs_with_blur_ksize(self, monkeypatch):
+        """_tissue_mask must blur with blur_ksize, not the later MorphClose ksize."""
+        seen = []
+        real_median_blur = cv2.medianBlur
+
+        def spy(src, ksize):
+            seen.append(ksize)
+            return real_median_blur(src, ksize)
+
+        monkeypatch.setattr(mods.cv2, "medianBlur", spy)
+
+        rng = np.random.default_rng(7)
+        image = rng.integers(0, 256, size=(64, 64, 3), dtype=np.uint8)
+        _tissue_mask(
+            image,
+            to_hsv=False,
+            filter_artifacts=True,
+            blur_ksize=17,
+            threshold=7,
+            morph_ksize=7,
+            morph_n_iter=1,
+        )
+
+        assert seen == [17]
+
+    def test_default_blur_ksize_preserves_legacy_output(self, monkeypatch):
+        """The default blur kernel must stay 7 - the kernel the shared-params
+        bug actually used - so default tissue masks are unchanged by the fix."""
+        seen = []
+        real_median_blur = cv2.medianBlur
+
+        def spy(src, ksize):
+            seen.append(ksize)
+            return real_median_blur(src, ksize)
+
+        monkeypatch.setattr(mods.cv2, "medianBlur", spy)
+
+        rng = np.random.default_rng(3)
+        image = rng.integers(0, 256, size=(64, 64, 3), dtype=np.uint8)
+        _tissue_mask(image, to_hsv=False)
+
+        # Pre-fix, MorphClose(kernel_size=morph_ksize) clobbered the shared
+        # dict and the blur ran with morph_ksize. Both default to 7 now, so
+        # the mask a default call produces is byte-identical to the old one.
+        assert seen == [7]
+        assert signature(_tissue_mask).parameters["blur_ksize"].default == 7
+        assert signature(find_tissues).parameters["blur_ksize"].default == 7
+
+    def test_find_tissues_blurs_with_blur_ksize(self, wsi, monkeypatch):
+        """End-to-end: find_tissues(blur_ksize=X, morph_ksize=Y) blurs with X."""
+        import lazyslide as zs
+
+        seen = []
+        real_median_blur = cv2.medianBlur
+
+        def spy(src, ksize):
+            seen.append(ksize)
+            return real_median_blur(src, ksize)
+
+        monkeypatch.setattr(mods.cv2, "medianBlur", spy)
+
+        zs.pp.find_tissues(
+            wsi, blur_ksize=21, morph_ksize=7, key_added="tissue_blur_ksize"
+        )
+
+        assert seen
+        assert set(seen) == {21}
