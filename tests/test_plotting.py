@@ -440,7 +440,7 @@ class TestHeatmapGrid:
 
     def test_overlapping_tiles_do_not_collide(self):
         ds, tiles = self._datasource(tile=256, stride=128)
-        ((sel, gy, gx, gh, gw, extent),) = ds.grid_layouts()
+        ((_, gy, gx, _, gw, extent),) = ds.grid_layouts()
 
         # Using the tile size as the pitch silently mapped two tiles per cell.
         assert len({*zip(gy.tolist(), gx.tolist())}) == len(tiles)
