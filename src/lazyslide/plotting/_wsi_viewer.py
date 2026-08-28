@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from matplotlib.patches import Patch
     from matplotlib.typing import ColorType
 
-    PaletteType = Union[Dict, Sequence[ColorType], ColorType]
+    PaletteType = dict | Sequence[ColorType] | ColorType
 
 LAZYSLIDE_PALETTE = (
     "#e60049",

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 import pandas as pd
 from wsidata import WSIData
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     import torch
     from lazyslide_models import TilePredictionModelProtocol
 
-    TP_MODEL = Union[str, TilePredictionModelProtocol]
+    TP_MODEL = str | TilePredictionModelProtocol
 
 
 def tile_prediction(
