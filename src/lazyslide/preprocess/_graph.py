@@ -223,7 +223,9 @@ def _build_connectivity(
         r = (
             1
             if radius is None
-            else radius if isinstance(radius, (int, float)) else max(radius)
+            else radius
+            if isinstance(radius, (int, float))
+            else max(radius)
         )
         tree = NearestNeighbors(n_neighbors=n_neighs, radius=r, metric="euclidean")
         tree.fit(coords)
