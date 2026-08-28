@@ -8,6 +8,7 @@ Put the single-slide workflow in a function with explicit input, output, and con
 from pathlib import Path
 import lazyslide as zs
 
+
 def process_slide(slide: Path, output_dir: Path) -> Path:
     store = output_dir / f"{slide.stem}.zarr"
     wsi = zs.open_wsi(slide, backed_file=store)
@@ -16,6 +17,7 @@ def process_slide(slide: Path, output_dir: Path) -> Path:
     zs.tl.feature_extraction(wsi, "resnet50", batch_size=32)
     wsi.write(overwrite=True)
     return store
+
 
 slides = sorted(Path("slides").glob("*.svs"))
 for slide in slides:

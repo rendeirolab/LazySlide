@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import warnings
-from contextlib import nullcontext
+from collections.abc import Callable, Sequence
+from contextlib import nullcontext, suppress
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Literal, Sequence
+from typing import TYPE_CHECKING, Literal
 
 import geopandas as gpd
 import numpy as np
@@ -11,7 +12,7 @@ from shapely import box
 from wsidata import TileSpec, WSIData
 from wsidata.io import add_features
 
-import lazyslide._api as _api
+from lazyslide import _api
 from lazyslide._const import Key
 from lazyslide._utils import default_pbar, find_stack_level
 from lazyslide.preprocess._tiles import _add_tiles
@@ -61,25 +62,25 @@ def feature_extraction(
     wsi: WSIData,
     model: str | Callable | ImageModel = None,
     *,
-    model_path: str | Path = None,
-    model_name: str = None,
+    model_path: str | Path | None = None,
+    model_name: str | None = None,
     jit: bool = False,
-    token: str = None,
-    load_kws: dict = None,
-    transform: Callable = None,
+    token: str | None = None,
+    load_kws: dict | None = None,
+    transform: Callable | None = None,
     # For inference
-    device: str = None,
-    amp: bool = None,
+    device: str | None = None,
+    amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
     batch_size: int = 32,
     num_workers: int = 0,
-    pbar: bool = None,
+    pbar: bool | None = None,
     # For input
     tile_key: str = Key.tiles,
     dense: bool = False,
     pool_mode: Literal["cls", "cls_patch_mean"] | None = None,
     # For results
-    key_added: str = None,
+    key_added: str | None = None,
     return_features: bool = False,
     **kwargs,
 ):
@@ -201,10 +202,10 @@ def feature_extraction(
             if model_name is None:
                 model_name = default_model_name
         elif isinstance(model, ImageModelProtocol):
-            model = model
             model_name = model.name
         elif isinstance(model, Callable):
-            model = model
+            # Callable models are used as given; nothing to derive here.
+            pass
         else:
             raise ValueError("Model must be a model name or a model object.")
     else:
@@ -230,14 +231,11 @@ def feature_extraction(
         else:
             key_added = "features"
         key_added = Key.feature(key_added, tile_key)
-    try:
+    with suppress(Exception):
         model.to(device)
-    except:  # noqa: E722
-        pass
 
-    if transform is None:
-        if isinstance(model, ModelBaseProtocol):
-            transform = model.get_transform()
+    if transform is None and isinstance(model, ModelBaseProtocol):
+        transform = model.get_transform()
 
     n_tiles = len(wsi.shapes[tile_key])
 
@@ -327,11 +325,11 @@ def feature_extraction(
 def feature_aggregation(
     wsi: WSIData,
     feature_key: str,
-    layer_key: str = None,
+    layer_key: str | None = None,
     encoder: str | Callable = "mean",
     tile_key: str = Key.tiles,
     by: str | Sequence[str] | None = None,
-    agg_key: str = None,
+    agg_key: str | None = None,
     amp: bool = False,
     autocast_dtype: torch.dtype = None,
     device: str = "cpu",
@@ -618,7 +616,7 @@ def subdivide_tiles(
 
     for idx, row in tiles_table.iterrows():
         bounds = row.geometry.bounds  # (minx, miny, maxx, maxy)
-        minx, miny, maxx, maxy = bounds
+        minx, miny, _maxx, _maxy = bounds
 
         tile_id = row["tile_id"] if has_tile_id else idx
         tissue_id = row["tissue_id"] if has_tissue_id else None

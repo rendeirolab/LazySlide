@@ -29,8 +29,8 @@ Later stages refer to earlier results by key. For example, feature extraction re
 Many LazySlide functions mutate `wsi` and return `None`. This is intentional:
 
 ```python
-zs.pp.find_tissues(wsi)                 # adds wsi.shapes["tissues"]
-zs.pp.tile_tissues(wsi, 256, mpp=0.5) # adds wsi.shapes["tiles"]
+zs.pp.find_tissues(wsi)  # adds wsi.shapes["tissues"]
+zs.pp.tile_tissues(wsi, 256, mpp=0.5)  # adds wsi.shapes["tiles"]
 zs.tl.feature_extraction(wsi, "uni")  # adds a feature table
 ```
 

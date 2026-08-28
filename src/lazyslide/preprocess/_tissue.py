@@ -26,6 +26,8 @@ from .._const import Key
 from .._utils import find_stack_level
 from ..cv import merge_connected_polygons
 
+logger = logging.getLogger(__name__)
+
 
 def _tissue_mask(
     image,
@@ -190,25 +192,25 @@ def find_tissues(
     # Set the segmentation options
 
     # Run the first segmentation
-    otsu_kwargs = dict(
-        to_hsv=to_hsv,
-        filter_artifacts=filter_artifacts,
-        blur_ksize=blur_ksize,
-        threshold=threshold,
-        morph_ksize=morph_ksize,
-        morph_n_iter=morph_n_iter,
-    )
-    entropy_kwargs = dict(
-        disk_radius=disk_radius,
-        relaxed_threshold=relaxed_threshold,
-        invert_check=invert_check,
-        morph_ksize=morph_ksize,
-        morph_n_iter=morph_n_iter,
-    )
-    to_poly_option = dict(
-        min_area=min_tissue_area,
-        min_hole_area=min_hole_area,
-    )
+    otsu_kwargs = {
+        "to_hsv": to_hsv,
+        "filter_artifacts": filter_artifacts,
+        "blur_ksize": blur_ksize,
+        "threshold": threshold,
+        "morph_ksize": morph_ksize,
+        "morph_n_iter": morph_n_iter,
+    }
+    entropy_kwargs = {
+        "disk_radius": disk_radius,
+        "relaxed_threshold": relaxed_threshold,
+        "invert_check": invert_check,
+        "morph_ksize": morph_ksize,
+        "morph_n_iter": morph_n_iter,
+    }
+    to_poly_option = {
+        "min_area": min_tissue_area,
+        "min_hole_area": min_hole_area,
+    }
     tissue_image = wsi.reader.get_level(ops_level)
     tissue_mask = _build_tissue_mask(tissue_image, method, otsu_kwargs, entropy_kwargs)
     tissue_polys = BinaryMask(tissue_mask).to_polygons(
@@ -217,7 +219,7 @@ def find_tissues(
     tissue_polys = tissue_polys.geometry
 
     if len(tissue_polys) == 0:
-        logging.warning("No tissue is found.", stacklevel=find_stack_level())
+        logger.warning("No tissue is found.", stacklevel=find_stack_level())
         return False
 
     tissues = []
@@ -240,8 +242,7 @@ def find_tissues(
                 current_refine_level = _decide_level(wsi, refine_level, proportion)
                 if current_refine_level == ops_level:
                     current_refine_level -= 1
-                if current_refine_level < 0:
-                    current_refine_level = 0
+                current_refine_level = max(current_refine_level, 0)
 
             else:
                 current_refine_level = refine_level

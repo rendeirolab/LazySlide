@@ -19,10 +19,10 @@ def tile_graph(
     n_neighs: int = 6,
     n_rings: int = 1,
     delaunay=False,
-    transform: str = None,
+    transform: str | None = None,
     set_diag: bool = False,
     tile_key: str = Key.tiles,
-    table_key: str = None,
+    table_key: str | None = None,
 ):
     """
     Compute the :term:`spatial graph <spatial tile graph>` of the tiles.
@@ -117,7 +117,7 @@ def _spatial_neighbor(
     n_neighs: int = 6,
     delaunay: bool = False,
     n_rings: int = 1,
-    transform: str = None,
+    transform: str | None = None,
     set_diag: bool = False,
 ) -> tuple[csr_matrix, csr_matrix]:
     with warnings.catch_warnings():
@@ -223,7 +223,9 @@ def _build_connectivity(
         r = (
             1
             if radius is None
-            else radius if isinstance(radius, (int, float)) else max(radius)
+            else radius
+            if isinstance(radius, (int, float))
+            else max(radius)
         )
         tree = NearestNeighbors(n_neighbors=n_neighs, radius=r, metric="euclidean")
         tree.fit(coords)

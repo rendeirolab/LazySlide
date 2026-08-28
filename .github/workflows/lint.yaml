@@ -4,9 +4,30 @@ on:
     branches:
       - main
   pull_request:
+
+# Superseded runs on the same ref are pointless work.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   ruff:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/ruff-action@v3
+      # Pinned, and kept in lockstep with the rev in .pre-commit-config.yaml.
+      # Leaving the version to be resolved from pyproject.toml installs "latest
+      # satisfying", which is how CI silently moved onto 0.16.0 - and its 413
+      # default rules - the day after release and went red with no commit.
+      - uses: astral-sh/ruff-action@v4.1.0
+        with:
+          version: 0.16.5
+      # The formatter has to be checked too. CI only ever ran `ruff check`, so
+      # two files drifted unnoticed against the version pre-commit was pinned to.
+      - uses: astral-sh/ruff-action@v4.1.0
+        with:
+          version: 0.16.5
+          args: "format --check"

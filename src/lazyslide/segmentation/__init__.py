@@ -9,12 +9,12 @@ from ._tissue import tissue
 from ._zero_shot import zero_shot
 
 __all__ = [
+    "CellSegmentationRunner",
+    "SemanticSegmentationRunner",
     "artifact",
-    "cells",
     "cell_types",
+    "cells",
     "semantic",
     "tissue",
     "zero_shot",
-    "CellSegmentationRunner",
-    "SemanticSegmentationRunner",
 ]

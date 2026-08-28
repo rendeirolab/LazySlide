@@ -8,7 +8,7 @@ def spatial_domain(
     wsi: WSIData,
     feature_key: str,
     tile_key: str = Key.tiles,
-    layer: str = None,
+    layer: str | None = None,
     resolution: float = 0.1,
     key_added: str = "domain",
 ):

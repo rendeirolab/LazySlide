@@ -21,10 +21,10 @@ if TYPE_CHECKING:
 def virtual_stain(
     wsi: WSIData,
     model: str = "rosie",
-    image_key: str = None,
+    image_key: str | None = None,
     tile_key: str = Key.tiles,
-    device: str = None,
-    amp: bool = None,
+    device: str | None = None,
+    amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
     batch_size: int = 32,
     num_workers: int = 0,
@@ -174,7 +174,7 @@ def virtual_stain(
                             image_y = (batch["y"][ix] * scale_y).long().item()
 
                             # Actual tile size might be different from expected if not padded
-                            c, th, tw = cs.shape
+                            _c, th, tw = cs.shape
 
                             # Clip to image boundaries
                             y1, y2 = image_y, min(image_y + th, image_shape[0])

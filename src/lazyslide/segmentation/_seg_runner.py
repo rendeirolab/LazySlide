@@ -4,10 +4,11 @@ import tempfile
 import warnings
 from abc import ABC, abstractmethod
 from collections import deque
+from collections.abc import Callable, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from functools import cached_property
-from typing import TYPE_CHECKING, Callable, List, Literal, Mapping
+from typing import TYPE_CHECKING, Literal
 
 import geopandas as gpd
 import numpy as np
@@ -235,7 +236,7 @@ def semantic(
     wsi: WSIData,
     model: SegmentationModelProtocol,
     tile_key=Key.tiles,
-    class_names: List[str] | Mapping[int, str] | None = None,
+    class_names: list[str] | Mapping[int, str] | None = None,
     transform=None,
     mode: Literal["constant", "gaussian"] = "gaussian",
     sigma_scale: float = 0.125,
@@ -247,9 +248,9 @@ def semantic(
     batch_size=4,
     num_workers=0,
     device=None,
-    amp: bool = None,
+    amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
-    pbar: bool = None,
+    pbar: bool | None = None,
     key_added="anatomical_structures",
 ):
     """
@@ -382,7 +383,6 @@ class Runner(ABC):
         Run the segmentation.
         This method should be implemented by subclasses.
         """
-        pass
 
     def __call__(self):
         """
@@ -393,7 +393,7 @@ class Runner(ABC):
 
     @staticmethod
     def tiler(array, tile_size=512):
-        C, H, W = array.shape
+        _C, H, W = array.shape
 
         if H <= tile_size and W <= tile_size:
             # Image is smaller than the tile size — yield once
@@ -426,7 +426,7 @@ class TileDataset:
         wsi: WSIData,
         tiles: gpd.GeoDataFrame,
         tile_spec: TileSpec,
-        transform: Callable = None,
+        transform: Callable | None = None,
     ):
         self.tiles_xy = tiles.bounds[["minx", "miny"]].to_numpy()
         self.tile_spec = tile_spec
@@ -466,21 +466,21 @@ class SemanticSegmentationRunner(Runner):
         wsi: WSIData,
         model: SegmentationModelProtocol,
         tile_key: str = Key.tiles,
-        transform: Callable = None,
+        transform: Callable | None = None,
         mode: Literal["constant", "gaussian"] = "gaussian",
         sigma_scale: float = 0.125,
         low_memory: bool = False,
         threshold: float = 0.5,
         ignore_index: int | None = 0,
-        class_names: List[str] | Mapping[int, str] | None = None,
+        class_names: list[str] | Mapping[int, str] | None = None,
         buffer_px: int = 2,
         chunk_size: int = 512,
         batch_size: int = 4,
         num_workers: int = 0,
         device: str | None = None,
-        amp: bool = None,
+        amp: bool | None = None,
         autocast_dtype: torch.dtype = None,
-        pbar: bool = None,
+        pbar: bool | None = None,
     ):
         self.wsi = wsi
         self.model = model
@@ -729,7 +729,7 @@ class CellSegmentationRunner(Runner):
         wsi: WSIData,
         model: SegmentationModelProtocol,
         tile_key: str = Key.tiles,
-        transform: Callable = None,
+        transform: Callable | None = None,
         size_filter: bool = True,
         nucleus_size: (int, int) = (20, 1000),
         batch_size: int = 4,
@@ -737,7 +737,7 @@ class CellSegmentationRunner(Runner):
         device: str | None = None,
         amp: bool = False,
         autocast_dtype: torch.dtype = None,
-        class_names: List[str] | Mapping[int, str] | None = None,
+        class_names: list[str] | Mapping[int, str] | None = None,
         pbar: bool = True,
         extract_features: bool = False,
         low_memory: bool = False,

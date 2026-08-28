@@ -11,19 +11,19 @@ from ._virtual_staining import virtual_stain
 from ._zero_shot import slide_caption, zero_shot_score
 
 __all__ = [
-    "spatial_domain",
-    "tile_shaper",
-    "feature_extraction",
+    "RNALinker",
     "feature_aggregation",
+    "feature_extraction",
     "feature_prediction",
     "image_generation",
-    "RNALinker",
+    "slide_caption",
+    "spatial_domain",
     "spatial_features",
     "text_embedding",
     "text_image_similarity",
     "tile_prediction",
+    "tile_shaper",
     "tissue_props",
     "virtual_stain",
-    "slide_caption",
     "zero_shot_score",
 ]

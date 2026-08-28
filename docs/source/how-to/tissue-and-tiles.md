@@ -120,7 +120,5 @@ To tile the full slide, set `tissue_key=None`. To tile an imported annotation la
 
 ```python
 zs.pp.tile_tissues(wsi, 256, mpp=0.5, tissue_key=None, key_added="all_tiles")
-zs.pp.tile_tissues(
-    wsi, 256, mpp=0.5, tissue_key="annotations", key_added="roi_tiles"
-)
+zs.pp.tile_tissues(wsi, 256, mpp=0.5, tissue_key="annotations", key_added="roi_tiles")
 ```

@@ -113,8 +113,30 @@ version = "{version}"
 '''
 
 [tool.ruff]
-lint.extend-select = ["I"]
 line-length = 88
+# target-version deliberately unset: ruff infers it from project.requires-python,
+# keeping one source of truth for the minimum supported Python.
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.ruff.lint.per-file-ignores]
+# BLE001 (blind except). Deliberate in these files:
+#   _annotation.py  - optional defusedxml import, falls back to stdlib ElementTree
+#   __main__.py     - is_zarr_dir() probes a path; zarr raises many types
+#   _zero_shot.py   - per-prompt resilience in a batch loop, logs and degrades
+#   conf.py         - docs build should not die on one failed model lookup
+# compose.py is NOT in that category: it swallows the exception, prints, and
+# carries on with an unmodified mask. Ignored here only to keep this migration
+# lint-only - it wants a real fix, tracked separately.
+"docs/source/conf.py" = ["BLE001"]
+"src/lazyslide/__main__.py" = ["BLE001"]
+"src/lazyslide/cv/transform/compose.py" = ["BLE001"]
+"src/lazyslide/io/_annotation.py" = ["BLE001"]
+"src/lazyslide/segmentation/_zero_shot.py" = ["BLE001"]
+# B017: these tests assert that *some* error surfaces from a third-party call
+# (geopandas, torch) whose exact exception type is not part of our contract.
+"tests/**" = ["B017"]
 
 [tool.mypy]
 ignore_missing_imports = true
@@ -126,7 +148,8 @@ test-ci = "python -X faulthandler -m pytest tests -v --tb=short --disable-warnin
 doc-build = "sphinx-build -b html -j auto -T docs/source docs/build"
 doc-clean-build = "python docs/clean_up.py && sphinx-build -b html -j auto -T docs/source docs/build"
 doc-serve = "python -m http.server -d docs/build"
-fmt = "ruff format docs/source src/lazyslide tests"
+fmt = "ruff format ."
+lint = "ruff check --fix ."
 
 [tool.uv]
 default-groups = ["dev", "tests", "docs", "tutorials", "model"]
@@ -136,7 +159,7 @@ cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true 
 dev = [
     "jupyterlab>=4.3.5",
     "prek>=0.3.0",
-    "ruff>=0.9.4",
+    "ruff>=0.16.5,<0.17",
     "taskipy>=1.14.1",
     "torchvision>=0.21.0",
     "torchstain>=1.4.1",

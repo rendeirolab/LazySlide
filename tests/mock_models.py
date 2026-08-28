@@ -6,11 +6,10 @@ so tests validate pipeline logic without downloading weights.
 
 from __future__ import annotations
 
-from typing import Self, Tuple
+from typing import ClassVar, Self
 
 import numpy as np
 import torch
-import torch.nn as nn
 from lazyslide_models.base import (
     ImageTextModel,
     ModelBase,
@@ -19,6 +18,7 @@ from lazyslide_models.base import (
     SegmentationOutput,
     StyleTransferModel,
 )
+from torch import nn
 
 
 # ---------------------------------------------------------------------------
@@ -44,7 +44,7 @@ class MockCellSegmentationModel(SegmentationModel):
         return Compose([ToImage(), ToDtype(dtype=torch.float32, scale=False)])
 
     def segment(self, image) -> SegmentationOutput:
-        B, C, H, W = image.shape
+        B, _C, H, W = image.shape
         instance_maps = torch.zeros(B, H, W, dtype=torch.long)
         r = min(H, W) // 20  # small radius, away from edges for filtering
         # Cells 1 and 3: simple square blobs (single Polygon each).
@@ -90,7 +90,7 @@ class MockCellTypeSegmentationModel(SegmentationModel):
     _EMBED_DIM = 64
 
     def segment(self, image) -> SegmentationOutput:
-        B, C, H, W = image.shape
+        B, _C, H, W = image.shape
         n_classes = 6
         instance_maps = np.zeros((B, H, W), dtype=np.int64)
         class_maps = np.zeros((B, n_classes, H, W), dtype=np.float32)
@@ -150,7 +150,7 @@ class MockSemanticSegmentationModel(SegmentationModel):
         )
 
     def segment(self, image) -> SegmentationOutput:
-        B, C, H, W = image.shape
+        B, _C, H, W = image.shape
         n_classes = 8
         prob_map = torch.zeros(B, n_classes, H, W)
         # Class 1 (Normal Tissue) gets high probability everywhere
@@ -304,7 +304,7 @@ class MockStyleTransferModel(StyleTransferModel):
         # Non-zero values so post-processing doesn't produce all-zeros
         return torch.rand(B, 50) * 10 + 1
 
-    def get_channel_names(self) -> Tuple[str, ...]:
+    def get_channel_names(self) -> tuple[str, ...]:
         return _ROSIE_MARKERS
 
 
@@ -314,7 +314,10 @@ class MockStyleTransferModel(StyleTransferModel):
 class MockPrismModel(ModelBase):
     """Mock Prism model for zero-shot scoring and slide encoding."""
 
-    task = [ModelTask.multimodal, ModelTask.slide_encoder]
+    task: ClassVar[list[ModelTask]] = [
+        ModelTask.multimodal,
+        ModelTask.slide_encoder,
+    ]
 
     def __init__(self, **kwargs):
         self._device = "cpu"

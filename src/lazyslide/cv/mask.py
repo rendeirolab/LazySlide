@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from typing import Mapping, Sequence
+from collections.abc import Mapping, Sequence
 
 import cv2
 import geopandas as gpd
@@ -34,7 +34,7 @@ class Mask(ABC):
         self,
         mask: np.ndarray,
         prob_map: np.ndarray | None = None,
-        class_names: Sequence[str] | Mapping[int, str] = None,
+        class_names: Sequence[str] | Mapping[int, str] | None = None,
     ):
         self.mask = mask
         self.prob_map = prob_map
@@ -62,9 +62,7 @@ class Mask(ABC):
         # Check values
         bt_1 = np.min(prob_map) >= 0
         lt_1 = np.max(prob_map) <= 1
-        if not (bt_1 and lt_1):
-            return False
-        return True
+        return bt_1 and lt_1
 
     @classmethod
     def from_polygons(
@@ -206,7 +204,7 @@ class BinaryMask(Mask):
         self,
         mask: np.ndarray,
         prob_map: np.ndarray | None = None,
-        class_names: Sequence[str] | Mapping[int, str] = None,
+        class_names: Sequence[str] | Mapping[int, str] | None = None,
     ):
         assert mask.ndim == 2, "Binary mask must be 2D."
         if prob_map is not None:
@@ -222,7 +220,7 @@ class BinaryMask(Mask):
         min_area: float = 0,
         min_hole_area: float = 0,
         detect_holes: bool = True,
-        ignore_index: int | Sequence[int] | None = None,  # noqa
+        ignore_index: int | Sequence[int] | None = None,
     ) -> gpd.GeoDataFrame:
         return binary_mask_to_polygons_with_prob(
             self.mask,
@@ -253,7 +251,7 @@ class MulticlassMask(Mask):
         self,
         mask: np.ndarray,
         prob_map: np.ndarray | None = None,
-        class_names: Sequence[str] | Mapping[int, str] = None,
+        class_names: Sequence[str] | Mapping[int, str] | None = None,
     ):
         assert mask.ndim == 2, "Multiclass mask must be 2D."
         assert self._is_integer_dtype(mask), "Multiclass mask must be of integer type."
@@ -344,7 +342,7 @@ class MultilabelMask(Mask):
         self,
         mask: np.ndarray,
         prob_map: np.ndarray | None = None,
-        class_names: Sequence[str] | Mapping[int, str] = None,
+        class_names: Sequence[str] | Mapping[int, str] | None = None,
     ):
         assert mask.ndim == 3, "Multiclass mask must be C, H, W."
         assert self._is_integer_dtype(mask), "Multiclass mask must be of integer type."
@@ -427,7 +425,7 @@ class InstanceMap(Mask):
         self,
         instance_map: np.ndarray,
         prob_map: np.ndarray | None = None,
-        class_names: Sequence[str] | Mapping[int, str] = None,
+        class_names: Sequence[str] | Mapping[int, str] | None = None,
     ):
         assert instance_map.ndim == 2, "Instance map must be 2D."
         # The map must be an integer type with unique values for each instance
@@ -530,9 +528,8 @@ class InstanceMap(Mask):
         # taken with ``.iloc[0]`` (so they all share label 0); the column is then
         # assigned positionally.
         instances = gpd.GeoDataFrame(data).reset_index(drop=True)
-        if "class" in instances.columns:
-            if self.class_names is not None:
-                instances["class"] = instances["class"].map(self.class_names)
+        if "class" in instances.columns and self.class_names is not None:
+            instances["class"] = instances["class"].map(self.class_names)
         return instances
 
 
@@ -541,7 +538,7 @@ class ProbabilityMap(Mask):
         self,
         probability_map: np.ndarray,
         prob_map: np.ndarray | None = None,
-        class_names: Sequence[str] | Mapping[int, str] = None,
+        class_names: Sequence[str] | Mapping[int, str] | None = None,
     ):
         # The probability map can be 2D or 3D, but must be of the floating point type
         assert probability_map.ndim in (2, 3), "Probability map must be 2D or 3D."

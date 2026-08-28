@@ -26,7 +26,7 @@ inherit from one of the base classes. If you want the model to be usable like `m
 please use the `register` decorator to register the model.
 
 ```python
-zs.seg.cells(wsi, model='cellpose')  # 'cellpose' must be registered
+zs.seg.cells(wsi, model="cellpose")  # 'cellpose' must be registered
 ```
 
 Otherwise, you can simply pass the model instance as parameter.
@@ -82,7 +82,6 @@ from lazyslide_models.base import ImageModel, ModelTask
     encode_dim=512,  # Optional
 )
 class MyGreatModel(ImageModel):
-
     def __init__(self):
         from huggingface_hub import hf_hub_download
 
@@ -144,7 +143,6 @@ from lazyslide_models.base import DenseTokens, ImageModel, ModelTask
     commercial=True,
 )
 class MyGreatViT(ImageModel):
-
     def __init__(self):
         from huggingface_hub import hf_hub_download
 
@@ -158,7 +156,7 @@ class MyGreatViT(ImageModel):
         hidden = self.model.forward_features(image)
         return DenseTokens(
             cls_token=hidden[:, 0],
-            patch_tokens=hidden[:, self.num_prefix_tokens:],
+            patch_tokens=hidden[:, self.num_prefix_tokens :],
         )
 
     @torch.inference_mode()
@@ -212,13 +210,14 @@ from lazyslide_models.base import ImageTextModel, ModelTask
     commercial=True,  # Required, can the model be used for commercial purpose?
 )
 class MyGreatImageTextModel(ImageTextModel):
-
     def __init__(self):
         from huggingface_hub import hf_hub_download
 
         # Use this context manager if your model is gated on huggingface
         with hf_access("my-repo/my-great-image-text-model"):
-            model_file = hf_hub_download("my-repo/my-great-image-text-model", "model.pt")
+            model_file = hf_hub_download(
+                "my-repo/my-great-image-text-model", "model.pt"
+            )
 
         self.model = torch.jit.load(model_file, map_location="cpu")
         self.model.eval()
@@ -230,7 +229,6 @@ class MyGreatImageTextModel(ImageTextModel):
     @torch.inference_mode()
     def encode_text(self, text):
         return self.model.encode_text(text, normalize=True)
-
 ```
 
 ### Segmentation model
@@ -274,7 +272,6 @@ class MySuperSegmentation(SegmentationModel):
     def segment(self, image):
         out = self.model(image)
         return SegmentationOutput(instance_map=out.long().squeeze(1))
-
 ```
 
 ### Tile prediction model
@@ -325,7 +322,6 @@ model_name = "your model name"
 assert model_name in list_models()
 model_class = MODEL_REGISTRY[model_name]
 model_instance = model_class()  # You must call the model to initiate an instance
-
 ```
 To make the model available to users, you will also need to go to the respective function in the LazySlide
 repository to add your model logic. If it's only for feature extraction, you don't need to do anything.

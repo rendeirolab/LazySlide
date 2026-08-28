@@ -12,7 +12,7 @@ from lazyslide._const import Key
 def point2shape(
     wsi: WSIData,
     key: str = "tiles",
-    groupby: str = None,
+    groupby: str | None = None,
 ):
     pass
 

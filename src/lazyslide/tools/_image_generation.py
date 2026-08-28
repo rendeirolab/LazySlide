@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from contextlib import nullcontext
-from typing import TYPE_CHECKING, List
+from contextlib import nullcontext, suppress
+from typing import TYPE_CHECKING
 
 from PIL import Image
 from wsidata import WSIData
@@ -16,15 +16,15 @@ if TYPE_CHECKING:
 def image_generation(
     wsi: WSIData = None,
     model: str | ImageGenerationModelProtocol = "cytosyn",
-    prompt_tiles: slice = None,
+    prompt_tiles: slice | None = None,
     tile_key: str = "tiles",
-    device: str = None,
-    amp: bool = None,
+    device: str | None = None,
+    amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
     num_images_per_tiles: int = 2,
     seed: int = 0,
     **kwargs,
-) -> List[Image.Image]:
+) -> list[Image.Image]:
     """
     Generation of :term:`tile` images unconditionally or conditionally.
 
@@ -84,18 +84,16 @@ def image_generation(
         raise NotImplementedError("Currently only supports cytosyn model.")
 
     generation_model: ImageGenerationModelProtocol = MODEL_REGISTRY[model]()
-    try:
+    with suppress(Exception):
         generation_model.to(device)
-    except:  # noqa: E722
-        pass
     if isinstance(device, torch.device):
         device = device.type
     amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()
     with amp_ctx, torch.inference_mode():
-        opts = dict(
-            num_images_per_prompt=num_images_per_tiles,
-            seed=seed,
-        )
+        opts = {
+            "num_images_per_prompt": num_images_per_tiles,
+            "seed": seed,
+        }
         opts.update(kwargs)
         # Unconditional generation
         if prompt_tiles is None:

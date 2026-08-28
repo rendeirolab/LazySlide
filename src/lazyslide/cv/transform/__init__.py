@@ -14,14 +14,14 @@ from .mods import (
 )
 
 __all__ = [
-    "Compose",
+    "ArtifactFilterThreshold",
     "BinaryThreshold",
     "BoxBlur",
+    "Compose",
+    "EntropyThreshold",
     "GaussianBlur",
     "MedianBlur",
     "MorphClose",
     "MorphOpen",
-    "ArtifactFilterThreshold",
-    "EntropyThreshold",
     "TissueDetectionHE",
 ]

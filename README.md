@@ -90,10 +90,10 @@ wsi = zs.datasets.sample()
 # Pipeline
 zs.pp.find_tissues(wsi)
 zs.pp.tile_tissues(wsi, tile_px=256, mpp=0.5)
-zs.tl.feature_extraction(wsi, model='resnet50')
+zs.tl.feature_extraction(wsi, model="resnet50")
 
 # Access the features
-features = wsi['resnet50_tiles']
+features = wsi["resnet50_tiles"]
 
 # Visualize the 1st and 99th features
 zs.pl.tiles(wsi, feature_key="resnet50", color=["1", "99"])

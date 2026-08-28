@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable, List, Sequence
+from collections.abc import Iterable, Sequence
 
 import numpy as np
 import pandas as pd
@@ -9,7 +9,7 @@ from wsidata import WSIData
 from lazyslide._utils import get_torch_device
 
 
-def _preprocess_prompts(prompts: List[str | List[str]]) -> List[List[str]]:
+def _preprocess_prompts(prompts: list[str | list[str]]) -> list[list[str]]:
     """
     Preprocess the prompts to ensure they are in the correct format.
     """
@@ -20,15 +20,17 @@ def _preprocess_prompts(prompts: List[str | List[str]]) -> List[List[str]]:
         elif isinstance(prompt, Iterable):
             processed_prompts.append(list(prompt))
         else:
-            raise ValueError(f"Invalid prompt type: {type(prompt)}")
+            # TRY004 suggests TypeError; kept as ValueError for consistency
+            # with the rest of the public API surface.
+            raise ValueError(f"Invalid prompt type: {type(prompt)}")  # noqa: TRY004
     return processed_prompts
 
 
 def _get_agg_info(
     wsi: WSIData,
     feature_key,
-    agg_key: str = None,
-    agg_by: str | Sequence[str] = None,
+    agg_key: str | None = None,
+    agg_by: str | Sequence[str] | None = None,
 ):
     if agg_key is None:
         if agg_by is None:
@@ -52,10 +54,10 @@ def zero_shot_score(
     prompts: list[list[str]],
     feature_key,
     *,
-    agg_key: str = None,
-    agg_by: str | Sequence[str] = None,
+    agg_key: str | None = None,
+    agg_by: str | Sequence[str] | None = None,
     model: str = "prism",
-    device: str = None,
+    device: str | None = None,
 ):
     """
     Perform :term:`zero-shot learning` classification on the :term:`WSI`
@@ -148,11 +150,11 @@ def slide_caption(
     prompt: list[str],
     feature_key,
     *,
-    agg_key: str = None,
-    agg_by: str | Sequence[str] = None,
+    agg_key: str | None = None,
+    agg_by: str | Sequence[str] | None = None,
     max_length: int = 100,
     model: str = "prism",
-    device: str = None,
+    device: str | None = None,
 ):
     """
     Generate captions for the slide.

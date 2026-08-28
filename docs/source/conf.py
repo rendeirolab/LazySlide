@@ -3,7 +3,7 @@ import shutil
 import subprocess
 import tempfile
 import urllib.request
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from natsort import natsorted
@@ -11,7 +11,7 @@ from natsort import natsorted
 import lazyslide
 
 project = "LazySlide"
-copyright = f"{datetime.now().year}, Rendeiro Lab"
+copyright = f"{datetime.now(tz=UTC).year}, Rendeiro Lab"
 author = "LazySlide Contributors"
 release = lazyslide.__version__
 
@@ -300,7 +300,7 @@ def generate_models_rst(app, config):
         ),
     }
 
-    for _, v in MODEL_REGISTRY.items():
+    for v in MODEL_REGISTRY.values():
         if isinstance(v.task, mb.ModelTask):
             task = [v.task]
         else:
@@ -327,7 +327,7 @@ def generate_models_rst(app, config):
         "",
     ]
 
-    for _, models in model_sections.items():
+    for models in model_sections.values():
         title, module, models = models
         content = template_model_api(title, module, models)
         template.extend(content)

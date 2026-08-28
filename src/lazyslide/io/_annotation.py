@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping, Sequence
 from itertools import cycle
 from pathlib import Path
-from typing import List, Literal, Mapping, Sequence
+from typing import Literal
 
 try:
     from defusedxml import ElementTree  # type: ignore[import-not-found]
@@ -163,9 +164,9 @@ def load_annotations(
     *,
     explode: bool = True,
     in_bounds: bool = False,
-    join_with: str | List[str] = Key.tissue,
-    join_to: str = None,
-    json_flatten: str | List[str] = "classification",
+    join_with: str | list[str] = Key.tissue,
+    join_to: str | None = None,
+    json_flatten: str | list[str] = "classification",
     min_area: float = 1e2,
     key_added: str = "annotations",
 ):
@@ -206,7 +207,9 @@ def load_annotations(
     elif isinstance(annotations, GeoDataFrame):
         anno_df = annotations
     else:
-        raise ValueError(f"Invalid annotations: {annotations}")
+        # TRY004 suggests TypeError, but ValueError is the documented
+        # behaviour here and tests/test_io.py asserts on it.
+        raise ValueError(f"Invalid annotations: {annotations}")  # noqa: TRY004
 
     # remove crs
     anno_df.crs = None
@@ -259,18 +262,17 @@ def load_annotations(
     add_shapes(wsi, key_added, join_anno_df)
 
     # TODO: still Buggy
-    if join_to is not None:
-        if join_to in wsi:
-            shapes_df = wsi[join_to]
-            # join the annotations with the tiles
-            shapes_df = (
-                gpd.sjoin(
-                    shapes_df[["geometry"]], anno_df, how="left", predicate="intersects"
-                )
-                .reset_index(drop=True)
-                .drop(columns=["index_right"], errors="ignore")
+    if join_to is not None and join_to in wsi:
+        shapes_df = wsi[join_to]
+        # join the annotations with the tiles
+        shapes_df = (
+            gpd.sjoin(
+                shapes_df[["geometry"]], anno_df, how="left", predicate="intersects"
             )
-            update_shapes_data(wsi, join_to, shapes_df)
+            .reset_index(drop=True)
+            .drop(columns=["index_right"], errors="ignore")
+        )
+        update_shapes_data(wsi, join_to, shapes_df)
 
 
 def export_annotations(
@@ -278,10 +280,10 @@ def export_annotations(
     key: str,
     *,
     in_bounds: bool = False,
-    classes: str = None,
-    colors: str | Mapping | Sequence = None,
+    classes: str | None = None,
+    colors: str | Mapping | Sequence | None = None,
     format: Literal["qupath"] = "qupath",
-    file: str | Path = None,
+    file: str | Path | None = None,
 ):
     """
     Export the annotations

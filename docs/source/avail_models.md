@@ -38,7 +38,9 @@ from lazyslide_models import list_models
 vision_models = list_models("vision")  # for vision models only
 multimodal_models = list_models("multimodal")  # for multimodal models only
 segmentation_models = list_models("segmentation")  # for segmentation models only
-tile_prediction_models = list_models("tile_prediction")  # for tile_prediction models only
+tile_prediction_models = list_models(
+    "tile_prediction"
+)  # for tile_prediction models only
 ```
 
 For feature extraction, we also support all timm models with feature extraction head.
@@ -54,7 +56,8 @@ To retrive a specific model class:
 
 ```python
 from lazyslide_models import MODEL_REGISTRY
-model_module = MODEL_REGISTRY['instanseg']
+
+model_module = MODEL_REGISTRY["instanseg"]
 model = model_module()  # Initiate the model
 ```
 
@@ -124,7 +127,8 @@ Alternatively, You can set it at the start of your python session
 
 ```python
 import os
-os.environ['HF_HUB_OFFLINE'] = 1
+
+os.environ["HF_HUB_OFFLINE"] = 1
 ```
 
 Below is a list of available models categorized by their type:
@@ -147,8 +151,8 @@ import torch
 
 from lazyslide_models.base import ImageModel
 
-class MyGreatModel(ImageModel):
 
+class MyGreatModel(ImageModel):
     def __init__(self):
         from huggingface_hub import hf_hub_download
 

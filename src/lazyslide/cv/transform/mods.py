@@ -1,4 +1,5 @@
 from collections import namedtuple
+from typing import ClassVar
 
 import cv2
 import numpy as np
@@ -12,7 +13,7 @@ class Transform:
     Image -> Image
     """
 
-    params: dict = {}
+    params: ClassVar[dict] = {}
 
     def __repr__(self):
         # print params

@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 import geopandas as gpd
 import numpy as np
@@ -32,7 +31,7 @@ class SegmentationStats:
     fp: int
     fn: int
     tn: int
-    ious: Optional[list[float]] = None
+    ious: list[float] | None = None
 
 
 def get_instance_stats(

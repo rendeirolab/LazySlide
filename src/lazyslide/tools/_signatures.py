@@ -152,7 +152,7 @@ class RNALinker:
         method: Literal[
             "pearson", "spearman", "kendall", "linear_reg", "lasso"
         ] = "linear_reg",
-        score_key: str = None,
+        score_key: str | None = None,
         key_added: str = "association_score",
     ):
         """

@@ -31,10 +31,7 @@ def should_exclude_file(file_path):
         return True
 
     # Exclude other common platform-specific files
-    if file_path.name in [".Thumbs.db", "desktop.ini", ".directory"]:
-        return True
-
-    return False
+    return file_path.name in [".Thumbs.db", "desktop.ini", ".directory"]
 
 
 def create_filtered_zip(zarr_path, zip_path):

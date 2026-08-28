@@ -1,5 +1,5 @@
 import torch
-import torch.nn as nn
+from torch import nn
 from torchvision.transforms.v2 import Compose, Resize, ToDtype, ToImage
 
 import lazyslide as zs
@@ -19,12 +19,12 @@ class TestFeatureExtraction:
 
     def test_timm_model(self, wsi_small):
         zs.tl.feature_extraction(
-            wsi_small, model=TIMM_MODEL, load_kws=dict(pretrained=False)
+            wsi_small, model=TIMM_MODEL, load_kws={"pretrained": False}
         )
 
     def test_timm_vit_model(self, wsi_small):
         zs.tl.feature_extraction(
-            wsi_small, model=TIMM_VIT_MODEL, dense=True, load_kws=dict(pretrained=False)
+            wsi_small, model=TIMM_VIT_MODEL, dense=True, load_kws={"pretrained": False}
         )
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 from cyclopts import App, Parameter, validators
 from rich import print
@@ -175,9 +175,9 @@ def feature(
     slide: str,
     model: str,
     slide_agg: str = "mean",
-    device: str = None,
+    device: str | None = None,
     num_workers: int | str = "auto",
-    output: Optional[str] = None,
+    output: str | None = None,
 ):
     """
     Extract features from a whole slide image
@@ -258,10 +258,12 @@ def agg(
     if output is None:
         output = Path(f"./agg_{feature_key}.zarr")
 
-    if not output.name.endswith(".zarr"):
-        if not is_zarr_dir(output):
-            if not is_dir_empty(output):
-                raise FileExistsError(f"Output directory {output} is not empty")
+    if (
+        not output.name.endswith(".zarr")
+        and not is_zarr_dir(output)
+        and not is_dir_empty(output)
+    ):
+        raise FileExistsError(f"Output directory {output} is not empty")
 
     data.write_zarr(output)
 

@@ -23,15 +23,15 @@ def tissue(
     wsi: WSIData,
     *,
     model: Literal["grandqc", "pathprofiler", "hest"] = "pathprofiler",
-    level: int = None,
-    mpp: float = None,
+    level: int | None = None,
+    mpp: float | None = None,
     bbox_ratio: float = 0.05,
     min_area=1e-3,
     min_hole_area=1e-5,
     detect_holes: bool = True,
     threshold: float = 0.5,
     device: str | None = None,
-    amp: bool = None,
+    amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
     key_added: str = Key.tissue,
 ):
@@ -179,12 +179,12 @@ def tissue(
 
     # Simulate JPEG compression
     encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
-    result, img = cv2.imencode(".jpg", img, encode_param)
+    _result, img = cv2.imencode(".jpg", img, encode_param)
     img = cv2.imdecode(img, 1)
 
     # OpenCV decodes in BGR; model transforms expect RGB (CLAHE or ImageNet norm)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    
+
     img = torch.tensor(img).permute(2, 0, 1)
 
     img_t = transform(img).unsqueeze(0)

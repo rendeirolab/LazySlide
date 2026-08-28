@@ -59,7 +59,7 @@ To format code
 ```bash
 uv run task fmt
 # or
-ruff format docs/source src/lazyslide tests
+ruff format .
 ```
 
 ## Testing

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Tuple, Union
 
 import cv2
 import geopandas as gpd
@@ -20,8 +19,8 @@ logger = logging.getLogger(__name__)
 
 
 def _initialize_model(
-    model_name: str, model_kwargs: Optional[Dict] = None, device: Optional[str] = None
-) -> Tuple[object, str]:
+    model_name: str, model_kwargs: dict | None = None, device: str | None = None
+) -> tuple[object, str]:
     """
     Initialize the segmentation model.
 
@@ -58,7 +57,7 @@ def _initialize_model(
 
 
 def _get_threshold_value(
-    threshold_param: Union[str, float, List[float]], values: np.ndarray, index: int = 0
+    threshold_param: str | float | list[float], values: np.ndarray, index: int = 0
 ) -> float:
     """
     Determine the threshold value based on the provided parameter.
@@ -96,7 +95,7 @@ def _get_threshold_value(
 
 
 def _create_tile_mask(
-    mask_shape: Tuple[int, int],
+    mask_shape: tuple[int, int],
     tile_points: np.ndarray,
     tile_height: int,
     tile_width: int,
@@ -236,21 +235,21 @@ def _segment_with_model(
 
         return result.probability_map
     except Exception as e:
-        logger.error(f"Error during segmentation: {str(e)}")
+        logger.error(f"Error during segmentation: {e!s}")
         # Return empty mask in case of error
         return np.zeros((image.shape[0], image.shape[1]), dtype=np.uint8)
 
 
 def zero_shot(
     wsi: WSIData,
-    prompts: List[str],
+    prompts: list[str],
     table_key: str,
     tile_key: str,
     tissue_key: str = "tissues",
-    threshold: Union[str, float, List[float]] = "otsu",
+    threshold: str | float | list[float] = "otsu",
     model: str = "sam",
-    device: Optional[str] = None,
-    model_kwargs: Optional[Dict] = None,
+    device: str | None = None,
+    model_kwargs: dict | None = None,
     key_added: str = "zero_shot_segmentation",
     min_area: float = 10,
     show_progress: bool = True,
@@ -362,7 +361,7 @@ def zero_shot(
                 embeddings = model_instance.get_image_embedding(d.image)
             except Exception as e:
                 logger.error(
-                    f"Error getting image embeddings for tissue ID {d.tissue_id}: {str(e)}"
+                    f"Error getting image embeddings for tissue ID {d.tissue_id}: {e!s}"
                 )
                 pbar.update(tissue_task, advance=1)
                 continue
@@ -391,7 +390,7 @@ def zero_shot(
                         thresh = _get_threshold_value(threshold, vs, ix)
                     except Exception as e:
                         logger.error(
-                            f"Error determining threshold for prompt '{prompt}': {str(e)}"
+                            f"Error determining threshold for prompt '{prompt}': {e!s}"
                         )
                         pbar.update(prompt_task, advance=1)
                         continue
@@ -439,7 +438,7 @@ def zero_shot(
                             [Polygon(cnt.squeeze()) for cnt in contours if cnt.size > 0]
                         )
                     except Exception as e:
-                        logger.error(f"Error creating polygons from contours: {str(e)}")
+                        logger.error(f"Error creating polygons from contours: {e!s}")
                         pbar.update(prompt_task, advance=1)
                         continue
 
@@ -527,7 +526,7 @@ def zero_shot(
 
                 except Exception as e:
                     logger.error(
-                        f"Error processing prompt '{prompt}' for tissue ID {d.tissue_id}: {str(e)}"
+                        f"Error processing prompt '{prompt}' for tissue ID {d.tissue_id}: {e!s}"
                     )
 
                 pbar.update(prompt_task, advance=1)

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import cached_property
 from importlib.util import find_spec
 from itertools import cycle
 from numbers import Number
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Sequence, Union
+from typing import TYPE_CHECKING, Any, Literal
 
 import cv2
 import geopandas as gpd
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
     from matplotlib.patches import Patch
     from matplotlib.typing import ColorType
 
-    PaletteType = Union[Dict, Sequence[ColorType], ColorType]
+    PaletteType = dict | Sequence[ColorType] | ColorType
 
 LAZYSLIDE_PALETTE = (
     "#e60049",
@@ -105,14 +106,14 @@ class DataSource:
         The current viewport.
     _sel : np.ndarray
         The selection mask of the data depending on the viewport.
-    _sel_attrs : Dict
+    _sel_attrs : dict
         The selection of data depending on the viewport.
     """
 
     # Type hinting for class attributes (defaults handled in __init__)
     viewport: Viewport | None
     _sel: np.ndarray[Any, np.dtype[np.bool_]] | None
-    _sel_attrs: Dict
+    _sel_attrs: dict
 
     def __init__(self, viewport: Viewport | None = None):
         """
@@ -135,7 +136,6 @@ class DataSource:
         """
         The hook that runs if the viewport is updated.
         """
-        pass
 
     def set_viewport(self, viewport: Viewport):
         if self.viewport == viewport:
@@ -275,7 +275,7 @@ class TileDataSource(DataSource):
 
 
 class PolygonDataSource(DataSource):
-    def __init__(self, polygons: List[Polygon]):
+    def __init__(self, polygons: list[Polygon]):
         super().__init__()
         self._polygons = polygons
         self._render_polygons = polygons
@@ -315,7 +315,6 @@ class RenderPlan:
 
     def render(self, ax):
         """The rendering logics of the plan."""
-        pass
 
     def get_legend(self) -> Artist | None:
         """Return the legend of the plan."""
@@ -363,17 +362,21 @@ class OriginXYArrowRenderPlan(RenderPlan):
     def __init__(self, length=30, linewidth=1, color="k", **kwargs):
         self.length = length
         self.kwargs = kwargs
-        self._arrow_props = dict(
-            arrowstyle="<|-", shrinkA=0, shrinkB=0, color=color, linewidth=linewidth
-        )
-        self._annotate_props = dict(
-            xy=(0, 1),
-            xycoords="axes fraction",
-            textcoords="offset points",
-            va="center",
-            ha="center",
-            arrowprops=self._arrow_props,
-        )
+        self._arrow_props = {
+            "arrowstyle": "<|-",
+            "shrinkA": 0,
+            "shrinkB": 0,
+            "color": color,
+            "linewidth": linewidth,
+        }
+        self._annotate_props = {
+            "xy": (0, 1),
+            "xycoords": "axes fraction",
+            "textcoords": "offset points",
+            "va": "center",
+            "ha": "center",
+            "arrowprops": self._arrow_props,
+        }
 
     def render(self, ax):
         ax.annotate("x", xytext=(self.length, 0), **self._annotate_props)
@@ -386,7 +389,7 @@ class HeatmapTilesRenderPlan(RenderPlan):
         tile_datasource: TileDataSource,
         image_datasource: ImageDataSource,
         values: np.ndarray,
-        palette: Dict = None,
+        palette: dict | None = None,
         cmap="coolwarm",
         norm=None,
         vmin=None,
@@ -395,7 +398,7 @@ class HeatmapTilesRenderPlan(RenderPlan):
         smooth=False,
         smooth_scale=2,
         legend_kws=None,
-        **kwargs: Any,  # noqa: ANN001
+        **kwargs: Any,
     ):
         self.datasource: TileDataSource = tile_datasource
         self.image_datasource: ImageDataSource = image_datasource
@@ -480,7 +483,7 @@ class ScatterTilesRenderPlan(RenderPlan):
         self,
         datasource: TileDataSource,
         values: np.ndarray,
-        palette: Dict = None,
+        palette: dict | None = None,
         cmap="coolwarm",
         norm=None,
         vmin=None,
@@ -491,7 +494,7 @@ class ScatterTilesRenderPlan(RenderPlan):
         marker="o",
         rasterized=True,
         legend_kws=None,
-        **kwargs: Any,  # noqa: ANN001
+        **kwargs: Any,
     ):
         self.datasource: TileDataSource = datasource
         from matplotlib.colors import ListedColormap
@@ -587,13 +590,13 @@ class PolygonMixin(RenderPlan):
     @staticmethod
     def _label_patch(ax, patch: Patch, name, pad=0.1, box_color="white", **kwargs):
         kwargs = {} if kwargs is None else kwargs
-        options = dict(
-            color="black",
-            fontsize=8,
-            ha="center",
-            va="bottom",
-            bbox=dict(facecolor=box_color, pad=2, lw=1),
-        )
+        options = {
+            "color": "black",
+            "fontsize": 8,
+            "ha": "center",
+            "va": "bottom",
+            "bbox": {"facecolor": box_color, "pad": 2, "lw": 1},
+        }
         options.update(kwargs)
         # Check if patch is inside the axis limits
         xrange = np.sort(ax.get_xlim())
@@ -673,9 +676,9 @@ class ContourRenderPlan(PolygonMixin):
     def __init__(
         self,
         polygons: PolygonDataSource,
-        labels: Sequence = None,
-        colors: Sequence = None,
-        palette: Dict = None,
+        labels: Sequence | None = None,
+        colors: Sequence | None = None,
+        palette: dict | None = None,
         outline_color: ColorType = "#117554",
         hole_color: ColorType = "#4379F2",
         linewidth: int = 1,
@@ -689,11 +692,13 @@ class ContourRenderPlan(PolygonMixin):
         outline_kws = {} if outline_kws is None else outline_kws
         hole_kws = {} if hole_kws is None else hole_kws
 
-        self.outline_kws = dict(
-            edgecolor=outline_color, linewidth=linewidth, fill=False
-        )
+        self.outline_kws = {
+            "edgecolor": outline_color,
+            "linewidth": linewidth,
+            "fill": False,
+        }
         self.outline_kws.update(outline_kws)
-        self.hole_kws = dict(edgecolor=hole_color, linewidth=linewidth, fill=False)
+        self.hole_kws = {"edgecolor": hole_color, "linewidth": linewidth, "fill": False}
         self.hole_kws.update(hole_kws)
         self.legend_kws = legend_kws or {}
 
@@ -740,9 +745,9 @@ class FilledPolygonRenderPlan(PolygonMixin):
     def __init__(
         self,
         polygons: PolygonDataSource,
-        labels: Sequence = None,
-        colors: Sequence = None,
-        palette: Dict = None,
+        labels: Sequence | None = None,
+        colors: Sequence | None = None,
+        palette: dict | None = None,
         color="#FFE31A",
         linewidth: int = 1,
         alpha=0.3,
@@ -759,9 +764,11 @@ class FilledPolygonRenderPlan(PolygonMixin):
         super().__init__(polygons, labels=labels, colors=colors)
 
         self.legend_kws = legend_kws or {}
-        self.kwargs = dict(
-            facecolor=to_rgba(color, alpha), edgecolor=color, linewidth=linewidth
-        )
+        self.kwargs = {
+            "facecolor": to_rgba(color, alpha),
+            "edgecolor": color,
+            "linewidth": linewidth,
+        }
         if kwargs is not None:
             self.kwargs.update(kwargs)
 
@@ -826,10 +833,10 @@ class DatashaderFilledPolygonRenderPlan(RenderPlan):
         shapes: gpd.GeoDataFrame,
         image_datasource: ImageDataSource,
         color_by: str | None = None,
-        palette: Dict | None = None,
+        palette: dict | None = None,
         color: ColorType = "#5CE65C",
         alpha: float = 1,
-        legend_kws: Dict | None = None,
+        legend_kws: dict | None = None,
     ):
         self.shapes = shapes
         self.image_datasource = image_datasource
@@ -866,8 +873,8 @@ class DatashaderFilledPolygonRenderPlan(RenderPlan):
         max_px = self.max_px
         if w > max_px or h > max_px:
             scale = max(w / max_px, h / max_px)
-            w = max(1, int(round(w / scale)))
-            h = max(1, int(round(h / scale)))
+            w = max(1, round(w / scale))
+            h = max(1, round(h / scale))
 
         cvs = ds.Canvas(
             plot_width=int(w),
@@ -891,7 +898,7 @@ class DatashaderFilledPolygonRenderPlan(RenderPlan):
                 agg,
                 cmap=cmap,
                 how="linear",
-                alpha=int(round(self.alpha * 255)),
+                alpha=round(self.alpha * 255),
                 min_alpha=0,
             )
         else:
@@ -910,7 +917,7 @@ class DatashaderFilledPolygonRenderPlan(RenderPlan):
                 agg,
                 color_key=color_key,
                 how="linear",
-                alpha=int(round(self.alpha * 255)),
+                alpha=round(self.alpha * 255),
                 min_alpha=255,
             )
 
@@ -971,7 +978,7 @@ class ZoomRenderPlan(ZoomMixin, RenderPlan):
         xmin, xmax = self.x_range
         ymin, ymax = self.y_range
 
-        if all([0 <= x <= 1 for x in [xmin, xmax, ymin, ymax]]):
+        if all(0 <= x <= 1 for x in [xmin, xmax, ymin, ymax]):
             w, h = self.image_datasource.get_image_size()
             x_start, y_start = (
                 self.image_datasource.viewport.x,
@@ -1054,9 +1061,9 @@ class WSIViewer:
         # There is only one zoom image source
         self.zoom_image_source: ImageDataSource | None = None
         # There can be multiple tile sources
-        self.tile_source: Dict[str, TileDataSource] = {}
+        self.tile_source: dict[str, TileDataSource] = {}
         # There can be multiple polygon sources
-        self.polygon_source: Dict[str, PolygonDataSource] = {}
+        self.polygon_source: dict[str, PolygonDataSource] = {}
         self._has_image = False
         self.title = None
 
@@ -1070,13 +1077,12 @@ class WSIViewer:
         self._viewport = self._get_region_geometry(x, y, w, h)
 
         self.image_source.set_viewport(self._viewport)
-        for name, source in self.tile_source.items():
+        for source in self.tile_source.values():
             source.set_viewport(self._viewport)
-        for name, source in self.polygon_source.items():
+        for source in self.polygon_source.values():
             source.set_viewport(self._viewport)
 
     def set_tissue_id(self, tissue_id, tissue_key="tissues"):
-        """ """
         tissues = self.wsi[tissue_key]
         tissue_geo = tissues[tissues["tissue_id"] == tissue_id].geometry.iloc[0]
         xmin, ymin, xmax, ymax = tissue_geo.bounds
@@ -1176,27 +1182,27 @@ class WSIViewer:
 
         dx = self.wsi.properties.mpp
 
-        options = dict(
-            label=label,
-            length_fraction=length_fraction,
-            width_fraction=width_fraction,
-            location=location,
-            pad=pad,
-            border_pad=border_pad,
-            sep=sep,
-            frameon=frameon,
-            color=color,
-            box_alpha=box_alpha,
-            box_color=box_color,
-            scale_loc=scale_loc,
-            label_loc=label_loc,
-            font_properties=font_properties,
-            fixed_value=fixed_value,
-            fixed_units=fixed_units,
-            rotation=rotation,
+        options = {
+            "label": label,
+            "length_fraction": length_fraction,
+            "width_fraction": width_fraction,
+            "location": location,
+            "pad": pad,
+            "border_pad": border_pad,
+            "sep": sep,
+            "frameon": frameon,
+            "color": color,
+            "box_alpha": box_alpha,
+            "box_color": box_color,
+            "scale_loc": scale_loc,
+            "label_loc": label_loc,
+            "font_properties": font_properties,
+            "fixed_value": fixed_value,
+            "fixed_units": fixed_units,
+            "rotation": rotation,
             # bbox_to_anchor=bbox_to_anchor,
             # bbox_transform=bbox_transform,
-        )
+        }
 
         plan = ScaleBarRenderPlan(self.image_source, dx, **options)
         plan.zoom_view_visible = in_zoom
@@ -1251,9 +1257,9 @@ class WSIViewer:
         outline_color: ColorType = "#117554",
         hole_color: ColorType = "#4379F2",
         linewidth: int = 1,
-        outline_kwargs: Dict = None,
-        hole_kwargs: Dict = None,
-        legend_kws: Dict = None,
+        outline_kwargs: dict | None = None,
+        hole_kwargs: dict | None = None,
+        legend_kws: dict | None = None,
         legend: bool = True,
         in_zoom: bool = True,
         cache=True,
@@ -1323,13 +1329,13 @@ class WSIViewer:
     def add_polygons(
         self,
         key: str,
-        label_by: str = None,
-        color_by: str = None,
+        label_by: str | None = None,
+        color_by: str | None = None,
         palette: PaletteType = None,
         alpha: float = 0.9,
         color: ColorType = "#D3F527",
         linewidth: int = 1,
-        legend_kws: Dict = None,
+        legend_kws: dict | None = None,
         legend: bool = True,
         in_zoom: bool = True,
         cache=True,
@@ -1508,23 +1514,22 @@ class WSIViewer:
 
         # Decide the color palette of tiles
         is_categorical = False
-        if values is not None:
-            if isinstance(values, pd.CategoricalDtype):
-                is_categorical = True
-            elif not isinstance(values[0], Number):
-                is_categorical = True
+        if values is not None and (
+            isinstance(values, pd.CategoricalDtype) or not isinstance(values[0], Number)
+        ):
+            is_categorical = True
 
         if is_categorical:
             cats = pd.unique(values)  # Set sorted=False to avoid NA in the data
             palette = get_dict_palette(palette, cats)
-        container = dict(
-            ds=self.tile_source[key],
-            values=values,
-            title=title,
-            cmap=cmap,
-            palette=palette,
-            is_categorical=is_categorical,
-        )
+        container = {
+            "ds": self.tile_source[key],
+            "values": values,
+            "title": title,
+            "cmap": cmap,
+            "palette": palette,
+            "is_categorical": is_categorical,
+        }
 
         return container
 
@@ -1699,14 +1704,14 @@ class WSIViewer:
                     stacklevel=find_stack_level(),
                 )
 
-        if all([0 <= x <= 1 for x in [xmin, xmax, ymin, ymax]]):
+        if all(0 <= x <= 1 for x in [xmin, xmax, ymin, ymax]):
             current_viewport = self._viewport
             downsample = current_viewport.downsample
             xmin = (current_viewport.x + xmin * current_viewport.w) * downsample
             xmax = (current_viewport.x + xmax * current_viewport.w) * downsample
             ymin = (current_viewport.y + ymin * current_viewport.h) * downsample
             ymax = (current_viewport.y + ymax * current_viewport.h) * downsample
-        elif all([x > 1 for x in [xmin, xmax, ymin, ymax]]):
+        elif all(x > 1 for x in [xmin, xmax, ymin, ymax]):
             pass
         else:
             raise ValueError(
@@ -1808,9 +1813,11 @@ class WSIViewer:
             ax.set_ylim(ymax, ymin)
         ax = _axes_style(ax, axis=axis, xaxis=xaxis)
 
-        legend_placement = dict(
-            loc="center left", bbox_transform=ax.transAxes, bbox_to_anchor=(1.01, 0.5)
-        )
+        legend_placement = {
+            "loc": "center left",
+            "bbox_transform": ax.transAxes,
+            "bbox_to_anchor": (1.01, 0.5),
+        }
         if self._zoom_plan is not None:
             self._zoom_plan.render(ax, self.get_render_plans(in_zoom=True))
             if not self._is_zoom_cached:
@@ -1945,7 +1952,7 @@ MPL_QUAL_PALS = {
 }
 
 
-def get_dict_palette(palette: PaletteType, category: list) -> Dict:
+def get_dict_palette(palette: PaletteType, category: list) -> dict:
     """Convert a palette to a dictionary if it is not already.
 
     The category must be a sequence of unique values.
