@@ -135,10 +135,7 @@ class Mask2Polygon(Transform):
         min_area = self.params["min_area"]
 
         for p in self.pipeline:
-            try:
-                mask = p.apply(mask)
-            except Exception as e:
-                print(self.__class__.__name__, e)
+            mask = p.apply(mask)
 
         tissue_instances = mask
         polygons = []
