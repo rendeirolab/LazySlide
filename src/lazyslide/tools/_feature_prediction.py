@@ -40,12 +40,15 @@ def feature_prediction(
         The whole-slide image object containing tile features.
     model : str or feature prediction model
         A registered feature prediction model name or an object implementing
-        ``predict(features)``.
+        ``predict(features)``. Models that set ``needs_coords`` additionally
+        receive tile coordinates, and models that set ``whole_slide`` are called
+        once with every tile rather than in batches.
     feature_key : str, optional
         Feature table used as model input. When omitted, this is inferred from
         ``model.features_model_name``.
     batch_size : int, default: 1024
-        Number of tile feature vectors passed to the model at once.
+        Number of tile feature vectors passed to the model at once. Ignored by
+        models that declare ``whole_slide``.
     tile_key : str, default: "tiles"
         Tile table associated with the input and output features.
     key_added : str, optional
@@ -137,14 +140,36 @@ def feature_prediction(
     amp_device = device.type if isinstance(device, torch.device) else device
     amp_ctx = torch.autocast(amp_device, dtype=autocast_dtype) if amp else nullcontext()
 
+    # Spatially aware models declare what they need. `needs_coords` asks for the
+    # tile origins; `whole_slide` says the model attends across tiles, so
+    # batching it would let each batch see only part of the slide and quietly
+    # return the wrong answer.
+    needs_coords = getattr(model, "needs_coords", False)
+    whole_slide = getattr(model, "whole_slide", False)
+
+    coords = None
+    if needs_coords:
+        coords = wsi.shapes[tile_key].bounds[["minx", "miny"]].to_numpy()
+
+    if whole_slide:
+        spans = [(0, n_obs)]
+    else:
+        spans = [
+            (start, min(start + batch_size, n_obs))
+            for start in range(0, n_obs, batch_size)
+        ]
+
     with default_pbar(disable=not pbar) as progress_bar:
         task = progress_bar.add_task(
             f"Predicting features with {model_name}", total=n_obs
         )
         with amp_ctx, torch.inference_mode():
-            for start in range(0, n_obs, batch_size):
-                stop = min(start + batch_size, n_obs)
-                output = model.predict(features[start:stop])
+            for start, stop in spans:
+                output = (
+                    model.predict(features[start:stop], coords[start:stop])
+                    if needs_coords
+                    else model.predict(features[start:stop])
+                )
                 if not isinstance(output, Mapping) or not output:
                     raise TypeError("model.predict must return a non-empty mapping.")
 
