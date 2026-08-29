@@ -133,6 +133,19 @@ class TestSettings:
         zs.settings.compile_kws = None
         assert zs.settings.compile_kws == {}
 
+    def test_compile_kws_is_not_mutable_through_the_getter(self):
+        # The setter copies on write; the getter has to copy on read too, or a
+        # caller (or a test restoring a snapshot) can mutate stored settings.
+        zs.settings.compile_kws = {"mode": "max-autotune"}
+        zs.settings.compile_kws["leaked"] = True
+        assert zs.settings.compile_kws == {"mode": "max-autotune"}
+
+    def test_compile_kws_setter_copies(self):
+        source = {"mode": "max-autotune"}
+        zs.settings.compile_kws = source
+        source["leaked"] = True
+        assert zs.settings.compile_kws == {"mode": "max-autotune"}
+
     def test_exposed_as_settings_keys(self):
         zs.settings["compile"] = True
         assert zs.settings["compile"] is True

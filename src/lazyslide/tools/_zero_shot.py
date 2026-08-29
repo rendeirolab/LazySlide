@@ -55,7 +55,7 @@ def _get_agg_info(
 
 def zero_shot_score(
     wsi: WSIData,
-    prompts: list[list[str]],
+    prompts: list[str | list[str]],
     feature_key,
     *,
     agg_key: str | None = None,
@@ -81,9 +81,9 @@ def zero_shot_score(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object to work on.
-    prompts : list of list of str
-        The text labels to classify. You can use a list of strings to
-        add more information to one class.
+    prompts : list of str, or list of list of str
+        The text labels to classify. Each entry is one class; use a list of
+        strings for an entry to add more information to that one class.
     feature_key : str
         The tile :term:`features` to be used.
     agg_key : str, default: None

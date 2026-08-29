@@ -63,7 +63,9 @@ class Settings:
     # compile_kws
     @property
     def compile_kws(self) -> dict:  # type: ignore[override]
-        return getattr(self, "_compile_kws", None) or {}
+        # Copy on read, mirroring the copy on write in the setter: callers must
+        # not be able to mutate the stored settings through the returned dict.
+        return dict(getattr(self, "_compile_kws", None) or {})
 
     @compile_kws.setter
     def compile_kws(self, value) -> None:  # type: ignore[override]
