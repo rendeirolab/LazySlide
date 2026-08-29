@@ -718,6 +718,22 @@ def binary_mask_to_polygons(
         return polys
 
 
+def repair_invalid_geometry(geometry):
+    """Repair invalid entries of a GeoSeries with ``buffer(0)``.
+
+    Contours from :func:`cv2.findContours` can pinch to a single point, which
+    yields self-touching rings. Those are invalid to GEOS and make set
+    operations such as ``union_all`` raise ``TopologyException``, often far
+    away from where the geometry was created.
+    """
+    invalid = ~geometry.is_valid
+    if not invalid.any():
+        return geometry
+    geometry = geometry.copy()
+    geometry.loc[invalid] = geometry.loc[invalid].buffer(0)
+    return geometry
+
+
 def _polygon_probability_data(
     polygon: Polygon,
     mask_shape: tuple[int, int],

@@ -81,7 +81,9 @@ def test_nms_by_tissue_runs_per_tissue_piece():
 
 
 def test_tissue_segmentation(wsi):
-    zs.seg.tissue(wsi, key_added="tissues")
+    # Own key: `wsi` is session-scoped, so writing to the default "tissues" key
+    # would replace the shipped tissue polygons for every later test in this worker.
+    zs.seg.tissue(wsi, key_added="seg_tissues")
 
 
 class TestCellSegmentation:
