@@ -1,6 +1,8 @@
 import geopandas as gpd
 import numpy as np
 import pytest
+from shapely import box
+from shapely.errors import GEOSException
 from shapely.geometry import Polygon
 
 from lazyslide.cv.mask import (
@@ -457,12 +459,10 @@ class TestRepairInvalidGeometry:
     def test_repair_unblocks_union_all(self):
         """The exact failure seen in CI: an invalid ring overlapping another
         geometry makes `union_all` raise. Repairing first must clear it."""
-        from shapely import box
-
         bowtie = Polygon([(0, 0), (10, 10), (10, 0), (0, 10), (0, 0)])
         geoms = gpd.GeoSeries([bowtie, box(2, 2, 12, 12)])
 
-        with pytest.raises(Exception, match="side location conflict"):
+        with pytest.raises(GEOSException, match="side location conflict"):
             geoms.union_all()
 
         assert repair_invalid_geometry(geoms).union_all().is_valid
