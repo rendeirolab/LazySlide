@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import tempfile
-from contextlib import nullcontext
 from typing import TYPE_CHECKING
 
 import cv2
@@ -26,8 +25,11 @@ def virtual_stain(
     device: str | None = None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
     batch_size: int = 32,
     num_workers: int = 0,
+    prefetch_factor: int | None = None,
     pbar: bool = True,
 ):
     """
@@ -52,10 +54,19 @@ def virtual_stain(
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
+    compile : bool, optional
+        Whether to compile the model with :func:`torch.compile`.
+        Compilation is best-effort and is silently skipped for models
+        that do not support it.
+    compile_kws : dict, optional
+        Keyword arguments passed to :func:`torch.compile`.
     batch_size : int, default: 32
         The batch size for inference.
     num_workers : int, default: 0
         The number of workers for data loading.
+    prefetch_factor : int, optional
+        The number of batches loaded in advance by each worker.
+        Only used when :code:`num_workers > 0`.
     pbar : bool, default: True
         If the progress bar should be shown.
 
@@ -80,8 +91,6 @@ def virtual_stain(
     from lazyslide_models import MODEL_REGISTRY
     from torch.utils.data import DataLoader
 
-    amp = _api.default_value("amp", amp)
-    autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
     device = _api.default_value("device", device)
 
     tile_spec = wsi.tile_spec(tile_key)
@@ -120,26 +129,27 @@ def virtual_stain(
         )
 
         staining_model.to(device)
+        staining_model = _api.maybe_compile(staining_model, compile, compile_kws)
 
         transform = staining_model.get_transform()
 
         ds = wsi.ds.tile_images(transform=transform, tile_key=tile_key)
-        dl = DataLoader(
-            ds, batch_size=batch_size, shuffle=False, num_workers=num_workers
-        )
+        loader_kws = _api.loader_kws(device, num_workers, prefetch_factor)
+        non_blocking = loader_kws["pin_memory"]
+        dl = DataLoader(ds, batch_size=batch_size, shuffle=False, **loader_kws)
 
         mask_x, mask_y = [], []
 
         with default_pbar(disable=not pbar) as progress_bar:
             task = progress_bar.add_task("Creating new stains", total=len(ds))
 
-            if isinstance(device, torch.device):
-                device = device.type
-            amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()
+            amp_ctx = _api.autocast(device, amp, autocast_dtype)
             with amp_ctx, torch.inference_mode():
                 if model_name == "rosie":
                     for batch in dl:
-                        expression = staining_model.predict(batch["image"].to(device))
+                        expression = staining_model.predict(
+                            batch["image"].to(device, non_blocking=non_blocking)
+                        )
                         image_x = (batch["x"] * scale_x).long() + 1
                         image_y = (batch["y"] * scale_y).long() + 1
                         expression = expression.detach().cpu().numpy()
@@ -165,7 +175,7 @@ def virtual_stain(
 
                     for batch in dl:
                         predicted_channels = staining_model.predict(
-                            batch["image"].to(device)
+                            batch["image"].to(device, non_blocking=non_blocking)
                         )
                         predicted_channels = torch.sigmoid(predicted_channels)
                         predicted_channels = predicted_channels.detach().cpu().numpy()

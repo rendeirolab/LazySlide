@@ -13,6 +13,8 @@ class Settings:
         # ``import lazyslide`` does not import torch; they resolve lazily on first
         # access (see their property getters).
         self.amp = False
+        self.compile = False
+        self.compile_kws = None
         self.pbar = True
         self.pbar_impl = "rich"
 
@@ -21,6 +23,8 @@ class Settings:
         return {
             "amp",
             "autocast_dtype",
+            "compile",
+            "compile_kws",
             "device",
             "pbar",
             "pbar_impl",
@@ -40,6 +44,35 @@ class Settings:
             self._amp = bool(value)
             return
         raise TypeError("amp must be a boolean.")
+
+    # compile
+    @property
+    def compile(self) -> bool:  # type: ignore[override]
+        return getattr(self, "_compile", False)
+
+    @compile.setter
+    def compile(self, value) -> None:  # type: ignore[override]
+        if isinstance(value, bool):
+            self._compile = value
+            return
+        if value in (0, 1):  # allow 0/1 as booleans
+            self._compile = bool(value)
+            return
+        raise TypeError("compile must be a boolean.")
+
+    # compile_kws
+    @property
+    def compile_kws(self) -> dict:  # type: ignore[override]
+        return getattr(self, "_compile_kws", None) or {}
+
+    @compile_kws.setter
+    def compile_kws(self, value) -> None:  # type: ignore[override]
+        if value is None:
+            self._compile_kws = {}
+            return
+        if not isinstance(value, dict):
+            raise TypeError("compile_kws must be a dict or None.")
+        self._compile_kws = dict(value)
 
     # autocast_dtype
     @property

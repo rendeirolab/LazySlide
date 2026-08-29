@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from contextlib import nullcontext
 from typing import TYPE_CHECKING
 
 import pandas as pd
@@ -24,9 +23,12 @@ def tile_prediction(
     transform=None,
     batch_size: int = 16,
     num_workers: int = 0,
+    prefetch_factor: int | None = None,
     tile_key: str = Key.tiles,
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
     device: str | None = None,
     pbar: bool = True,
 ):
@@ -54,12 +56,21 @@ def tile_prediction(
         The batch size for the DataLoader.
     num_workers : int, default: 0
         Number of worker threads for the DataLoader.
+    prefetch_factor : int, optional
+        The number of batches loaded in advance by each worker.
+        Only used when :code:`num_workers > 0`.
     tile_key : str, default: "tiles"
         The key in the WSIData object where the tiles are stored.
     amp : bool, optional
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
+    compile : bool, optional
+        Whether to compile the model with :func:`torch.compile`.
+        Compilation is best-effort and is silently skipped for models
+        that do not support it.
+    compile_kws : dict, optional
+        Keyword arguments passed to :func:`torch.compile`.
     device : str, optional
         The device to run the model on.
     pbar : bool, default: True
@@ -74,8 +85,6 @@ def tile_prediction(
     import torch
     from torch.utils.data import DataLoader
 
-    amp = _api.default_value("amp", amp)
-    autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
     device = _api.default_value("device", device)
 
     is_cv_features = False
@@ -97,17 +106,15 @@ def tile_prediction(
                 raise ValueError(f"Model '{model}' not found in the registry.")
             model = card()
     model.to(device=device)
+    model = _api.maybe_compile(model, compile, compile_kws)
 
     if transform is None:
         transform = model.get_transform()
     ds = wsi.ds.tile_images(tile_key=tile_key, transform=transform)
 
-    dl = DataLoader(
-        ds,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=num_workers,
-    )
+    loader_kws = _api.loader_kws(device, num_workers, prefetch_factor)
+    non_blocking = loader_kws["pin_memory"]
+    dl = DataLoader(ds, batch_size=batch_size, shuffle=False, **loader_kws)
 
     results = []
 
@@ -120,12 +127,12 @@ def tile_prediction(
             f"Predicting tiles with {model_name}", total=len(ds)
         )
 
-        amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()
+        amp_ctx = _api.autocast(device, amp, autocast_dtype)
         with amp_ctx, torch.inference_mode():
             for batch in dl:
                 images = batch["image"]
                 if not is_cv_features:
-                    images = images.to(device)
+                    images = images.to(device, non_blocking=non_blocking)
                 output = model.predict(images)
                 results.append(pd.DataFrame(output))
                 progress_bar.update(task, advance=len(images))

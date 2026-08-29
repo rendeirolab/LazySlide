@@ -39,9 +39,12 @@ def artifact(
     buffer_px: int = 2,
     batch_size: int = 4,
     num_workers: int = 0,
+    prefetch_factor: int | None = None,
     device: str | None = None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
     key_added: str = "artifacts",
     pbar: bool | None = None,
     *args,
@@ -86,12 +89,21 @@ def artifact(
         The batch size for :term:`segmentation`.
     num_workers : int, default: 0
         The number of workers for data loading.
+    prefetch_factor : int, optional
+        The number of batches loaded in advance by each worker.
+        Only used when :code:`num_workers > 0`.
     device : str, default: None
         The device for the model.
     amp : bool, optional
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
+    compile : bool, optional
+        Whether to compile the model with :func:`torch.compile`.
+        Compilation is best-effort and is silently skipped for models
+        that do not support it.
+    compile_kws : dict, optional
+        Keyword arguments passed to :func:`torch.compile`.
     key_added : str, default: "artifacts"
         The key for the added artifact shapes.
     pbar : bool, optional
@@ -151,9 +163,12 @@ def artifact(
         tile_key=tile_key,
         batch_size=batch_size,
         num_workers=num_workers,
+        prefetch_factor=prefetch_factor,
         device=device,
         amp=amp,
         autocast_dtype=autocast_dtype,
+        compile=compile,
+        compile_kws=compile_kws,
         mode=mode,
         sigma_scale=sigma_scale,
         low_memory=low_memory,

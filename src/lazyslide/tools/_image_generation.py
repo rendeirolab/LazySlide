@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from contextlib import nullcontext, suppress
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
 from PIL import Image
@@ -21,6 +21,8 @@ def image_generation(
     device: str | None = None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
     num_images_per_tiles: int = 2,
     seed: int = 0,
     **kwargs,
@@ -47,6 +49,12 @@ def image_generation(
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
+    compile : bool, optional
+        Whether to compile the model with :func:`torch.compile`.
+        Compilation is best-effort and is silently skipped for models
+        that do not support it.
+    compile_kws : dict, optional
+        Keyword arguments passed to :func:`torch.compile`.
     num_images_per_tiles : int, default: 2
         The number of images to generate for each tile if conditional generation is used.
         Otherwise, it's the total number of images to generate if unconditional generation is used.
@@ -77,8 +85,6 @@ def image_generation(
     from lazyslide_models import MODEL_REGISTRY, ImageGenerationModelProtocol
 
     device = _api.default_value("device", device)
-    amp = _api.default_value("amp", amp)
-    autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
 
     if isinstance(model, ImageGenerationModelProtocol):
         raise NotImplementedError("Currently only supports cytosyn model.")
@@ -86,9 +92,8 @@ def image_generation(
     generation_model: ImageGenerationModelProtocol = MODEL_REGISTRY[model]()
     with suppress(Exception):
         generation_model.to(device)
-    if isinstance(device, torch.device):
-        device = device.type
-    amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()
+    generation_model = _api.maybe_compile(generation_model, compile, compile_kws)
+    amp_ctx = _api.autocast(device, amp, autocast_dtype)
     with amp_ctx, torch.inference_mode():
         opts = {
             "num_images_per_prompt": num_images_per_tiles,

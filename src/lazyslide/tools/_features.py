@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Sequence
-from contextlib import nullcontext, suppress
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -71,9 +71,12 @@ def feature_extraction(
     # For inference
     device: str | None = None,
     amp: bool | None = None,
-    autocast_dtype: torch.dtype = None,
+    autocast_dtype: torch.dtype | None = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
     batch_size: int = 32,
     num_workers: int = 0,
+    prefetch_factor: int | None = None,
     pbar: bool | None = None,
     # For input
     tile_key: str = Key.tiles,
@@ -131,10 +134,19 @@ def feature_extraction(
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
+    compile : bool, optional
+        Whether to compile the model with :func:`torch.compile`.
+        Compilation is best-effort and is silently skipped for models
+        that do not support it.
+    compile_kws : dict, optional
+        Keyword arguments passed to :func:`torch.compile`.
     batch_size : int, default: 32
         The batch size for inference.
     num_workers : int, default: 0
         The number of workers for data loading.
+    prefetch_factor : int, optional
+        The number of batches loaded in advance by each worker.
+        Only used when :code:`num_workers > 0`.
     pbar : bool, optional
         Whether to show progress bar.
     tile_key : str, default: 'tiles'
@@ -184,8 +196,6 @@ def feature_extraction(
     from torch.utils.data import DataLoader
 
     device = _api.default_value("device", device)
-    amp = _api.default_value("amp", amp)
-    autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
     pbar = _api.default_value("pbar", pbar)
 
     load_kws = {} if load_kws is None else load_kws
@@ -233,6 +243,7 @@ def feature_extraction(
         key_added = Key.feature(key_added, tile_key)
     with suppress(Exception):
         model.to(device)
+    model = _api.maybe_compile(model, compile, compile_kws)
 
     if transform is None and isinstance(model, ModelBaseProtocol):
         transform = model.get_transform()
@@ -263,18 +274,20 @@ def feature_extraction(
     with default_pbar(disable=not pbar) as progress_bar:
         task = progress_bar.add_task("Extracting features", total=n_tiles)
         dataset = wsi.ds.tile_images(tile_key=tile_key, transform=transform)
-        loader = DataLoader(
-            dataset, batch_size=batch_size, num_workers=num_workers, **kwargs
-        )
+        # User-supplied kwargs win over our defaults
+        loader_kws = {
+            **_api.loader_kws(device, num_workers, prefetch_factor),
+            **kwargs,
+        }
+        non_blocking = loader_kws.get("pin_memory", False)
+        loader = DataLoader(dataset, batch_size=batch_size, **loader_kws)
         # Extract features
         dense_features = []
         features = []
-        if isinstance(device, torch.device):
-            device = device.type
-        amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()
+        amp_ctx = _api.autocast(device, amp, autocast_dtype)
         with amp_ctx, torch.inference_mode():
             for batch in loader:
-                image = batch["image"].to(device)
+                image = batch["image"].to(device, non_blocking=non_blocking)
                 if dense and isinstance(model, ViTModelProtocol):
                     dense_tokens: DenseTokens = model.encode_image_dense(image)
                     patch_mean = dense_tokens.patch_tokens.mean(1)
@@ -330,9 +343,11 @@ def feature_aggregation(
     tile_key: str = Key.tiles,
     by: str | Sequence[str] | None = None,
     agg_key: str | None = None,
-    amp: bool = False,
-    autocast_dtype: torch.dtype = None,
-    device: str = "cpu",
+    amp: bool | None = None,
+    autocast_dtype: torch.dtype | None = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
+    device: str | None = None,
 ):
     """
     Aggregate :term:`features` by groups.
@@ -366,11 +381,17 @@ def feature_aggregation(
           For example, to aggregate by tissue pieces, set by='tissue_id'.
     agg_key : str, optional
         The key to store the aggregated features. If not provided, the key will be 'agg_{by}'.
-    amp : bool, default: False
-        Whether to use automatic mixed precision.
-    autocast_dtype : torch.dtype, default: torch.float16
+    amp : bool, optional
+        Whether to use automatic mixed precision. Only used by model-based encoders.
+    autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
-    device : str, default: "cpu"
+    compile : bool, optional
+        Whether to compile the encoder with :func:`torch.compile`.
+        Compilation is best-effort and is silently skipped for models
+        that do not support it. Only used by model-based encoders.
+    compile_kws : dict, optional
+        Keyword arguments passed to :func:`torch.compile`.
+    device : str, optional
         The device to use for inference. If not provided, the device will be automatically selected.
 
     Returns
@@ -397,8 +418,6 @@ def feature_aggregation(
 
     """
     device = _api.default_value("device", device)
-    amp = _api.default_value("amp", amp)
-    autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
 
     tiles_table = wsi.shapes[tile_key]
     tile_spec = wsi.tile_spec(tile_key)
@@ -421,6 +440,8 @@ def feature_aggregation(
             device=device,
             amp=amp,
             autocast_dtype=autocast_dtype,
+            compile=compile,
+            compile_kws=compile_kws,
             tile_spec=tile_spec,
         )
         agg_fs = slide_reprs["features"]
@@ -443,6 +464,8 @@ def feature_aggregation(
                 device=device,
                 amp=amp,
                 autocast_dtype=autocast_dtype,
+                compile=compile,
+                compile_kws=compile_kws,
                 tile_spec=tile_spec,
             )
             agg_fs.append(slide_reprs["features"])
@@ -476,8 +499,10 @@ def _encode_slide(
     features,
     encoder,
     coords=None,
-    amp: bool = False,
-    autocast_dtype: torch.dtype = None,
+    amp: bool | None = None,
+    autocast_dtype: torch.dtype | None = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
     device=None,
     tile_spec=None,
 ):
@@ -506,9 +531,6 @@ def _encode_slide(
     import torch
     from lazyslide_models import MODEL_REGISTRY, list_models
 
-    if autocast_dtype is None:
-        autocast_dtype = torch.float16
-
     result_dict = {"features": None}
 
     # Simple statistical aggregation methods
@@ -519,7 +541,7 @@ def _encode_slide(
         # Convert features and coordinates to PyTorch tensors
         fs = torch.tensor(features, dtype=torch.float32).unsqueeze(0).to(device)
         cs = torch.tensor(coords.values, dtype=torch.long).unsqueeze(0).to(device)
-        amp_ctx = nullcontext() if not amp else torch.autocast(device, autocast_dtype)
+        amp_ctx = _api.autocast(device, amp, autocast_dtype)
         with amp_ctx, torch.inference_mode():
             if encoder in {"chief", "chief-slide-encoder"}:
                 key = "chief-slide-encoder"
@@ -529,6 +551,7 @@ def _encode_slide(
                 key = encoder
             model = MODEL_REGISTRY[key]()
             model.to(device)
+            model = _api.maybe_compile(model, compile, compile_kws)
             if encoder == "titan":
                 slide_reprs = model.encode_slide(
                     fs, cs, base_tile_size=tile_spec.base_width

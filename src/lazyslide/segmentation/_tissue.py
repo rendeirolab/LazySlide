@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import warnings
-from contextlib import nullcontext
 from typing import TYPE_CHECKING, Literal
 
 import cv2
@@ -34,6 +33,8 @@ def tissue(
     device: str | None = None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
     key_added: str = Key.tissue,
 ):
     """
@@ -73,6 +74,12 @@ def tissue(
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
+    compile : bool, optional
+        Whether to compile the model with :func:`torch.compile`.
+        Compilation is best-effort and is silently skipped for models
+        that do not support it.
+    compile_kws : dict, optional
+        Keyword arguments passed to :func:`torch.compile`.
     key_added : str, default: 'tissues'
         The key to add the tissue polygons.
 
@@ -85,8 +92,6 @@ def tissue(
     """
     import torch
 
-    amp = _api.default_value("amp", amp)
-    autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
     device = _api.default_value("device", device)
 
     # Load the model
@@ -118,6 +123,7 @@ def tissue(
         )
     transform = model.get_transform()
     model.to(device)
+    model = _api.maybe_compile(model, compile, compile_kws)
 
     props = wsi.properties
     if mpp is not None and level is not None:
@@ -190,7 +196,7 @@ def tissue(
 
     img_t = transform(img).unsqueeze(0)
     img_t = img_t.to(device)
-    amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()
+    amp_ctx = _api.autocast(device, amp, autocast_dtype)
     with amp_ctx, torch.inference_mode():
         pred = model.segment(img_t)
     pred = pred.probability_map

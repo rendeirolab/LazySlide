@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable
-from contextlib import nullcontext
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -24,6 +23,8 @@ def text_embedding(
     model: str | ImageTextModelProtocol = "plip",
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
     device: str = "cpu",
 ):
     """Embed the text into a vector in the text-vision co-embedding using
@@ -42,8 +43,18 @@ def text_embedding(
         Whether to use automatic mixed precision (AMP) for inference.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
+    compile : bool, optional
+        Whether to compile the model with :func:`torch.compile`.
+        Compilation is best-effort and is silently skipped for models
+        that do not support it.
+    compile_kws : dict, optional
+        Keyword arguments passed to :func:`torch.compile`.
     device : str, default: "cpu"
         The device to use for computation (e.g., 'cpu', 'cuda', 'mps').
+        Defaults to CPU on purpose: embedding a handful of short strings is a
+        tiny amount of compute, and moving the text encoder to a GPU/MPS device
+        costs more than it saves. This one does not follow
+        :code:`settings.device` — pass the device explicitly to override.
 
     Returns
     -------
@@ -67,15 +78,15 @@ def text_embedding(
     import torch
     from lazyslide_models import MODEL_REGISTRY
 
-    amp = _api.default_value("amp", amp)
-    autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
-    device = _api.default_value("device", device)
+    # NOT settings.device: text embedding is small enough that a device
+    # transfer costs more than the compute. See the ``device`` docstring.
 
     if isinstance(model, str):
         model = MODEL_REGISTRY[model]()
     model.to(device)
+    model = _api.maybe_compile(model, compile, compile_kws)
 
-    amp_ctx = torch.autocast(device, autocast_dtype) if amp else nullcontext()
+    amp_ctx = _api.autocast(device, amp, autocast_dtype)
     with amp_ctx, torch.inference_mode():
         # use numpy record array to store the embeddings
         embeddings = model.encode_text(texts).detach().cpu().numpy()
