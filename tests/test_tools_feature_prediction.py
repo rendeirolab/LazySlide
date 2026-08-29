@@ -162,3 +162,33 @@ def test_feature_prediction_rejects_invalid_batch_size(feature_wsi):
             batch_size=0,
             pbar=False,
         )
+
+
+def test_feature_prediction_passes_coords_when_requested(feature_wsi):
+    """A model declaring ``needs_coords`` receives the tile origins, batch by batch."""
+    wsi, _ = feature_wsi
+    model = MockFeaturePredictionModel(needs_coords=True)
+
+    feature_prediction(wsi, model, batch_size=2, tile_key="no_spec_tiles", pbar=False)
+
+    assert [len(batch) for batch in model.batches] == [2, 2, 1]
+    seen = np.concatenate(model.coords)
+    expected = wsi.shapes["no_spec_tiles"].bounds[["minx", "miny"]].to_numpy()
+    np.testing.assert_array_equal(seen, expected)
+
+
+def test_feature_prediction_whole_slide_is_not_batched(feature_wsi):
+    """``whole_slide`` models see every tile at once, whatever ``batch_size`` says.
+
+    Batching a model with spatial context would let each batch see only part of
+    the slide and silently return the wrong answer.
+    """
+    wsi, features = feature_wsi
+    model = MockFeaturePredictionModel(needs_coords=True, whole_slide=True)
+
+    feature_prediction(wsi, model, batch_size=2, tile_key="no_spec_tiles", pbar=False)
+
+    assert [len(batch) for batch in model.batches] == [5]
+    assert len(model.coords) == 1 and model.coords[0].shape == (5, 2)
+    result = wsi.tables["mock_feature_prediction_no_spec_tiles"]
+    np.testing.assert_allclose(result.X[:, 0], features.sum(axis=1))

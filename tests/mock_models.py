@@ -357,11 +357,16 @@ class MockFeaturePredictionModel:
 
     name = "mock_feature_prediction"
     features_model_name = "mock_input"
+    needs_coords = False
+    whole_slide = False
 
-    def __init__(self):
+    def __init__(self, needs_coords=False, whole_slide=False):
         self.model = nn.Identity()
         self.batches = []
+        self.coords = []
         self.device = None
+        self.needs_coords = needs_coords
+        self.whole_slide = whole_slide
 
     def to(self, device):
         self.device = device
@@ -373,8 +378,11 @@ class MockFeaturePredictionModel:
     def try_compile(self, **compile_kws):
         return None
 
-    def predict(self, features):
+    def predict(self, features, coords=None):
         self.batches.append(features)
+        if self.needs_coords:
+            assert coords is not None, "needs_coords model was called without coords"
+            self.coords.append(coords)
         values = np.asarray(features)
         return {
             "feature_sum": values.sum(axis=1),
