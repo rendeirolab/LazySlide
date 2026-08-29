@@ -1,6 +1,8 @@
 import geopandas as gpd
 import numpy as np
 import pytest
+from shapely import box
+from shapely.errors import GEOSException
 from shapely.geometry import Polygon
 
 from lazyslide.cv.mask import (
@@ -12,6 +14,7 @@ from lazyslide.cv.mask import (
     ProbabilityMap,
     binary_mask_to_polygons,
     binary_mask_to_polygons_with_prob,
+    repair_invalid_geometry,
 )
 
 # Set random seed for reproducibility
@@ -412,3 +415,54 @@ class TestUtilityFunctions:
 
         # Test without hole detection
         polygons = binary_mask_to_polygons_with_prob(binary_mask, detect_holes=False)
+
+
+class TestRepairInvalidGeometry:
+    """Regression tests for the invalid-geometry repair.
+
+    `cv2.findContours` can pinch a region to a single point, producing a
+    self-touching ring. GEOS rejects those, and `union_all` then raises
+    `TopologyException: side location conflict` — far from where the geometry
+    was built. See the macOS-only CI failures in `TestCellSegmentation`.
+    """
+
+    def test_contours_can_be_invalid(self):
+        """Pin the source defect: two blocks meeting at one corner pixel give a
+        polygon GEOS considers invalid. If this ever stops holding, the repair
+        calls in `_tissue.py` / `_seg_runner.py` are no longer load-bearing."""
+        mask = np.zeros((20, 20), dtype=np.uint8)
+        mask[2:10, 2:10] = 1
+        mask[10:18, 10:18] = 1
+
+        polygons = BinaryMask(mask).to_polygons(min_area=1, min_hole_area=1)
+
+        assert len(polygons) == 1
+        assert not polygons.geometry.is_valid.all()
+        assert repair_invalid_geometry(polygons.geometry).is_valid.all()
+
+    def test_repairs_only_invalid_rows(self):
+        bowtie = Polygon([(0, 0), (10, 10), (10, 0), (0, 10), (0, 0)])
+        valid = Polygon([(20, 20), (30, 20), (30, 30), (20, 30), (20, 20)])
+        geoms = gpd.GeoSeries([bowtie, valid])
+
+        repaired = repair_invalid_geometry(geoms)
+
+        assert repaired.is_valid.all()
+        # Untouched rows keep their identity, and the input is not mutated.
+        assert repaired.iloc[1].equals(valid)
+        assert not geoms.is_valid.all()
+
+    def test_all_valid_input_is_returned_unchanged(self):
+        geoms = gpd.GeoSeries([Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])])
+        assert repair_invalid_geometry(geoms) is geoms
+
+    def test_repair_unblocks_union_all(self):
+        """The exact failure seen in CI: an invalid ring overlapping another
+        geometry makes `union_all` raise. Repairing first must clear it."""
+        bowtie = Polygon([(0, 0), (10, 10), (10, 0), (0, 10), (0, 0)])
+        geoms = gpd.GeoSeries([bowtie, box(2, 2, 12, 12)])
+
+        with pytest.raises(GEOSException, match="side location conflict"):
+            geoms.union_all()
+
+        assert repair_invalid_geometry(geoms).union_all().is_valid

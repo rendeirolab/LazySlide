@@ -130,8 +130,11 @@ jobs:
         if: env.LAZYSLIDE_SKIP_DATASET_TESTS != '1'
         run: uv run python scripts/prime_hf_cache.py
       - name: Tests
+        # macOS runners expose a single ~8 GB unified MPS pool that every xdist
+        # worker allocates from, so `-n auto` (3 workers running real torch models)
+        # hits "MPS backend out of memory". Cap the macOS leg at 2.
         run: |
-          uv run pytest tests -n auto --cov=src/lazyslide --cov-report=xml --cov-report=html
+          uv run pytest tests -n ${{ matrix.os == 'macos-latest' && '2' || 'auto' }} --cov=src/lazyslide --cov-report=xml --cov-report=html
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:

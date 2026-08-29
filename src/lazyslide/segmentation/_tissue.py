@@ -14,6 +14,7 @@ from wsidata.io import add_tissues
 from lazyslide import _api
 from lazyslide._const import Key
 from lazyslide.cv import BinaryMask
+from lazyslide.cv.mask import repair_invalid_geometry
 
 if TYPE_CHECKING:
     import torch
@@ -220,6 +221,11 @@ def tissue(
     )
     # Only polygons that are in the filter box are kept
     polygons = polygons[polygons.geometry.intersects(filter_box)]
+    # Contours from cv2.findContours can pinch to a point, producing self-touching
+    # rings that GEOS rejects. Repair here so invalid geometry never reaches the
+    # shapes slot and blows up an unrelated set operation later.
+    polygons = polygons.assign(geometry=repair_invalid_geometry(polygons.geometry))
+    polygons = polygons[~polygons.geometry.is_empty]
     if len(polygons) == 0:
         warnings.warn("No tissues were found. The staining might be too weak.")
         return

@@ -25,6 +25,7 @@ from lazyslide.cv import (
     ProbabilityMap,
     nms,
 )
+from lazyslide.cv.mask import repair_invalid_geometry
 
 if TYPE_CHECKING:
     import torch
@@ -858,11 +859,7 @@ class CellSegmentationRunner(Runner):
             geometry = df["geometry"].affine_transform(
                 [self.downsample, 0, 0, self.downsample, pos_x, pos_y]
             )
-            invalid = ~geometry.is_valid
-            if invalid.any():
-                geometry = geometry.copy()
-                geometry.loc[invalid] = geometry.loc[invalid].buffer(0)
-            df["geometry"] = geometry
+            df["geometry"] = repair_invalid_geometry(geometry)
 
             if self.size_filter:
                 df = df[df["geometry"].area.between(*self.nucleus_size)]
@@ -950,7 +947,9 @@ class CellSegmentationRunner(Runner):
                 prepare(tile_box)
                 tissue_key = self.tile_spec.tissue_name
                 tissues = self.wsi[tissue_key]
-                tissue = tissues.union_all()
+                # Tissue shapes may be user-supplied (e.g. loaded annotations), so
+                # repair invalid rings before the union — GEOS raises on them.
+                tissue = repair_invalid_geometry(tissues.geometry).union_all()
                 prepare(tissue)
 
                 task = progress_bar.add_task(
