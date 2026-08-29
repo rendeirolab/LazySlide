@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from contextlib import nullcontext
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -29,6 +28,8 @@ def feature_prediction(
     key_added: str | None = None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype | None = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
     device: str | None = None,
     pbar: bool | None = None,
 ) -> AnnData:
@@ -58,6 +59,12 @@ def feature_prediction(
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, optional
         Data type used for automatic mixed precision.
+    compile : bool, optional
+        Whether to compile the model with :func:`torch.compile`.
+        Compilation is best-effort and is silently skipped for models
+        that do not support it.
+    compile_kws : dict, optional
+        Keyword arguments passed to :func:`torch.compile`.
     device : str, optional
         Device on which to run inference.
     pbar : bool, optional
@@ -78,8 +85,6 @@ def feature_prediction(
     if batch_size <= 0:
         raise ValueError("batch_size must be greater than zero.")
 
-    amp = _api.default_value("amp", amp)
-    autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
     device = _api.default_value("device", device)
     pbar = _api.default_value("pbar", pbar)
 
@@ -120,6 +125,7 @@ def feature_prediction(
         model.to(device)
     except (AttributeError, TypeError):
         pass
+    model = _api.maybe_compile(model, compile, compile_kws)
 
     def to_numpy(value):
         if isinstance(value, torch.Tensor):
@@ -137,8 +143,7 @@ def feature_prediction(
     results: dict[str, list[np.ndarray]] = {}
     output_names: tuple[str, ...] | None = None
     n_obs = features.shape[0]
-    amp_device = device.type if isinstance(device, torch.device) else device
-    amp_ctx = torch.autocast(amp_device, dtype=autocast_dtype) if amp else nullcontext()
+    amp_ctx = _api.autocast(device, amp, autocast_dtype)
 
     # Spatially aware models declare what they need. `needs_coords` asks for the
     # tile origins; `whole_slide` says the model attends across tiles, so

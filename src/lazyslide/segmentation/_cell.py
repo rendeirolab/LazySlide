@@ -58,12 +58,15 @@ def cells(
     transform=None,
     batch_size=4,
     num_workers=0,
+    prefetch_factor: int | None = None,
     device=None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
     size_filter=False,
     nucleus_size=(20, 1000),
-    pbar=True,
+    pbar=None,
     extract_features: bool = False,
     low_memory: bool = False,
     postprocess_workers: int = 0,
@@ -99,18 +102,27 @@ def cells(
         The batch size for segmentation.
     num_workers : int, default: 0
         The number of workers for data loading.
+    prefetch_factor : int, optional
+        The number of batches loaded in advance by each worker.
+        Only used when :code:`num_workers > 0`.
     device : str, default: None
         The device for the model.
     amp : bool, optional
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
+    compile : bool, optional
+        Whether to compile the model with :func:`torch.compile`.
+        Compilation is best-effort and is silently skipped for models
+        that do not support it.
+    compile_kws : dict, optional
+        Keyword arguments passed to :func:`torch.compile`.
     size_filter : bool, default: False
         Whether to filter cells by nucleus size.
     nucleus_size : tuple of (int, int), default: (20, 1000)
         The (min, max) nucleus size range in pixels for filtering.
         Only used when ``size_filter=True``.
-    pbar : bool, default: True
+    pbar : bool, optional
         Whether to show a progress bar during segmentation.
     extract_features : bool, default: False
         Whether to extract per-cell feature vectors from the model's
@@ -172,11 +184,14 @@ def cells(
         transform=transform,
         batch_size=batch_size,
         num_workers=num_workers,
+        prefetch_factor=prefetch_factor,
         size_filter=size_filter,
         nucleus_size=nucleus_size,
         device=device,
         amp=amp,
         autocast_dtype=autocast_dtype,
+        compile=compile,
+        compile_kws=compile_kws,
         pbar=pbar,
         extract_features=extract_features,
         low_memory=low_memory,
@@ -252,12 +267,15 @@ def cell_types(
     transform=None,
     batch_size=4,
     num_workers=0,
+    prefetch_factor: int | None = None,
     device=None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
     size_filter=False,
     nucleus_size=(20, 1000),
-    pbar=True,
+    pbar=None,
     extract_features: bool = False,
     low_memory: bool = False,
     postprocess_workers: int = 0,
@@ -294,18 +312,27 @@ def cell_types(
         The batch size for segmentation.
     num_workers : int, default: 0
         The number of workers for data loading.
+    prefetch_factor : int, optional
+        The number of batches loaded in advance by each worker.
+        Only used when :code:`num_workers > 0`.
     device : str, default: None
         The device for the model.
     amp : bool, optional
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
+    compile : bool, optional
+        Whether to compile the model with :func:`torch.compile`.
+        Compilation is best-effort and is silently skipped for models
+        that do not support it.
+    compile_kws : dict, optional
+        Keyword arguments passed to :func:`torch.compile`.
     size_filter : bool, default: False
         Whether to filter cells by nucleus size.
     nucleus_size : tuple of (int, int), default: (20, 1000)
         The (min, max) nucleus size range in pixels for filtering.
         Only used when ``size_filter=True``.
-    pbar : bool, default: True
+    pbar : bool, optional
         Whether to show a progress bar during segmentation.
     extract_features : bool, default: False
         Whether to extract per-cell feature vectors from the model's
@@ -343,9 +370,12 @@ def cell_types(
         transform=transform,
         batch_size=batch_size,
         num_workers=num_workers,
+        prefetch_factor=prefetch_factor,
         device=device,
         amp=amp,
         autocast_dtype=autocast_dtype,
+        compile=compile,
+        compile_kws=compile_kws,
         size_filter=size_filter,
         nucleus_size=nucleus_size,
         pbar=pbar,

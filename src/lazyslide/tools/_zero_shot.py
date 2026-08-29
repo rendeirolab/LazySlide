@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 from wsidata import WSIData
 
-from lazyslide._utils import get_torch_device
+from lazyslide import _api
+
+if TYPE_CHECKING:
+    import torch
 
 
 def _preprocess_prompts(prompts: list[str | list[str]]) -> list[list[str]]:
@@ -51,13 +55,17 @@ def _get_agg_info(
 
 def zero_shot_score(
     wsi: WSIData,
-    prompts: list[list[str]],
+    prompts: list[str | list[str]],
     feature_key,
     *,
     agg_key: str | None = None,
     agg_by: str | Sequence[str] | None = None,
     model: str = "prism",
     device: str | None = None,
+    amp: bool | None = None,
+    autocast_dtype: torch.dtype | None = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
 ):
     """
     Perform :term:`zero-shot learning` classification on the :term:`WSI`
@@ -73,9 +81,9 @@ def zero_shot_score(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object to work on.
-    prompts : list of list of str
-        The text labels to classify. You can use a list of strings to
-        add more information to one class.
+    prompts : list of str, or list of list of str
+        The text labels to classify. Each entry is one class; use a list of
+        strings for an entry to add more information to that one class.
     feature_key : str
         The tile :term:`features` to be used.
     agg_key : str, default: None
@@ -86,6 +94,16 @@ def zero_shot_score(
         The model to use for zero-shot classification.
     device : str, default: None
         The device to use for inference. If None, the default device will be used.
+    amp : bool, optional
+        Whether to use automatic mixed precision.
+    autocast_dtype : torch.dtype, optional
+        The dtype for automatic mixed precision.
+    compile : bool, optional
+        Whether to compile the model with :func:`torch.compile`.
+        Compilation is best-effort and is silently skipped for models
+        that do not support it.
+    compile_kws : dict, optional
+        Keyword arguments passed to :func:`torch.compile`.
 
     Returns
     -------
@@ -111,14 +129,14 @@ def zero_shot_score(
     import torch
     from lazyslide_models import MODEL_REGISTRY
 
-    if device is None:
-        device = get_torch_device()
+    device = _api.default_value("device", device)
 
     prompts = _preprocess_prompts(prompts)
 
     if isinstance(model, str):
         model = MODEL_REGISTRY[model]()
     model.to(device)
+    model = _api.maybe_compile(model, compile, compile_kws)
     # Get the embeddings from the WSI
     agg_info, annos = _get_agg_info(
         wsi,
@@ -128,10 +146,11 @@ def zero_shot_score(
     )
 
     all_probs = []
-    for ix, f in enumerate(agg_info["features"]):
-        f = torch.tensor(f).unsqueeze(0).to(device)
-        probs = model.score(f, prompts=prompts)
-        all_probs.append(probs.detach().cpu().numpy())
+    with _api.autocast(device, amp, autocast_dtype), torch.inference_mode():
+        for ix, f in enumerate(agg_info["features"]):
+            f = torch.tensor(f).unsqueeze(0).to(device)
+            probs = model.score(f, prompts=prompts)
+            all_probs.append(probs.detach().cpu().numpy())
 
     all_probs = np.vstack(all_probs)
 
@@ -155,6 +174,10 @@ def slide_caption(
     max_length: int = 100,
     model: str = "prism",
     device: str | None = None,
+    amp: bool | None = None,
+    autocast_dtype: torch.dtype | None = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
 ):
     """
     Generate captions for the slide.
@@ -177,6 +200,16 @@ def slide_caption(
         The caption generation model to use.
     device : str, default: None
         The device to use for inference. If None, the default device will be used.
+    amp : bool, optional
+        Whether to use automatic mixed precision.
+    autocast_dtype : torch.dtype, optional
+        The dtype for automatic mixed precision.
+    compile : bool, optional
+        Whether to compile the model with :func:`torch.compile`.
+        Compilation is best-effort and is silently skipped for models
+        that do not support it.
+    compile_kws : dict, optional
+        Keyword arguments passed to :func:`torch.compile`.
 
     Returns
     -------
@@ -188,13 +221,13 @@ def slide_caption(
 
     import torch
 
-    if device is None:
-        device = get_torch_device()
+    device = _api.default_value("device", device)
 
     from lazyslide_models.multimodal import Prism
 
     model = Prism()
     model.to(device)
+    model = _api.maybe_compile(model, compile, compile_kws)
 
     agg_info, annos = _get_agg_info(
         wsi,
@@ -205,14 +238,15 @@ def slide_caption(
 
     captions = []
 
-    for ix, lat in enumerate(agg_info["latents"]):
-        lat = torch.tensor(lat).unsqueeze(0).to(device)
-        caption = model.caption(
-            lat,
-            prompt=prompt,
-            max_length=max_length,
-        )
-        captions.append(caption)
+    with _api.autocast(device, amp, autocast_dtype), torch.inference_mode():
+        for ix, lat in enumerate(agg_info["latents"]):
+            lat = torch.tensor(lat).unsqueeze(0).to(device)
+            caption = model.caption(
+                lat,
+                prompt=prompt,
+                max_length=max_length,
+            )
+            captions.append(caption)
 
     results = pd.DataFrame(
         {

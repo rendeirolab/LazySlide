@@ -46,3 +46,24 @@ class TestZeroShotClassification:
 
         # Check that probabilities sum to approximately 1
         assert np.isclose(results.sum(axis=1).values[0], 1.0)
+
+    def test_zero_shot_accepts_flat_prompts(self, wsi):
+        """A plain list of strings is one class per string.
+
+        This is the form used in the ``zero_shot_score`` docstring example, and
+        the reason its ``prompts`` annotation is ``list[str | list[str]]``.
+        """
+        zs.pp.find_tissues(wsi)
+        zs.pp.tile_tissues(wsi, 512)
+        zs.tl.feature_extraction(wsi, model=TIMM_MODEL, load_kws={"pretrained": False})
+        zs.tl.feature_aggregation(wsi, feature_key=TIMM_MODEL, encoder="mean")
+
+        results = zs.tl.zero_shot_score(
+            wsi,
+            ["lung cancer", "normal lung"],
+            feature_key=f"{TIMM_MODEL}_tiles",
+            model=MockPrismModel(),
+        )
+
+        assert list(results.columns) == ["lung cancer", "normal lung"]
+        assert np.isclose(results.sum(axis=1).values[0], 1.0)

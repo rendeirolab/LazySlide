@@ -6,7 +6,6 @@ from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Callable, Mapping
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import nullcontext
 from functools import cached_property
 from typing import TYPE_CHECKING, Literal
 
@@ -19,7 +18,7 @@ from wsidata.io import add_shapes
 
 from lazyslide import _api
 from lazyslide._const import Key
-from lazyslide._utils import default_pbar, find_stack_level, get_torch_device
+from lazyslide._utils import default_pbar, find_stack_level
 from lazyslide.cv import (
     InstanceMap,
     ProbabilityMap,
@@ -248,9 +247,12 @@ def semantic(
     chunk_size: int = 512,
     batch_size=4,
     num_workers=0,
+    prefetch_factor: int | None = None,
     device=None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
     pbar: bool | None = None,
     key_added="anatomical_structures",
 ):
@@ -288,12 +290,21 @@ def semantic(
         The batch size for segmentation.
     num_workers : int, default: 0
         The number of workers for data loading.
+    prefetch_factor : int, optional
+        The number of batches loaded in advance by each worker.
+        Only used when :code:`num_workers > 0`.
     device : str, default: None
         The device for the model (e.g., "cpu" or "cuda"). If None, automatically selected.
     amp : bool, optional
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
+    compile : bool, optional
+        Whether to compile the model with :func:`torch.compile`.
+        Compilation is best-effort and is silently skipped for models
+        that do not support it.
+    compile_kws : dict, optional
+        Keyword arguments passed to :func:`torch.compile`.
     pbar : bool, optional
         Whether to show the progress bar.
     key_added : str, default: "anatomical_structures"
@@ -319,9 +330,12 @@ def semantic(
         chunk_size=chunk_size,
         batch_size=batch_size,
         num_workers=num_workers,
+        prefetch_factor=prefetch_factor,
         device=device,
         amp=amp,
         autocast_dtype=autocast_dtype,
+        compile=compile,
+        compile_kws=compile_kws,
         pbar=pbar,
         class_names=class_names,
     )
@@ -478,9 +492,12 @@ class SemanticSegmentationRunner(Runner):
         chunk_size: int = 512,
         batch_size: int = 4,
         num_workers: int = 0,
+        prefetch_factor: int | None = None,
         device: str | None = None,
         amp: bool | None = None,
         autocast_dtype: torch.dtype = None,
+        compile: bool | None = None,
+        compile_kws: dict | None = None,
         pbar: bool | None = None,
     ):
         self.wsi = wsi
@@ -496,8 +513,10 @@ class SemanticSegmentationRunner(Runner):
         self.chunk_size = chunk_size
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.prefetch_factor = prefetch_factor
         self.device = _api.default_value("device", device)
         self.model.to(self.device)
+        self.model = _api.maybe_compile(self.model, compile, compile_kws)
         self.amp = _api.default_value("amp", amp)
         self.autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
         self.class_names = class_names
@@ -543,11 +562,11 @@ class SemanticSegmentationRunner(Runner):
         # For each tissue, we will run the segmentation
         results = []
         with default_pbar(disable=not self.pbar) as progress_bar:
-            amp_ctx = (
-                torch.autocast(self.device, self.autocast_dtype)
-                if self.amp
-                else nullcontext()
+            amp_ctx = _api.autocast(self.device, self.amp, self.autocast_dtype)
+            loader_kws = _api.loader_kws(
+                self.device, self.num_workers, self.prefetch_factor
             )
+            non_blocking = loader_kws["pin_memory"]
             with amp_ctx, torch.inference_mode():
                 for _, row in self.tissues.iterrows():
                     tid = row["tissue_id"]
@@ -580,9 +599,7 @@ class SemanticSegmentationRunner(Runner):
                             tile_spec=self.tile_spec,
                             transform=self.transform,
                         )
-                        dl = DataLoader(
-                            ds, batch_size=self.batch_size, num_workers=self.num_workers
-                        )
+                        dl = DataLoader(ds, batch_size=self.batch_size, **loader_kws)
 
                         task = progress_bar.add_task(
                             f"Processing tissue {tid}", total=len(ds)
@@ -592,7 +609,9 @@ class SemanticSegmentationRunner(Runner):
                             images = chunk["image"]
                             xs, ys = np.asarray(chunk["x"]), np.asarray(chunk["y"])
                             if self.device is not None:
-                                images = images.to(self.device)
+                                images = images.to(
+                                    self.device, non_blocking=non_blocking
+                                )
                             # TODO: output may not be tensor
                             output = self.model.segment(images)
 
@@ -735,11 +754,14 @@ class CellSegmentationRunner(Runner):
         nucleus_size: (int, int) = (20, 1000),
         batch_size: int = 4,
         num_workers: int = 0,
+        prefetch_factor: int | None = None,
         device: str | None = None,
-        amp: bool = False,
+        amp: bool | None = None,
         autocast_dtype: torch.dtype = None,
+        compile: bool | None = None,
+        compile_kws: dict | None = None,
         class_names: list[str] | Mapping[int, str] | None = None,
-        pbar: bool = True,
+        pbar: bool | None = None,
         extract_features: bool = False,
         low_memory: bool = False,
         postprocess_workers: int = 0,
@@ -753,12 +775,14 @@ class CellSegmentationRunner(Runner):
         self.nucleus_size = nucleus_size
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.device = device or get_torch_device()
+        self.prefetch_factor = prefetch_factor
+        self.device = _api.default_value("device", device)
         self.model.to(self.device)
-        self.amp = amp
-        self.autocast_dtype = autocast_dtype
+        self.model = _api.maybe_compile(self.model, compile, compile_kws)
+        self.amp = _api.default_value("amp", amp)
+        self.autocast_dtype = _api.default_value("autocast_dtype", autocast_dtype)
         self.class_names = class_names
-        self.pbar = pbar
+        self.pbar = _api.default_value("pbar", pbar)
         self.extract_features = extract_features
         self.low_memory = low_memory
         if postprocess_workers < 0:
@@ -910,26 +934,19 @@ class CellSegmentationRunner(Runner):
         )
         global_cell_idx = 0
 
-        autocast_dtype = (
-            self.autocast_dtype if self.autocast_dtype is not None else torch.float16
-        )
         with default_pbar(disable=not self.pbar) as progress_bar:
-            amp_ctx = (
-                torch.autocast(self.device, autocast_dtype)
-                if self.amp
-                else nullcontext()
-            )
+            amp_ctx = _api.autocast(self.device, self.amp, self.autocast_dtype)
             with amp_ctx, torch.inference_mode():
                 tile_dataset = self.wsi.ds.tile_images(
                     tile_key=self.tile_key, transform=self.transform
                 )
 
-                pin_memory = torch.device(self.device).type == "cuda"
+                loader_kws = _api.loader_kws(
+                    self.device, self.num_workers, self.prefetch_factor
+                )
+                pin_memory = loader_kws["pin_memory"]
                 tile_loader = DataLoader(
-                    tile_dataset,
-                    batch_size=self.batch_size,
-                    num_workers=self.num_workers,
-                    pin_memory=pin_memory,
+                    tile_dataset, batch_size=self.batch_size, **loader_kws
                 )
 
                 results = []
