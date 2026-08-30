@@ -218,7 +218,7 @@ def pull_tutorials(app, config):
 
 
 # -- Dynamic documentation generation for models ---------------------------
-def template_model_api(title, module_name, models):
+def template_model_api(title, module_name, models, show_count=True):
     currentmodule = "lazyslide_models"
     if module_name is not None:
         currentmodule += f".{module_name}"
@@ -230,11 +230,20 @@ def template_model_api(title, module_name, models):
         "",
         f".. currentmodule:: {currentmodule}",
         "",
-        ".. autosummary::",
-        "    :toctree: _autogen",
-        "    :nosignatures:",
-        "",
     ]
+
+    if show_count:
+        n = len(models)
+        content.extend([f"**{n} model{'s' if n != 1 else ''}**", ""])
+
+    content.extend(
+        [
+            ".. autosummary::",
+            "    :toctree: _autogen",
+            "    :nosignatures:",
+            "",
+        ]
+    )
 
     if module_name is not None:
         names = [model.__name__ for model in models]
@@ -259,29 +268,32 @@ def generate_models_rst(app, config):
 
     # Define model lists manually based on the current models.rst file
     model_sections = {
-        "vision": ("Vision models", "vision", set()),
-        "multimodal": ("Multimodal models", "multimodal", set()),
+        "vision": ("Vision models", "vision", set(), True),
+        "multimodal": ("Multimodal models", "multimodal", set(), True),
         "segmentation": (
             "Segmentation models",
             "segmentation",
             {
                 SMPBase,
             },
+            True,
         ),
-        "tile_prediction": ("Tile prediction models", "tile_prediction", set()),
+        "tile_prediction": ("Tile prediction models", "tile_prediction", set(), True),
         "feature_prediction": (
             "Feature prediction models",
             "feature_prediction",
             set(),
+            True,
         ),
-        "slide_encoder": ("Slide encoder models", None, set()),
+        "slide_encoder": ("Slide encoder models", None, set(), True),
         "cv_feature": (
             "Computer vision features",
             "tile_prediction.cv_features",
             set(),
+            True,
         ),
-        "style_transfer": ("Style transfer models", "style_transfer", set()),
-        "image_generation": ("Image generation models", "image_generation", set()),
+        "style_transfer": ("Style transfer models", "style_transfer", set(), True),
+        "image_generation": ("Image generation models", "image_generation", set(), True),
         "base": (
             "Base model class",
             "base",
@@ -297,6 +309,7 @@ def generate_models_rst(app, config):
                 mb.StyleTransferModel,
                 mb.TimmModel,
             ],
+            False,
         ),
     }
 
@@ -306,7 +319,7 @@ def generate_models_rst(app, config):
         else:
             task = v.task
         for m in task:
-            model_sections[m.value][-1].add(v)
+            model_sections[m.value][-2].add(v)
 
     template = [
         ".. _models-section:",
@@ -328,8 +341,8 @@ def generate_models_rst(app, config):
     ]
 
     for models in model_sections.values():
-        title, module, models = models
-        content = template_model_api(title, module, models)
+        title, module, models, show_count = models
+        content = template_model_api(title, module, models, show_count)
         template.extend(content)
 
     # Write to file
