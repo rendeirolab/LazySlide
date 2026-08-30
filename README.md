@@ -48,7 +48,9 @@ Start by submitting an issue or pull request!
 - **Scalability**: Efficient handling of large WSIs, enabling high-throughput analyses.
 - **Multimodal integration**: Combine histological data with transcriptomics, genomics, and textual annotations.
 - **Foundation model support**: Native integration with state-of-the-art models (e.g., UNI, CONCH, Gigapath, Virchow)
-  for tasks like zero-shot classification and captioning.
+  for tasks like zero-shot classification and captioning. All models live in the separate
+  [lazyslide-models](https://github.com/rendeirolab/lazyslide-models) package, see the
+  [Model Zoo](https://lazyslide.readthedocs.io/en/stable/avail_models.html) for the full list.
 - **Deep learning ready**: Provides PyTorch dataloaders for seamless integration into machine learning pipelines.​
 
 ![figure](assets/Figure.png)
