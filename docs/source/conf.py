@@ -293,7 +293,12 @@ def generate_models_rst(app, config):
             True,
         ),
         "style_transfer": ("Style transfer models", "style_transfer", set(), True),
-        "image_generation": ("Image generation models", "image_generation", set(), True),
+        "image_generation": (
+            "Image generation models",
+            "image_generation",
+            set(),
+            True,
+        ),
         "base": (
             "Base model class",
             "base",
