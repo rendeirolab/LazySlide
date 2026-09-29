@@ -144,6 +144,23 @@ def test_tissue_models_get_rgb(wsi, monkeypatch, tissue_input, model):
     np.testing.assert_allclose(tissue_input["image"][128, 128], (200, 100, 50), atol=2)
 
 
+@pytest.mark.parametrize(
+    "model, jpeg", [("grandqc", True), ("pathprofiler", False), ("hest", False)]
+)
+def test_only_grandqc_sees_jpeg_compression(
+    wsi, monkeypatch, tissue_input, model, jpeg
+):
+    """Only GrandQC's tissue detector was trained on JPEG-compressed images.
+
+    Upstream GrandQC (wsi_tis_detect.py) re-encodes at quality 80 before
+    inference. HEST and PathProfiler do not, so they get the pixels as read.
+    """
+    noise = np.random.default_rng(0).integers(0, 256, (256, 256, 3), dtype=np.uint8)
+    _tissue_on(wsi, monkeypatch, noise, model)
+
+    assert np.array_equal(tissue_input["image"], noise) != jpeg
+
+
 class TestCellSegmentation:
     def test_cell_segmentation(self, wsi):
         # Regression for #261: segmentation models do not need a legacy tile

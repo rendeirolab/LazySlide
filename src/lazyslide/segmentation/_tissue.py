@@ -184,11 +184,14 @@ def tissue(
         constant_values=0,  # Pad with black pixels
     )
 
-    # Simulate JPEG compression. The round trip keeps the reader's RGB order:
-    # imdecode returns channels in the order imencode was given them.
-    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
-    _result, img = cv2.imencode(".jpg", img, encode_param)
-    img = cv2.imdecode(img, 1)
+    if model_name == "grandqc":
+        # GrandQC's tissue detector was trained on JPEG-compressed images, so
+        # upstream re-encodes at quality 80; HEST and PathProfiler do not.
+        # The round trip keeps the reader's RGB order: imdecode returns
+        # channels in the order imencode was given them.
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
+        _result, img = cv2.imencode(".jpg", img, encode_param)
+        img = cv2.imdecode(img, 1)
 
     img = torch.tensor(img).permute(2, 0, 1)
 
