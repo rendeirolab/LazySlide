@@ -67,3 +67,29 @@ class TestZeroShotClassification:
 
         assert list(results.columns) == ["lung cancer", "normal lung"]
         assert np.isclose(results.sum(axis=1).values[0], 1.0)
+
+
+def test_sam_probabilities_are_thresholded_at_half():
+    """SAM's ``segment`` returns sigmoid probabilities, not a mask.
+
+    Cast with ``.astype(bool)``, every probability above zero became
+    foreground. SAM's own mask threshold is logit 0, probability 0.5.
+    """
+    import torch
+    from lazyslide_models.base import SegmentationOutput
+
+    from lazyslide.segmentation._zero_shot import _segment_with_model
+
+    prob = torch.full((1, 1, 4, 6), 0.1)
+    prob[..., :3] = 0.9
+
+    class Sam:
+        def segment(self, image, **kwargs):
+            return SegmentationOutput(probability_map=prob)
+
+    image = np.zeros((4, 6, 3), dtype=np.uint8)
+    mask = _segment_with_model(Sam(), image, None, [[1, 1]], [], [[0, 0, 3, 4]])
+
+    expected = np.zeros((4, 6), dtype=bool)
+    expected[:, :3] = True
+    np.testing.assert_array_equal(mask, expected)
