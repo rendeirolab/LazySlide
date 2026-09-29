@@ -12,12 +12,15 @@ import numpy as np
 import torch
 from lazyslide_models.base import (
     ImageTextModel,
+    MarkerMapModel,
     ModelBase,
     ModelTask,
     SegmentationModel,
     SegmentationOutput,
-    StyleTransferModel,
+    TilePredictionModel,
+    VirtualStainModel,
 )
+from lazyslide_models.style_transfer import ROSIE
 from torch import nn
 
 
@@ -212,100 +215,132 @@ class MockImageTextModel(ImageTextModel):
 
 
 # ---------------------------------------------------------------------------
-# Style transfer mock (replaces rosie for virtual staining)
+# Virtual staining mocks (replace rosie, gigatime and future stain models)
 # ---------------------------------------------------------------------------
-_ROSIE_MARKERS = [
-    "DAPI",
-    "CD45",
-    "CD68",
-    "CD14",
-    "PD1",
-    "FoxP3",
-    "CD8",
-    "HLA-DR",
-    "PanCK",
-    "CD3e",
-    "CD4",
-    "aSMA",
-    "CD31",
-    "Vimentin",
-    "CD45RO",
-    "Ki67",
-    "CD20",
-    "CD11c",
-    "Podoplanin",
-    "PDL1",
-    "GranzymeB",
-    "CD38",
-    "CD141",
-    "CD21",
-    "CD163",
-    "BCL2",
-    "LAG3",
-    "EpCAM",
-    "CD44",
-    "ICOS",
-    "GATA3",
-    "Gal3",
-    "CD39",
-    "CD34",
-    "TIGIT",
-    "ECad",
-    "CD40",
-    "VISTA",
-    "HLA-A",
-    "MPO",
-    "PCNA",
-    "ATM",
-    "TP63",
-    "IFNg",
-    "Keratin8/18",
-    "IDO1",
-    "CD79a",
-    "HLA-E",
-    "CollagenIV",
-    "CD66",
-]
 
 
-class MockStyleTransferModel(StyleTransferModel):
-    """Mock ROSIE-like model returning (B, 50) predictions."""
+def _to_float_tensor():
+    from torchvision.transforms.v2 import Compose, ToDtype, ToImage
 
-    _name = "rosie"
+    return Compose([ToImage(), ToDtype(dtype=torch.float32, scale=True)])
+
+
+class MockRosieModel(ROSIE):
+    """ROSIE by type, without its weights.
+
+    It subclasses the real ``ROSIE`` class so ``virtual_stain`` recognises it and
+    applies ROSIE's post-processing. ``__init__`` is overridden, so nothing is
+    downloaded.
+    """
 
     def __init__(self, **kwargs):
         self.model = nn.Identity()
 
     @property
     def name(self) -> str:
-        return self._name
+        return "rosie"
 
     def get_transform(self):
-        from torchvision.transforms.v2 import (
-            Compose,
-            Normalize,
-            Resize,
-            ToDtype,
-            ToImage,
-        )
-
-        return Compose(
-            [
-                ToImage(),
-                ToDtype(dtype=torch.float32, scale=True),
-                Resize(size=(224, 224), antialias=False),
-                Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-            ]
-        )
+        return _to_float_tensor()
 
     @torch.inference_mode()
     def predict(self, image):
-        B = image.shape[0]
-        # Non-zero values so post-processing doesn't produce all-zeros
-        return torch.rand(B, 50) * 10 + 1
+        b = image.shape[0]
+        # Positive, varied values so ROSIE's contrast stretch has something to do.
+        values = np.random.default_rng(0).random((b, len(self.columns))) * 10 + 1
+        return dict(zip(self.columns, values.T, strict=True))
 
-    def get_channel_names(self) -> tuple[str, ...]:
-        return _ROSIE_MARKERS
+
+class MockTileModel(TilePredictionModel):
+    """A per-tile model that is not ROSIE, with one constant per column.
+
+    Constants make the check exact: without ROSIE's contrast stretch and median
+    blur, every tile's pixel must hold exactly these values.
+    """
+
+    columns = ("focus", "tumour_prob")
+    values = (0.25, 0.75)
+
+    def __init__(self, **kwargs):
+        self.model = nn.Identity()
+
+    @property
+    def name(self) -> str:
+        return "fake_tile"
+
+    def get_transform(self):
+        return _to_float_tensor()
+
+    @torch.inference_mode()
+    def predict(self, image):
+        b = image.shape[0]
+        return {
+            c: np.full(b, v, dtype=np.float32)
+            for c, v in zip(self.columns, self.values)
+        }
+
+
+class MockMarkerMapModel(MarkerMapModel):
+    """Dense marker map with one constant value per channel.
+
+    Every tile predicts the same constants, so a correctly stitched and blended
+    image equals them wherever tiles landed. ``0.25`` is chosen because a runner
+    that wrongly applied its own sigmoid would turn it into ``0.562``.
+    """
+
+    channel_names = ("CD3", "CD8")
+    output_range = (0.0, 1.0)
+    values = (0.25, 0.75)
+
+    def __init__(self, name: str = "fake_marker_map", output_mpp=None, **kwargs):
+        self.model = nn.Identity()
+        self._name = name
+        self.output_mpp = output_mpp
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    def get_transform(self):
+        return _to_float_tensor()
+
+    @torch.inference_mode()
+    def predict(self, image):
+        b, _, h, w = image.shape
+        if self.output_mpp is not None:
+            # Predict onto a grid twice as coarse as the input tile.
+            h, w = h // 2, w // 2
+        v = torch.tensor(self.values, dtype=torch.float32).view(1, -1, 1, 1)
+        return v.expand(b, -1, h, w).clone()
+
+
+class MockVirtualStainModel(VirtualStainModel):
+    """Two RGB stains in one pass, each a constant colour.
+
+    ``"HER2 IHC"`` contains a space on purpose: spatialdata rejects that as an
+    element name, so the runner has to turn it into a valid key.
+    """
+
+    stains = ("PAS", "HER2 IHC")
+    output_range = (0.0, 1.0)
+    colours = ((0.1, 0.2, 0.3), (0.6, 0.5, 0.4))
+
+    def __init__(self, **kwargs):
+        self.model = nn.Identity()
+
+    @property
+    def name(self) -> str:
+        return "fake_stain"
+
+    def get_transform(self):
+        return _to_float_tensor()
+
+    @torch.inference_mode()
+    def predict(self, image):
+        b, _, h, w = image.shape
+        rgb = [c for colour in self.colours for c in colour]  # RGB-major
+        v = torch.tensor(rgb, dtype=torch.float32).view(1, -1, 1, 1)
+        return v.expand(b, -1, h, w).clone()
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import tempfile
 from typing import TYPE_CHECKING
 
@@ -15,11 +16,15 @@ from lazyslide._utils import default_pbar
 
 if TYPE_CHECKING:
     import torch
+    from lazyslide_models import (
+        DensePredictionModelProtocol,
+        TilePredictionModelProtocol,
+    )
 
 
 def virtual_stain(
     wsi: WSIData,
-    model: str = "rosie",
+    model: str | TilePredictionModelProtocol | DensePredictionModelProtocol = "rosie",
     image_key: str | None = None,
     tile_key: str = Key.tiles,
     device: str | None = None,
@@ -38,14 +43,27 @@ def virtual_stain(
     A new :term:`multi-channel image` will be created and stored in the :term:`WSIData` object.
     The marker name is recorded in the image channel names.
 
+    What gets produced depends on the kind of model, not on its name:
+
+    - A tile prediction model predicts one value per column for each tile. The
+      result is a coarse image with one pixel per tile, holding the predicted
+      values as float32. ROSIE is the exception: following the ROSIE codebase,
+      its output is contrast-stretched per channel into uint8.
+    - A marker map model, such as GigaTIME, predicts a value for every pixel.
+      Tiles are stitched into one image, blended where they overlap.
+    - A virtual stain model predicts one or more RGB stains for every pixel.
+      Each stain is stored as its own RGB image.
+
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The whole-slide image data to work on.
-    model : str, default: "rosie"
-        The virtual staining model to use.
+    model : str or model, default: "rosie"
+        The virtual staining model to use: a registry key, or an instance of a
+        tile prediction, marker map or virtual stain model.
     image_key : str, default: None
-        The key to store the new image.
+        The key to store the new image. For a virtual stain model this is a
+        prefix, and each stain is stored under ``'{image_key}_{stain}'``.
     tile_key : str, default: "tiles"
         The key for the tile table.
     device : str, optional
@@ -74,7 +92,8 @@ def virtual_stain(
     -------
     None
         The virtual stain image is added to the :bdg-danger:`images` slot
-        of the WSIData object under the key ``'{model_name}_prediction'``.
+        of the WSIData object under the key ``'{model_name}_prediction'``,
+        or one image per stain for a virtual stain model.
 
     Examples
     --------
@@ -88,11 +107,16 @@ def virtual_stain(
 
     """
     import torch
-    from lazyslide_models import MODEL_REGISTRY
+    from lazyslide_models import (
+        MODEL_REGISTRY,
+        DensePredictionModelProtocol,
+        MarkerMapModelProtocol,
+        TilePredictionModelProtocol,
+        VirtualStainModelProtocol,
+    )
     from torch.utils.data import DataLoader
 
     device = _api.default_value("device", device)
-
     tile_spec = wsi.tile_spec(tile_key)
 
     # Resolve model name vs model instance
@@ -103,146 +127,235 @@ def virtual_stain(
         staining_model = model
         model_name = getattr(model, "name", model.__class__.__name__).lower()
 
-    if model_name == "rosie":
-        image_shape = (
-            wsi.properties.shape[0] // tile_spec.base_stride_height,
-            wsi.properties.shape[1] // tile_spec.base_stride_width,
-            50,
+    # Dispatch on what the model returns, never on its name. Decided once here;
+    # everything below follows from these answers.
+    is_stain = isinstance(staining_model, VirtualStainModelProtocol)
+    is_marker_map = not is_stain and isinstance(staining_model, MarkerMapModelProtocol)
+    dense = is_stain or is_marker_map
+    if not dense:
+        if isinstance(staining_model, DensePredictionModelProtocol):
+            # Dense, but with neither `channel_names` nor `stains` to label it.
+            raise TypeError(
+                f"{type(staining_model).__name__} is a dense model, but "
+                f"virtual_stain can only store a marker map or a virtual stain: "
+                f"it needs `channel_names` or `stains` to label the image."
+            )
+        if not isinstance(staining_model, TilePredictionModelProtocol):
+            raise TypeError(
+                f"virtual_stain needs a tile prediction, marker map or virtual "
+                f"stain model, got {type(staining_model).__name__}."
+            )
+
+    if dense:
+        n_channels = (
+            3 * len(staining_model.stains)
+            if is_stain
+            else len(staining_model.channel_names)
         )
-        scale_x = image_shape[1] / wsi.properties.shape[1]
-        scale_y = image_shape[0] / wsi.properties.shape[0]
-    elif model_name == "gigatime":
-        # The output of Giga-TIME is the same size as the input image
-        img_y, img_x = wsi.properties.shape[:2]
-        scale_x = 1 / tile_spec.base_downsample
-        scale_y = 1 / tile_spec.base_downsample
-        image_shape = (int(img_y * scale_y), int(img_x * scale_x), 23)
-    else:
-        raise ValueError(f"Model {model_name} not supported.")
 
     if image_key is None:
         image_key = f"{model_name}_prediction"
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        new_image = np.memmap(
-            f"{tmpdir}/image.npy", dtype=np.float32, mode="w+", shape=image_shape
-        )
+    if is_stain:
+        # Checked before inference so a clash costs nothing and writes nothing.
+        stain_keys = [_image_key(image_key, stain) for stain in staining_model.stains]
+        clashes = sorted({k for k in stain_keys if stain_keys.count(k) > 1})
+        if clashes:
+            raise ValueError(
+                f"Stains {staining_model.stains} give the same image key "
+                f"{clashes} once made safe for spatialdata, so one stain would "
+                f"overwrite another."
+            )
 
-        staining_model.to(device)
-        staining_model = _api.maybe_compile(staining_model, compile, compile_kws)
+    staining_model.to(device)
+    staining_model = _api.maybe_compile(staining_model, compile, compile_kws)
 
-        transform = staining_model.get_transform()
+    ds = wsi.ds.tile_images(transform=staining_model.get_transform(), tile_key=tile_key)
+    loader_kws = _api.loader_kws(device, num_workers, prefetch_factor)
+    non_blocking = loader_kws["pin_memory"]
+    dl = DataLoader(ds, batch_size=batch_size, shuffle=False, **loader_kws)
 
-        ds = wsi.ds.tile_images(transform=transform, tile_key=tile_key)
-        loader_kws = _api.loader_kws(device, num_workers, prefetch_factor)
-        non_blocking = loader_kws["pin_memory"]
-        dl = DataLoader(ds, batch_size=batch_size, shuffle=False, **loader_kws)
-
-        mask_x, mask_y = [], []
-
+    # A dense result is a memmap in this directory, and the image stored in
+    # `wsi` keeps mapping it after we return: copying it into memory instead
+    # could need tens of GB for a full-resolution slide. POSIX lets a mapped
+    # file be deleted, so cleanup succeeds there. Windows refuses, and without
+    # ignore_cleanup_errors that aborted virtual_stain for every dense model.
+    # On Windows the file is left in the temp directory instead.
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
         with default_pbar(disable=not pbar) as progress_bar:
             task = progress_bar.add_task("Creating new stains", total=len(ds))
 
-            amp_ctx = _api.autocast(device, amp, autocast_dtype)
-            with amp_ctx, torch.inference_mode():
-                if model_name == "rosie":
+            def predictions():
+                amp_ctx = _api.autocast(device, amp, autocast_dtype)
+                with amp_ctx, torch.inference_mode():
                     for batch in dl:
-                        expression = staining_model.predict(
-                            batch["image"].to(device, non_blocking=non_blocking)
-                        )
-                        image_x = (batch["x"] * scale_x).long() + 1
-                        image_y = (batch["y"] * scale_y).long() + 1
-                        expression = expression.detach().cpu().numpy()
-
-                        mask_x.extend(image_x.tolist())
-                        mask_y.extend(image_y.tolist())
-
-                        new_image[image_y, image_x] = expression
-                        progress_bar.update(task, advance=len(batch["image"]))
-                elif model_name == "gigatime":
-                    weight_image = np.zeros(image_shape[:2], dtype=np.float32)
-                    # Create a weight mask for blending
-                    _, tile_h, tile_w = ds[0]["image"].shape
-                    weight_mask = np.ones((tile_h, tile_w), dtype=np.float32)
-                    # Linear ramp for the edges
-                    ramp_size = int(min(tile_h, tile_w) * 0.1)
-                    if ramp_size > 0:
-                        ramp = np.linspace(0.1, 1, ramp_size)
-                        weight_mask[:ramp_size, :] *= ramp[:, np.newaxis]
-                        weight_mask[-ramp_size:, :] *= ramp[::-1, np.newaxis]
-                        weight_mask[:, :ramp_size] *= ramp[np.newaxis, :]
-                        weight_mask[:, -ramp_size:] *= ramp[np.newaxis, ::-1]
-
-                    for batch in dl:
-                        predicted_channels = staining_model.predict(
-                            batch["image"].to(device, non_blocking=non_blocking)
-                        )
-                        predicted_channels = torch.sigmoid(predicted_channels)
-                        predicted_channels = predicted_channels.detach().cpu().numpy()
-                        for ix, cs in enumerate(predicted_channels):
-                            image_x = (batch["x"][ix] * scale_x).long().item()
-                            image_y = (batch["y"][ix] * scale_y).long().item()
-
-                            # Actual tile size might be different from expected if not padded
-                            _c, th, tw = cs.shape
-
-                            # Clip to image boundaries
-                            y1, y2 = image_y, min(image_y + th, image_shape[0])
-                            x1, x2 = image_x, min(image_x + tw, image_shape[1])
-
-                            if y2 <= y1 or x2 <= x1:
-                                continue
-
-                            tile_slice_y = slice(0, y2 - y1)
-                            tile_slice_x = slice(0, x2 - x1)
-
-                            prediction = cs[:, tile_slice_y, tile_slice_x].transpose(
-                                1, 2, 0
-                            )
-                            mask = weight_mask[tile_slice_y, tile_slice_x]
-
-                            new_image[y1:y2, x1:x2] += (
-                                prediction * mask[:, :, np.newaxis]
-                            )
-                            weight_image[y1:y2, x1:x2] += mask
-
+                        image = batch["image"].to(device, non_blocking=non_blocking)
+                        yield batch, staining_model.predict(image)
                         progress_bar.update(task, advance=len(batch["image"]))
 
-                    # Normalize by weights
-                    nonzero_weight = weight_image > 0
-                    new_image[nonzero_weight] /= weight_image[nonzero_weight][
-                        :, np.newaxis
-                    ]
-
+            if dense:
+                image, scale = _stitch_dense(
+                    wsi, tile_spec, staining_model, predictions(), tmpdir, n_channels
+                )
+                channel_names = None if is_stain else list(staining_model.channel_names)
+            else:
+                image, channel_names, scale = _render_per_tile(
+                    wsi, tile_spec, staining_model, predictions()
+                )
             progress_bar.refresh()
 
-        # Postprocessing
-        if model_name == "rosie":
-            # Apply postprocessing from the ROSIE codebase
-            content_region = new_image[mask_y, mask_x]
-            bg_threshold = np.percentile(content_region, 1, axis=0)
-            max_threshold = np.percentile(content_region, 99.9, axis=0)
-            # Set bg_threshold to 0 if max_threshold is greater than bg_threshold
-            bg_threshold = np.where(max_threshold > bg_threshold, 0, bg_threshold)
-            new_image[mask_y, mask_x] = np.clip(
-                new_image[mask_y, mask_x], bg_threshold, max_threshold
+        # The memmap backing a dense image lives in tmpdir, so store it here.
+        transform = {"global": Scale(list(scale), axes=("y", "x"))}
+        if is_stain:
+            # RGB-major: channels 3i to 3i + 2 are stains[i].
+            for i, key in enumerate(stain_keys):
+                wsi.images[key] = Image2DModel.parse(
+                    data=image[..., 3 * i : 3 * i + 3].transpose(2, 0, 1),
+                    dims=["c", "y", "x"],
+                    c_coords=["r", "g", "b"],
+                    transformations=transform,
+                )
+        else:
+            wsi.images[image_key] = Image2DModel.parse(
+                data=image.transpose(2, 0, 1),
+                dims=["c", "y", "x"],
+                c_coords=channel_names,
+                transformations=transform,
             )
-            # Normalize to (0, 255)
-            new_image[mask_y, mask_x] = (
-                (new_image[mask_y, mask_x] - bg_threshold)
-                * 255.0
-                / (max_threshold - bg_threshold)
-            )
-            new_image = new_image.astype(np.uint8)
-            for channel in range(new_image.shape[2]):
-                new_image[:, :, channel] = cv2.medianBlur(new_image[:, :, channel], 3)
-        # Write to spatialdata
-        image = Image2DModel.parse(
-            data=new_image.transpose(2, 0, 1),
-            dims=["c", "y", "x"],
-            c_coords=staining_model.get_channel_names(),
-            transformations={
-                "global": Scale([1 / scale_y, 1 / scale_x], axes=("y", "x"))
-            },
+
+
+def _tile_grid_index(ys, xs, tile_spec):
+    """The pixel each tile maps to, in an image with one pixel per tile.
+
+    Tiles sit exactly one stride apart, so integer division by the stride gives
+    every tile a distinct pixel. Scaling by ``(H // stride) / H`` instead, as
+    this used to, is slightly less than ``1 / stride``; the rounding error
+    builds up across the slide and puts some tiles on the same pixel.
+    """
+    ys, xs = np.asarray(ys), np.asarray(xs)
+    return ys // tile_spec.base_stride_height, xs // tile_spec.base_stride_width
+
+
+def _render_per_tile(wsi, tile_spec, model, predictions):
+    """One pixel per tile. Only ROSIE's output is post-processed."""
+    sy, sx = tile_spec.base_stride_height, tile_spec.base_stride_width
+    height, width = wsi.properties.shape[:2]
+    grid = (-(-height // sy), -(-width // sx))  # ceil division
+
+    image = channel_names = None
+    rows, cols = [], []
+    for batch, out in predictions:
+        if image is None:
+            channel_names = list(model.columns or out)
+            for name in channel_names:
+                kind = np.asarray(out[name]).dtype.kind
+                if kind not in "biuf":
+                    raise TypeError(
+                        f"virtual_stain renders per-tile values as an image, so "
+                        f"every column must be numeric; column {name!r} has "
+                        f"dtype kind {kind!r}."
+                    )
+            image = np.zeros((*grid, len(channel_names)), dtype=np.float32)
+
+        values = np.stack(
+            [np.asarray(out[n], dtype=np.float32) for n in channel_names], -1
         )
-        wsi.images[image_key] = image
+        r, c = _tile_grid_index(batch["y"], batch["x"], tile_spec)
+        image[r, c] = values
+        rows.extend(r.tolist())
+        cols.extend(c.tolist())
+
+    from lazyslide_models.style_transfer import ROSIE
+
+    # Other tile models keep the values they predicted.
+    if isinstance(model, ROSIE):
+        image = _rosie_postprocess(image, rows, cols)
+    return image, channel_names, (sy, sx)
+
+
+def _rosie_postprocess(image, rows, cols):
+    """ROSIE's display post-processing, taken from the ROSIE codebase.
+
+    Clips each channel to its 1st and 99.9th percentile over the tissue,
+    stretches it into uint8, then median-blurs it. This belongs to ROSIE's
+    output alone: applied to another model it would replace the predicted
+    values with a per-slide contrast stretch.
+    """
+    content = image[rows, cols]
+    bg_threshold = np.percentile(content, 1, axis=0)
+    max_threshold = np.percentile(content, 99.9, axis=0)
+    bg_threshold = np.where(max_threshold > bg_threshold, 0, bg_threshold)
+    spread = max_threshold - bg_threshold
+    # A constant channel has no spread; leave it at zero instead of dividing by it.
+    spread = np.where(spread > 0, spread, 1)
+    content = np.clip(content, bg_threshold, max_threshold)
+    image[rows, cols] = (content - bg_threshold) * 255.0 / spread
+    image = image.astype(np.uint8)
+    for channel in range(image.shape[2]):
+        image[:, :, channel] = cv2.medianBlur(image[:, :, channel], 3)
+    return image
+
+
+def _stitch_dense(wsi, tile_spec, model, predictions, tmpdir, n_channels):
+    """Stitch per-pixel tile predictions into one image, blending overlaps."""
+    height, width = wsi.properties.shape[:2]
+    if model.output_mpp is None:
+        # The output lands on the input tile's own grid.
+        scale = 1 / tile_spec.base_downsample
+    else:
+        if wsi.properties.mpp is None:
+            raise ValueError(
+                f"{type(model).__name__} sets output_mpp, which needs the slide's "
+                f"mpp, but this slide does not record one."
+            )
+        scale = wsi.properties.mpp / model.output_mpp
+
+    shape = (int(height * scale), int(width * scale))
+    image = np.memmap(
+        f"{tmpdir}/image.npy",
+        dtype=np.float32,
+        mode="w+",
+        shape=(*shape, n_channels),
+    )
+    weight = np.zeros(shape, dtype=np.float32)
+    mask = None
+
+    for batch, out in predictions:
+        # float() first: numpy has no bfloat16, which autocast may produce.
+        out = out.detach().float().cpu().numpy()
+        if mask is None:
+            mask = _blend_mask(*out.shape[-2:])
+        for i, tile in enumerate(out):
+            y = int(batch["y"][i] * scale)
+            x = int(batch["x"][i] * scale)
+            y2 = min(y + tile.shape[1], shape[0])
+            x2 = min(x + tile.shape[2], shape[1])
+            if y2 <= y or x2 <= x:
+                continue
+            m = mask[: y2 - y, : x2 - x]
+            image[y:y2, x:x2] += (
+                tile[:, : y2 - y, : x2 - x].transpose(1, 2, 0) * m[..., None]
+            )
+            weight[y:y2, x:x2] += m
+
+    covered = weight > 0
+    image[covered] /= weight[covered][:, np.newaxis]
+    return image, (1 / scale, 1 / scale)
+
+
+def _blend_mask(height, width):
+    """Weights that fall off linearly towards the tile edges, for blending."""
+    mask = np.ones((height, width), dtype=np.float32)
+    ramp_size = int(min(height, width) * 0.1)
+    if ramp_size > 0:
+        ramp = np.linspace(0.1, 1, ramp_size)
+        mask[:ramp_size, :] *= ramp[:, np.newaxis]
+        mask[-ramp_size:, :] *= ramp[::-1, np.newaxis]
+        mask[:, :ramp_size] *= ramp[np.newaxis, :]
+        mask[:, -ramp_size:] *= ramp[np.newaxis, ::-1]
+    return mask
+
+
+def _image_key(prefix, stain):
+    """A spatialdata-safe element name; it rejects spaces such as in 'HER2 IHC'."""
+    return f"{prefix}_{re.sub(r'[^0-9A-Za-z_.-]+', '_', stain)}"

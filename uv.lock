@@ -3181,8 +3181,8 @@ tutorials = [
 
 [[package]]
 name = "lazyslide-models"
-version = "0.0.4"
-source = { git = "https://github.com/rendeirolab/lazyslide-models.git?branch=main#0127beb5ff7989005f0eff7b481a95b989c4187f" }
+version = "0.0.4.post35.dev0+6695ad5"
+source = { git = "https://github.com/rendeirolab/lazyslide-models.git?branch=main#6695ad5b188a279fc80fedae8d3ea2221e9e6bb1" }
 dependencies = [
     { name = "numpy" },
     { name = "opencv-python-headless" },
