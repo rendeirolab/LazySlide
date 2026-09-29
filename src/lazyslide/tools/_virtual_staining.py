@@ -36,6 +36,7 @@ def virtual_stain(
     num_workers: int = 0,
     prefetch_factor: int | None = None,
     pbar: bool = True,
+    postprocess: bool = False,
 ):
     """
     Translate the :term:`H&E` images to :term:`multiplexed images`.
@@ -47,8 +48,8 @@ def virtual_stain(
 
     - A tile prediction model predicts one value per column for each tile. The
       result is a coarse image with one pixel per tile, holding the predicted
-      values as float32. ROSIE is the exception: following the ROSIE codebase,
-      its output is contrast-stretched per channel into uint8.
+      values as float32. With ``postprocess=True``, ROSIE's output is
+      contrast-stretched per channel into uint8 for display instead.
     - A marker map model, such as GigaTIME, predicts a value for every pixel.
       Tiles are stitched into one image, blended where they overlap.
     - A virtual stain model predicts one or more RGB stains for every pixel.
@@ -87,6 +88,12 @@ def virtual_stain(
         Only used when :code:`num_workers > 0`.
     pbar : bool, default: True
         If the progress bar should be shown.
+    postprocess : bool, default: False
+        Contrast-stretch ROSIE's output into uint8 for display, like
+        ``--postprocess_image`` in the ROSIE codebase: per channel, values up to
+        the 90th percentile become 0 and the 99.9th percentile becomes 255.
+        Off by default, as upstream: use the raw values for quantitative
+        analysis. Only ROSIE has this post-processing.
 
     Returns
     -------
@@ -114,6 +121,7 @@ def virtual_stain(
         TilePredictionModelProtocol,
         VirtualStainModelProtocol,
     )
+    from lazyslide_models.style_transfer import ROSIE
     from torch.utils.data import DataLoader
 
     device = _api.default_value("device", device)
@@ -145,6 +153,11 @@ def virtual_stain(
                 f"virtual_stain needs a tile prediction, marker map or virtual "
                 f"stain model, got {type(staining_model).__name__}."
             )
+    if postprocess and not isinstance(staining_model, ROSIE):
+        raise ValueError(
+            f"postprocess is ROSIE's display contrast stretch; "
+            f"{type(staining_model).__name__} has none."
+        )
 
     if dense:
         n_channels = (
@@ -200,7 +213,7 @@ def virtual_stain(
                 channel_names = None if is_stain else list(staining_model.channel_names)
             else:
                 image, channel_names, scale = _render_per_tile(
-                    wsi, tile_spec, staining_model, predictions()
+                    wsi, tile_spec, staining_model, predictions(), postprocess
                 )
             progress_bar.refresh()
 
@@ -236,8 +249,8 @@ def _tile_grid_index(ys, xs, tile_spec):
     return ys // tile_spec.base_stride_height, xs // tile_spec.base_stride_width
 
 
-def _render_per_tile(wsi, tile_spec, model, predictions):
-    """One pixel per tile. Only ROSIE's output is post-processed."""
+def _render_per_tile(wsi, tile_spec, model, predictions, postprocess):
+    """One pixel per tile, optionally with ROSIE's display stretch."""
     sy, sx = tile_spec.base_stride_height, tile_spec.base_stride_width
     height, width = wsi.properties.shape[:2]
     grid = (-(-height // sy), -(-width // sx))  # ceil division
@@ -265,28 +278,27 @@ def _render_per_tile(wsi, tile_spec, model, predictions):
         rows.extend(r.tolist())
         cols.extend(c.tolist())
 
-    from lazyslide_models.style_transfer import ROSIE
-
-    # Other tile models keep the values they predicted.
-    if isinstance(model, ROSIE):
+    if postprocess:
         image = _rosie_postprocess(image, rows, cols)
     return image, channel_names, (sy, sx)
 
 
 def _rosie_postprocess(image, rows, cols):
-    """ROSIE's display post-processing, taken from the ROSIE codebase.
+    """ROSIE's display post-processing, from ``evaluate.py --postprocess_image``.
 
-    Clips each channel to its 1st and 99.9th percentile over the tissue,
-    stretches it into uint8, then median-blurs it. This belongs to ROSIE's
-    output alone: applied to another model it would replace the predicted
-    values with a per-slide contrast stretch.
+    Clips each channel to its 90th and 99.9th percentile over the tiles and
+    stretches it into uint8, so all but the top decile is background. Upstream
+    then box-blurs its per-pixel map; with one pixel per tile, a 3x3 median
+    blur stands in. This belongs to ROSIE's output alone: applied to another
+    model it would replace the predicted values with a per-slide stretch.
     """
     content = image[rows, cols]
-    bg_threshold = np.percentile(content, 1, axis=0)
+    bg_threshold = np.percentile(content, 90, axis=0)
     max_threshold = np.percentile(content, 99.9, axis=0)
-    bg_threshold = np.where(max_threshold > bg_threshold, 0, bg_threshold)
+    # As upstream, drop the background cut when nothing lies above it.
+    bg_threshold = np.where(max_threshold > bg_threshold, bg_threshold, 0)
     spread = max_threshold - bg_threshold
-    # A constant channel has no spread; leave it at zero instead of dividing by it.
+    # An all-zero channel has no spread; leave it at zero instead of dividing by it.
     spread = np.where(spread > 0, spread, 1)
     content = np.clip(content, bg_threshold, max_threshold)
     image[rows, cols] = (content - bg_threshold) * 255.0 / spread
