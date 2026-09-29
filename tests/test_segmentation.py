@@ -86,6 +86,64 @@ def test_tissue_segmentation(wsi):
     zs.seg.tissue(wsi, key_added="seg_tissues")
 
 
+TISSUE_MODELS = ("grandqc", "pathprofiler", "hest")
+
+
+@pytest.fixture
+def tissue_input(monkeypatch):
+    """Swap every tissue model for a spy; holds the HWC image it was given."""
+    import torch
+    from lazyslide_models import segmentation
+    from lazyslide_models.base import SegmentationModel
+
+    seen = {}
+
+    class Spy(SegmentationModel):
+        def __init__(self):
+            self.model = torch.nn.Identity()
+
+        def get_transform(self):
+            return torch.nn.Identity()
+
+        def segment(self, image):
+            seen["image"] = image[0].permute(1, 2, 0).numpy()
+            b, _, h, w = image.shape
+            return SegmentationOutput(probability_map=torch.zeros(b, 2, h, w))
+
+    for name in (
+        "GrandQCTissue",
+        "PathProfilerTissueSegmentation",
+        "HESTTissueSegmentation",
+    ):
+        monkeypatch.setattr(segmentation, name, Spy)
+    return seen
+
+
+def _tissue_on(wsi, monkeypatch, image, model):
+    """Run seg.tissue on a slide whose reader returns ``image``.
+
+    Segmenting at a level's own mpp and giving it a 256 px image leaves nothing
+    to resize or pad, so the model sees ``image`` itself.
+    """
+    monkeypatch.setattr(wsi.reader, "get_region", lambda *args, **kwargs: image)
+    props = wsi.properties
+    mpp = props.level_downsample[-1] * props.mpp
+    zs.seg.tissue(wsi, model=model, mpp=mpp, device="cpu", key_added="spy_tissues")
+
+
+@pytest.mark.parametrize("model", TISSUE_MODELS)
+def test_tissue_models_get_rgb(wsi, monkeypatch, tissue_input, model):
+    """Regression: a BGR2RGB after the JPEG round trip fed BGR to every model.
+
+    The reader returns RGB and imencode/imdecode keeps channel order, so the
+    extra swap turned (200, 100, 50) into (50, 100, 200).
+    """
+    rgb = np.full((256, 256, 3), (200, 100, 50), dtype=np.uint8)
+    _tissue_on(wsi, monkeypatch, rgb, model)
+
+    np.testing.assert_allclose(tissue_input["image"][128, 128], (200, 100, 50), atol=2)
+
+
 class TestCellSegmentation:
     def test_cell_segmentation(self, wsi):
         # Regression for #261: segmentation models do not need a legacy tile

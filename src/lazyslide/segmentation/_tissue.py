@@ -184,13 +184,11 @@ def tissue(
         constant_values=0,  # Pad with black pixels
     )
 
-    # Simulate JPEG compression
+    # Simulate JPEG compression. The round trip keeps the reader's RGB order:
+    # imdecode returns channels in the order imencode was given them.
     encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
     _result, img = cv2.imencode(".jpg", img, encode_param)
     img = cv2.imdecode(img, 1)
-
-    # OpenCV decodes in BGR; model transforms expect RGB (CLAHE or ImageNet norm)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     img = torch.tensor(img).permute(2, 0, 1)
 
