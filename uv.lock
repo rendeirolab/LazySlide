@@ -3074,7 +3074,7 @@ requires-dist = [
     { name = "ipython", marker = "extra == 'docker'" },
     { name = "ipywidgets", marker = "extra == 'docker'" },
     { name = "jupyterlab", marker = "extra == 'docker'" },
-    { name = "lazyslide-models", git = "https://github.com/rendeirolab/lazyslide-models.git?branch=feat%2Foutput-spec" },
+    { name = "lazyslide-models", git = "https://github.com/rendeirolab/lazyslide-models.git?branch=main" },
     { name = "legendkit", specifier = ">=0.3.4" },
     { name = "marsilea", marker = "extra == 'docker'" },
     { name = "matplotlib", specifier = ">=3.9.0" },
@@ -3181,8 +3181,8 @@ tutorials = [
 
 [[package]]
 name = "lazyslide-models"
-version = "0.0.4.post38.dev0+c8f0956"
-source = { git = "https://github.com/rendeirolab/lazyslide-models.git?branch=feat%2Foutput-spec#c8f0956cbbdaea81917ea2ce8392a9811a79e7dc" }
+version = "0.0.4.post35.dev0+6695ad5"
+source = { git = "https://github.com/rendeirolab/lazyslide-models.git?branch=main#6695ad5b188a279fc80fedae8d3ea2221e9e6bb1" }
 dependencies = [
     { name = "numpy" },
     { name = "opencv-python-headless" },
