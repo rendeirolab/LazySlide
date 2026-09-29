@@ -131,16 +131,16 @@ os.environ["HF_HUB_OFFLINE"] = 1
 ## Browse the models
 
 ```{raw} html
-<div id="lazyslide-models"></div>
-<noscript><a href="https://rendeiro.group/lazyslide-models/">Browse the model zoo</a></noscript>
+<div id="lazyslide-models"><p>Loading the model catalogue — if it does not appear, browse it at
+<a href="https://rendeiro.group/lazyslide-models/">rendeiro.group/lazyslide-models</a>.</p></div>
 <script src="https://rendeiro.group/lazyslide-models/embed.js" defer></script>
 ```
 
 :::{note}
 The catalogue is served live from [rendeiro.group/lazyslide-models](https://rendeiro.group/lazyslide-models/)
-and always shows the latest `lazyslide-models` release — its version and index date are printed
-above the search box. If you pinned an older LazySlide, call `list_models()` to see what your
-installation actually has.
+and shows the latest published snapshot of the `lazyslide-models` registry, which may be ahead of
+the newest release — the snapshot's version and index date are printed above the search box.
+If you pinned an older LazySlide, call `list_models()` to see what your installation actually has.
 :::
 
 How to use new models
