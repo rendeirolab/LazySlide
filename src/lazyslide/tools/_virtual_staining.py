@@ -295,10 +295,14 @@ def _rosie_postprocess(image, rows, cols):
     content = image[rows, cols]
     bg_threshold = np.percentile(content, 90, axis=0)
     max_threshold = np.percentile(content, 99.9, axis=0)
-    # As upstream, drop the background cut when nothing lies above it.
-    bg_threshold = np.where(max_threshold > bg_threshold, bg_threshold, 0)
+    # As upstream, drop the background cut when nothing lies above it. Never
+    # raise it above the maximum, though: a negative maximum is its own
+    # background, so that channel stays black instead of wrapping in uint8.
+    bg_threshold = np.where(
+        max_threshold > bg_threshold, bg_threshold, np.minimum(max_threshold, 0)
+    )
     spread = max_threshold - bg_threshold
-    # An all-zero channel has no spread; leave it at zero instead of dividing by it.
+    # A channel with no spread left stays black instead of dividing by zero.
     spread = np.where(spread > 0, spread, 1)
     content = np.clip(content, bg_threshold, max_threshold)
     image[rows, cols] = (content - bg_threshold) * 255.0 / spread

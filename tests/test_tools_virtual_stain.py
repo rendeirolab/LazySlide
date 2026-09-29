@@ -304,3 +304,16 @@ def test_dense_output_survives_a_backing_file_that_cannot_be_deleted(
     image = stained.images["fake_marker_map_prediction"]
     covered = _covered(image)
     np.testing.assert_allclose(np.asarray(image[0])[covered], 0.25, atol=1e-5)
+
+
+def test_rosie_postprocess_keeps_a_constant_negative_channel_black():
+    """With one tile, or a channel constant at a negative value, both
+    percentiles equal that value. Resetting the background to 0 put it above
+    the maximum, and the negative stretch wrapped around to a bright uint8
+    (-0.1 became 231)."""
+    image = np.full((5, 5, 1), -0.1, dtype=np.float32)
+    rows, cols = np.indices((5, 5)).reshape(2, -1)
+
+    out = _rosie_postprocess(image, rows, cols)
+
+    assert (out == 0).all()
