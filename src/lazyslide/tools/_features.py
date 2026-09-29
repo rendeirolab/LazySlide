@@ -520,7 +520,7 @@ def _encode_slide(
     device : str, optional
         Device to use for PyTorch operations
     tile_spec : object, optional
-        Tile specification object with base_width attribute
+        Tile specification object with base_stride_width attribute
 
     Returns
     -------
@@ -530,6 +530,8 @@ def _encode_slide(
     """
     import torch
     from lazyslide_models import MODEL_REGISTRY, list_models
+    from lazyslide_models.multimodal import Titan
+    from lazyslide_models.vision import Moozy
 
     result_dict = {"features": None}
 
@@ -552,12 +554,16 @@ def _encode_slide(
             model = MODEL_REGISTRY[key]()
             model.to(device)
             model = _api.maybe_compile(model, compile, compile_kws)
-            if encoder == "titan":
-                slide_reprs = model.encode_slide(
-                    fs, cs, base_tile_size=tile_spec.base_width
-                )
-            else:
-                slide_reprs = model.encode_slide(fs, cs)
+            # TITAN grids the tiles by their level-0 spacing and MOOZY measures
+            # ALiBi distances in it. With overlapping tiles that is the stride,
+            # not the tile width.
+            kws = {}
+            if tile_spec is not None:
+                if isinstance(model, Titan):
+                    kws["base_tile_size"] = tile_spec.base_stride_width
+                elif isinstance(model, Moozy):
+                    kws["patch_sizes"] = tile_spec.base_stride_width
+            slide_reprs = model.encode_slide(fs, cs, **kws)
             agg_features = slide_reprs["embeddings"]
             if isinstance(agg_features, torch.Tensor):
                 agg_features = agg_features.detach().cpu().numpy()
