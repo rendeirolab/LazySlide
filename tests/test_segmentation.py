@@ -161,6 +161,19 @@ def test_only_grandqc_sees_jpeg_compression(
     assert np.array_equal(tissue_input["image"], noise) != jpeg
 
 
+def test_pathprofiler_segments_at_2_5x(wsi, tissue_input):
+    """Upstream PathProfiler segments at 2.5x or 1.25x (``--mask_magnification``).
+
+    That is a magnification, so 2.5x is about 4 µm/px, not the 2.5 µm/px this
+    used to run at.
+    """
+    zs.seg.tissue(wsi, model="pathprofiler", device="cpu", key_added="spy_tissues")
+
+    props = wsi.properties
+    width = tissue_input["image"].shape[1]  # padded up to a multiple of 64
+    assert props.shape[1] * props.mpp / width == pytest.approx(4.0, rel=0.05)
+
+
 class TestCellSegmentation:
     def test_cell_segmentation(self, wsi):
         # Regression for #261: segmentation models do not need a legacy tile

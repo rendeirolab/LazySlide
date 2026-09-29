@@ -42,7 +42,7 @@ def tissue(
 
     Supported models:
         - "grandqc": :cite:p:`Weng2024-jf`. Runs on mpp=10.
-        - "pathprofiler": :cite:p:`Haghighat2022-sy`. Runs on mpp=2.5.
+        - "pathprofiler": :cite:p:`Haghighat2022-sy`. Runs on mpp=4 (2.5x).
         - "hest": "https://huggingface.co/MahmoodLab/hest-tissue-seg". Runs on mpp=1.
 
     If you encounter a memory issue, please set a higher :term:`mpp` value.
@@ -107,7 +107,8 @@ def tissue(
         from lazyslide_models.segmentation import PathProfilerTissueSegmentation
 
         model = PathProfilerTissueSegmentation()
-        target_mpp = 2.5
+        # Upstream's --mask_magnification is 1.25x or 2.5x, i.e. ~8 or ~4 µm/px
+        target_mpp = 4
         divider = 64
         min_size = 128
     elif model == "hest":
