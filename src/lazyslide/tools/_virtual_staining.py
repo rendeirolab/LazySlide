@@ -110,6 +110,7 @@ def virtual_stain(
     from lazyslide_models import (
         MODEL_REGISTRY,
         DensePredictionModelProtocol,
+        MarkerMapModelProtocol,
         TilePredictionModelProtocol,
         VirtualStainModelProtocol,
     )
@@ -126,16 +127,25 @@ def virtual_stain(
         staining_model = model
         model_name = getattr(model, "name", model.__class__.__name__).lower()
 
-    # Dispatch on what the model returns, never on its name.
-    dense = isinstance(staining_model, DensePredictionModelProtocol)
-    if not dense and not isinstance(staining_model, TilePredictionModelProtocol):
-        raise TypeError(
-            f"virtual_stain needs a tile prediction, marker map or virtual stain "
-            f"model, got {type(staining_model).__name__}."
-        )
-
-    # Decided once here; everything below follows from these two answers.
+    # Dispatch on what the model returns, never on its name. Decided once here;
+    # everything below follows from these answers.
     is_stain = isinstance(staining_model, VirtualStainModelProtocol)
+    is_marker_map = not is_stain and isinstance(staining_model, MarkerMapModelProtocol)
+    dense = is_stain or is_marker_map
+    if not dense:
+        if isinstance(staining_model, DensePredictionModelProtocol):
+            # Dense, but with neither `channel_names` nor `stains` to label it.
+            raise TypeError(
+                f"{type(staining_model).__name__} is a dense model, but "
+                f"virtual_stain can only store a marker map or a virtual stain: "
+                f"it needs `channel_names` or `stains` to label the image."
+            )
+        if not isinstance(staining_model, TilePredictionModelProtocol):
+            raise TypeError(
+                f"virtual_stain needs a tile prediction, marker map or virtual "
+                f"stain model, got {type(staining_model).__name__}."
+            )
+
     if dense:
         n_channels = (
             3 * len(staining_model.stains)
@@ -146,6 +156,17 @@ def virtual_stain(
     if image_key is None:
         image_key = f"{model_name}_prediction"
 
+    if is_stain:
+        # Checked before inference so a clash costs nothing and writes nothing.
+        stain_keys = [_image_key(image_key, stain) for stain in staining_model.stains]
+        clashes = sorted({k for k in stain_keys if stain_keys.count(k) > 1})
+        if clashes:
+            raise ValueError(
+                f"Stains {staining_model.stains} give the same image key "
+                f"{clashes} once made safe for spatialdata, so one stain would "
+                f"overwrite another."
+            )
+
     staining_model.to(device)
     staining_model = _api.maybe_compile(staining_model, compile, compile_kws)
 
@@ -154,7 +175,13 @@ def virtual_stain(
     non_blocking = loader_kws["pin_memory"]
     dl = DataLoader(ds, batch_size=batch_size, shuffle=False, **loader_kws)
 
-    with tempfile.TemporaryDirectory() as tmpdir:
+    # A dense result is a memmap in this directory, and the image stored in
+    # `wsi` keeps mapping it after we return: copying it into memory instead
+    # could need tens of GB for a full-resolution slide. POSIX lets a mapped
+    # file be deleted, so cleanup succeeds there. Windows refuses, and without
+    # ignore_cleanup_errors that aborted virtual_stain for every dense model.
+    # On Windows the file is left in the temp directory instead.
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
         with default_pbar(disable=not pbar) as progress_bar:
             task = progress_bar.add_task("Creating new stains", total=len(ds))
 
@@ -181,8 +208,8 @@ def virtual_stain(
         transform = {"global": Scale(list(scale), axes=("y", "x"))}
         if is_stain:
             # RGB-major: channels 3i to 3i + 2 are stains[i].
-            for i, stain in enumerate(staining_model.stains):
-                wsi.images[_image_key(image_key, stain)] = Image2DModel.parse(
+            for i, key in enumerate(stain_keys):
+                wsi.images[key] = Image2DModel.parse(
                     data=image[..., 3 * i : 3 * i + 3].transpose(2, 0, 1),
                     dims=["c", "y", "x"],
                     c_coords=["r", "g", "b"],

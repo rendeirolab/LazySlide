@@ -197,3 +197,74 @@ def test_model_with_neither_protocol_is_rejected(stained):
 def test_unknown_model_name_is_rejected(wsi):
     with pytest.raises(KeyError):
         virtual_stain(wsi, model="unsupported_model", **RUN)
+
+
+@pytest.mark.parametrize("stained", ["wsi_small"], indirect=True)
+def test_dense_model_that_is_neither_kind_is_rejected(stained):
+    """A dense model must be a marker map or a virtual stain to be stored.
+
+    Without an explicit check, one that is neither (for example a marker map
+    that forgot ``channel_names``) got past the guard and failed later with an
+    ``AttributeError`` instead of saying what was wrong.
+    """
+    from lazyslide_models.base import DensePredictionModel
+
+    class Unnamed(DensePredictionModel):
+        def __init__(self):
+            self.model = None
+
+        def get_transform(self):
+            return None
+
+        def predict(self, image):
+            raise AssertionError("must be rejected before predicting")
+
+    with pytest.raises(TypeError, match="marker map or a virtual stain"):
+        virtual_stain(stained, model=Unnamed(), **RUN)
+
+
+@pytest.mark.parametrize("stained", ["wsi_small"], indirect=True)
+def test_stains_that_collide_after_renaming_are_rejected(stained):
+    """spatialdata-safe names are not unique: "HER2 IHC" and "HER2/IHC" both
+    become ``HER2_IHC``, so the second image would silently replace the first."""
+
+    class Colliding(MockVirtualStainModel):
+        stains = ("HER2 IHC", "HER2/IHC")
+
+    before = set(stained.images.keys())
+    with pytest.raises(ValueError, match="HER2_IHC"):
+        virtual_stain(stained, model=Colliding(), **RUN)
+    # Nothing is half-written.
+    assert set(stained.images.keys()) == before
+
+
+@pytest.mark.parametrize("stained", ["wsi_small"], indirect=True)
+def test_dense_output_survives_a_backing_file_that_cannot_be_deleted(
+    stained, monkeypatch, tmp_path
+):
+    """Reproduces the Windows failure on any OS.
+
+    A dense result is a memmap in a temporary directory, and the stored image
+    still maps it when the directory is cleaned up. POSIX lets a mapped file be
+    deleted; Windows refuses with ``PermissionError``, which used to crash
+    ``virtual_stain`` for every marker map and virtual stain there.
+    """
+    import os
+    import tempfile
+
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))  # leftovers land here
+    real_unlink = os.unlink
+
+    def unlink_like_windows(path, *args, **kwargs):
+        if os.path.basename(os.fspath(path)) == "image.npy":
+            raise PermissionError(32, "being used by another process", path)
+        return real_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(os, "unlink", unlink_like_windows)
+
+    model = MockMarkerMapModel()
+    virtual_stain(stained, model=model, **RUN)
+
+    image = stained.images["fake_marker_map_prediction"]
+    covered = _covered(image)
+    np.testing.assert_allclose(np.asarray(image[0])[covered], 0.25, atol=1e-5)
