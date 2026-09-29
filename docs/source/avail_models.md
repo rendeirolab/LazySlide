@@ -63,18 +63,15 @@ model = model_module()  # Initiate the model
 
 ## Get access to gated models
 
-{octicon}`check-circle-fill;1em;sd-text-success;` indicates the model is publicly available.
-You can use it without a Hugging Face account or requesting access.
-
-{octicon}`lock;1em;sd-text-danger;` indicates the model is gated and requires permission.
-You must apply for access via the Hugging Face model card or the model's repository.
+The catalogue below tags each model **Open** or **Gated**. Open models need no account;
+gated models require permission from the model owner, granted through Hugging Face.
 
 To access gated models, follow these steps:
 
 1. Create a Hugging Face account: https://huggingface.co/
 
 2. Visit the model card page and request access.
-   You can also use the Hugging Face button provided for each model below.
+   Open the model in the catalogue below and follow its Hugging Face link.
 
 3. In your account settings, go to Access Tokens and create a new token
    with the required permissions (read access is sufficient).
@@ -131,11 +128,20 @@ import os
 os.environ["HF_HUB_OFFLINE"] = 1
 ```
 
-Below is a list of available models categorized by their type:
+## Browse the models
 
-```{eval-rst}
-.. include:: api/models.rst
+```{raw} html
+<div id="lazyslide-models"></div>
+<noscript><a href="https://rendeiro.group/lazyslide-models/">Browse the model zoo</a></noscript>
+<script src="https://rendeiro.group/lazyslide-models/embed.js" defer></script>
 ```
+
+:::{note}
+The catalogue is served live from [rendeiro.group/lazyslide-models](https://rendeiro.group/lazyslide-models/)
+and always shows the latest `lazyslide-models` release — its version and index date are printed
+above the search box. If you pinned an older LazySlide, call `list_models()` to see what your
+installation actually has.
+:::
 
 How to use new models
 ---------------------
