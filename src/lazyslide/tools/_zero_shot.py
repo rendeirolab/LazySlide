@@ -119,7 +119,7 @@ def zero_shot_score(
         >>> import lazyslide as zs
         >>> wsi = zs.datasets.lung_carcinoma(with_data=False)
         >>> zs.pp.find_tissues(wsi)
-        >>> zs.pp.tile_tissues(wsi, 512, background_fraction=0.95, mpp=0.5)
+        >>> zs.pp.tile_tissues(wsi, 224, background_fraction=0.95, mpp=0.5)
         >>> zs.tl.feature_extraction(wsi, "virchow")
         >>> zs.tl.feature_aggregation(wsi, feature_key="virchow", encoder="prism")
         >>> classes = ["lung cancer", "normal lung"]

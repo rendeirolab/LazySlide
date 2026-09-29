@@ -42,7 +42,7 @@ def tissue(
 
     Supported models:
         - "grandqc": :cite:p:`Weng2024-jf`. Runs on mpp=10.
-        - "pathprofiler": :cite:p:`Haghighat2022-sy`. Runs on mpp=2.5.
+        - "pathprofiler": :cite:p:`Haghighat2022-sy`. Runs on mpp=4 (2.5x).
         - "hest": "https://huggingface.co/MahmoodLab/hest-tissue-seg". Runs on mpp=1.
 
     If you encounter a memory issue, please set a higher :term:`mpp` value.
@@ -107,7 +107,8 @@ def tissue(
         from lazyslide_models.segmentation import PathProfilerTissueSegmentation
 
         model = PathProfilerTissueSegmentation()
-        target_mpp = 2.5
+        # Upstream's --mask_magnification is 1.25x or 2.5x, i.e. ~8 or ~4 µm/px
+        target_mpp = 4
         divider = 64
         min_size = 128
     elif model == "hest":
@@ -184,13 +185,14 @@ def tissue(
         constant_values=0,  # Pad with black pixels
     )
 
-    # Simulate JPEG compression
-    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
-    _result, img = cv2.imencode(".jpg", img, encode_param)
-    img = cv2.imdecode(img, 1)
-
-    # OpenCV decodes in BGR; model transforms expect RGB (CLAHE or ImageNet norm)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    if model_name == "grandqc":
+        # GrandQC's tissue detector was trained on JPEG-compressed images, so
+        # upstream re-encodes at quality 80; HEST and PathProfiler do not.
+        # The round trip keeps the reader's RGB order: imdecode returns
+        # channels in the order imencode was given them.
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
+        _result, img = cv2.imencode(".jpg", img, encode_param)
+        img = cv2.imdecode(img, 1)
 
     img = torch.tensor(img).permute(2, 0, 1)
 

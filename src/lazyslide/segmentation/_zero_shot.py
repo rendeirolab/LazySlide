@@ -233,7 +233,9 @@ def _segment_with_model(
             input_boxes=[boxes],
         )
 
-        return result.probability_map
+        # segment() returns sigmoid probabilities, not a mask. SAM's own mask
+        # threshold is logit 0, i.e. probability 0.5.
+        return np.asarray(result.probability_map).squeeze() > 0.5
     except Exception as e:
         logger.error(f"Error during segmentation: {e!s}")
         # Return empty mask in case of error

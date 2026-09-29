@@ -229,7 +229,7 @@ class MockRosieModel(ROSIE):
     """ROSIE by type, without its weights.
 
     It subclasses the real ``ROSIE`` class so ``virtual_stain`` recognises it and
-    applies ROSIE's post-processing. ``__init__`` is overridden, so nothing is
+    allows ROSIE's post-processing. ``__init__`` is overridden, so nothing is
     downloaded.
     """
 

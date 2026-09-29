@@ -1,3 +1,8 @@
+from types import SimpleNamespace
+
+import numpy as np
+import pandas as pd
+import pytest
 import torch
 from torch import nn
 from torchvision.transforms.v2 import Compose, Resize, ToDtype, ToImage
@@ -61,3 +66,71 @@ class TestFeatureExtractionWithoutTileSpec:
         feat = wsi_no_spec.tables["pool_no_spec_tiles"]
         assert feat.X.shape[0] == 5
         assert feat.X.shape[1] == 3
+
+
+COORDS = pd.DataFrame({"minx": [0, 224, 448], "miny": [0, 0, 0]})
+
+
+def _spy_on(monkeypatch, encoder):
+    """Swap ``encoder`` for a weightless subclass; returns what it was given."""
+    from lazyslide_models import MODEL_REGISTRY
+
+    seen = {}
+
+    class Spy(MODEL_REGISTRY[encoder]):
+        def __init__(self):
+            seen["loaded"] = True
+
+        def to(self, device):
+            return self
+
+        def encode_slide(self, embeddings, coords=None, **kwargs):
+            seen["kwargs"] = kwargs
+            return {"embeddings": torch.zeros(1, 8)}
+
+    monkeypatch.setitem(MODEL_REGISTRY, encoder, Spy)
+    return seen
+
+
+@pytest.mark.parametrize(
+    "encoder, kwarg",
+    [
+        ("titan", "base_tile_size"),
+        ("conch_v1.5", "base_tile_size"),  # another key for the Titan class
+        ("moozy", "patch_sizes"),
+    ],
+)
+def test_slide_encoder_gets_the_level0_tile_stride(monkeypatch, encoder, kwarg):
+    """TITAN grids tiles by floor((coords - min) / patch_size_lv0) and MOOZY
+    measures its ALiBi distances in that spacing, so overlapping tiles must
+    give them the level-0 stride. The width put neighbours on one grid cell,
+    and MOOZY got nothing at all."""
+    from lazyslide.tools._features import _encode_slide
+
+    seen = _spy_on(monkeypatch, encoder)
+    half_overlap = SimpleNamespace(
+        base_width=448, base_stride_width=224, base_stride_height=224
+    )
+
+    _encode_slide(
+        np.zeros((3, 8)), encoder, COORDS, device="cpu", tile_spec=half_overlap
+    )
+
+    assert seen["kwargs"] == {kwarg: 224}
+
+
+@pytest.mark.parametrize("encoder", ["titan", "moozy"])
+def test_slide_encoder_refuses_unequal_strides(monkeypatch, encoder):
+    """TITAN and MOOZY take one spacing for both axes. With a 448 x 224 stride,
+    TITAN put vertical neighbours on one grid row and MOOZY halved every y
+    distance, so such tiles are refused, before any weights load."""
+    from lazyslide.tools._features import _encode_slide
+
+    seen = _spy_on(monkeypatch, encoder)
+    uneven = SimpleNamespace(
+        base_width=448, base_stride_width=448, base_stride_height=224
+    )
+
+    with pytest.raises(ValueError, match="stride"):
+        _encode_slide(np.zeros((3, 8)), encoder, COORDS, device="cpu", tile_spec=uneven)
+    assert "loaded" not in seen

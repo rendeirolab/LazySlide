@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from lazyslide.tools import virtual_stain
-from lazyslide.tools._virtual_staining import _tile_grid_index
+from lazyslide.tools._virtual_staining import _rosie_postprocess, _tile_grid_index
 
 from .mock_models import (
     MockMarkerMapModel,
@@ -40,16 +40,52 @@ def _covered(image):
 
 
 @pytest.mark.parametrize("stained", ["wsi"], indirect=True)
-def test_rosie_gets_its_own_contrast_stretch(stained):
-    """ROSIE's post-processing comes from the ROSIE codebase and is ROSIE's alone."""
+def test_rosie_keeps_raw_values_by_default(stained):
+    """ROSIE's display stretch is opt-in upstream (``--postprocess_image``),
+    which recommends the raw values for quantitative analysis."""
     virtual_stain(stained, model=MockRosieModel(), **RUN)
 
     image = stained.images["rosie_prediction"]
     assert image.dims == ("c", "y", "x")
     assert list(image.c.values) == list(MockRosieModel.columns)
-    # Each channel is clipped to its 1st to 99.9th percentile and stretched into uint8.
-    assert image.dtype == np.uint8
+    assert image.dtype == np.float32
+    values = np.asarray(image)[:, _covered(image)]
+    assert values.min() >= 1 and values.max() < 11  # what the mock predicts
     assert "global" in image.attrs.get("transform", {})
+
+
+@pytest.mark.parametrize("stained", ["wsi"], indirect=True)
+def test_rosie_postprocess_stretches_into_uint8(stained):
+    virtual_stain(stained, model=MockRosieModel(), postprocess=True, **RUN)
+
+    image = stained.images["rosie_prediction"]
+    assert list(image.c.values) == list(MockRosieModel.columns)
+    assert image.dtype == np.uint8
+
+
+@pytest.mark.parametrize("stained", ["wsi_small"], indirect=True)
+def test_postprocess_is_rosies_alone(stained):
+    """Applied to another model it would replace the predicted values with a
+    per-slide contrast stretch, so it is refused before any inference."""
+    with pytest.raises(ValueError, match="ROSIE"):
+        virtual_stain(stained, model=MockTileModel(), postprocess=True, **RUN)
+
+
+def test_rosie_postprocess_background_is_the_90th_percentile():
+    """As in ROSIE's evaluate.py, everything up to the 90th percentile of a
+    channel is background, and the rest is stretched up to its 99.9th.
+
+    The old stretch meant to start at the 1st percentile, but an inverted
+    check reset that to 0 whenever the channel had any spread, so it only
+    rescaled.
+    """
+    image = np.random.default_rng(0).random((50, 50, 1)).astype(np.float32) + 1
+    rows, cols = np.indices((50, 50)).reshape(2, -1)
+
+    out = _rosie_postprocess(image, rows, cols)
+
+    assert out.dtype == np.uint8
+    assert (out == 0).mean() >= 0.9
 
 
 @pytest.mark.parametrize("stained", ["wsi_small"], indirect=True)
@@ -268,3 +304,16 @@ def test_dense_output_survives_a_backing_file_that_cannot_be_deleted(
     image = stained.images["fake_marker_map_prediction"]
     covered = _covered(image)
     np.testing.assert_allclose(np.asarray(image[0])[covered], 0.25, atol=1e-5)
+
+
+def test_rosie_postprocess_keeps_a_constant_negative_channel_black():
+    """With one tile, or a channel constant at a negative value, both
+    percentiles equal that value. Resetting the background to 0 put it above
+    the maximum, and the negative stretch wrapped around to a bright uint8
+    (-0.1 became 231)."""
+    image = np.full((5, 5, 1), -0.1, dtype=np.float32)
+    rows, cols = np.indices((5, 5)).reshape(2, -1)
+
+    out = _rosie_postprocess(image, rows, cols)
+
+    assert (out == 0).all()

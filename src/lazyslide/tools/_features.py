@@ -367,9 +367,11 @@ def feature_aggregation(
     encoder : str or callable, default: 'mean'
 
         - Numpy functions: 'mean', 'median', 'sum', 'std', 'var', ...
-        - :code:`prism`: Prism slide encoder. The feature must be extracted by :code:`Virchow` model.
+        - :code:`prism`: Prism slide encoder. The feature must be extracted by :code:`Virchow` model, from 224 px tiles at 0.5 mpp.
         - :code:`titan`: Titan slide encoder. The feature must be extracted by :code:`Titan`/:code:`CONCH_v1.5` model.
-        - :code:`madeleine`: Madeleine slide encoder. The feature must be extracted by :code:`CONCH` model.
+        - :code:`madeleine`: Madeleine slide encoder. The feature must be extracted by :code:`conch-madeleine`, from 256 px tiles at 1 mpp (10x).
+        - :code:`moozy`: MOOZY slide encoder. The feature must be extracted by :code:`lunit-dino-s8-moozy`.
+        - :code:`gigapath`: GigaPath slide encoder. The feature must be extracted by :code:`gigapath` model, from 256 px tiles at 0.5 mpp.
         - :code:`chief`: Chief slide encoder. The feature must be extracted by :code:`CHIEF` model.
     tile_key : str, default: 'tiles'
         The key of the tiles dataframe in the spatial data object.
@@ -520,7 +522,7 @@ def _encode_slide(
     device : str, optional
         Device to use for PyTorch operations
     tile_spec : object, optional
-        Tile specification object with base_width attribute
+        Tile specification object with base_stride_width attribute
 
     Returns
     -------
@@ -530,6 +532,8 @@ def _encode_slide(
     """
     import torch
     from lazyslide_models import MODEL_REGISTRY, list_models
+    from lazyslide_models.multimodal import Titan
+    from lazyslide_models.vision import Moozy
 
     result_dict = {"features": None}
 
@@ -549,15 +553,28 @@ def _encode_slide(
                 key = "gigapath-slide-encoder"
             else:
                 key = encoder
-            model = MODEL_REGISTRY[key]()
+            model_cls = MODEL_REGISTRY[key]
+            # TITAN grids the tiles by their level-0 spacing and MOOZY measures
+            # ALiBi distances in it. With overlapping tiles that is the stride,
+            # not the tile width. Both take one spacing for x and y.
+            kws = {}
+            if tile_spec is not None and issubclass(model_cls, (Titan, Moozy)):
+                stride = tile_spec.base_stride_width
+                if tile_spec.base_stride_height != stride:
+                    raise ValueError(
+                        f"{model_cls.__name__} takes one tile spacing for both "
+                        f"axes, but the level-0 stride is {stride} x "
+                        f"{tile_spec.base_stride_height} px. Tile with equal x "
+                        f"and y strides."
+                    )
+                if issubclass(model_cls, Titan):
+                    kws["base_tile_size"] = stride
+                else:
+                    kws["patch_sizes"] = stride
+            model = model_cls()
             model.to(device)
             model = _api.maybe_compile(model, compile, compile_kws)
-            if encoder == "titan":
-                slide_reprs = model.encode_slide(
-                    fs, cs, base_tile_size=tile_spec.base_width
-                )
-            else:
-                slide_reprs = model.encode_slide(fs, cs)
+            slide_reprs = model.encode_slide(fs, cs, **kws)
             agg_features = slide_reprs["embeddings"]
             if isinstance(agg_features, torch.Tensor):
                 agg_features = agg_features.detach().cpu().numpy()

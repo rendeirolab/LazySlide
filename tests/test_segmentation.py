@@ -86,6 +86,94 @@ def test_tissue_segmentation(wsi):
     zs.seg.tissue(wsi, key_added="seg_tissues")
 
 
+TISSUE_MODELS = ("grandqc", "pathprofiler", "hest")
+
+
+@pytest.fixture
+def tissue_input(monkeypatch):
+    """Swap every tissue model for a spy; holds the HWC image it was given."""
+    import torch
+    from lazyslide_models import segmentation
+    from lazyslide_models.base import SegmentationModel
+
+    seen = {}
+
+    class Spy(SegmentationModel):
+        def __init__(self):
+            self.model = torch.nn.Identity()
+
+        def get_transform(self):
+            return torch.nn.Identity()
+
+        def segment(self, image):
+            seen["image"] = image[0].permute(1, 2, 0).numpy()
+            b, _, h, w = image.shape
+            return SegmentationOutput(probability_map=torch.zeros(b, 2, h, w))
+
+    for name in (
+        "GrandQCTissue",
+        "PathProfilerTissueSegmentation",
+        "HESTTissueSegmentation",
+    ):
+        monkeypatch.setattr(segmentation, name, Spy)
+    return seen
+
+
+def _tissue_on(wsi, monkeypatch, image, model):
+    """Run seg.tissue on a slide whose reader returns ``image``.
+
+    Segmenting at a level's own mpp and giving it a 256 px image leaves nothing
+    to resize or pad, so the model sees ``image`` itself.
+    """
+    monkeypatch.setattr(wsi.reader, "get_region", lambda *args, **kwargs: image)
+    props = wsi.properties
+    mpp = props.level_downsample[-1] * props.mpp
+    zs.seg.tissue(wsi, model=model, mpp=mpp, device="cpu", key_added="spy_tissues")
+
+
+@pytest.mark.parametrize("model", TISSUE_MODELS)
+def test_tissue_models_get_rgb(wsi, monkeypatch, tissue_input, model):
+    """Regression: a BGR2RGB after the JPEG round trip fed BGR to every model.
+
+    The reader returns RGB and imencode/imdecode keeps channel order, so the
+    extra swap turned (200, 100, 50) into (50, 100, 200).
+    """
+    rgb = np.full((256, 256, 3), (200, 100, 50), dtype=np.uint8)
+    _tissue_on(wsi, monkeypatch, rgb, model)
+
+    np.testing.assert_allclose(tissue_input["image"][128, 128], (200, 100, 50), atol=2)
+
+
+@pytest.mark.parametrize(
+    "model, jpeg", [("grandqc", True), ("pathprofiler", False), ("hest", False)]
+)
+def test_only_grandqc_sees_jpeg_compression(
+    wsi, monkeypatch, tissue_input, model, jpeg
+):
+    """Only GrandQC's tissue detector was trained on JPEG-compressed images.
+
+    Upstream GrandQC (wsi_tis_detect.py) re-encodes at quality 80 before
+    inference. HEST and PathProfiler do not, so they get the pixels as read.
+    """
+    noise = np.random.default_rng(0).integers(0, 256, (256, 256, 3), dtype=np.uint8)
+    _tissue_on(wsi, monkeypatch, noise, model)
+
+    assert np.array_equal(tissue_input["image"], noise) != jpeg
+
+
+def test_pathprofiler_segments_at_2_5x(wsi, tissue_input):
+    """Upstream PathProfiler segments at 2.5x or 1.25x (``--mask_magnification``).
+
+    That is a magnification, so 2.5x is about 4 µm/px, not the 2.5 µm/px this
+    used to run at.
+    """
+    zs.seg.tissue(wsi, model="pathprofiler", device="cpu", key_added="spy_tissues")
+
+    props = wsi.properties
+    width = tissue_input["image"].shape[1]  # padded up to a multiple of 64
+    assert props.shape[1] * props.mpp / width == pytest.approx(4.0, rel=0.05)
+
+
 class TestCellSegmentation:
     def test_cell_segmentation(self, wsi):
         # Regression for #261: segmentation models do not need a legacy tile
