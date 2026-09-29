@@ -553,18 +553,27 @@ def _encode_slide(
                 key = "gigapath-slide-encoder"
             else:
                 key = encoder
-            model = MODEL_REGISTRY[key]()
-            model.to(device)
-            model = _api.maybe_compile(model, compile, compile_kws)
+            model_cls = MODEL_REGISTRY[key]
             # TITAN grids the tiles by their level-0 spacing and MOOZY measures
             # ALiBi distances in it. With overlapping tiles that is the stride,
-            # not the tile width.
+            # not the tile width. Both take one spacing for x and y.
             kws = {}
-            if tile_spec is not None:
-                if isinstance(model, Titan):
-                    kws["base_tile_size"] = tile_spec.base_stride_width
-                elif isinstance(model, Moozy):
-                    kws["patch_sizes"] = tile_spec.base_stride_width
+            if tile_spec is not None and issubclass(model_cls, (Titan, Moozy)):
+                stride = tile_spec.base_stride_width
+                if tile_spec.base_stride_height != stride:
+                    raise ValueError(
+                        f"{model_cls.__name__} takes one tile spacing for both "
+                        f"axes, but the level-0 stride is {stride} x "
+                        f"{tile_spec.base_stride_height} px. Tile with equal x "
+                        f"and y strides."
+                    )
+                if issubclass(model_cls, Titan):
+                    kws["base_tile_size"] = stride
+                else:
+                    kws["patch_sizes"] = stride
+            model = model_cls()
+            model.to(device)
+            model = _api.maybe_compile(model, compile, compile_kws)
             slide_reprs = model.encode_slide(fs, cs, **kws)
             agg_features = slide_reprs["embeddings"]
             if isinstance(agg_features, torch.Tensor):
