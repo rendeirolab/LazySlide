@@ -367,9 +367,11 @@ def feature_aggregation(
     encoder : str or callable, default: 'mean'
 
         - Numpy functions: 'mean', 'median', 'sum', 'std', 'var', ...
-        - :code:`prism`: Prism slide encoder. The feature must be extracted by :code:`Virchow` model.
+        - :code:`prism`: Prism slide encoder. The feature must be extracted by :code:`Virchow` model, from 224 px tiles at 0.5 mpp.
         - :code:`titan`: Titan slide encoder. The feature must be extracted by :code:`Titan`/:code:`CONCH_v1.5` model.
-        - :code:`madeleine`: Madeleine slide encoder. The feature must be extracted by :code:`CONCH` model.
+        - :code:`madeleine`: Madeleine slide encoder. The feature must be extracted by :code:`conch-madeleine`, from 256 px tiles at 1 mpp (10x).
+        - :code:`moozy`: MOOZY slide encoder. The feature must be extracted by :code:`lunit-dino-s8-moozy`.
+        - :code:`gigapath`: GigaPath slide encoder. The feature must be extracted by :code:`gigapath` model, from 256 px tiles at 0.5 mpp.
         - :code:`chief`: Chief slide encoder. The feature must be extracted by :code:`CHIEF` model.
     tile_key : str, default: 'tiles'
         The key of the tiles dataframe in the spatial data object.
