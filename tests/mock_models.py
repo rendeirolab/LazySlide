@@ -20,6 +20,7 @@ from lazyslide_models.base import (
     TilePredictionModel,
     VirtualStainModel,
 )
+from lazyslide_models.style_transfer import ROSIE
 from torch import nn
 
 
@@ -216,58 +217,6 @@ class MockImageTextModel(ImageTextModel):
 # ---------------------------------------------------------------------------
 # Virtual staining mocks (replace rosie, gigatime and future stain models)
 # ---------------------------------------------------------------------------
-_ROSIE_MARKERS = [
-    "DAPI",
-    "CD45",
-    "CD68",
-    "CD14",
-    "PD1",
-    "FoxP3",
-    "CD8",
-    "HLA-DR",
-    "PanCK",
-    "CD3e",
-    "CD4",
-    "aSMA",
-    "CD31",
-    "Vimentin",
-    "CD45RO",
-    "Ki67",
-    "CD20",
-    "CD11c",
-    "Podoplanin",
-    "PDL1",
-    "GranzymeB",
-    "CD38",
-    "CD141",
-    "CD21",
-    "CD163",
-    "BCL2",
-    "LAG3",
-    "EpCAM",
-    "CD44",
-    "ICOS",
-    "GATA3",
-    "Gal3",
-    "CD39",
-    "CD34",
-    "TIGIT",
-    "ECad",
-    "CD40",
-    "VISTA",
-    "HLA-A",
-    "MPO",
-    "PCNA",
-    "ATM",
-    "TP63",
-    "IFNg",
-    "Keratin8/18",
-    "IDO1",
-    "CD79a",
-    "HLA-E",
-    "CollagenIV",
-    "CD66",
-]
 
 
 def _to_float_tensor():
@@ -276,10 +225,13 @@ def _to_float_tensor():
     return Compose([ToImage(), ToDtype(dtype=torch.float32, scale=True)])
 
 
-class MockRosieModel(TilePredictionModel):
-    """ROSIE-like per-tile model: one value per marker per tile."""
+class MockRosieModel(ROSIE):
+    """ROSIE by type, without its weights.
 
-    columns = tuple(_ROSIE_MARKERS)
+    It subclasses the real ``ROSIE`` class so ``virtual_stain`` recognises it and
+    applies ROSIE's post-processing. ``__init__`` is overridden, so nothing is
+    downloaded.
+    """
 
     def __init__(self, **kwargs):
         self.model = nn.Identity()
@@ -297,6 +249,35 @@ class MockRosieModel(TilePredictionModel):
         # Positive, varied values so ROSIE's contrast stretch has something to do.
         values = np.random.default_rng(0).random((b, len(self.columns))) * 10 + 1
         return dict(zip(self.columns, values.T, strict=True))
+
+
+class MockTileModel(TilePredictionModel):
+    """A per-tile model that is not ROSIE, with one constant per column.
+
+    Constants make the check exact: without ROSIE's contrast stretch and median
+    blur, every tile's pixel must hold exactly these values.
+    """
+
+    columns = ("focus", "tumour_prob")
+    values = (0.25, 0.75)
+
+    def __init__(self, **kwargs):
+        self.model = nn.Identity()
+
+    @property
+    def name(self) -> str:
+        return "fake_tile"
+
+    def get_transform(self):
+        return _to_float_tensor()
+
+    @torch.inference_mode()
+    def predict(self, image):
+        b = image.shape[0]
+        return {
+            c: np.full(b, v, dtype=np.float32)
+            for c, v in zip(self.columns, self.values)
+        }
 
 
 class MockMarkerMapModel(MarkerMapModel):

@@ -14,6 +14,7 @@ from .mock_models import (
     MockMarkerMapModel,
     MockRosieModel,
     MockSemanticSegmentationModel,
+    MockTileModel,
     MockVirtualStainModel,
 )
 
@@ -39,15 +40,37 @@ def _covered(image):
 
 
 @pytest.mark.parametrize("stained", ["wsi"], indirect=True)
-def test_per_tile_model_renders_one_pixel_per_tile(stained):
+def test_rosie_gets_its_own_contrast_stretch(stained):
+    """ROSIE's post-processing comes from the ROSIE codebase and is ROSIE's alone."""
     virtual_stain(stained, model=MockRosieModel(), **RUN)
 
     image = stained.images["rosie_prediction"]
     assert image.dims == ("c", "y", "x")
     assert list(image.c.values) == list(MockRosieModel.columns)
-    # ROSIE's own post-processing stretches each channel into uint8.
+    # Each channel is clipped to its 1st to 99.9th percentile and stretched into uint8.
     assert image.dtype == np.uint8
     assert "global" in image.attrs.get("transform", {})
+
+
+@pytest.mark.parametrize("stained", ["wsi_small"], indirect=True)
+def test_other_per_tile_models_keep_raw_values(stained):
+    """Regression: ROSIE's contrast stretch used to apply to every tile model.
+
+    A focus score or a class probability was clipped to percentiles, stretched
+    into uint8 and median-blurred, so the stored image no longer held the
+    values the model predicted.
+    """
+    model = MockTileModel()
+    virtual_stain(stained, model=model, **RUN)
+
+    image = stained.images["fake_tile_prediction"]
+    assert list(image.c.values) == list(model.columns)
+    assert image.dtype == np.float32
+    covered = _covered(image)
+    # One pixel per tile, holding exactly what the model predicted.
+    assert covered.sum() == len(stained.shapes["tiles"])
+    for channel, expected in enumerate(model.values):
+        np.testing.assert_array_equal(np.asarray(image[channel])[covered], expected)
 
 
 @pytest.mark.parametrize("fixture", ["wsi", "wsi_small"])
@@ -73,7 +96,7 @@ def test_every_tile_gets_its_own_pixel(fixture, request):
 def test_per_tile_model_rejects_non_numeric_columns(stained):
     """A string column (e.g. a predicted class label) cannot become a pixel."""
 
-    class Labeller(MockRosieModel):
+    class Labeller(MockTileModel):
         columns = ("label",)
 
         def predict(self, image):

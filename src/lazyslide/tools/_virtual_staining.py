@@ -45,8 +45,10 @@ def virtual_stain(
 
     What gets produced depends on the kind of model, not on its name:
 
-    - A tile prediction model, such as ROSIE, predicts one value per marker for
-      each tile. The result is a coarse image with one pixel per tile.
+    - A tile prediction model predicts one value per column for each tile. The
+      result is a coarse image with one pixel per tile, holding the predicted
+      values as float32. ROSIE is the exception: following the ROSIE codebase,
+      its output is contrast-stretched per channel into uint8.
     - A marker map model, such as GigaTIME, predicts a value for every pixel.
       Tiles are stitched into one image, blended where they overlap.
     - A virtual stain model predicts one or more RGB stains for every pixel.
@@ -208,7 +210,7 @@ def _tile_grid_index(ys, xs, tile_spec):
 
 
 def _render_per_tile(wsi, tile_spec, model, predictions):
-    """One pixel per tile, with ROSIE's post-processing for display."""
+    """One pixel per tile. Only ROSIE's output is post-processed."""
     sy, sx = tile_spec.base_stride_height, tile_spec.base_stride_width
     height, width = wsi.properties.shape[:2]
     grid = (-(-height // sy), -(-width // sx))  # ceil division
@@ -236,8 +238,22 @@ def _render_per_tile(wsi, tile_spec, model, predictions):
         rows.extend(r.tolist())
         cols.extend(c.tolist())
 
-    # Post-processing from the ROSIE codebase: clip each channel to its 1st and
-    # 99.9th percentile over the tissue, then stretch into uint8.
+    from lazyslide_models.style_transfer import ROSIE
+
+    # Other tile models keep the values they predicted.
+    if isinstance(model, ROSIE):
+        image = _rosie_postprocess(image, rows, cols)
+    return image, channel_names, (sy, sx)
+
+
+def _rosie_postprocess(image, rows, cols):
+    """ROSIE's display post-processing, taken from the ROSIE codebase.
+
+    Clips each channel to its 1st and 99.9th percentile over the tissue,
+    stretches it into uint8, then median-blurs it. This belongs to ROSIE's
+    output alone: applied to another model it would replace the predicted
+    values with a per-slide contrast stretch.
+    """
     content = image[rows, cols]
     bg_threshold = np.percentile(content, 1, axis=0)
     max_threshold = np.percentile(content, 99.9, axis=0)
@@ -250,8 +266,7 @@ def _render_per_tile(wsi, tile_spec, model, predictions):
     image = image.astype(np.uint8)
     for channel in range(image.shape[2]):
         image[:, :, channel] = cv2.medianBlur(image[:, :, channel], 3)
-
-    return image, channel_names, (sy, sx)
+    return image
 
 
 def _stitch_dense(wsi, tile_spec, model, predictions, tmpdir, n_channels):
