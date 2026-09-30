@@ -19,6 +19,42 @@ if TYPE_CHECKING:
     import torch
 
 
+def _tile_starts(size: int, tile: int) -> list[int]:
+    """Offsets of ``tile`` px windows covering ``size`` px.
+
+    Windows overlap by a quarter tile; the last one is flush with the end.
+    """
+    if size <= tile:
+        return [0]
+    return [*range(0, size - tile, tile - tile // 4), size - tile]
+
+
+def _segment_tiled(model, img_t, device, tissue_class: int, tile_px: int) -> np.ndarray:
+    """Tissue probability map of ``img_t`` ([1, C, H, W]) from overlapping tiles.
+
+    Overlaps are blended with a Gaussian window, so each pixel is decided mostly
+    by the tile it sits most central in.
+    """
+    from ._seg_runner import create_importance_map
+
+    height, width = img_t.shape[-2:]
+    # tile_px and the padded image are both multiples of the model's divider,
+    # so every tile side is too
+    tile_h, tile_w = min(tile_px, height), min(tile_px, width)
+    weight = create_importance_map((tile_h, tile_w)).numpy()
+    prob = np.zeros((height, width), dtype=np.float32)
+    weight_sum = np.zeros((height, width), dtype=np.float32)
+    for y in _tile_starts(height, tile_h):
+        for x in _tile_starts(width, tile_w):
+            tile = img_t[..., y : y + tile_h, x : x + tile_w].to(device)
+            pred = model.segment(tile).probability_map[0, tissue_class]
+            window = np.s_[y : y + tile_h, x : x + tile_w]
+            prob[window] += pred.float().cpu().numpy() * weight
+            weight_sum[window] += weight
+    prob /= weight_sum
+    return prob
+
+
 def tissue(
     wsi: WSIData,
     *,
@@ -30,6 +66,7 @@ def tissue(
     min_hole_area=1e-5,
     detect_holes: bool = True,
     threshold: float = 0.5,
+    tile_px: int = 1024,
     device: str | None = None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
@@ -45,7 +82,11 @@ def tissue(
         - "pathprofiler": :cite:p:`Haghighat2022-sy`. Runs on mpp=4 (2.5x).
         - "hest": "https://huggingface.co/MahmoodLab/hest-tissue-seg". Runs on mpp=1.
 
-    If you encounter a memory issue, please set a higher :term:`mpp` value.
+    The model runs on overlapping tiles at the working :term:`mpp` (see
+    ``tile_px``), blended with a Gaussian window, so its memory use does not
+    grow with the slide: HEST at 1 µm/px on a 20k px slide is a ~10k px image,
+    far too big for one forward pass. An image that fits in one tile goes
+    through in a single pass.
 
     Parameters
     ----------
@@ -68,6 +109,10 @@ def tissue(
         Whether to detect :term:`holes` in the tissue polygons.
     threshold : float, default: 0.5
         The probability threshold to consider a pixel as tissue.
+    tile_px : int, default: 1024
+        The tile size in px at the working :term:`mpp`, rounded down to a size
+        the model accepts. Smaller tiles save memory; bigger ones give the model
+        more context.
     device : str, default: None
         The device to run the model.
     amp : bool, optional
@@ -122,6 +167,10 @@ def tissue(
         raise ValueError(
             f"Unknown model: {model}, choose from 'grandqc', 'pathprofiler' and 'hest'."
         )
+    if tile_px < 1:
+        raise ValueError(f"tile_px must be a positive number of px, got {tile_px}.")
+    # Tiles must be multiples of the divider, like the padded image
+    tile_px = max(min_size, tile_px // divider * divider)
     transform = model.get_transform()
     model.to(device)
     model = _api.maybe_compile(model, compile, compile_kws)
@@ -196,18 +245,14 @@ def tissue(
 
     img = torch.tensor(img).permute(2, 0, 1)
 
+    # ponytail: the whole image is transformed at once, as PathProfiler's CLAHE is
+    # image-global, so its float32 copy stays in memory (~1.2 GB at 10k px). Read
+    # and transform per tile if that becomes the ceiling.
     img_t = transform(img).unsqueeze(0)
-    img_t = img_t.to(device)
+    tissue_class = 0 if model_name == "grandqc" else 1
     amp_ctx = _api.autocast(device, amp, autocast_dtype)
     with amp_ctx, torch.inference_mode():
-        pred = model.segment(img_t)
-    pred = pred.probability_map
-
-    pred = pred.squeeze(0).detach().cpu().numpy()
-    if model_name == "grandqc":
-        tissue_prob = pred[0]
-    else:
-        tissue_prob = pred[1]
+        tissue_prob = _segment_tiled(model, img_t, device, tissue_class, tile_px)
     mask = (tissue_prob > threshold).astype(np.uint8)
     # Unpad the mask to match the original image size
     mask = mask[top_pad : top_pad + img_height, left_pad : left_pad + img_width]
