@@ -384,9 +384,11 @@ def create_importance_map(
                 importance_map = x
             else:
                 importance_map = importance_map.unsqueeze(-1) * x.unsqueeze(0)
-        # Floor the weights as MONAI does: with a small sigma_scale the tails
-        # underflow to 0 and pixels covered only by tile edges would be dropped
-        return importance_map.clamp_(min=1e-3)
+        # Floor the weights so a small sigma_scale cannot underflow them to 0 and
+        # drop pixels covered only by tile edges. MONAI floors at 1e-3, but that
+        # ties every weight beyond ~3.7 sigma, so overlaps near tile corners
+        # would blend as a plain average.
+        return importance_map.clamp_(min=1e-6)
     else:
         raise ValueError(
             f"Unsupported mode: {mode}. Supported modes are 'constant' and 'gaussian'."

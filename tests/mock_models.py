@@ -164,6 +164,20 @@ class MockSemanticSegmentationModel(SegmentationModel):
         return SegmentationOutput(probability_map=prob_map)
 
 
+class MockEdgeBlindSegmentationModel(MockSemanticSegmentationModel):
+    """Predicts Fold (class 2) with p=1 except in the outer ``edge_px`` of the
+    tile, like a model whose predictions degrade at tile borders."""
+
+    edge_px = 32
+
+    def segment(self, image) -> SegmentationOutput:
+        B, _C, H, W = image.shape
+        e = self.edge_px
+        prob_map = torch.zeros(B, 8, H, W)
+        prob_map[:, 2, e:-e, e:-e] = 1.0
+        return SegmentationOutput(probability_map=prob_map)
+
+
 # ---------------------------------------------------------------------------
 # Image-text model mock (replaces plip)
 # ---------------------------------------------------------------------------

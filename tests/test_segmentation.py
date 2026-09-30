@@ -9,6 +9,7 @@ import lazyslide as zs
 from .mock_models import (
     MockCellSegmentationModel,
     MockCellTypeSegmentationModel,
+    MockEdgeBlindSegmentationModel,
     MockSemanticSegmentationModel,
 )
 
@@ -441,3 +442,27 @@ class TestSemanticSegmentation:
             inner = tile.buffer(-margin)
             covered_frac = covered.intersection(inner).area / inner.area
             assert covered.contains(inner), f"{covered_frac:.1%} of tile covered"
+
+    def test_artifact_default_blend_bridges_tile_seams(self, wsi):
+        """The model misses the outer 32 px of every tile. With overlapping tiles
+        the default gaussian blend must trust the tile whose centre is closer, so
+        every tile's core (the tile minus half the overlap) is segmented. The
+        seams used to average below threshold: artifact derived sigma_scale from
+        the overlap in pixels, which flattened the weights, and a 1e-3 importance
+        floor tied them wherever every overlapping tile was far from its centre."""
+        tile_key = "artifact_overlap_tiles"
+        zs.pp.tile_tissues(wsi, tile_px=512, mpp=1.5, overlap=0.25, key_added=tile_key)
+        zs.seg.artifact(
+            wsi,
+            tile_key,
+            model=MockEdgeBlindSegmentationModel(),
+            key_added="seam_artifacts",
+        )
+
+        spec = wsi.tile_spec(tile_key)
+        covered = wsi["seam_artifacts"].union_all()
+        half_overlap = spec.overlap_y / 2 * spec.base_downsample
+        for tile in wsi[tile_key].geometry:
+            core = tile.buffer(-half_overlap)
+            covered_frac = covered.intersection(core).area / core.area
+            assert covered.contains(core), f"{covered_frac:.1%} of tile core covered"

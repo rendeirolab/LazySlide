@@ -33,7 +33,7 @@ def artifact(
     model: str | SegmentationModelProtocol = "grandqc",
     variant: str = "7x",
     mode: Literal["constant", "gaussian"] = "gaussian",
-    sigma_scale: float | None = None,
+    sigma_scale: float = 0.125,
     low_memory: bool = False,
     threshold: float = 0.8,
     buffer_px: int = 2,
@@ -76,9 +76,8 @@ def artifact(
     mode : {"constant", "gaussian"}, default: "gaussian"
         The probability distribution to apply for the prediction map.
         If "constant", uses uniform weights, "gaussian" applies a Gaussian weighting.
-    sigma_scale : float
+    sigma_scale : float, default: 0.125
         The scale of the Gaussian sigma for the importance map if mode is "gaussian".
-        If None, the scale is calculated based on the overlap of the tiles.
     low_memory : bool, default: False
         Whether to use a low-memory mode for processing large slides.
     threshold : float, default: 0.8
@@ -142,8 +141,6 @@ def artifact(
             )
         if spec.width != 512 or spec.height != 512:
             raise ValueError("Tile should be 512x512.")
-        if sigma_scale is None:
-            sigma_scale = spec.overlap_y * 0.5  # simple heuristic
         if spec.overlap_x == 0 or spec.overlap_y == 0:
             mode = "constant"
             warnings.warn(
