@@ -384,7 +384,9 @@ def create_importance_map(
                 importance_map = x
             else:
                 importance_map = importance_map.unsqueeze(-1) * x.unsqueeze(0)
-        return importance_map
+        # Floor the weights as MONAI does: with a small sigma_scale the tails
+        # underflow to 0 and pixels covered only by tile edges would be dropped
+        return importance_map.clamp_(min=1e-3)
     else:
         raise ValueError(
             f"Unsupported mode: {mode}. Supported modes are 'constant' and 'gaussian'."
@@ -678,8 +680,7 @@ class SemanticSegmentationRunner(Runner):
                     # Skip if no tiles were processed
                     if prob_mask is None:
                         continue
-                    # Normalize by the weight sum. No epsilon floor: gaussian
-                    # weights reach ~1e-7 at the tile corners.
+                    # Normalize by the weight sum; pixels no tile covers stay 0
                     np.divide(
                         prob_mask, count_mask, out=prob_mask, where=count_mask > 0
                     )

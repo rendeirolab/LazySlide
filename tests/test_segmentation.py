@@ -402,26 +402,33 @@ class TestSemanticSegmentation:
         zs.seg.artifact(wsi, tile_key="semantic_tiles", model=model)
 
     @pytest.mark.parametrize(
-        ("mode", "normal_prob", "threshold"),
-        [("constant", 0.8, 0.5), ("gaussian", 0.8, 0.5), ("gaussian", 5e-4, 1e-4)],
+        ("mode", "sigma_scale", "normal_prob", "threshold"),
+        [
+            ("constant", 0.125, 0.8, 0.5),
+            ("gaussian", 0.125, 0.8, 0.5),
+            ("gaussian", 0.125, 5e-4, 1e-4),
+            ("gaussian", 0.03, 0.8, 0.5),
+        ],
     )
     def test_uniform_prediction_covers_every_tile(
-        self, wsi, mode, normal_prob, threshold
+        self, wsi, mode, sigma_scale, normal_prob, threshold
     ):
         """The mock predicts class 1 with one above-threshold probability over the
         whole tile, so class 1 must be segmented over every tile whatever the
         blending mode. The gaussian mode used to divide the weighted sum by the
         tile count rather than the weight sum, which kept only a disc at each tile
         centre above threshold; blended probabilities below 1e-3 were also zeroed,
-        overriding lower thresholds."""
+        overriding lower thresholds. With a small sigma_scale the gaussian weights
+        near the tile edges underflow to 0 unless the map is floored."""
         tile_key = "semantic_blend_tiles"
         zs.pp.tile_tissues(wsi, tile_px=512, mpp=1.5, key_added=tile_key)
-        key = f"semantic_blend_{mode}_{normal_prob}"
+        key = f"semantic_blend_{mode}_{sigma_scale}_{normal_prob}"
         zs.seg.semantic(
             wsi,
             MockSemanticSegmentationModel(normal_prob=normal_prob),
             tile_key=tile_key,
             mode=mode,
+            sigma_scale=sigma_scale,
             threshold=threshold,
             key_added=key,
         )
