@@ -29,15 +29,35 @@ def _tile_starts(size: int, tile: int) -> list[int]:
     return [*range(0, size - tile, tile - tile // 4), size - tile]
 
 
-def _segment_tiled(model, img_t, device, tissue_class: int, tile_px: int) -> np.ndarray:
-    """Tissue probability map of ``img_t`` ([1, C, H, W]) from overlapping tiles.
+def _split_transform(transform) -> tuple[list, list]:
+    """Split ``transform`` into steps for the whole image and steps per tile.
 
-    Overlaps are blended with a Gaussian window, so each pixel is decided mostly
-    by the tile it sits most central in.
+    The per-tile steps are its trailing per-pixel ones (ToImage, ToDtype,
+    Normalize), which give the same pixels on a tile as on the whole image.
+    The rest, like PathProfiler's image-global CLAHE, runs on the whole image,
+    as does a transform that is not a Compose.
+    """
+    from torchvision.transforms.v2 import Compose, Normalize, ToDtype, ToImage
+
+    steps = transform.transforms if isinstance(transform, Compose) else [transform]
+    n = len(steps)
+    while n and isinstance(steps[n - 1], (ToImage, ToDtype, Normalize)):
+        n -= 1
+    return steps[:n], steps[n:]
+
+
+def _segment_tiled(
+    model, img, tile_steps, device, tissue_class: int, tile_px: int
+) -> np.ndarray:
+    """Tissue probability map of ``img`` ([C, H, W]) from overlapping tiles.
+
+    ``tile_steps`` finish the model transform tile by tile, so only one tile at
+    a time is float. Overlaps are blended with a Gaussian window, so each pixel
+    is decided mostly by the tile it sits most central in.
     """
     from ._seg_runner import create_importance_map
 
-    height, width = img_t.shape[-2:]
+    height, width = img.shape[-2:]
     # tile_px and the padded image are both multiples of the model's divider,
     # so every tile side is too
     tile_h, tile_w = min(tile_px, height), min(tile_px, width)
@@ -46,7 +66,10 @@ def _segment_tiled(model, img_t, device, tissue_class: int, tile_px: int) -> np.
     weight_sum = np.zeros((height, width), dtype=np.float32)
     for y in _tile_starts(height, tile_h):
         for x in _tile_starts(width, tile_w):
-            tile = img_t[..., y : y + tile_h, x : x + tile_w].to(device)
+            tile = img[..., y : y + tile_h, x : x + tile_w]
+            for step in tile_steps:
+                tile = step(tile)
+            tile = tile.unsqueeze(0).to(device)
             pred = model.segment(tile).probability_map[0, tissue_class]
             window = np.s_[y : y + tile_h, x : x + tile_w]
             prob[window] += pred.float().cpu().numpy() * weight
@@ -171,7 +194,7 @@ def tissue(
         raise ValueError(f"tile_px must be a positive number of px, got {tile_px}.")
     # Tiles must be multiples of the divider, like the padded image
     tile_px = max(min_size, tile_px // divider * divider)
-    transform = model.get_transform()
+    whole_steps, tile_steps = _split_transform(model.get_transform())
     model.to(device)
     model = _api.maybe_compile(model, compile, compile_kws)
 
@@ -243,16 +266,17 @@ def tissue(
         _result, img = cv2.imencode(".jpg", img, encode_param)
         img = cv2.imdecode(img, 1)
 
-    img = torch.tensor(img).permute(2, 0, 1)
-
-    # ponytail: the whole image is transformed at once, as PathProfiler's CLAHE is
-    # image-global, so its float32 copy stays in memory (~1.2 GB at 10k px). Read
-    # and transform per tile if that becomes the ceiling.
-    img_t = transform(img).unsqueeze(0)
+    # A uint8 view, not a copy: only image-global transform steps, like
+    # PathProfiler's CLAHE, see the whole image; the per-pixel rest runs per tile
+    img = torch.from_numpy(img).permute(2, 0, 1)
+    for step in whole_steps:
+        img = step(img)
     tissue_class = 0 if model_name == "grandqc" else 1
     amp_ctx = _api.autocast(device, amp, autocast_dtype)
     with amp_ctx, torch.inference_mode():
-        tissue_prob = _segment_tiled(model, img_t, device, tissue_class, tile_px)
+        tissue_prob = _segment_tiled(
+            model, img, tile_steps, device, tissue_class, tile_px
+        )
     mask = (tissue_prob > threshold).astype(np.uint8)
     # Unpad the mask to match the original image size
     mask = mask[top_pad : top_pad + img_height, left_pad : left_pad + img_width]
