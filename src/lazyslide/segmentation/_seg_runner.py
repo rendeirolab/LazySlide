@@ -274,6 +274,7 @@ def semantic(
     mode : {"constant", "gaussian"}, default: "gaussian"
         The probability distribution to apply for the prediction map.
         "constant" uses uniform weights, "gaussian" applies a Gaussian weighting.
+        Only matters where tiles overlap.
     sigma_scale : float, default: 0.125
         The scale of the Gaussian sigma for the importance map if mode is "gaussian".
     low_memory : bool, default: False
@@ -316,6 +317,13 @@ def semantic(
         The segmentation results are added to the WSIData object under the specified key.
 
     """
+    spec = wsi.tile_spec(tile_key)
+    if spec is not None and (spec.overlap_x == 0 or spec.overlap_y == 0):
+        warnings.warn(
+            f"The tiles in '{tile_key}' do not overlap, so the tile grid can show "
+            "in the masks. Consider zs.pp.tile_tissues(..., overlap=0.25).",
+            stacklevel=find_stack_level(),
+        )
     runner = SemanticSegmentationRunner(
         wsi=wsi,
         model=model,

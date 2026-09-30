@@ -1,3 +1,5 @@
+import warnings
+
 import geopandas as gpd
 import numpy as np
 import pytest
@@ -466,3 +468,21 @@ class TestSemanticSegmentation:
             core = tile.buffer(-half_overlap)
             covered_frac = covered.intersection(core).area / core.area
             assert covered.contains(core), f"{covered_frac:.1%} of tile core covered"
+
+    @pytest.mark.parametrize(("overlap", "warns"), [(None, True), (0.25, False)])
+    def test_semantic_warns_on_non_overlapping_tiles(self, wsi, overlap, warns):
+        """Without overlap there is nothing to blend and the tile grid can show
+        in the masks, so semantic should point users at overlapping tiles."""
+        tile_key = f"semantic_warn_tiles_{overlap}"
+        zs.pp.tile_tissues(
+            wsi, tile_px=512, mpp=1.5, overlap=overlap, key_added=tile_key
+        )
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            zs.seg.semantic(
+                wsi,
+                MockSemanticSegmentationModel(),
+                tile_key=tile_key,
+                key_added=f"semantic_warn_{overlap}",
+            )
+        assert any("overlap" in str(w.message) for w in caught) == warns

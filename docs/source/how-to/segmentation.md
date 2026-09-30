@@ -67,17 +67,20 @@ Use overlapping tiles only when the expected boundary benefit justifies the addi
 
 ## How do I run semantic segmentation?
 
-Instantiate a compatible segmentation model, prepare tiles at its expected input resolution, and pass the model object:
+Instantiate a compatible segmentation model, prepare overlapping tiles at its expected input size and resolution, and pass the model object:
 
 ```python
+zs.pp.tile_tissues(wsi, 512, mpp=1.5, overlap=0.25, key_added="seg_tiles")
 zs.seg.semantic(
     wsi,
     model=model,
-    tile_key="tiles",
+    tile_key="seg_tiles",
     class_names=["background", "tumor", "stroma"],
     key_added="anatomical_structures",
 )
 ```
+
+With overlapping tiles, the Gaussian blending down-weights predictions near tile borders. Without overlap each pixel comes from a single tile, and the tile grid can show in the masks.
 
 The result is added to `wsi.shapes[key_added]`. Consult {func}`lazyslide.seg.semantic` for probability merging and threshold parameters.
 
