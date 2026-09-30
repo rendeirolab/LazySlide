@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 from lazyslide_models.base import SegmentationOutput
 from shapely import box
+from shapely.affinity import scale
 
 import lazyslide as zs
 
@@ -91,12 +92,15 @@ TISSUE_MODELS = ("grandqc", "pathprofiler", "hest")
 
 @pytest.fixture
 def tissue_input(monkeypatch):
-    """Swap every tissue model for a spy; holds the HWC image it was given."""
+    """Swap every tissue model for a spy that calls every non-black pixel tissue.
+
+    Holds the last HWC image it was given and the (H, W) of every call.
+    """
     import torch
     from lazyslide_models import segmentation
     from lazyslide_models.base import SegmentationModel
 
-    seen = {}
+    seen = {"tiles": []}
 
     class Spy(SegmentationModel):
         def __init__(self):
@@ -107,8 +111,10 @@ def tissue_input(monkeypatch):
 
         def segment(self, image):
             seen["image"] = image[0].permute(1, 2, 0).numpy()
-            b, _, h, w = image.shape
-            return SegmentationOutput(probability_map=torch.zeros(b, 2, h, w))
+            seen["tiles"].append(tuple(image.shape[-2:]))
+            tissue = (image > 0).any(1, keepdim=True).float()
+            # GrandQC reads tissue from channel 0, the others from channel 1
+            return SegmentationOutput(probability_map=torch.cat([tissue, tissue], 1))
 
     for name in (
         "GrandQCTissue",
@@ -119,16 +125,19 @@ def tissue_input(monkeypatch):
     return seen
 
 
-def _tissue_on(wsi, monkeypatch, image, model):
+def _tissue_on(wsi, monkeypatch, image, model, **tissue_kws):
     """Run seg.tissue on a slide whose reader returns ``image``.
 
-    Segmenting at a level's own mpp and giving it a 256 px image leaves nothing
-    to resize or pad, so the model sees ``image`` itself.
+    Segmenting at a level's own mpp and giving it an image whose sides are
+    multiples of 64 leaves nothing to resize or pad, so the model sees
+    ``image`` itself.
     """
     monkeypatch.setattr(wsi.reader, "get_region", lambda *args, **kwargs: image)
     props = wsi.properties
     mpp = props.level_downsample[-1] * props.mpp
-    zs.seg.tissue(wsi, model=model, mpp=mpp, device="cpu", key_added="spy_tissues")
+    zs.seg.tissue(
+        wsi, model=model, mpp=mpp, device="cpu", key_added="spy_tissues", **tissue_kws
+    )
 
 
 @pytest.mark.parametrize("model", TISSUE_MODELS)
@@ -159,6 +168,40 @@ def test_only_grandqc_sees_jpeg_compression(
     _tissue_on(wsi, monkeypatch, noise, model)
 
     assert np.array_equal(tissue_input["image"], noise) != jpeg
+
+
+@pytest.mark.parametrize(
+    "model, side, tile_px, tile",
+    [
+        ("hest", 4160, None, 1024),  # over 4096 x 4096 px, so tiled by default
+        ("pathprofiler", 1024, 500, 448),  # forced, rounded down to 64 px steps
+    ],
+)
+def test_tissue_segments_in_tiles(
+    wsi, monkeypatch, tissue_input, model, side, tile_px, tile
+):
+    """Regression: the whole image went through the model in one forward pass.
+
+    HEST at 1 µm/px on a 20k px slide is a ~10k px image, tens of GB in one
+    pass, so large images are segmented tile by tile and stitched back.
+    """
+    image = np.zeros((side, side, 3), dtype=np.uint8)
+    image[side // 4 :, side // 8 :] = 255  # tissue across every seam, to the edges
+    _tissue_on(wsi, monkeypatch, image, model, tile_px=tile_px)
+
+    assert set(tissue_input["tiles"]) == {(tile, tile)}
+    (tissue,) = wsi["spy_tissues"].geometry
+    ds = wsi.properties.level_downsample[-1]
+    # findContours traces pixel centres, so the far edges sit at side - 1
+    expected = scale(
+        box(side // 8, side // 4, side - 1, side - 1), ds, ds, origin=(0, 0)
+    )
+    assert tissue.symmetric_difference(expected).area < ds**2
+
+
+def test_tissue_rejects_nonpositive_tile_px(wsi, tissue_input):
+    with pytest.raises(ValueError, match="tile_px"):
+        zs.seg.tissue(wsi, model="hest", tile_px=0, device="cpu")
 
 
 def test_pathprofiler_segments_at_2_5x(wsi, tissue_input):
