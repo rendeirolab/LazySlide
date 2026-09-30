@@ -226,8 +226,7 @@ def find_tissues(
         "min_area": min_tissue_area,
         "min_hole_area": min_hole_area,
     }
-    x0, y0, width0, height0 = _slide_region(wsi.properties, in_bounds)
-    tissue_image = _read_region(wsi, x0, y0, width0, height0, ops_level)
+    tissue_image = wsi.reader.get_level(ops_level, in_bounds=in_bounds)
     tissue_mask = _build_tissue_mask(tissue_image, method, otsu_kwargs, entropy_kwargs)
     tissue_polys = BinaryMask(tissue_mask).to_polygons(
         **to_poly_option, detect_holes=detect_holes_1
@@ -240,6 +239,8 @@ def find_tissues(
 
     tissues = []
     downsample = _get_downsample(wsi, ops_level)
+    # The image starts at the bounds origin
+    x0, y0, _, _ = _slide_region(wsi.properties, in_bounds)
     for tissue in tissue_polys:
         # Scale it back to level 0
         tissue = scale(tissue, xfact=downsample, yfact=downsample, origin=(0, 0))
@@ -336,8 +337,8 @@ def _decide_level(wsi, level, proportion=0.8, in_bounds=True):
 
 
 def _slide_region(properties, in_bounds):
-    """The level-0 (x, y, width, height) of the slide to segment."""
-    if in_bounds and properties.bounds is not None:
+    """The level-0 (x, y, width, height) that ``get_level`` reads."""
+    if in_bounds:
         return tuple(properties.bounds)
     height, width = properties.level_shape[0]
     return 0, 0, width, height
