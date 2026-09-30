@@ -274,6 +274,7 @@ def semantic(
     mode : {"constant", "gaussian"}, default: "gaussian"
         The probability distribution to apply for the prediction map.
         "constant" uses uniform weights, "gaussian" applies a Gaussian weighting.
+        Only matters where tiles overlap.
     sigma_scale : float, default: 0.125
         The scale of the Gaussian sigma for the importance map if mode is "gaussian".
     low_memory : bool, default: False
@@ -316,6 +317,13 @@ def semantic(
         The segmentation results are added to the WSIData object under the specified key.
 
     """
+    spec = wsi.tile_spec(tile_key)
+    if spec is not None and (spec.overlap_x == 0 or spec.overlap_y == 0):
+        warnings.warn(
+            f"The tiles in '{tile_key}' do not overlap, so the tile grid can show "
+            "in the masks. Consider zs.pp.tile_tissues(..., overlap=0.25).",
+            stacklevel=find_stack_level(),
+        )
     runner = SemanticSegmentationRunner(
         wsi=wsi,
         model=model,
@@ -384,7 +392,11 @@ def create_importance_map(
                 importance_map = x
             else:
                 importance_map = importance_map.unsqueeze(-1) * x.unsqueeze(0)
-        return importance_map
+        # Floor the weights so a small sigma_scale cannot underflow them to 0 and
+        # drop pixels covered only by tile edges. MONAI floors at 1e-3, but that
+        # ties every weight beyond ~3.7 sigma, so overlaps near tile corners
+        # would blend as a plain average.
+        return importance_map.clamp_(min=1e-6)
     else:
         raise ValueError(
             f"Unsupported mode: {mode}. Supported modes are 'constant' and 'gaussian'."
@@ -567,6 +579,7 @@ class SemanticSegmentationRunner(Runner):
                 self.device, self.num_workers, self.prefetch_factor
             )
             non_blocking = loader_kws["pin_memory"]
+            importance = self.importance_map.numpy()
             with amp_ctx, torch.inference_mode():
                 for _, row in self.tissues.iterrows():
                     tid = row["tissue_id"]
@@ -632,7 +645,7 @@ class SemanticSegmentationRunner(Runner):
                                 # Get output back to cpu
                                 probability_map = probability_map.detach().cpu().numpy()
                             elif isinstance(probability_map, np.ndarray):
-                                probability_map *= self.importance_map.numpy()
+                                probability_map *= importance
                             else:
                                 raise TypeError(
                                     f"Probability map type {type(probability_map)} is not supported"
@@ -665,22 +678,22 @@ class SemanticSegmentationRunner(Runner):
                                     ),
                                 )
                                 # Clip out if it exceeds the mask boundaries
-                                out_clipped = probability_map[i][
-                                    :,
-                                    : slice_y.stop - slice_y.start,
-                                    : slice_x.stop - slice_x.start,
+                                h = slice_y.stop - slice_y.start
+                                w = slice_x.stop - slice_x.start
+                                prob_mask[:, slice_y, slice_x] += probability_map[i][
+                                    :, :h, :w
                                 ]
-                                prob_mask[:, slice_y, slice_x] += out_clipped
-                                # Update the count mask
-                                count_mask[slice_y, slice_x] += 1
+                                # Sum the weights too, so the blend is a weighted mean
+                                count_mask[slice_y, slice_x] += importance[:h, :w]
                             progress_bar.update(task, advance=len(images))
                             progress_bar.refresh()
                     # Skip if no tiles were processed
                     if prob_mask is None:
                         continue
-                    # Normalize the probability mask by the count mask
-                    prob_mask /= np.clip(count_mask, 1e-6, None)[None, ...]
-                    prob_mask[prob_mask < 1e-3] = 0
+                    # Normalize by the weight sum; pixels no tile covers stay 0
+                    np.divide(
+                        prob_mask, count_mask, out=prob_mask, where=count_mask > 0
+                    )
                     # Chunk the probability mask into PATCHES to avoid large memory allocation
                     np_mask = prob_mask
                     seg_objects = []

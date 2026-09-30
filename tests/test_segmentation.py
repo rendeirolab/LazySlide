@@ -1,3 +1,5 @@
+import warnings
+
 import geopandas as gpd
 import numpy as np
 import pytest
@@ -10,6 +12,7 @@ import lazyslide as zs
 from .mock_models import (
     MockCellSegmentationModel,
     MockCellTypeSegmentationModel,
+    MockEdgeBlindSegmentationModel,
     MockSemanticSegmentationModel,
 )
 
@@ -447,3 +450,86 @@ class TestSemanticSegmentation:
 
         model = MockSemanticSegmentationModel()
         zs.seg.artifact(wsi, tile_key="semantic_tiles", model=model)
+
+    @pytest.mark.parametrize(
+        ("mode", "sigma_scale", "normal_prob", "threshold"),
+        [
+            ("constant", 0.125, 0.8, 0.5),
+            ("gaussian", 0.125, 0.8, 0.5),
+            ("gaussian", 0.125, 5e-4, 1e-4),
+            ("gaussian", 0.03, 0.8, 0.5),
+        ],
+    )
+    def test_uniform_prediction_covers_every_tile(
+        self, wsi, mode, sigma_scale, normal_prob, threshold
+    ):
+        """The mock predicts class 1 with one above-threshold probability over the
+        whole tile, so class 1 must be segmented over every tile whatever the
+        blending mode. The gaussian mode used to divide the weighted sum by the
+        tile count rather than the weight sum, which kept only a disc at each tile
+        centre above threshold; blended probabilities below 1e-3 were also zeroed,
+        overriding lower thresholds. With a small sigma_scale the gaussian weights
+        near the tile edges underflow to 0 unless the map is floored."""
+        tile_key = "semantic_blend_tiles"
+        zs.pp.tile_tissues(wsi, tile_px=512, mpp=1.5, key_added=tile_key)
+        key = f"semantic_blend_{mode}_{sigma_scale}_{normal_prob}"
+        zs.seg.semantic(
+            wsi,
+            MockSemanticSegmentationModel(normal_prob=normal_prob),
+            tile_key=tile_key,
+            mode=mode,
+            sigma_scale=sigma_scale,
+            threshold=threshold,
+            key_added=key,
+        )
+
+        shapes = wsi[key]
+        covered = shapes[shapes["class"] == 1].union_all()
+        # Slack for rasterising the tile edges back into polygons
+        margin = 4 * wsi.tile_spec(tile_key).base_downsample
+        for tile in wsi[tile_key].geometry:
+            inner = tile.buffer(-margin)
+            covered_frac = covered.intersection(inner).area / inner.area
+            assert covered.contains(inner), f"{covered_frac:.1%} of tile covered"
+
+    def test_artifact_default_blend_bridges_tile_seams(self, wsi):
+        """The model misses the outer 32 px of every tile. With overlapping tiles
+        the default gaussian blend must trust the tile whose centre is closer, so
+        every tile's core (the tile minus half the overlap) is segmented. The
+        seams used to average below threshold: artifact derived sigma_scale from
+        the overlap in pixels, which flattened the weights, and a 1e-3 importance
+        floor tied them wherever every overlapping tile was far from its centre."""
+        tile_key = "artifact_overlap_tiles"
+        zs.pp.tile_tissues(wsi, tile_px=512, mpp=1.5, overlap=0.25, key_added=tile_key)
+        zs.seg.artifact(
+            wsi,
+            tile_key,
+            model=MockEdgeBlindSegmentationModel(),
+            key_added="seam_artifacts",
+        )
+
+        spec = wsi.tile_spec(tile_key)
+        covered = wsi["seam_artifacts"].union_all()
+        half_overlap = spec.overlap_y / 2 * spec.base_downsample
+        for tile in wsi[tile_key].geometry:
+            core = tile.buffer(-half_overlap)
+            covered_frac = covered.intersection(core).area / core.area
+            assert covered.contains(core), f"{covered_frac:.1%} of tile core covered"
+
+    @pytest.mark.parametrize(("overlap", "warns"), [(None, True), (0.25, False)])
+    def test_semantic_warns_on_non_overlapping_tiles(self, wsi, overlap, warns):
+        """Without overlap there is nothing to blend and the tile grid can show
+        in the masks, so semantic should point users at overlapping tiles."""
+        tile_key = f"semantic_warn_tiles_{overlap}"
+        zs.pp.tile_tissues(
+            wsi, tile_px=512, mpp=1.5, overlap=overlap, key_added=tile_key
+        )
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            zs.seg.semantic(
+                wsi,
+                MockSemanticSegmentationModel(),
+                tile_key=tile_key,
+                key_added=f"semantic_warn_{overlap}",
+            )
+        assert any("overlap" in str(w.message) for w in caught) == warns
