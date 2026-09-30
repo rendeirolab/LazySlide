@@ -171,23 +171,24 @@ def test_only_grandqc_sees_jpeg_compression(
 
 
 @pytest.mark.parametrize(
-    "model, side, tile_px, tile",
+    "model, side, tissue_kws, tile",
     [
-        ("hest", 4160, None, 1024),  # over 4096 x 4096 px, so tiled by default
-        ("pathprofiler", 1024, 500, 448),  # forced, rounded down to 64 px steps
+        ("pathprofiler", 2112, {}, 1024),  # over one tile, so tiled by default
+        ("hest", 1024, {"tile_px": 500}, 496),  # rounded down to HEST's 8 px steps
     ],
 )
 def test_tissue_segments_in_tiles(
-    wsi, monkeypatch, tissue_input, model, side, tile_px, tile
+    wsi, monkeypatch, tissue_input, model, side, tissue_kws, tile
 ):
     """Regression: the whole image went through the model in one forward pass.
 
     HEST at 1 µm/px on a 20k px slide is a ~10k px image, tens of GB in one
-    pass, so large images are segmented tile by tile and stitched back.
+    pass, so images bigger than one tile are segmented tile by tile and
+    stitched back.
     """
     image = np.zeros((side, side, 3), dtype=np.uint8)
     image[side // 4 :, side // 8 :] = 255  # tissue across every seam, to the edges
-    _tissue_on(wsi, monkeypatch, image, model, tile_px=tile_px)
+    _tissue_on(wsi, monkeypatch, image, model, **tissue_kws)
 
     assert set(tissue_input["tiles"]) == {(tile, tile)}
     (tissue,) = wsi["spy_tissues"].geometry
@@ -210,7 +211,10 @@ def test_pathprofiler_segments_at_2_5x(wsi, tissue_input):
     That is a magnification, so 2.5x is about 4 µm/px, not the 2.5 µm/px this
     used to run at.
     """
-    zs.seg.tissue(wsi, model="pathprofiler", device="cpu", key_added="spy_tissues")
+    # One tile bigger than the image, so the spy sees the whole model input
+    zs.seg.tissue(
+        wsi, model="pathprofiler", tile_px=4096, device="cpu", key_added="spy_tissues"
+    )
 
     props = wsi.properties
     width = tissue_input["image"].shape[1]  # padded up to a multiple of 64

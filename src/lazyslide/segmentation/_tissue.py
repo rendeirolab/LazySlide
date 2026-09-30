@@ -18,12 +18,6 @@ from lazyslide.cv.mask import repair_invalid_geometry
 if TYPE_CHECKING:
     import torch
 
-# Model memory grows with input area (HEST on CPU: ~2.4 GB per 1024 px tile), so
-# a ~10k px image, HEST at 1 µm/px on a 20k px slide, cannot go through in one
-# pass. Images bigger than this go through the model in overlapping tiles.
-_MAX_SINGLE_PASS_PX = 4096 * 4096
-_TILE_PX = 1024
-
 
 def _tile_starts(size: int, tile: int) -> list[int]:
     """Offsets of ``tile`` px windows covering ``size`` px.
@@ -72,7 +66,7 @@ def tissue(
     min_hole_area=1e-5,
     detect_holes: bool = True,
     threshold: float = 0.5,
-    tile_px: int | None = None,
+    tile_px: int = 1024,
     device: str | None = None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
@@ -88,9 +82,11 @@ def tissue(
         - "pathprofiler": :cite:p:`Haghighat2022-sy`. Runs on mpp=4 (2.5x).
         - "hest": "https://huggingface.co/MahmoodLab/hest-tissue-seg". Runs on mpp=1.
 
-    Images over 4096 x 4096 px at the working :term:`mpp` go through the model
-    in overlapping 1024 px tiles (see ``tile_px``), blended with a Gaussian
-    window, which bounds the model's memory use.
+    The model runs on overlapping tiles at the working :term:`mpp` (see
+    ``tile_px``), blended with a Gaussian window, so its memory use does not
+    grow with the slide: HEST at 1 µm/px on a 20k px slide is a ~10k px image,
+    far too big for one forward pass. An image that fits in one tile goes
+    through in a single pass.
 
     Parameters
     ----------
@@ -113,10 +109,10 @@ def tissue(
         Whether to detect :term:`holes` in the tissue polygons.
     threshold : float, default: 0.5
         The probability threshold to consider a pixel as tissue.
-    tile_px : int, optional
-        Always segment in overlapping tiles of this many px at the working
-        :term:`mpp`, rounded down to a size the model accepts. Lower it to save
-        memory. By default, only images over 4096 x 4096 px are tiled, at 1024 px.
+    tile_px : int, default: 1024
+        The tile size in px at the working :term:`mpp`, rounded down to a size
+        the model accepts. Smaller tiles save memory; bigger ones give the model
+        more context.
     device : str, default: None
         The device to run the model.
     amp : bool, optional
@@ -171,11 +167,10 @@ def tissue(
         raise ValueError(
             f"Unknown model: {model}, choose from 'grandqc', 'pathprofiler' and 'hest'."
         )
-    if tile_px is not None:
-        if tile_px < 1:
-            raise ValueError(f"tile_px must be a positive number of px, got {tile_px}.")
-        # Tiles must be multiples of the divider, like the padded image
-        tile_px = max(min_size, tile_px // divider * divider)
+    if tile_px < 1:
+        raise ValueError(f"tile_px must be a positive number of px, got {tile_px}.")
+    # Tiles must be multiples of the divider, like the padded image
+    tile_px = max(min_size, tile_px // divider * divider)
     transform = model.get_transform()
     model.to(device)
     model = _api.maybe_compile(model, compile, compile_kws)
@@ -255,15 +250,9 @@ def tissue(
     # and transform per tile if that becomes the ceiling.
     img_t = transform(img).unsqueeze(0)
     tissue_class = 0 if model_name == "grandqc" else 1
-    if tile_px is None and img_t.shape[-2] * img_t.shape[-1] > _MAX_SINGLE_PASS_PX:
-        tile_px = _TILE_PX
     amp_ctx = _api.autocast(device, amp, autocast_dtype)
     with amp_ctx, torch.inference_mode():
-        if tile_px is None:
-            pred = model.segment(img_t.to(device)).probability_map
-            tissue_prob = pred.squeeze(0).detach().cpu().numpy()[tissue_class]
-        else:
-            tissue_prob = _segment_tiled(model, img_t, device, tissue_class, tile_px)
+        tissue_prob = _segment_tiled(model, img_t, device, tissue_class, tile_px)
     mask = (tissue_prob > threshold).astype(np.uint8)
     # Unpad the mask to match the original image size
     mask = mask[top_pad : top_pad + img_height, left_pad : left_pad + img_width]
