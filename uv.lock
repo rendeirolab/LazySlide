@@ -3099,7 +3099,7 @@ requires-dist = [
     { name = "torchvision", marker = "extra == 'all'", specifier = ">=0.15" },
     { name = "transformers", marker = "extra == 'all'", specifier = ">=4.49.0" },
     { name = "transformers", marker = "extra == 'models'", specifier = ">=4.49.0" },
-    { name = "wsidata", specifier = ">=0.10.0" },
+    { name = "wsidata", specifier = ">=0.11.1" },
 ]
 provides-extras = ["all", "docker", "models"]
 
@@ -8655,7 +8655,7 @@ wheels = [
 
 [[package]]
 name = "wsidata"
-version = "0.10.1"
+version = "0.11.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "opencv-python-headless" },
@@ -8665,9 +8665,9 @@ dependencies = [
     { name = "spatialdata" },
     { name = "torch" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5f/36/7d4ed9e79fe0f3fa18023eabb266b6ea840c18fab77871fa3f400933bae0/wsidata-0.10.1.tar.gz", hash = "sha256:4aa3f8b04f628b6e30e1ce7fcf8301865797f295ca12cacd3b53b159234f781e", size = 59703, upload-time = "2026-05-23T19:42:51.995Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/be/81/dccd008e5bf68828ae4e403a5c9001b7359a4f2dc1cd349441c50da5587d/wsidata-0.11.1.tar.gz", hash = "sha256:e48521251a92372f7323e246dbb064924e28dd6620235c201b7ca66f274f7bc1", size = 63006, upload-time = "2026-09-30T11:11:21.067Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d9/e7/5e27dbc21e39852670a461179fc5feadf25a109301c46055ffa73a33c9b6/wsidata-0.10.1-py3-none-any.whl", hash = "sha256:42c85ee1224c5a5b6e3e3603bd9bbee21cc8073f65dedda6b67d16a48c27677f", size = 80460, upload-time = "2026-05-23T19:42:50.79Z" },
+    { url = "https://files.pythonhosted.org/packages/f4/95/7e7f404be5343a894aa8344781d9e6cb81bf90f365b485db5cc9f94fd666/wsidata-0.11.1-py3-none-any.whl", hash = "sha256:65ce729d0eed95f83f0c8c2587f6f6c6da047e28e95f09ffb90580932552237a", size = 84339, upload-time = "2026-09-30T11:11:19.461Z" },
 ]
 
 [[package]]
