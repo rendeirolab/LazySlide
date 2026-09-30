@@ -400,3 +400,37 @@ class TestSemanticSegmentation:
 
         model = MockSemanticSegmentationModel()
         zs.seg.artifact(wsi, tile_key="semantic_tiles", model=model)
+
+    @pytest.mark.parametrize(
+        ("mode", "normal_prob", "threshold"),
+        [("constant", 0.8, 0.5), ("gaussian", 0.8, 0.5), ("gaussian", 5e-4, 1e-4)],
+    )
+    def test_uniform_prediction_covers_every_tile(
+        self, wsi, mode, normal_prob, threshold
+    ):
+        """The mock predicts class 1 with one above-threshold probability over the
+        whole tile, so class 1 must be segmented over every tile whatever the
+        blending mode. The gaussian mode used to divide the weighted sum by the
+        tile count rather than the weight sum, which kept only a disc at each tile
+        centre above threshold; blended probabilities below 1e-3 were also zeroed,
+        overriding lower thresholds."""
+        tile_key = "semantic_blend_tiles"
+        zs.pp.tile_tissues(wsi, tile_px=512, mpp=1.5, key_added=tile_key)
+        key = f"semantic_blend_{mode}_{normal_prob}"
+        zs.seg.semantic(
+            wsi,
+            MockSemanticSegmentationModel(normal_prob=normal_prob),
+            tile_key=tile_key,
+            mode=mode,
+            threshold=threshold,
+            key_added=key,
+        )
+
+        shapes = wsi[key]
+        covered = shapes[shapes["class"] == 1].union_all()
+        # Slack for rasterising the tile edges back into polygons
+        margin = 4 * wsi.tile_spec(tile_key).base_downsample
+        for tile in wsi[tile_key].geometry:
+            inner = tile.buffer(-margin)
+            covered_frac = covered.intersection(inner).area / inner.area
+            assert covered.contains(inner), f"{covered_frac:.1%} of tile covered"

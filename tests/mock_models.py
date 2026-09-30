@@ -138,8 +138,9 @@ class MockCellTypeSegmentationModel(SegmentationModel):
 class MockSemanticSegmentationModel(SegmentationModel):
     """Returns probability_map (B, 8, H, W) for artifact segmentation."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, normal_prob=0.8, **kwargs):
         self.model = nn.Identity()
+        self.normal_prob = normal_prob
 
     def get_transform(self):
         from torchvision.transforms.v2 import Compose, Normalize, ToDtype, ToImage
@@ -156,8 +157,8 @@ class MockSemanticSegmentationModel(SegmentationModel):
         B, _C, H, W = image.shape
         n_classes = 8
         prob_map = torch.zeros(B, n_classes, H, W)
-        # Class 1 (Normal Tissue) gets high probability everywhere
-        prob_map[:, 1, :, :] = 0.8
+        # Class 1 (Normal Tissue) gets the same probability everywhere
+        prob_map[:, 1, :, :] = self.normal_prob
         # Class 2 (Fold) gets a small region with high prob
         prob_map[:, 2, H // 4 : H // 2, W // 4 : W // 2] = 0.9
         return SegmentationOutput(probability_map=prob_map)
