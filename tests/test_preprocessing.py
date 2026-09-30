@@ -3,11 +3,22 @@ from types import SimpleNamespace
 import numpy as np
 import psutil
 import pytest
-from shapely.geometry import MultiPolygon, Polygon
+from shapely.geometry import MultiPolygon, Polygon, box
 
 import lazyslide as zs
 from lazyslide.preprocess._tiles import tiles_from_bbox
-from lazyslide.preprocess._tissue import _decide_level
+from lazyslide.preprocess._tissue import _decide_level, _get_optimal_level
+
+
+def _stub_properties(bounds):
+    """Stand-in SlideProperties: level 0 is the mpp-optimal level (4 um/px), 4 MB as RGBA."""
+    return SimpleNamespace(
+        mpp=4.0,
+        n_level=3,
+        level_downsample=[1, 4, 16],
+        level_shape=[(1000, 1000), (250, 250), (62, 62)],
+        bounds=bounds,
+    )
 
 
 class TestPPFindTissues:
@@ -53,15 +64,7 @@ class TestPPFindTissues:
 
     def test_auto_level_respects_memory_proportion(self, monkeypatch):
         """A smaller memory proportion (used with refine_level) picks a coarser level."""
-        # Level 0 is the mpp-optimal level (4 um/px) and takes 4 MB as RGBA
-        slide = SimpleNamespace(
-            properties=SimpleNamespace(
-                mpp=4.0,
-                n_level=3,
-                level_downsample=[1, 4, 16],
-                level_shape=[(1000, 1000), (250, 250), (62, 62)],
-            )
-        )
+        slide = SimpleNamespace(properties=_stub_properties([0, 0, 1000, 1000]))
         # 6 MB free: 0.8 -> 4.8 MB budget fits level 0, 0.4 -> 2.4 MB does not
         monkeypatch.setattr(
             psutil, "virtual_memory", lambda: SimpleNamespace(available=6_000_000)
@@ -69,6 +72,52 @@ class TestPPFindTissues:
 
         assert _decide_level(slide, "auto", 0.8) == 0
         assert _decide_level(slide, "auto", 0.4) == 1
+
+    def test_auto_level_counts_only_bounds(self, monkeypatch):
+        """Only the bounded region counts against memory, so a finer level fits."""
+        # The 500x500 bounded region takes 1 MB at level 0, the whole level 4 MB
+        properties = _stub_properties([100, 200, 500, 500])
+        # 3 MB free: 0.8 -> 2.4 MB budget
+        monkeypatch.setattr(
+            psutil, "virtual_memory", lambda: SimpleNamespace(available=3_000_000)
+        )
+
+        assert _get_optimal_level(properties, in_bounds=True) == 0
+        assert _get_optimal_level(properties, in_bounds=False) == 1
+
+    def test_in_bounds_segments_only_bounds(self, wsi, monkeypatch):
+        """in_bounds=True finds the tissue inside the slide bounds, in level-0 coordinates."""
+        zs.pp.find_tissues(wsi, level=2, in_bounds=False, key_added="tissue_no_bounds")
+        # Offset, non-square bounds that cut the top-right tissue at x=16000
+        x, y, w, h = 12000, 1000, 4000, 8000
+        monkeypatch.setattr(wsi.properties, "bounds", [x, y, w, h])
+        zs.pp.find_tissues(wsi, level=2, in_bounds=True, key_added="tissue_in_bounds")
+
+        expected = (
+            wsi["tissue_no_bounds"].union_all().intersection(box(x, y, x + w, y + h))
+        )
+        found = wsi["tissue_in_bounds"].union_all()
+        assert found.symmetric_difference(expected).area < 0.1 * expected.area
+
+    def test_refine_reads_tissue_bbox_at_refine_level(self, wsi, monkeypatch):
+        """The refine pass reads each tissue's bbox, not downsample**2 times its area."""
+        zs.pp.find_tissues(wsi, level=2, key_added="tissue_first_pass")
+        b = wsi["tissue_first_pass"].bounds
+        ds = wsi.properties.level_downsample[1]
+        bbox_px = ((b.maxx - b.minx) * (b.maxy - b.miny)).sum() / ds**2
+
+        read_px = []
+        get_region = wsi.reader.get_region
+
+        def spy(x, y, width, height, level=0, **kwargs):
+            if level == 1:
+                read_px.append(width * height)
+            return get_region(x, y, width, height, level=level, **kwargs)
+
+        monkeypatch.setattr(wsi.reader, "get_region", spy)
+        zs.pp.find_tissues(wsi, level=2, refine_level=1, key_added="tissue_refined")
+
+        assert 0 < sum(read_px) < 1.5 * bbox_px
 
     @pytest.mark.parametrize("to_hsv", [True, False])
     def test_to_hsv_parameter(self, wsi, to_hsv):

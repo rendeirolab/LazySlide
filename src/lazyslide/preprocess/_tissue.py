@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import warnings
 from typing import Literal
 
@@ -99,6 +100,7 @@ def find_tissues(
     disk_radius: int = 4,
     relaxed_threshold: bool = True,
     invert_check: bool = True,
+    in_bounds: bool = True,
     key_added: str = Key.tissue,
 ):
     """Find tissue regions in the :term:`WSI` and add them as :term:`contours` and :term:`holes`.
@@ -166,6 +168,11 @@ def find_tissues(
     invert_check : bool, default: True
         (entropy only) Whether to detect and correct mask inversion when the
         background dominates the image borders.
+    in_bounds : bool, default: True
+        Only segment the region inside the slide bounds, e.g. the scanned area
+        of MRXS slides. This reads less of the background, takes less memory,
+        and lets ``level='auto'`` choose a finer level. Slides without bounds
+        are segmented as a whole.
     key_added : str, default: 'tissues'
         The key to save the result in the :term:`WSIData` object.
 
@@ -196,7 +203,7 @@ def find_tissues(
         proportion = 0.4
         detect_holes_1 = False
 
-    ops_level = _decide_level(wsi, level, proportion)
+    ops_level = _decide_level(wsi, level, proportion=proportion, in_bounds=in_bounds)
     # Set the segmentation options
 
     # Run the first segmentation
@@ -219,7 +226,8 @@ def find_tissues(
         "min_area": min_tissue_area,
         "min_hole_area": min_hole_area,
     }
-    tissue_image = wsi.reader.get_level(ops_level)
+    x0, y0, width0, height0 = _slide_region(wsi.properties, in_bounds)
+    tissue_image = _read_region(wsi, x0, y0, width0, height0, ops_level)
     tissue_mask = _build_tissue_mask(tissue_image, method, otsu_kwargs, entropy_kwargs)
     tissue_polys = BinaryMask(tissue_mask).to_polygons(
         **to_poly_option, detect_holes=detect_holes_1
@@ -235,7 +243,7 @@ def find_tissues(
     for tissue in tissue_polys:
         # Scale it back to level 0
         tissue = scale(tissue, xfact=downsample, yfact=downsample, origin=(0, 0))
-        tissues.append(tissue)
+        tissues.append(translate(tissue, xoff=x0, yoff=y0))
 
     if refine_level is not None:
         # Refine the tissue polygons at a higher resolution level
@@ -247,7 +255,9 @@ def find_tissues(
             width, height = xmax - xmin, ymax - ymin
 
             if refine_level == "auto":
-                current_refine_level = _decide_level(wsi, refine_level, proportion)
+                current_refine_level = _decide_level(
+                    wsi, refine_level, proportion=proportion, in_bounds=in_bounds
+                )
                 if current_refine_level == ops_level:
                     current_refine_level -= 1
                 current_refine_level = max(current_refine_level, 0)
@@ -257,9 +267,7 @@ def find_tissues(
 
             refine_downsample = _get_downsample(wsi, current_refine_level)
 
-            image = wsi.reader.get_region(
-                xmin, ymin, width, height, level=current_refine_level
-            )
+            image = _read_region(wsi, xmin, ymin, width, height, current_refine_level)
             tissue_mask = _build_tissue_mask(image, method, otsu_kwargs, entropy_kwargs)
             tissue_polys = BinaryMask(tissue_mask).to_polygons(
                 **to_poly_option, detect_holes=detect_holes
@@ -284,7 +292,7 @@ def find_tissues(
     add_tissues(wsi, key=key_added, tissues=tissues)
 
 
-def _get_optimal_level(metadata, proportion=0.8):
+def _get_optimal_level(metadata, in_bounds=True, proportion=0.8):
     # Get optimal level for segmentation
     # Current available memory
     available_memory = psutil.virtual_memory().available * proportion  # in bytes
@@ -299,16 +307,17 @@ def _get_optimal_level(metadata, proportion=0.8):
         level = np.argmin(np.abs(search_space - 4))
 
     # check if level is beyond the RAM
-    current_shape = metadata.level_shape[level]
+    region = _slide_region(metadata, in_bounds)
+    width, height = _size_at_level(metadata, level, *region)
     # The data type in uint8, so each pixel is 1 byte
     # The size is calculated by width * height * 4 (RGBA)
-    bytes_size = current_shape[0] * current_shape[1] * 4
+    bytes_size = width * height * 4
     # if the size is beyond 4GB, use a higher level
     while bytes_size > available_memory:
         if level != metadata.n_level - 1:
             level += 1
-            current_shape = metadata.level_shape[level]
-            bytes_size = current_shape[0] * current_shape[1] * 4
+            width, height = _size_at_level(metadata, level, *region)
+            bytes_size = width * height * 4
         else:
             level = metadata.n_level - 1
             break
@@ -317,11 +326,40 @@ def _get_optimal_level(metadata, proportion=0.8):
     return level
 
 
-def _decide_level(wsi, level, proportion=0.8):
+def _decide_level(wsi, level, proportion=0.8, in_bounds=True):
     if level == "auto":
-        return _get_optimal_level(wsi.properties, proportion=proportion)
+        return _get_optimal_level(
+            wsi.properties, in_bounds=in_bounds, proportion=proportion
+        )
     else:
         return wsi.reader.translate_level(level)
+
+
+def _slide_region(properties, in_bounds):
+    """The level-0 (x, y, width, height) of the slide to segment."""
+    if in_bounds and properties.bounds is not None:
+        return tuple(properties.bounds)
+    height, width = properties.level_shape[0]
+    return 0, 0, width, height
+
+
+def _size_at_level(properties, level, x, y, width, height):
+    """The (width, height) at ``level`` of a level-0 region, clipped to the level.
+
+    Reading past the level edge returns transparent pixels, which turn black.
+    """
+    ds = 1 if level == 0 else properties.level_downsample[level]
+    level_height, level_width = properties.level_shape[level]
+    return (
+        min(math.ceil(width / ds), level_width - int(x / ds)),
+        min(math.ceil(height / ds), level_height - int(y / ds)),
+    )
+
+
+def _read_region(wsi, x, y, width, height, level):
+    """Read a level-0 region at ``level``; the reader takes the size at that level."""
+    w, h = _size_at_level(wsi.properties, level, x, y, width, height)
+    return wsi.reader.get_region(x, y, w, h, level=level)
 
 
 def _get_downsample(wsi, level):
