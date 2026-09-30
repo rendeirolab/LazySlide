@@ -1,9 +1,13 @@
+from types import SimpleNamespace
+
 import numpy as np
+import psutil
 import pytest
 from shapely.geometry import MultiPolygon, Polygon
 
 import lazyslide as zs
 from lazyslide.preprocess._tiles import tiles_from_bbox
+from lazyslide.preprocess._tissue import _decide_level
 
 
 class TestPPFindTissues:
@@ -46,6 +50,25 @@ class TestPPFindTissues:
 
         # Check if tissues were found
         assert len(wsi[key]) > 0
+
+    def test_auto_level_respects_memory_proportion(self, monkeypatch):
+        """A smaller memory proportion (used with refine_level) picks a coarser level."""
+        # Level 0 is the mpp-optimal level (4 um/px) and takes 4 MB as RGBA
+        slide = SimpleNamespace(
+            properties=SimpleNamespace(
+                mpp=4.0,
+                n_level=3,
+                level_downsample=[1, 4, 16],
+                level_shape=[(1000, 1000), (250, 250), (62, 62)],
+            )
+        )
+        # 6 MB free: 0.8 -> 4.8 MB budget fits level 0, 0.4 -> 2.4 MB does not
+        monkeypatch.setattr(
+            psutil, "virtual_memory", lambda: SimpleNamespace(available=6_000_000)
+        )
+
+        assert _decide_level(slide, "auto", 0.8) == 0
+        assert _decide_level(slide, "auto", 0.4) == 1
 
     @pytest.mark.parametrize("to_hsv", [True, False])
     def test_to_hsv_parameter(self, wsi, to_hsv):

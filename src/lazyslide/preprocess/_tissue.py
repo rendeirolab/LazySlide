@@ -284,7 +284,7 @@ def find_tissues(
     add_tissues(wsi, key=key_added, tissues=tissues)
 
 
-def _get_optimal_level(metadata, in_bounds=True, proportion=0.8):
+def _get_optimal_level(metadata, proportion=0.8):
     # Get optimal level for segmentation
     # Current available memory
     available_memory = psutil.virtual_memory().available * proportion  # in bytes
@@ -319,7 +319,7 @@ def _get_optimal_level(metadata, in_bounds=True, proportion=0.8):
 
 def _decide_level(wsi, level, proportion=0.8):
     if level == "auto":
-        return _get_optimal_level(wsi.properties, proportion)
+        return _get_optimal_level(wsi.properties, proportion=proportion)
     else:
         return wsi.reader.translate_level(level)
 
