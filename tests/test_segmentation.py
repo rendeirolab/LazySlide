@@ -97,25 +97,28 @@ TISSUE_MODELS = ("grandqc", "pathprofiler", "hest")
 def tissue_input(monkeypatch):
     """Swap every tissue model for a spy that calls every non-black pixel tissue.
 
-    Holds the last HWC image it was given and the (H, W) of every call.
+    Holds the last HWC image it was given and the (H, W) of every call. Its
+    transform is ``seen["transform"]``, by default a per-pixel no-op.
     """
     import torch
     from lazyslide_models import segmentation
     from lazyslide_models.base import SegmentationModel
+    from torchvision.transforms.v2 import Compose, ToImage
 
-    seen = {"tiles": []}
+    seen = {"tiles": [], "transform": Compose([ToImage()])}
 
     class Spy(SegmentationModel):
         def __init__(self):
             self.model = torch.nn.Identity()
 
         def get_transform(self):
-            return torch.nn.Identity()
+            return seen["transform"]
 
         def segment(self, image):
             seen["image"] = image[0].permute(1, 2, 0).numpy()
             seen["tiles"].append(tuple(image.shape[-2:]))
-            tissue = (image > 0).any(1, keepdim=True).float()
+            # 1 for any non-black pixel of a 0-255 image, graded for a normalised one
+            tissue = image.amax(1, keepdim=True).float().clamp(0, 1)
             # GrandQC reads tissue from channel 0, the others from channel 1
             return SegmentationOutput(probability_map=torch.cat([tissue, tissue], 1))
 
@@ -201,6 +204,65 @@ def test_tissue_segments_in_tiles(
         box(side // 8, side // 4, side - 1, side - 1), ds, ds, origin=(0, 0)
     )
     assert tissue.symmetric_difference(expected).area < ds**2
+
+
+@pytest.mark.parametrize("model", TISSUE_MODELS)
+def test_tissue_transform_runs_per_tile(wsi, monkeypatch, tissue_input, model):
+    """Memory regression: the model transform ran on the whole image before
+    tiling, so a float32 copy of it sat in memory, ~61 bytes per px at peak:
+    HEST at 1 µm/px needed 35-48 GB on 570-790 Mpx images.
+
+    Its per-pixel steps (ToImage, ToDtype, Normalize) now run tile by tile on
+    the uint8 image and must give what transforming the whole image gave.
+    PathProfiler's CLAHE equalises over the whole image, so it still runs once
+    on the whole image.
+    """
+    from lazyslide_models.segmentation import grandqc, hest, pathprofiler
+    from torchvision.transforms.v2 import ToDtype
+
+    from lazyslide.segmentation import _tissue
+
+    seen = {"float": [], "clahe": [], "prob": []}
+
+    def spy(key, method):
+        def record_shape(self, img):
+            seen[key].append(tuple(img.shape[-2:]))
+            return method(self, img)
+
+        return record_shape
+
+    monkeypatch.setattr(ToDtype, "forward", spy("float", ToDtype.forward))
+    clahe = pathprofiler.CLAHE
+    monkeypatch.setattr(clahe, "__call__", spy("clahe", clahe.__call__))
+    segment_tiled = _tissue._segment_tiled
+
+    def record_prob(*args, **kwargs):
+        seen["prob"].append(segment_tiled(*args, **kwargs))
+        return seen["prob"][-1]
+
+    monkeypatch.setattr(_tissue, "_segment_tiled", record_prob)
+
+    real_model = {
+        "grandqc": grandqc.GrandQCTissue,
+        "pathprofiler": pathprofiler.PathProfilerTissueSegmentation,
+        "hest": hest.HESTTissueSegmentation,
+    }[model]
+    transform = real_model.get_transform(None)  # needs no weights
+    # Graded tissue probabilities over a 3 x 3 grid of 128 px tiles
+    ramp = np.linspace(0, 255, 320).astype(np.uint8)
+    x, y = np.meshgrid(ramp, ramp)
+    image = np.dstack([x, y, np.full_like(x, 128)])
+    polygons = []
+    # A transform that is not a Compose runs on the whole image, as all did
+    for run_transform in (transform, lambda img: transform(img)):
+        tissue_input["transform"] = run_transform
+        _tissue_on(wsi, monkeypatch, image, model, tile_px=128)
+        polygons.append(wsi["spy_tissues"].geometry)
+
+    assert seen["float"] == [(128, 128)] * 9 + [(320, 320)]
+    assert seen["clahe"] == ([(320, 320)] * 2 if model == "pathprofiler" else [])
+    np.testing.assert_array_equal(*seen["prob"])
+    assert polygons[0].geom_equals_exact(polygons[1], tolerance=0).all()
 
 
 def test_tissue_rejects_nonpositive_tile_px(wsi, tissue_input):
