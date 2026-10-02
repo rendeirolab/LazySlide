@@ -13,7 +13,19 @@ authors = [
     {name = "Ernesto Abila", email = "eabila@cemm.at"},
     {name = "André F. Rendeiro", email = "arendeiro@cemm.at"},
 ]
-keywords = ["histopathology", "whole slide image", "image analysis", "segmentation", "deep learning"]
+keywords = [
+    "histopathology",
+    "digital pathology",
+    "computational pathology",
+    "whole slide image",
+    "WSI",
+    "image analysis",
+    "segmentation",
+    "deep learning",
+    "foundation models",
+    "scverse",
+    "spatialdata",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -21,8 +33,15 @@ classifiers = [
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: File Formats",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
 ]
 dynamic = ["version"]
 dependencies = [
