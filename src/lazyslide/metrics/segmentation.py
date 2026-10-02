@@ -137,7 +137,6 @@ def get_semantic_stats(
     pr_c = gdf_pred.unary_union
 
     inter = gt_c.intersection(pr_c).area
-    # union = gt_c.union(pr_c).area
 
     tp_c = inter
     fp_c = pr_c.area - inter

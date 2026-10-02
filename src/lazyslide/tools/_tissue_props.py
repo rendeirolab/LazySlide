@@ -9,14 +9,6 @@ from wsidata.io import update_shapes_data
 from lazyslide._const import Key
 
 
-def point2shape(
-    wsi: WSIData,
-    key: str = "tiles",
-    groupby: str | None = None,
-):
-    pass
-
-
 def tissue_props(
     wsi: WSIData,
     key: str = Key.tissue,
@@ -64,7 +56,6 @@ def tissue_props(
     """
 
     props = []
-    cnts = []
     for tissue_contour in wsi.iter.tissue_contours(key):
         cnt = tissue_contour.contour
         holes = tissue_contour.holes
@@ -75,7 +66,6 @@ def tissue_props(
         ]
 
         _props = contour_props(cnt_array, holes_array)
-        cnts.append(cnt)
         props.append(_props)
 
     props = pd.DataFrame(props).to_dict(orient="list")

@@ -2,7 +2,6 @@ import os
 
 import pytest
 import torch
-from torch.export import dims, export, save
 
 # When set (e.g. on fork PRs without HF secrets), skip dataset download and fixtures.
 SKIP_DATASET_TESTS = os.environ.get("LAZYSLIDE_SKIP_DATASET_TESTS") == "1"
@@ -87,17 +86,6 @@ def torch_jit_file(tmp_path_session):
     model = MockNet()
     torch.jit.script(model).save(tmp_path_session / "jit_model.pt")
     return tmp_path_session / "jit_model.pt"
-
-
-@pytest.fixture(scope="session")
-def torch_export_model(tmp_path_session):
-    model = MockNet()
-
-    batch_dim = dims("batch")
-    exp_mods = export(
-        model, args=torch.randn(1, 3, 224, 224), dynamic_shapes={0: batch_dim}
-    )
-    save(exp_mods, tmp_path_session / "exported_model.pt2")
 
 
 @pytest.fixture(scope="session")

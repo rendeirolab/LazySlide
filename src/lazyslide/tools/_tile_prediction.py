@@ -101,10 +101,7 @@ def tile_prediction(
             model = CV_FEATURES[model]()
             is_cv_features = True
         else:
-            card = MODEL_REGISTRY[model]
-            if card is None:
-                raise ValueError(f"Model '{model}' not found in the registry.")
-            model = card()
+            model = MODEL_REGISTRY[model]()
     model.to(device=device)
     model = _api.maybe_compile(model, compile, compile_kws)
 
@@ -119,12 +116,8 @@ def tile_prediction(
     results = []
 
     with default_pbar(disable=not pbar) as progress_bar:
-        if isinstance(model, str):
-            model_name = model
-        else:
-            model_name = model.__class__.__name__
         task = progress_bar.add_task(
-            f"Predicting tiles with {model_name}", total=len(ds)
+            f"Predicting tiles with {model.__class__.__name__}", total=len(ds)
         )
 
         amp_ctx = _api.autocast(device, amp, autocast_dtype)
@@ -142,40 +135,3 @@ def tile_prediction(
 
     # Add the predictions to the WSIData object
     update_shapes_data(wsi, tile_key, results)
-
-
-def _get_model(model: TP_MODEL) -> TilePredictionModelProtocol:
-    """
-    Get the tile prediction model from a string or a TilePredictionModel instance.
-
-    Parameters
-    ----------
-    model : str or TilePredictionModel
-        The model to get.
-
-    Returns
-    -------
-    TilePredictionModel
-        The tile prediction model instance.
-
-    """
-    from lazyslide_models import TilePredictionModelProtocol
-
-    if isinstance(model, str):
-        from lazyslide_models import MODEL_REGISTRY
-        from lazyslide_models.tile_prediction import CV_FEATURES
-
-        if model in CV_FEATURES:
-            return CV_FEATURES[model]()
-
-        card = MODEL_REGISTRY.get(model)
-        if card is None:
-            raise ValueError(f"Model '{model}' not found in the registry.")
-        return card()
-    elif isinstance(model, TilePredictionModelProtocol):
-        return model
-    else:
-        raise TypeError(
-            f"Cannot recognize {model}, "
-            f"model must be a string or a TilePredictionModel instance."
-        )

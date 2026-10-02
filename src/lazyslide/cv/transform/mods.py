@@ -420,7 +420,6 @@ class ForegroundDetection(Transform):
             # separate outside and inside contours (region boundaries vs. holes in regions)
             # find the outside contours by looking for those with no parents (4th column is -1 if no parent)
 
-            # TODO: Handle nested contours
             tissues = []
             for i, (cnt, hier) in enumerate(zip(contours, hierarchy[0])):
                 # Check if the contour has a parent contour (i.e., if it's not a top-level contour)

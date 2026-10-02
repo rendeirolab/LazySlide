@@ -59,7 +59,6 @@ def _tissue_mask(
         [
             MedianBlur(kernel_size=blur_ksize),
             thresher,
-            # MorphOpen(kernel_size=morph_ksize, n_iterations=morph_n_iter),
             MorphClose(kernel_size=morph_ksize, n_iterations=morph_n_iter),
         ]
     )
@@ -146,11 +145,9 @@ def find_tissues(
     threshold : int, default: 7
         (otsu only) The threshold for binary thresholding.
     morph_n_iter : int, default: 3
-        The number of iterations of morphological closing to apply
-        (also applied as opening on the otsu path).
+        The number of iterations of morphological closing to apply.
     morph_ksize : int, default: 7
-        The kernel size for morphological closing
-        (also applied as opening on the otsu path).
+        The kernel size for morphological closing.
     min_tissue_area : float, default: 1e-3
         The minimum area of tissue.
     min_hole_area : float, default: 1e-5

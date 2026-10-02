@@ -670,19 +670,16 @@ def binary_mask_to_polygons(
     elif not detect_holes:
         # If we don't want to detect holes, we can simply return the contours
         polys = []
-        cnt_id = 0
-        for i, cnt in enumerate(contours):
+        for cnt in contours:
             if cv2.contourArea(cnt) > min_area:
                 cnt = np.squeeze(cnt, axis=1)
                 # A polygon with less than 4 points is not valid
                 if len(cnt) >= 4:
                     polys.append(Polygon(shell=cnt, holes=[]))
-                    cnt_id += 1
         return polys
     else:
         # separate outside and inside contours (region boundaries vs. holes in regions)
         # find the outside contours by looking for those with no parents (4th column is -1 if no parent)
-        # TODO: Handle nested contours
         poly_ixs = []
         for i, (cnt, hier) in enumerate(zip(contours, hierarchy[0])):
             # Check if the contour has a parent contour (i.e., if it's not a top-level contour)
@@ -707,7 +704,7 @@ def binary_mask_to_polygons(
                     poly_ixs.append((i, holes_ix))
 
         polys = []
-        for cnt_id, (cnt_ix, holes_ixs) in enumerate(poly_ixs):
+        for cnt_ix, holes_ixs in poly_ixs:
             polys.append(
                 Polygon(
                     shell=np.squeeze(contours[cnt_ix], axis=1),
@@ -811,7 +808,6 @@ def binary_mask_to_polygons_with_prob(
             poly_mask = np.zeros_like(binary_mask, dtype=np.uint8)
             # Convert polygon coordinates to integer points for cv2.fillPoly
             points = np.array(poly.exterior.coords, dtype=np.int32)
-            # cv2.fillPoly(poly_mask, [points], 1)
             cv2.drawContours(poly_mask, [points], -1, 1, thickness=cv2.FILLED)
             # Fill the holes with 0 if detect_holes is True
             if detect_holes:

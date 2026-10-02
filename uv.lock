@@ -2933,7 +2933,6 @@ wheels = [
 name = "lazyslide"
 source = { editable = "." }
 dependencies = [
-    { name = "cyclopts" },
     { name = "lazyslide-models" },
     { name = "legendkit" },
     { name = "matplotlib" },
@@ -2985,6 +2984,7 @@ models = [
 [package.dev-dependencies]
 dev = [
     { name = "albumentations" },
+    { name = "cyclopts" },
     { name = "datashader" },
     { name = "hf-xet" },
     { name = "jupyterlab" },
@@ -3065,7 +3065,6 @@ tutorials = [
 [package.metadata]
 requires-dist = [
     { name = "cucim", marker = "extra == 'docker'" },
-    { name = "cyclopts", specifier = ">=3.0.0" },
     { name = "einops", marker = "extra == 'models'", specifier = ">=0.8.1" },
     { name = "einops-exts", marker = "extra == 'models'", specifier = ">=0.0.4" },
     { name = "environs", marker = "extra == 'models'", specifier = ">=14.1.1" },
@@ -3106,6 +3105,7 @@ provides-extras = ["all", "docker", "models"]
 [package.metadata.requires-dev]
 dev = [
     { name = "albumentations", specifier = ">=2.0.3" },
+    { name = "cyclopts", specifier = ">=3.0.0" },
     { name = "datashader", specifier = ">=0.18.0" },
     { name = "hf-xet", specifier = ">=1.1.5" },
     { name = "jupyterlab", specifier = ">=4.3.5" },

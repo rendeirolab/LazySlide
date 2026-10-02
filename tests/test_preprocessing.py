@@ -342,10 +342,11 @@ class TestPPTileTissues:
         assert "tiles1" in wsi.shapes
         assert len(wsi["tiles1"]) > 0
 
-    @pytest.mark.xfail(raises=ValueError)
     def test_slide_mpp(self, wsi):
-        """Test that slide_mpp parameter raises ValueError."""
-        zs.pp.tile_tissues(wsi, 256, slide_mpp=1, key_added="tiles2")
+        """slide_mpp overrides the slide's own mpp when scaling to mpp."""
+        zs.pp.tile_tissues(wsi, 256, mpp=1, slide_mpp=1, key_added="tiles2")
+        # Treated as a 1 mpp slide, 1 mpp tiles need no downsampling
+        assert wsi.tile_spec("tiles2").base_width == 256
 
     @pytest.mark.parametrize("tile_size", [128, 256, (256, 128)])
     def test_tile_size(self, wsi, tile_size):
