@@ -3034,7 +3034,7 @@ requires-dist = [
     { name = "einops-exts", marker = "extra == 'models'", specifier = ">=0.0.4" },
     { name = "environs", marker = "extra == 'models'", specifier = ">=14.1.1" },
     { name = "hf-xet", marker = "extra == 'docker'" },
-    { name = "huggingface-hub", specifier = ">=0.26.0" },
+    { name = "huggingface-hub", specifier = ">=0.34.0" },
     { name = "igraph", marker = "extra == 'all'", specifier = ">=0.11.8" },
     { name = "igraph", marker = "extra == 'docker'" },
     { name = "ipython", marker = "extra == 'docker'" },
