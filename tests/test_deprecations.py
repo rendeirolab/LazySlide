@@ -262,7 +262,7 @@ def test_positional_parameters_match_v012(func, names):
 def test_deprecations_follow_policy():
     src = Path(zs.__file__).parent
     for path in src.rglob("*.py"):
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         assert "DeprecationWarning" not in text, path
         # Sphinx requires a version on the directive
         assert not re.search(r"\.\. deprecated::\s*$", text, flags=re.MULTILINE), path
