@@ -34,20 +34,20 @@ def artifact(
     variant: str = "7x",
     mode: Literal["constant", "gaussian"] = "gaussian",
     sigma_scale: float = 0.125,
-    low_memory: bool = False,
+    low_memory: bool | None = None,
     threshold: float = 0.8,
     buffer_px: int = 2,
     batch_size: int = 4,
     num_workers: int = 0,
-    prefetch_factor: int | None = None,
     device: str | None = None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
-    compile: bool | None = None,
-    compile_kws: dict | None = None,
     key_added: str = "artifacts",
     pbar: bool | None = None,
-    *args,
+    *,
+    prefetch_factor: int | None = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
 ):
     """
     :term:`Artifact segmentation` for the :term:`whole slide image <WSI>`.
@@ -78,8 +78,9 @@ def artifact(
         If "constant", uses uniform weights, "gaussian" applies a Gaussian weighting.
     sigma_scale : float, default: 0.125
         The scale of the Gaussian sigma for the importance map if mode is "gaussian".
-    low_memory : bool, default: False
-        Whether to use a low-memory mode for processing large slides.
+    low_memory : bool, optional
+        .. deprecated:: 0.13.0
+            Has no effect and will be removed in 0.14.0.
     threshold : float, default: 0.8
         The probability threshold to consider a pixel as an artifact.
     buffer_px : int, default: 2
@@ -88,25 +89,25 @@ def artifact(
         The batch size for :term:`segmentation`.
     num_workers : int, default: 0
         The number of workers for data loading.
-    prefetch_factor : int, optional
-        The number of batches loaded in advance by each worker.
-        Only used when :code:`num_workers > 0`.
     device : str, default: None
         The device for the model.
     amp : bool, optional
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
+    key_added : str, default: "artifacts"
+        The key for the added artifact shapes.
+    pbar : bool, optional
+        Whether to show a progress bar during segmentation.
+    prefetch_factor : int, optional
+        The number of batches loaded in advance by each worker.
+        Only used when :code:`num_workers > 0`.
     compile : bool, optional
         Whether to compile the model with :func:`torch.compile`.
         Compilation is best-effort and is silently skipped for models
         that do not support it.
     compile_kws : dict, optional
         Keyword arguments passed to :func:`torch.compile`.
-    key_added : str, default: "artifacts"
-        The key for the added artifact shapes.
-    pbar : bool, optional
-        Whether to show a progress bar during segmentation.
 
     Returns
     -------
@@ -115,12 +116,6 @@ def artifact(
         of the WSIData object.
 
     """
-
-    if "variants" in args:
-        warnings.warn(
-            "`variants` is deprecated. Use `model` and `variant` instead.",
-            stacklevel=find_stack_level(),
-        )
 
     model_mpp = {
         "5x": 2,
@@ -145,7 +140,8 @@ def artifact(
             mode = "constant"
             warnings.warn(
                 "The tiles has no overlap, using constant mode instead. "
-                "Please consider rerun pp.tile_tissue to create overlapping tiles."
+                "Please consider rerun pp.tile_tissue to create overlapping tiles.",
+                stacklevel=find_stack_level(),
             )
 
     from lazyslide_models import MODEL_REGISTRY

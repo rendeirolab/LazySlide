@@ -187,6 +187,9 @@ class TestSettingsAmpHonored:
         [
             (zs.tl.feature_aggregation, "amp"),
             (zs.tl.feature_aggregation, "device"),
+            (zs.tl.tile_prediction, "pbar"),
+            (zs.tl.virtual_stain, "pbar"),
+            (zs.seg.zero_shot, "pbar"),
         ],
     )
     def test_defaults_to_none(self, func, param):

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
+from lazyslide._utils import warn_deprecated
+
 
 class RNALinker:
     """
@@ -13,8 +15,10 @@ class RNALinker:
         The aggregated WSI features.
     others : :class:`AnnData <anndata.AnnData>`
         Other :term:`omics data`, like RNA-seq, must have the same number of observations as agg_features.
-    gene_name : str, default: None
-        The key to use for the name of the omics data.
+    gene_name : str, optional
+        .. deprecated:: 0.13.0
+            Has no effect and will be removed in 0.14.0; pass ``gene_name`` to
+            ``plot_rank`` or ``associated_genes`` instead.
 
     """
 
@@ -24,6 +28,12 @@ class RNALinker:
         others: Any,
         gene_name: str | None = None,
     ):
+        if gene_name is not None:
+            warn_deprecated(
+                "`gene_name` of `RNALinker` is deprecated since v0.13.0 and will be "
+                "removed in v0.14.0; it has no effect, pass `gene_name` to "
+                "`plot_rank` or `associated_genes` instead."
+            )
         try:
             import scanpy as sc  # noqa: F401 early import to check if scanpy is installed
             from anndata import AnnData
@@ -38,7 +48,6 @@ class RNALinker:
 
         self.agg_features = agg_features
         self.others = others
-        self.gene_name = gene_name
         self.groupby = None
         self.score_group = None
         self.score_key = None

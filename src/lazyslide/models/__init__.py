@@ -1,5 +1,3 @@
-import warnings
-
 from lazyslide_models import (
     MODEL_REGISTRY,
     # Models
@@ -37,12 +35,11 @@ from lazyslide_models import (
     vision,
 )
 
-warnings.warn(
-    "Importing from 'lazyslide.models' is deprecated. "
-    "Please use 'lazyslide-models' and use 'import lazyslide_models' instead. "
-    "The models module will be removed in future versions.",
-    category=FutureWarning,
-    stacklevel=2,
+from lazyslide._utils import warn_deprecated
+
+warn_deprecated(
+    "`lazyslide.models` is deprecated since v0.11.0 and will be removed in v0.14.0; "
+    "install `lazyslide-models` and use `import lazyslide_models`."
 )
 
 

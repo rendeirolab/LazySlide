@@ -12,7 +12,7 @@ Most LazySlide operations add results to `wsi`. Defaults can be changed with `ke
 | `seg.semantic` | `anatomical_structures` | `wsi.shapes` |
 | `io.load_annotations` | `annotations` | `wsi.shapes` |
 | `tl.feature_extraction` | `{model}_{tile_key}` | `wsi.tables` |
-| `tl.feature_aggregation` | `agg_slide` or `agg_{by}` | inside feature `AnnData` |
+| `tl.feature_aggregation` | `agg_slide` or `agg_{agg_by}` | inside feature `AnnData` |
 
 ## Resolve keys safely
 

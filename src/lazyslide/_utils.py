@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import os
+import warnings
 from types import FrameType
 
 from rich.console import Console
@@ -68,3 +69,29 @@ def find_stack_level() -> int:
     # n is 0 only when currentframe() is unavailable (non-CPython implementations).
     # stacklevel=0 makes logging blame logging/__init__.py, so never return it.
     return max(n, 1)
+
+
+def warn_deprecated(msg: str) -> None:
+    """Emit ``msg`` as a :class:`FutureWarning` attributed to the user's call site."""
+    warnings.warn(msg, FutureWarning, stacklevel=find_stack_level())
+
+
+def deprecated_alias(old_name: str, old, new_name: str, new, default=None):
+    """Resolve a renamed keyword argument.
+
+    Returns the value to use for ``new_name``. ``old`` is the value passed under the
+    deprecated name (``None`` when not given) and ``default`` is the default of
+    ``new_name``, used to tell whether ``new_name`` was passed too.
+    """
+    if old is None:
+        return new
+    if new != default:
+        raise TypeError(
+            f"`{old_name}` is a deprecated alias of `{new_name}`; "
+            f"pass only `{new_name}`."
+        )
+    warn_deprecated(
+        f"`{old_name}` is deprecated since v0.13.0 and will be removed in v0.14.0; "
+        f"use `{new_name}`."
+    )
+    return old

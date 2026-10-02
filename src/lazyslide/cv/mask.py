@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 
@@ -13,7 +12,7 @@ from shapely import Polygon
 from shapely.affinity import translate
 from skimage.measure import regionprops
 
-from lazyslide._utils import find_stack_level
+from lazyslide._utils import warn_deprecated
 
 # Mask: (Any)
 #   The base class for all mask types.
@@ -222,6 +221,32 @@ class BinaryMask(Mask):
         detect_holes: bool = True,
         ignore_index: int | Sequence[int] | None = None,
     ) -> gpd.GeoDataFrame:
+        """
+        Convert the binary mask to :term:`polygons <polygon>`.
+
+        Parameters
+        ----------
+        min_area : float
+            Minimum area of detected regions to be included in the polygon.
+        min_hole_area : float
+            Minimum area of detected :term:`holes` to be included in the polygon.
+        detect_holes : bool
+            Whether to detect :term:`holes` in regions.
+        ignore_index : int or Sequence[int] or None
+            .. deprecated:: 0.13.0
+                Has no effect on a binary mask and will be removed in 0.14.0.
+
+        Returns
+        -------
+        gpd.GeoDataFrame
+            :term:`GeoDataFrame` containing polygons and their probabilities.
+
+        """
+        if ignore_index is not None:
+            warn_deprecated(
+                "`ignore_index` of `BinaryMask.to_polygons` is deprecated since "
+                "v0.13.0 and will be removed in v0.14.0; it has no effect, remove it."
+            )
         return binary_mask_to_polygons_with_prob(
             self.mask,
             prob_map=self.prob_map,
@@ -534,6 +559,22 @@ class InstanceMap(Mask):
 
 
 class ProbabilityMap(Mask):
+    """
+    A 2D (H, W) or 3D (C, H, W) map of probabilities in [0, 1].
+
+    Parameters
+    ----------
+    probability_map : np.ndarray
+        The floating point probability map.
+    prob_map : np.ndarray, optional
+        .. deprecated:: 0.13.0
+            Has no effect and will be removed in 0.14.0; the probability map
+            is its own probability.
+    class_names : sequence of str or mapping of int to str, optional
+        The class names, one per channel of a 3D map.
+
+    """
+
     def __init__(
         self,
         probability_map: np.ndarray,
@@ -547,9 +588,9 @@ class ProbabilityMap(Mask):
             "point type with values between 0 and 1."
         )
         if prob_map is not None:
-            warnings.warn(
-                "prob_map is not used in ProbabilityMap, it will be ignored.",
-                stacklevel=find_stack_level(),
+            warn_deprecated(
+                "`prob_map` of `ProbabilityMap` is deprecated since v0.13.0 and will "
+                "be removed in v0.14.0; it has no effect, remove it."
             )
             prob_map = None
         super().__init__(probability_map, prob_map, class_names)
