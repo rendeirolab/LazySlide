@@ -145,6 +145,7 @@ cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true 
 
 [dependency-groups]
 dev = [
+    "cyclopts>=3.0.0",  # scripts/tag_datasets.py, run by the release workflow
     "jupyterlab>=4.3.5",
     "prek>=0.3.0",
     "ruff>=0.16.5,<0.17",
