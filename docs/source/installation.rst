@@ -78,7 +78,7 @@ The reader will be automatically detected by `wsidata <https://wsidata.readthedo
         `TiffSlide <https://github.com/Bayer-Group/tiffslide>`_ is a cloud native openslide-python replacement
         based on tifffile.
 
-        TiffSlide is installed by default. You don't need to install it manually.
+        TiffSlide is not installed by default. Install it to use it as a reader.
 
         .. code-block:: bash
 

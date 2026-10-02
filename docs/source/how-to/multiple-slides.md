@@ -11,7 +11,7 @@ import lazyslide as zs
 
 def process_slide(slide: Path, output_dir: Path) -> Path:
     store = output_dir / f"{slide.stem}.zarr"
-    wsi = zs.open_wsi(slide, backed_file=store)
+    wsi = zs.open_wsi(slide, store=store)
     zs.pp.find_tissues(wsi, level=-1)
     zs.pp.tile_tissues(wsi, 256, mpp=0.5)
     zs.tl.feature_extraction(wsi, "resnet50", batch_size=32)

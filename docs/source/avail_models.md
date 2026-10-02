@@ -125,7 +125,7 @@ Alternatively, You can set it at the start of your python session
 ```python
 import os
 
-os.environ["HF_HUB_OFFLINE"] = 1
+os.environ["HF_HUB_OFFLINE"] = "1"
 ```
 
 ## Browse the models

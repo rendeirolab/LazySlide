@@ -61,7 +61,7 @@ zs.pl.tiles(wsi, feature_key="resnet50", color=["1", "99"])
 For persistent analysis, open the slide with a backing store and then write it:
 
 ```python
-wsi = zs.open_wsi("path/to/slide.svs", backed_file="analysis.zarr")
+wsi = zs.open_wsi("path/to/slide.svs", store="analysis.zarr")
 # Run the processing steps above.
 wsi.write(overwrite=True)
 ```

@@ -27,7 +27,7 @@ Instead, create a new branch for your changes and submit a pull request.
 3. We use [uv](https://docs.astral.sh/uv/) to manage our development environment.
 
     ```bash
-    uv lock
+    uv sync
     uv run prek install
     ```
    
@@ -72,9 +72,3 @@ Instead, create a new branch for your changes and submit a pull request.
 8. Commit your changes and push them to your fork
 
 9. Submit a pull request
-
-
-## How to report bugs
-
-
-## How to suggest enhancements

@@ -26,7 +26,7 @@ Treat missing, zero, or implausible MPP as a data-quality problem before running
 Choose the backing store when opening the source slide:
 
 ```python
-wsi = zs.open_wsi("slide.svs", backed_file="slide-analysis.zarr")
+wsi = zs.open_wsi("slide.svs", store="slide-analysis.zarr")
 # Run analysis steps.
 wsi.write(overwrite=True)
 ```
@@ -34,7 +34,7 @@ wsi.write(overwrite=True)
 Reopen with the same source slide and backing store:
 
 ```python
-wsi = zs.open_wsi("slide.svs", backed_file="slide-analysis.zarr")
+wsi = zs.open_wsi("slide.svs", store="slide-analysis.zarr")
 ```
 
 The WSI pixels remain in the source slide; generated shapes, tables, images, and metadata live in the backing store.

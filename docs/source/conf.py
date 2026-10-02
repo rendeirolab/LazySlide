@@ -78,6 +78,7 @@ nb_execution_excludepatterns = []
 nb_merge_streams = True
 myst_enable_extensions = [
     "colon_fence",
+    "deflist",
     "html_image",
 ]
 
@@ -95,7 +96,6 @@ nitpicky = True
 nitpick_ignore = [
     ("py:class", "lazyslide_models.tile_prediction.cv_features._CVFeatures"),
     ("py:class", "abc.ABC"),
-    ("py:class", "Scorer"),
     ("py:class", "lazyslide_models.vision.hibou.Hibou"),
     ("py:class", "lazyslide_models.tile_prediction.spider.Spider"),
     ("py:class", "lazyslide.models.vision.Virchow"),

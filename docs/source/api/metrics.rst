@@ -45,7 +45,7 @@ Here's how to evaluate segmentation performance using LazySlide's metrics:
     # Calculate various metrics
     acc = accuracy(semantic_stats)
     miou = mean_iou(instance_stats)
-    pq = pq(instance_stats)
+    pq_score = pq(instance_stats)
 
 .. currentmodule:: lazyslide.metrics.segmentation
 
@@ -76,6 +76,6 @@ TopK
     :toctree: _autogen
     :nosignatures:
 
-    topk
+    topk_score
 
 

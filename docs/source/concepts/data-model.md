@@ -43,7 +43,7 @@ Pass `tile_key`, `feature_key`, and `key_added` explicitly in reusable pipelines
 Open a source WSI with a backing store when results must survive the Python session:
 
 ```python
-wsi = zs.open_wsi("slide.svs", backed_file="slide-analysis.zarr")
+wsi = zs.open_wsi("slide.svs", store="slide-analysis.zarr")
 # ...add results...
 wsi.write(overwrite=True)
 ```

@@ -4,7 +4,7 @@ LazySlide delegates WSI reading to `wsidata`. Format support therefore depends o
 
 | Reader | Typical use | Additional requirements |
 |---|---|---|
-| TiffSlide | TIFF-based bright-field WSI formats | Python package; installed by default |
+| TiffSlide | TIFF-based bright-field WSI formats | `tiffslide` Python package; not installed by default |
 | OpenSlide | Common vendor bright-field formats | OpenSlide library and Python bindings |
 | fastslide | High-performance native whole-slide image reading | `fastslide` |
 | Bio-Formats | Broad microscopy format coverage | Java and `scyjava` |

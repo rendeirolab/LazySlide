@@ -11,3 +11,4 @@ Segmentation :code:`seg`
     seg.semantic
     seg.tissue
     seg.artifact
+    seg.zero_shot

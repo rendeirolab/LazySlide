@@ -60,7 +60,7 @@ includes tutorials, API references, and guides to help you get started.​
 
 ## System requirements
 
-LazySlide has been tested from Python 3.11 to 3.13 (with GitHub Action) on Windows, Linux, and MacOS.
+LazySlide has been tested from Python 3.11 to 3.14 (with GitHub Action) on Windows, Linux, and MacOS.
 Version for dependencies is usually flexible, for the specific version used in development, 
 please see `pyproject.toml` and `uv.lock`.
 
@@ -114,4 +114,4 @@ We welcome contributions from the community. Please refer to our
 
 ## Licence
 
-LazySlide is released under the [MIT License](LICENCE).
+LazySlide is released under the [MIT License](LICENSE).
