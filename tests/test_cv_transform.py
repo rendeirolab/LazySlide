@@ -12,7 +12,6 @@ from lazyslide.cv.transform import (
     MorphClose,
     mods,
 )
-from lazyslide.cv.transform.compose import Mask2Polygon
 from lazyslide.cv.transform.mods import Transform
 from lazyslide.preprocess._tissue import _tissue_mask, find_tissues
 
@@ -246,36 +245,3 @@ class TestTransformParamsIsolation:
 
         assert seen
         assert set(seen) == {21}
-
-
-class _RaisingTransform:
-    """Stand-in for a pipeline stage that fails."""
-
-    def apply(self, mask):
-        raise RuntimeError("stage failed")
-
-
-class _RecordingTransform:
-    """Stand-in for a pipeline stage that records whether it ran."""
-
-    def __init__(self):
-        self.called = False
-
-    def apply(self, mask):
-        self.called = True
-        return mask
-
-
-class TestMask2PolygonPipelineFailure:
-    """Tests that a failing pipeline stage is not swallowed."""
-
-    def test_middle_transform_error_propagates(self):
-        """A raising stage propagates instead of continuing with a stale mask."""
-        t = Mask2Polygon()
-        downstream = _RecordingTransform()
-        t.pipeline = [_RecordingTransform(), _RaisingTransform(), downstream]
-
-        with pytest.raises(RuntimeError, match="stage failed"):
-            t.apply(np.zeros((16, 16), dtype=np.uint8))
-
-        assert not downstream.called

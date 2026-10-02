@@ -145,7 +145,6 @@ def tile_tissues(
             return tiles, tile_spec
         return None
 
-    # tile_coords = []
     tiles_collections = []
     tiles_tissue_id = []
     for _, row in contours.iterrows():

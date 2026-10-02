@@ -340,69 +340,64 @@ def export_annotations(
     if in_bounds:
         gdf = _in_bounds_transform(wsi, gdf, reverse=True)
 
-    if format == "qupath":
-        # Prepare classification column
-        import json
+    # Prepare classification column
+    if format == "qupath" and classes is not None:
+        # Validate classes exists in gdf
+        if classes not in gdf.columns:
+            raise ValueError(f"Column '{classes}' does not exist in the GeoDataFrame.")
 
-        if classes is not None:
-            # Validate classes exists in gdf
-            if classes not in gdf.columns:
+        class_values = gdf[classes]
+
+        # Define default colors
+        default_colors = [
+            "#1B9E77",  # Teal Green
+            "#D95F02",  # Burnt Orange
+            "#7570B3",  # Deep Lavender
+            "#E7298A",  # Magenta
+            "#66A61E",  # Olive Green
+            "#E6AB02",  # Goldenrod
+            "#A6761D",  # Earthy Brown
+            "#666666",  # Charcoal Gray
+            "#1F78B4",  # Cool Blue
+        ]
+
+        # Initialize color_values
+        if colors is None:
+            # Use default colors in a cycle
+            color_map = dict(zip(pd.unique(class_values), cycle(default_colors)))
+            color_values = [color_map.get(x) for x in class_values]
+        elif isinstance(colors, str):
+            # Validate color column exists
+            if colors not in gdf.columns:
                 raise ValueError(
-                    f"Column '{classes}' does not exist in the GeoDataFrame."
+                    f"Color column '{colors}' does not exist in the GeoDataFrame. Available columns: {list(gdf.columns)}"
                 )
+            color_values = gdf[colors]
+        elif isinstance(colors, Mapping):
+            color_values = [colors.get(x, None) for x in gdf[classes]]
+        elif isinstance(colors, Sequence):
+            # Map sequence of colors to unique class values
+            color_map = dict(zip(pd.unique(class_values), colors))
+            color_values = [color_map.get(x, None) for x in class_values]
+        else:
+            raise ValueError(
+                f"Invalid colors: {colors}. Must be a string, mapping, or sequence."
+            )
 
-            class_values = gdf[classes]
+        # Convert colors to RGB arrays
+        from matplotlib.colors import to_rgb
 
-            # Define default colors
-            default_colors = [
-                "#1B9E77",  # Teal Green
-                "#D95F02",  # Burnt Orange
-                "#7570B3",  # Deep Lavender
-                "#E7298A",  # Magenta
-                "#66A61E",  # Olive Green
-                "#E6AB02",  # Goldenrod
-                "#A6761D",  # Earthy Brown
-                "#666666",  # Charcoal Gray
-                "#1F78B4",  # Cool Blue
-            ]
+        color_values = [
+            tuple(int(255 * c) for c in to_rgb(x)) if x is not None else None
+            for x in color_values
+        ]
 
-            # Initialize color_values
-            if colors is None:
-                # Use default colors in a cycle
-                color_map = dict(zip(pd.unique(class_values), cycle(default_colors)))
-                color_values = [color_map.get(x) for x in class_values]
-            elif isinstance(colors, str):
-                # Validate color column exists
-                if colors not in gdf.columns:
-                    raise ValueError(
-                        f"Color column '{colors}' does not exist in the GeoDataFrame. Available columns: {list(gdf.columns)}"
-                    )
-                color_values = gdf[colors]
-            elif isinstance(colors, Mapping):
-                color_values = [colors.get(x, None) for x in gdf[classes]]
-            elif isinstance(colors, Sequence):
-                # Map sequence of colors to unique class values
-                color_map = dict(zip(pd.unique(class_values), colors))
-                color_values = [color_map.get(x, None) for x in class_values]
-            else:
-                raise ValueError(
-                    f"Invalid colors: {colors}. Must be a string, mapping, or sequence."
-                )
-
-            # Convert colors to RGB arrays
-            from matplotlib.colors import to_rgb
-
-            color_values = [
-                tuple(int(255 * c) for c in to_rgb(x)) if x is not None else None
-                for x in color_values
-            ]
-
-            # Create classification JSON strings
-            classifications = []
-            for class_value, color_value in zip(class_values, color_values):
-                json_string = json.dumps({"name": class_value, "color": color_value})
-                classifications.append(json_string)
-            gdf["classification"] = classifications
+        # Create classification JSON strings
+        classifications = []
+        for class_value, color_value in zip(class_values, color_values):
+            json_string = json.dumps({"name": class_value, "color": color_value})
+            classifications.append(json_string)
+        gdf["classification"] = classifications
 
     if file is not None:
         gdf.to_file(file)

@@ -81,7 +81,6 @@ def tile_graph(
             "transform": transform,
         },
     }
-    # TODO: Store in a anndata object
     if table_key is None:
         table_key = Key.tile_graph(tile_key)
     if table_key not in wsi:

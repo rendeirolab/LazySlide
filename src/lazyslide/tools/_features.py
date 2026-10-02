@@ -56,7 +56,6 @@ DEFAULT_POOL_MODE = {
 }
 
 
-# TODO: Test if it's possible to load model files
 # TODO: Add color normalization
 def feature_extraction(
     wsi: WSIData,
@@ -481,7 +480,6 @@ def feature_aggregation(
         if len(agg_latents) > 0:
             agg_latents = np.vstack(agg_latents)
             agg_info["latents"] = agg_latents
-        # return agg_fs, agg_annos
 
     # The aggregated features should have the same number of columns as the original features
     # Otherwise, we have to write it to uns

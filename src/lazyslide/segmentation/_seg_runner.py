@@ -353,19 +353,10 @@ def semantic(
 
 
 def _initialize_merging_prob_masks(out: np.ndarray, height: int, width: int):
-    """Create the masks for merging based on the shape of probability mask."""
-    # TODO: decide the channel dimension
-    dims = out.shape
-    if len(dims) == 3:
-        # If the input is a 3D tensor, it is likely in the format [C, H, W]
-        C = out.shape[0]
-    elif len(dims) == 4:
-        # If the input is a 4D tensor, it is likely in the format [B, C, H, W]
-        C = out.shape[1]
-    else:
+    """Create the merging mask for one [C, H, W] tile probability map."""
+    if out.ndim != 3:
         raise ValueError(f"Unsupported shape for probability mask: {out.shape}")
-
-    return np.zeros((C, height, width), dtype=np.float32)
+    return np.zeros((out.shape[0], height, width), dtype=np.float32)
 
 
 def create_importance_map(
@@ -621,11 +612,7 @@ class SemanticSegmentationRunner(Runner):
                         for chunk in dl:
                             images = chunk["image"]
                             xs, ys = np.asarray(chunk["x"]), np.asarray(chunk["y"])
-                            if self.device is not None:
-                                images = images.to(
-                                    self.device, non_blocking=non_blocking
-                                )
-                            # TODO: output may not be tensor
+                            images = images.to(self.device, non_blocking=non_blocking)
                             output = self.model.segment(images)
 
                             probability_map = output.probability_map
@@ -1014,11 +1001,7 @@ class CellSegmentationRunner(Runner):
                     for chunk in tile_loader:
                         images = chunk["image"]
                         xs, ys = np.asarray(chunk["x"]), np.asarray(chunk["y"])
-                        if self.device is not None:
-                            images = images.to(
-                                self.device,
-                                non_blocking=pin_memory,
-                            )
+                        images = images.to(self.device, non_blocking=pin_memory)
                         output = self.model.segment(images)
 
                         instance_map = output.instance_map

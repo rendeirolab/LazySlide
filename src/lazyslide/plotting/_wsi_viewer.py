@@ -162,10 +162,6 @@ class DataSource:
         else:
             return d
 
-    @property
-    def sel(self):
-        return self._sel
-
 
 class ImageDataSource(DataSource):
     def __init__(self, reader: ReaderBase):
@@ -281,13 +277,6 @@ class TileDataSource(DataSource):
         return tiles
 
     @property
-    def tile_shape(self) -> tuple[int, int]:
-        """The W, H of the tile in the viewport, after downsample."""
-        width = int(self.tile_spec.base_width // self.viewport.downsample)
-        height = int(self.tile_spec.base_height // self.viewport.downsample)
-        return width, height
-
-    @property
     def tile_shape_base(self) -> tuple[int, int]:
         """The W, H of the tile at level 0."""
         return self.tile_spec.base_width, self.tile_spec.base_height
@@ -307,8 +296,6 @@ class PolygonDataSource(DataSource):
 
     def set_viewport_hook(self):
         box = self.viewport.box
-        # scale_f = 1 / self.viewport.downsample
-        # render_polygons = np.asarray([scale(p, xfact=scale_f, yfact=scale_f, origin=(0, 0)) for p in self._polygons])
         sel = box.intersects(self._polygons)
         self._render_polygons = self._polygons[sel]
         self._sel = sel
@@ -685,17 +672,6 @@ class PolygonMixin(RenderPlan):
             holes.extend([PolygonPatch(h, **hole_kwargs) for h in inner])
         return outlines, holes
 
-    @staticmethod
-    def _bbox_polygon_patch(polygon: Polygon | MultiPolygon, **kwargs):
-        """
-        Create a matplotlib patch from the bbox of a shapely polygon.
-
-        """
-        from matplotlib.patches import Rectangle
-
-        xmin, ymin, xmax, ymax = polygon.bounds
-        return Rectangle((xmin, ymin), xmax - xmin, ymax - ymin, **kwargs)
-
 
 class ContourRenderPlan(PolygonMixin):
     def __init__(
@@ -959,12 +935,7 @@ class DatashaderFilledPolygonRenderPlan(RenderPlan):
         ax.imshow(arr, extent=extent, origin="lower", zorder=-50)
 
 
-class ZoomMixin:
-    def render(self, ax, plans):
-        pass
-
-
-class ZoomRenderPlan(ZoomMixin, RenderPlan):
+class ZoomRenderPlan(RenderPlan):
     # See example:
     # https://matplotlib.org/stable/gallery/subplots_axes_and_figures/zoom_inset_axes.html
 
@@ -1225,8 +1196,6 @@ class WSIViewer:
             "fixed_value": fixed_value,
             "fixed_units": fixed_units,
             "rotation": rotation,
-            # bbox_to_anchor=bbox_to_anchor,
-            # bbox_transform=bbox_transform,
         }
 
         plan = ScaleBarRenderPlan(self.image_source, dx, **options)
@@ -1510,20 +1479,15 @@ class WSIViewer:
             if feature_key is not None:
                 feature_key = self.wsi._check_feature_key(feature_key, key)
                 adata = self.wsi[feature_key]
-                if color_by is not None:
-                    if color_by in adata.obs.columns:
-                        values = adata.obs[color_by].values
-                        title = color_by
-                    elif color_by in adata.var.index:
-                        values = adata[:, color_by].X.flatten()
-                        title = f"{feature_key} ({color_by})"
-                    else:
-                        raise ValueError(
-                            f"color_by={color_by} not found in feature of '{feature_key}'."
-                        )
+                if color_by in adata.obs.columns:
+                    values = adata.obs[color_by].values
+                    title = color_by
+                elif color_by in adata.var.index:
+                    values = adata[:, color_by].X.flatten()
+                    title = f"{feature_key} ({color_by})"
                 else:
                     raise ValueError(
-                        "color_by must be provided when feature_key is provided."
+                        f"color_by={color_by} not found in feature of '{feature_key}'."
                     )
             # If visualize tile table
             else:
@@ -1531,7 +1495,7 @@ class WSIViewer:
                     raise ValueError(
                         f"color_by={color_by} not found in the tile table."
                     )
-                values = tiles[color_by] if color_by is not None else None
+                values = tiles[color_by]
                 title = color_by
         else:
             values = None

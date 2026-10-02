@@ -47,18 +47,6 @@ def default_pbar(disable=False):
     )
 
 
-def chunker(seq, num_workers):
-    avg = len(seq) / num_workers
-    out = []
-    last = 0.0
-
-    while last < len(seq):
-        out.append(seq[int(last) : int(last + avg)])
-        last += avg
-
-    return out
-
-
 def find_stack_level() -> int:
     """Return the ``stacklevel`` of the first caller outside of lazyslide.
 

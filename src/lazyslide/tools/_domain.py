@@ -139,4 +139,3 @@ def tile_shaper(
     domain_shapes = domain_shapes[[groupby, "geometry"]]
 
     add_shapes(wsi, key_added, domain_shapes)
-    # return domain_shapes

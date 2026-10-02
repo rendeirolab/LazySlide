@@ -144,8 +144,8 @@ def merge_connected_polygons(
     tree = STRtree(polygons)
     visited = set()
 
-    for geom in polygons:
-        if geom in visited:
+    for i, geom in enumerate(polygons):
+        if i in visited:
             continue
 
         groups_ix = {
