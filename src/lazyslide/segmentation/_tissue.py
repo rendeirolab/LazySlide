@@ -26,10 +26,11 @@ _TISSUE_MODEL_ALIASES = {
 }
 
 
-def _tissue_model_spec(model) -> tuple[float | None, int, int, int, bool]:
+def _tissue_model_spec(model) -> tuple[float | None, int, int, int | None, bool]:
     """Return ``(target_mpp, divider, min_size, tissue_channel, jpeg_roundtrip)``.
 
-    ``target_mpp`` is None for a model whose input resolution is unknown.
+    ``target_mpp`` is None for a model whose input resolution is unknown, and
+    ``tissue_channel`` is None for one that doesn't name its classes.
     """
     # ponytail: the models don't publish their input mpp yet, so it's kept here per
     # model class; read it from InputConstraint once
@@ -53,7 +54,7 @@ def _tissue_model_spec(model) -> tuple[float | None, int, int, int, bool]:
     divider = getattr(constraint, "divisible_by", None) or 1
     min_size = getattr(constraint, "min", None) or 1
     classes = getattr(model, "classes", None) or ()
-    channel = list(classes).index("Tissue") if "Tissue" in classes else 1
+    channel = list(classes).index("Tissue") if "Tissue" in classes else None
     return None, divider, min_size, channel, False
 
 
@@ -85,7 +86,7 @@ def _split_transform(transform) -> tuple[list, list]:
 
 
 def _segment_tiled(
-    model, img, tile_steps, device, tissue_class: int, tile_px: int
+    model, img, tile_steps, device, tissue_class: int | None, tile_px: int
 ) -> np.ndarray:
     """Tissue probability map of ``img`` ([C, H, W]) from overlapping tiles.
 
@@ -108,7 +109,12 @@ def _segment_tiled(
             for step in tile_steps:
                 tile = step(tile)
             tile = tile.unsqueeze(0).to(device)
-            pred = model.segment(tile).probability_map[0, tissue_class]
+            probability_map = model.segment(tile).probability_map
+            if tissue_class is None:
+                # A model that doesn't name its classes: a single channel is the
+                # tissue; otherwise tissue is channel 1, after background
+                tissue_class = 0 if probability_map.shape[1] == 1 else 1
+            pred = probability_map[0, tissue_class]
             window = np.s_[y : y + tile_h, x : x + tile_w]
             prob[window] += pred.float().cpu().numpy() * weight
             weight_sum[window] += weight

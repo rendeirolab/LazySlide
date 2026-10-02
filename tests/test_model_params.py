@@ -52,6 +52,19 @@ class TestWithSlide:
         )
         assert len(wsi_small["mp_t"]) > 0
 
+    def test_tissue_takes_a_single_channel_model(self, wsi_small):
+        """Regression: an unlabeled single-channel model indexed channel 1."""
+        import torch
+        from lazyslide_models.base import SegmentationOutput
+
+        class OneChannel(MockSemanticSegmentationModel):
+            def segment(self, image):
+                b, _, h, w = image.shape
+                return SegmentationOutput(probability_map=torch.full((b, 1, h, w), 0.9))
+
+        zs.seg.tissue(wsi_small, model=OneChannel(), mpp=8, key_added="mp_t1")
+        assert len(wsi_small["mp_t1"]) > 0
+
     def test_tissue_needs_mpp_for_unknown_models(self, wsi_small):
         with pytest.raises(ValueError, match="pass `mpp` or `level`"):
             zs.seg.tissue(wsi_small, model=MockSemanticSegmentationModel())
