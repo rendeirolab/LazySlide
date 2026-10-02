@@ -234,7 +234,7 @@ class _CellFeatureStore:
 
 def semantic(
     wsi: WSIData,
-    model: SegmentationModelProtocol,
+    model: str | SegmentationModelProtocol,
     tile_key=Key.tiles,
     class_names: list[str] | Mapping[int, str] | None = None,
     transform=None,
@@ -264,8 +264,9 @@ def semantic(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object to work on.
-    model : SegmentationModelProtocol
-        The segmentation model.
+    model : str or SegmentationModelProtocol
+        The segmentation model: a model registry key (see :ref:`models-section`)
+        or a model instance.
     tile_key : str, default: "tiles"
         The key of the tile table.
     class_names : list of str or dict, optional
@@ -319,6 +320,10 @@ def semantic(
         The segmentation results are added to the WSIData object under the specified key.
 
     """
+    if isinstance(model, str):
+        from lazyslide_models import MODEL_REGISTRY
+
+        model = MODEL_REGISTRY[model]()
     spec = wsi.tile_spec(tile_key)
     if spec is not None and (spec.overlap_x == 0 or spec.overlap_y == 0):
         warnings.warn(

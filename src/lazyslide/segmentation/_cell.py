@@ -80,23 +80,24 @@ def cells(
     :term:`tile <Tiles>` should be prepared before segmentation, the tile size should be
     reasonable (with :term:`mpp` around 0.5) for the model to work properly
 
-    Supported models:
-
-    - instanseg :cite:p:`Goldsborough2024-oc`
-    - cellpose :cite:p:`Stringer2021-cx`
-    - nulite :cite:p:`Tommasino2024-tg`
-    - histoplus :cite:p:`Adjadj2025-hn`
+    Any cell segmentation model works (see :ref:`models-section`), for example
+    "instanseg" :cite:p:`Goldsborough2024-oc` (the default),
+    "cellpose" :cite:p:`Stringer2021-cx`, and the cell type models
+    "nulite" :cite:p:`Tommasino2024-tg` and "histoplus" :cite:p:`Adjadj2026-hn`.
 
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The :term:`WSIData` object to work on.
     model : str or SegmentationModelProtocol, default: "instanseg"
-        The cell segmentation model.
+        The cell segmentation model: a model registry key (see
+        :ref:`models-section`) or a model instance.
     tile_key : str, default: "tiles"
         The key of the tile table.
     magnification : str, default: None
-        The magnification of the model. Used by cell type segmentation models.
+        The magnification the model runs at, passed to a model built from a
+        registry key. Inferred from the tile mpp for the models that need it
+        ("nulite", "histoplus") when not given.
     transform : callable, default: None
         The transformation for the input tiles.
     batch_size : int, default: 4
@@ -294,16 +295,16 @@ def cell_types(
     :term:`tile <Tiles>` should be prepared before segmentation, the tile size should be
     reasonable (with :term:`mpp` around 0.5) for the model to work properly
 
-    Supported models:
-        - nulite: :cite:p:`Tommasino2024-tg`
-        - histoplus: :cite:p:`Adjadj2025-hn`
+    For example "nulite" :cite:p:`Tommasino2024-tg` (the default) or
+    "histoplus" :cite:p:`Adjadj2026-hn`.
 
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object to work on.
     model : str or SegmentationModelProtocol, default: "nulite"
-        The cell type segmentation model.
+        The cell type segmentation model: a model registry key (see
+        :ref:`models-section`) or a model instance.
     tile_key : str, default: "tiles"
         The key of the tile table.
     magnification : str, default: None

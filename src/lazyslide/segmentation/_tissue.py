@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
@@ -17,6 +17,45 @@ from lazyslide.cv.mask import repair_invalid_geometry
 
 if TYPE_CHECKING:
     import torch
+    from lazyslide_models import SegmentationModelProtocol
+
+# Short names for the built-in tissue models, besides their registry keys
+_TISSUE_MODEL_ALIASES = {
+    "grandqc": "grandqc-tissue",
+    "hest": "hest-tissue-segmentation",
+}
+
+
+def _tissue_model_spec(model) -> tuple[float | None, int, int, int | None, bool]:
+    """Return ``(target_mpp, divider, min_size, tissue_channel, jpeg_roundtrip)``.
+
+    ``target_mpp`` is None for a model whose input resolution is unknown, and
+    ``tissue_channel`` is None for one that doesn't name its classes.
+    """
+    # ponytail: the models don't publish their input mpp yet, so it's kept here per
+    # model class; read it from InputConstraint once
+    # rendeirolab/lazyslide-models#37 lands.
+    from lazyslide_models.segmentation import (
+        GrandQCTissue,
+        HESTTissueSegmentation,
+        PathProfilerTissueSegmentation,
+    )
+
+    if isinstance(model, GrandQCTissue):
+        # GrandQC's tissue detector was trained on JPEG-compressed images, so
+        # upstream re-encodes at quality 80; its tissue is channel 0
+        return 10, 32, 32, 0, True
+    if isinstance(model, PathProfilerTissueSegmentation):
+        # Upstream's --mask_magnification is 1.25x or 2.5x, i.e. ~8 or ~4 µm/px
+        return 4, 64, 128, 1, False
+    if isinstance(model, HESTTissueSegmentation):
+        return 1, 8, 8, 1, False
+    constraint = getattr(model, "input_constraint", None)
+    divider = getattr(constraint, "divisible_by", None) or 1
+    min_size = getattr(constraint, "min", None) or 1
+    classes = getattr(model, "classes", None) or ()
+    channel = list(classes).index("Tissue") if "Tissue" in classes else None
+    return None, divider, min_size, channel, False
 
 
 def _tile_starts(size: int, tile: int) -> list[int]:
@@ -47,7 +86,7 @@ def _split_transform(transform) -> tuple[list, list]:
 
 
 def _segment_tiled(
-    model, img, tile_steps, device, tissue_class: int, tile_px: int
+    model, img, tile_steps, device, tissue_class: int | None, tile_px: int
 ) -> np.ndarray:
     """Tissue probability map of ``img`` ([C, H, W]) from overlapping tiles.
 
@@ -70,7 +109,12 @@ def _segment_tiled(
             for step in tile_steps:
                 tile = step(tile)
             tile = tile.unsqueeze(0).to(device)
-            pred = model.segment(tile).probability_map[0, tissue_class]
+            probability_map = model.segment(tile).probability_map
+            if tissue_class is None:
+                # A model that doesn't name its classes: a single channel is the
+                # tissue; otherwise tissue is channel 1, after background
+                tissue_class = 0 if probability_map.shape[1] == 1 else 1
+            pred = probability_map[0, tissue_class]
             window = np.s_[y : y + tile_h, x : x + tile_w]
             prob[window] += pred.float().cpu().numpy() * weight
             weight_sum[window] += weight
@@ -81,7 +125,7 @@ def _segment_tiled(
 def tissue(
     wsi: WSIData,
     *,
-    model: Literal["grandqc", "pathprofiler", "hest"] = "pathprofiler",
+    model: str | SegmentationModelProtocol = "pathprofiler",
     level: int | None = None,
     mpp: float | None = None,
     bbox_ratio: float = 0.05,
@@ -100,10 +144,13 @@ def tissue(
     """
     Perform :term:`tissue segmentation` powered by a deep learning model.
 
-    Supported models:
-        - "grandqc": :cite:p:`Weng2024-jf`. Runs on mpp=10.
+    Models with a built-in input resolution:
         - "pathprofiler": :cite:p:`Haghighat2022-sy`. Runs on mpp=4 (2.5x).
-        - "hest": "https://huggingface.co/MahmoodLab/hest-tissue-seg". Runs on mpp=1.
+        - "grandqc" (registry key "grandqc-tissue"): :cite:p:`Weng2024-jf`. Runs on mpp=10.
+        - "hest" (registry key "hest-tissue-segmentation"):
+          "https://huggingface.co/MahmoodLab/hest-tissue-seg". Runs on mpp=1.
+
+    Any other segmentation model runs at the ``mpp`` or ``level`` you pass.
 
     The model runs on overlapping tiles at the working :term:`mpp` (see
     ``tile_px``), blended with a Gaussian window, so its memory use does not
@@ -115,8 +162,9 @@ def tissue(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The :term:`whole slide image <WSI>`.
-    model : {"grandqc", "pathprofiler", "hest"}, default: "pathprofiler"
-        The model to use for :term:`tissue segmentation`.
+    model : str or SegmentationModelProtocol, default: "pathprofiler"
+        The model to use for :term:`tissue segmentation`: a model registry key
+        (see :ref:`models-section`) or a model instance.
     level : int, default: None
         The level to segment the tissue, mutually exclusive with mpp.
     mpp : float, default: None
@@ -163,32 +211,17 @@ def tissue(
     device = _api.default_value("device", device)
 
     # Load the model
-    model_name = model
-    if model == "grandqc":
-        from lazyslide_models.segmentation import GrandQCTissue
+    if isinstance(model, str):
+        from lazyslide_models import MODEL_REGISTRY
 
-        model = GrandQCTissue()
-        target_mpp = 10
-        min_size = 32
-        divider = 32
-    elif model == "pathprofiler":
-        from lazyslide_models.segmentation import PathProfilerTissueSegmentation
-
-        model = PathProfilerTissueSegmentation()
-        # Upstream's --mask_magnification is 1.25x or 2.5x, i.e. ~8 or ~4 µm/px
-        target_mpp = 4
-        divider = 64
-        min_size = 128
-    elif model == "hest":
-        from lazyslide_models.segmentation import HESTTissueSegmentation
-
-        model = HESTTissueSegmentation()
-        target_mpp = 1
-        divider = 8
-        min_size = 8
-    else:
+        model = MODEL_REGISTRY[_TISSUE_MODEL_ALIASES.get(model, model)]()
+    target_mpp, divider, min_size, tissue_class, jpeg_roundtrip = _tissue_model_spec(
+        model
+    )
+    if target_mpp is None and mpp is None and level is None:
         raise ValueError(
-            f"Unknown model: {model}, choose from 'grandqc', 'pathprofiler' and 'hest'."
+            f"The input resolution of {type(model).__name__} is unknown; "
+            "pass `mpp` or `level`."
         )
     if tile_px < 1:
         raise ValueError(f"tile_px must be a positive number of px, got {tile_px}.")
@@ -209,6 +242,9 @@ def tissue(
         level = np.argmin(np.abs(level_mpp - target_mpp))
 
     current_mpp = props.level_downsample[level] * props.mpp
+    if target_mpp is None:
+        # A model without a known resolution runs at the level it was given
+        target_mpp = current_mpp
     # If reach the target mpp, we can use the model directly,
     # Otherwise, we need to downsample the image
     if current_mpp < target_mpp:
@@ -257,9 +293,7 @@ def tissue(
         constant_values=0,  # Pad with black pixels
     )
 
-    if model_name == "grandqc":
-        # GrandQC's tissue detector was trained on JPEG-compressed images, so
-        # upstream re-encodes at quality 80; HEST and PathProfiler do not.
+    if jpeg_roundtrip:
         # The round trip keeps the reader's RGB order: imdecode returns
         # channels in the order imencode was given them.
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
@@ -271,7 +305,6 @@ def tissue(
     img = torch.from_numpy(img).permute(2, 0, 1)
     for step in whole_steps:
         img = step(img)
-    tissue_class = 0 if model_name == "grandqc" else 1
     amp_ctx = _api.autocast(device, amp, autocast_dtype)
     with amp_ctx, torch.inference_mode():
         tissue_prob = _segment_tiled(

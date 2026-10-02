@@ -17,14 +17,18 @@ from lazyslide._utils import default_pbar
 if TYPE_CHECKING:
     import torch
     from lazyslide_models import (
-        DensePredictionModelProtocol,
+        MarkerMapModelProtocol,
         TilePredictionModelProtocol,
+        VirtualStainModelProtocol,
     )
 
 
 def virtual_stain(
     wsi: WSIData,
-    model: str | TilePredictionModelProtocol | DensePredictionModelProtocol = "rosie",
+    model: str
+    | VirtualStainModelProtocol
+    | MarkerMapModelProtocol
+    | TilePredictionModelProtocol = "rosie",
     image_key: str | None = None,
     tile_key: str = Key.tiles,
     device: str | None = None,
@@ -60,9 +64,10 @@ def virtual_stain(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The whole-slide image data to work on.
-    model : str or model, default: "rosie"
-        The virtual staining model to use: a registry key, or an instance of a
-        tile prediction, marker map or virtual stain model.
+    model : str or VirtualStainModelProtocol or MarkerMapModelProtocol or TilePredictionModelProtocol, default: "rosie"
+        The virtual staining model to use: a model registry key (see
+        :ref:`models-section`), or an instance of a virtual stain, marker map or
+        tile prediction model.
     image_key : str, default: None
         The key to store the new image. For a virtual stain model this is a
         prefix, and each stain is stored under ``'{image_key}_{stain}'``.

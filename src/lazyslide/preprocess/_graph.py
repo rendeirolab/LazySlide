@@ -44,13 +44,14 @@ def tile_graph(
     tile_key : str, default: 'tiles'
         The tile key.
     table_key : str, default: None
-        The table key to store the graph.
+        The table key to store the graph. If None, ``'{tile_key}_graph'``.
 
     Returns
     -------
-    :class:`AnnData <anndata.AnnData>`
-        The tiles with spatial connectivities and distances in an anndata format. |
-        Added to :code:`tile_graph | {key_added}` in :bdg-danger:`tables` slot of the WSIData object.
+    None
+        The tiles with spatial connectivities and distances in an anndata format,
+        added to the :bdg-danger:`tables` slot of the WSIData object under
+        ``table_key``.
 
     Examples
     --------
@@ -60,7 +61,7 @@ def tile_graph(
         >>> wsi = zs.datasets.sample()
         >>> zs.pp.find_tissues(wsi)
         >>> zs.pp.tile_graph(wsi)
-        >>> wsi['tile_graph']
+        >>> wsi['tiles_graph']
 
 
     """
