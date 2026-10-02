@@ -32,6 +32,24 @@ class TestFeatureExtraction:
             wsi_small, model=TIMM_VIT_MODEL, dense=True, load_kws={"pretrained": False}
         )
 
+    def test_renaming_keeps_the_pooling_default(self, wsi_small, monkeypatch):
+        """Regression: model_name also picked the pooling default, so renaming a
+        model changed how its dense features were pooled."""
+        from lazyslide.tools import _features
+
+        monkeypatch.setitem(
+            _features.DEFAULT_POOL_MODE, TIMM_VIT_MODEL, "cls_patch_mean"
+        )
+        kws = {"dense": True, "load_kws": {"pretrained": False}}
+        zs.tl.feature_extraction(
+            wsi_small, TIMM_VIT_MODEL, pool_mode="cls", key_added="vit_cls", **kws
+        )
+        zs.tl.feature_extraction(
+            wsi_small, TIMM_VIT_MODEL, model_name="renamed", key_added="vit_ren", **kws
+        )
+        # cls_patch_mean concatenates the CLS token and the mean patch token
+        assert wsi_small["vit_ren"].X.shape[1] == 2 * wsi_small["vit_cls"].X.shape[1]
+
 
 class _PoolModel(nn.Module):
     """Minimal model: global avg pool -> 3-dim feature."""

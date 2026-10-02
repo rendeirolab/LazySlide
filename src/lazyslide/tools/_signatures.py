@@ -193,7 +193,8 @@ class RNALinker:
                 "agg_features."
             )
 
-        score_key = score_key or self.score_key
+        if score_key is None:
+            score_key = self.score_key
         if score_key is None:
             raise ValueError("Run .score() first or pass score_key.")
 

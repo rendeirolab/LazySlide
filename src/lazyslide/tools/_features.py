@@ -199,9 +199,12 @@ def feature_extraction(
 
     load_kws = {} if load_kws is None else load_kws
 
+    # The model's own name picks its pooling default; `model_name` only names the
+    # output, so renaming a model doesn't change how its features are pooled
+    own_name = None
     if model is not None:
         if isinstance(model, str):
-            model, default_model_name = load_models(
+            model, own_name = load_models(
                 dense=dense,
                 model_name=model,
                 model_path=model_path,
@@ -209,10 +212,11 @@ def feature_extraction(
                 **load_kws,
             )
             if model_name is None:
-                model_name = default_model_name
+                model_name = own_name
         elif isinstance(model, ImageModelProtocol):
+            own_name = model.name
             if model_name is None:
-                model_name = model.name
+                model_name = own_name
         elif isinstance(model, Callable):
             # Callable models are used as given; nothing to derive here.
             pass
@@ -266,7 +270,7 @@ def feature_extraction(
                 "Dense features are only supported for ViT models."
             )
         if pool_mode is None:
-            pool_mode = DEFAULT_POOL_MODE.get(model_name, "cls")
+            pool_mode = DEFAULT_POOL_MODE.get(own_name, "cls")
         if pool_mode not in ["cls", "cls_patch_mean"]:
             raise ValueError(f"Invalid pool_mode: {pool_mode}")
 

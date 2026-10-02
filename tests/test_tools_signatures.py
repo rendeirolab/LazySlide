@@ -29,3 +29,11 @@ def test_associate_before_score_raises():
     linker, _ = _linker()
     with pytest.raises(ValueError, match="score"):
         linker.associate()
+
+
+def test_associate_uses_an_explicit_score_key():
+    """Regression: a falsy score_key such as "" fell back to the last score."""
+    linker, _ = _linker()
+    linker.score("g", "a", n_features=3)
+    with pytest.raises(KeyError):
+        linker.associate(score_key="")
