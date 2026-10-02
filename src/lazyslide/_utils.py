@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import inspect
 import os
 import warnings
@@ -12,6 +13,9 @@ console = Console()
 # Files under this directory are internal to lazyslide. The trailing os.sep keeps
 # sibling distributions (e.g. lazyslide_models) from matching the prefix.
 _PKG_DIR = os.path.dirname(__file__) + os.sep
+# The import machinery: a warning raised while a lazyslide module is imported
+# (e.g. the deprecated lazyslide.models) must not be blamed on importlib.
+_IMPORTLIB_DIR = os.path.dirname(importlib.__file__) + os.sep
 
 
 def get_torch_device():
@@ -52,16 +56,24 @@ def find_stack_level() -> int:
     """Return the ``stacklevel`` of the first caller outside of lazyslide.
 
     Pass it to :func:`warnings.warn` or :func:`logging.warning` so the message is
-    attributed to the user's call site instead of an internal frame.
+    attributed to the user's call site instead of an internal frame. Frames of the
+    import machinery are passed over too, so a warning raised at import time names
+    the user's import statement or attribute access.
     """
     # inspect.stack() is slow, walk f_back instead.
     # https://stackoverflow.com/questions/17407119/python-inspect-stack-is-slow
     frame: FrameType | None = inspect.currentframe()
     try:
         n = 0
-        while frame is not None and frame.f_code.co_filename.startswith(_PKG_DIR):
+        while frame is not None:
+            filename = frame.f_code.co_filename
+            # warnings and logging skip importlib's bootstrap frames themselves,
+            # without counting them, so they must not be counted here either
+            if not ("importlib" in filename and "_bootstrap" in filename):
+                if not filename.startswith((_PKG_DIR, _IMPORTLIB_DIR)):
+                    break
+                n += 1
             frame = frame.f_back
-            n += 1
     finally:
         # See note in
         # https://docs.python.org/3/library/inspect.html#inspect.Traceback

@@ -93,6 +93,30 @@ class TestExistingDeprecations:
         assert out.stdout.strip() == "False"
 
 
+@pytest.mark.parametrize(
+    "stmt",
+    [
+        "import lazyslide.models",
+        "import lazyslide; lazyslide.models",
+        "from lazyslide import models",
+    ],
+)
+def test_models_warning_blames_the_caller(stmt):
+    """The shim warns while it is imported; the warning must name the user's line,
+    not importlib, however the module is reached."""
+    code = (
+        "import warnings\n"
+        "with warnings.catch_warnings(record=True) as caught:\n"
+        "    warnings.simplefilter('always')\n"
+        f"    {stmt}\n"
+        "print([w.filename for w in caught if 'lazyslide.models' in str(w.message)])\n"
+    )
+    out = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, check=True
+    )
+    assert out.stdout.strip() == "['<string>']"
+
+
 class TestNoOpParams:
     def test_settings_pbar_impl(self):
         with warnings.catch_warnings():
