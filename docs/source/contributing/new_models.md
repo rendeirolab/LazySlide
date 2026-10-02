@@ -77,7 +77,7 @@ from lazyslide_models.base import ImageModel, ModelTask
     hf_url="https://huggingface.co/xxx",  # Optional
     github_url="https://github.com/xxx/xxx",  # Optional
     paper_url="https://doi.org/xxx/xxx",  # Optional
-    bib_key="xxx",  # Optional, Add the bib entry to docs/source/references.bib
+    bib_key="xxx",  # Optional, add the bib entry to references.bib in lazyslide-models
     param_size="87.8M",  # Optional
     encode_dim=512,  # Optional
 )

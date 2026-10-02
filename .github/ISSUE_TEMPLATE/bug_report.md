@@ -32,7 +32,7 @@ If applicable, add screenshots to help explain your problem.
 - OS: [e.g. Linux Ubuntu 20.04, Windows 11, macOS Big Sur]
 - CPU: [e.g. x86, ARM]
 - GPU: [e.g. RTX4090 (torch+CUDA12.8), MPS(M2 pro)]
-- Python Version [e.g. 3.10, 3.11] `python --version`
+- Python Version [e.g. 3.11, 3.12] `python --version`
 - UV version: [e.g. 0.5.13 ] `uv --version`
 - IDE: [e.g. VSCode, PyCharm, Jupyter Notebook]
 - LazySlide version: `python -c "import lazyslide as zs; print(zs.__version__)"`

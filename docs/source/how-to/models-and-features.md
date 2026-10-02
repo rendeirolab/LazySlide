@@ -72,7 +72,7 @@ zs.tl.feature_extraction(
 )
 ```
 
-The tile key is still added as a suffix, so inspect `wsi.tables.keys()` after the call. Use descriptive keys in pipelines that compare model or preprocessing variants.
+`key_added` is used exactly as given, so the features above are stored in `wsi.tables["uni_experiment_a"]`. The tile key is added as a suffix only to the default key (`uni_tiles_20x` here), so put the tile set in your own key if you extract features for several. Use descriptive keys in pipelines that compare model or preprocessing variants.
 
 ## How do I extract dense patch-token features?
 
@@ -160,4 +160,4 @@ zs.tl.tile_prediction(wsi, "deepspotm")
 
 The full panel is transcriptome-wide but adds ~19k columns to the tile table, so prefer a marker panel for routine analysis and interactive visualization.
 
-The weights are gated and non-commercial: request access on the [model page](https://huggingface.co/ratschlab/DeepSpotM) and authenticate with `huggingface-cli login` before first use. See [Choosing a model](../concepts/choosing-models) for licensing guidance.
+The weights are gated and non-commercial: request access on the [model page](https://huggingface.co/ratschlab/DeepSpotM) and authenticate with `hf auth login` before first use. See [Choosing a model](../concepts/choosing-models) for licensing guidance.

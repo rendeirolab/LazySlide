@@ -194,7 +194,7 @@ Image analysis
    Delaunay triangulation
       A geometric method for creating a triangular mesh from a set of points, where no point lies inside the circumcircle of any triangle. 
       Used in :term:`spatial tile graph` construction to define neighborhood relationships between :term:`tiles <tile>` based on natural 
-      spatial connectivity rather than fixed distance thresholds. Can be set by using the parameter `use_delaunay` in `pp.tile_graph`.
+      spatial connectivity rather than fixed distance thresholds. Can be set by using the parameter `delaunay` in `pp.tile_graph`.
 
    feature aggregation
       The process of combining :term:`features` from multiple sources or spatial locations, such as aggregating :term:`patch` features within tissue regions 

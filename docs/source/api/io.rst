@@ -9,3 +9,4 @@ IO :code:`io`
 
     io.load_annotations
     io.export_annotations
+    io.read_ndpa

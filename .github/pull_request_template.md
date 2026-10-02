@@ -23,13 +23,9 @@ Which of these best describes the type of changes being introduced
 - [ ] 👷 🔧 CI or Configuration Files
 - [ ] Other (Please describe)
 
-## Checklist for adding a new model
+## Adding a new model
 
-- [ ] Add a model class
-- [ ] The weights can be accessed online
-- [ ] If the weights are gated, is the `hf_access` context applied?
-- [ ] Add an entry for the model in the model registry
-- [ ] Add tests for the model
+Models are contributed to [lazyslide-models](https://github.com/rendeirolab/lazyslide-models), not to this repository.
 
 ## 🛠 What does this PR implement
 

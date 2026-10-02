@@ -13,6 +13,7 @@ API Reference
     models
     cv
     metrics
+    datasets
 
 
 .. grid:: 1 2 2 2
@@ -65,3 +66,9 @@ API Reference
       :link-type: doc
 
       Metrics for scoring or evaluation
+
+   .. grid-item-card:: Datasets
+      :link: datasets
+      :link-type: doc
+
+      Sample slides for tutorials and testing
