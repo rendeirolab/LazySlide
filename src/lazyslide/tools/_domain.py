@@ -99,8 +99,9 @@ def tile_shaper(
 
     Returns
     -------
-    :class:`GeoDataFrame <geopandas.GeoDataFrame>`
-        Added to to the :bdg-danger:`shapes` slot of the :term:`WSIData` object.
+    None
+        The domain shapes are added to the :bdg-danger:`shapes` slot of the
+        :term:`WSIData` object under ``key_added``.
 
     Examples
     --------
@@ -118,15 +119,7 @@ def tile_shaper(
     tile_table = wsi[tile_key]
 
     # Create box geometries from tile bounds
-    geometries = []
-    for _, row in tile_table.iterrows():
-        geom = box(
-            row.bounds["minx"],
-            row.bounds["miny"],
-            row.bounds["maxx"],
-            row.bounds["maxy"],
-        )
-        geometries.append(geom)
+    geometries = [box(*b) for b in tile_table.bounds.itertuples(index=False)]
 
     # Create GeoDataFrame with tile geometries and groupby column
     tiles_gdf = gpd.GeoDataFrame(
@@ -138,9 +131,9 @@ def tile_shaper(
     )
 
     # Group by tissue_id and groupby column, then dissolve to merge adjacent tiles
-    domain_shapes = (
-        tiles_gdf.dissolve(by=[groupby, "tissue_id"]).explode().reset_index(drop=True)
-    )
+    domain_shapes = tiles_gdf.dissolve(
+        by=[groupby, "tissue_id"], as_index=False
+    ).explode(ignore_index=True)
 
     # Keep only the groupby column and geometry
     domain_shapes = domain_shapes[[groupby, "geometry"]]

@@ -2,7 +2,7 @@ import json
 
 import geopandas as gpd
 import pytest
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, box
 
 import lazyslide as zs
 
@@ -336,3 +336,58 @@ class TestExportAnnotations:
         assert classification_data["name"] == "test_class"
         assert isinstance(classification_data["color"], list)
         assert len(classification_data["color"]) == 3  # RGB values
+
+
+class _StubWSI(dict):
+    """Just enough WSIData for load_annotations: wsi[key], key in wsi, wsi.shapes."""
+
+    @property
+    def shapes(self):
+        return self
+
+
+@pytest.fixture
+def no_add_shapes(monkeypatch):
+    from lazyslide.io import _annotation
+
+    monkeypatch.setattr(_annotation, "add_shapes", lambda *args, **kwargs: None)
+
+
+def test_join_to_keeps_rows_and_geometry(no_add_shapes):
+    """Regression: the one-to-many join shifted tile geometry and labels."""
+    tiles = gpd.GeoDataFrame(
+        {
+            "geometry": [
+                box(0, 0, 100, 100),
+                box(100, 0, 200, 100),
+                box(200, 0, 300, 100),
+                box(400, 0, 500, 100),
+            ]
+        }
+    )
+    before = tiles.geometry.copy()
+    annos = gpd.GeoDataFrame(
+        {"geometry": [box(50, 10, 150, 90), box(120, 10, 250, 90)], "label": ["A", "B"]}
+    )
+    zs.io.load_annotations(_StubWSI(tiles=tiles), annos, join_to="tiles")
+
+    assert tiles.geometry.equals(before)
+    # Tile 1 touches both annotations: the first one wins
+    assert tiles["label"].tolist()[:3] == ["A", "A", "B"]
+    assert tiles["label"].isna().tolist() == [False, False, False, True]
+
+
+def test_load_annotations_leaves_input_untouched(no_add_shapes):
+    annos = gpd.GeoDataFrame(
+        {"geometry": [box(0, 0, 50, 50)], "classification": ['{"name": "a"}']},
+        crs="EPSG:3857",
+    )
+    before = annos.copy()
+    zs.io.load_annotations(_StubWSI(), annos)
+    assert annos.crs == before.crs
+    assert annos.columns.tolist() == before.columns.tolist()
+
+
+def test_annotations_is_required():
+    with pytest.raises(TypeError, match="annotations"):
+        zs.io.load_annotations(_StubWSI())

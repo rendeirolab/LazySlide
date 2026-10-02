@@ -408,7 +408,6 @@ class HeatmapTilesRenderPlan(RenderPlan):
         smooth=False,
         smooth_scale=2,
         legend_kws=None,
-        **kwargs: Any,
     ):
         self.datasource: TileDataSource = tile_datasource
         from matplotlib.colors import ListedColormap
@@ -506,7 +505,6 @@ class ScatterTilesRenderPlan(RenderPlan):
         marker="o",
         rasterized=True,
         legend_kws=None,
-        **kwargs: Any,
     ):
         self.datasource: TileDataSource = datasource
         from matplotlib.colors import ListedColormap
@@ -844,7 +842,7 @@ class DatashaderFilledPolygonRenderPlan(RenderPlan):
         self.color_by = color_by
         self.palette = palette
         self.color = color
-        self.alpha = 1
+        self.alpha = alpha
         self.legend_kws = legend_kws or {}
         self.legend = None
         # Hard cap on the datashader canvas; lowered to the displayed size by
@@ -919,7 +917,8 @@ class DatashaderFilledPolygonRenderPlan(RenderPlan):
                 color_key=color_key,
                 how="linear",
                 alpha=round(self.alpha * 255),
-                min_alpha=255,
+                # Equal to alpha, so overlapping polygons don't turn opaque
+                min_alpha=round(self.alpha * 255),
             )
 
             # set legend for base view only
@@ -1385,27 +1384,28 @@ class WSIViewer:
             Whether to show the legend.
         cache : bool, default: True
             The plan will be cached if True.
-        backend : str, {'matplotlib', 'datashader'}
-            The backend to use for plotting.
+        backend : {'matplotlib', 'datashader'}, optional
+            The backend to use for plotting. If None, datashader is used for the
+            base view when there are more than 10,000 polygons.
 
         """
         polygons, labels, colors, palette = self._process_polygons(
             key, label_by, color_by, palette
         )
 
-        # Decide whether to use Datashader for the base view
-        user_requested = backend == "datashader"
-        use_datashader = user_requested or len(polygons.polygons) > 10000
-        if use_datashader:
-            ds = find_spec("datashader")
-            if ds is None:
-                use_datashader = False
-                warnings.warn(
-                    "Datashader is not installed. "
-                    "Falling back to matplotlib for the base view.",
-                    stacklevel=find_stack_level(),
-                )
-            import datashader as ds
+        # Decide whether to use Datashader for the base view: an explicit
+        # backend wins, and with None big layers switch to it automatically
+        if backend is None:
+            use_datashader = len(polygons.polygons) > 10000
+        else:
+            use_datashader = backend == "datashader"
+        if use_datashader and find_spec("datashader") is None:
+            use_datashader = False
+            warnings.warn(
+                "Datashader is not installed. "
+                "Falling back to matplotlib for the base view.",
+                stacklevel=find_stack_level(),
+            )
 
         if use_datashader:
             warnings.warn(

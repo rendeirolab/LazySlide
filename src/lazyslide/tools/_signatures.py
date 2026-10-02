@@ -39,8 +39,8 @@ class RNALinker:
             from anndata import AnnData
         except ModuleNotFoundError:
             raise ModuleNotFoundError(
-                "To use MultimodalLinker, you need to install scanpy. You can install it using "
-                "`pip install scanpy."
+                "To use RNALinker, you need to install scanpy. You can install it using "
+                "`pip install scanpy`."
             )
 
         if not isinstance(agg_features, AnnData) or not isinstance(others, AnnData):
@@ -192,6 +192,11 @@ class RNALinker:
                 "must match the number of observations in "
                 "agg_features."
             )
+
+        if score_key is None:
+            score_key = self.score_key
+        if score_key is None:
+            raise ValueError("Run .score() first or pass score_key.")
 
         omics_df = pd.DataFrame(omics_matrix.X)
         scores = pd.Series(

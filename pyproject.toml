@@ -112,7 +112,8 @@ line-length = 88
 # keeping one source of truth for the minimum supported Python.
 
 [tool.ruff.lint]
-extend-select = ["I"]
+# ARG: an unused argument in the library is a parameter that silently does nothing
+extend-select = ["I", "ARG"]
 
 [tool.ruff.lint.per-file-ignores]
 # BLE001 (blind except). Deliberate in these files:
@@ -124,7 +125,10 @@ extend-select = ["I"]
 "src/lazyslide/segmentation/_zero_shot.py" = ["BLE001"]
 # B017: these tests assert that *some* error surfaces from a third-party call
 # (geopandas, torch) whose exact exception type is not part of our contract.
-"tests/**" = ["B017"]
+# ARG: mocks, fixtures and Sphinx hooks implement signatures they don't fully use.
+"tests/**" = ["B017", "ARG"]
+"docs/**" = ["ARG"]
+"scripts/**" = ["ARG"]
 
 [tool.mypy]
 ignore_missing_imports = true

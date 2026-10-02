@@ -1,11 +1,16 @@
+import warnings
+
+import geopandas as gpd
 import numpy as np
 import pytest
+from shapely import box
 
 from lazyslide.metrics.segmentation import (
     SegmentationStats,
     accuracy,
     dice,
     f1_score,
+    get_semantic_stats,
     mean_iou,
     pq,
     precision,
@@ -297,3 +302,13 @@ class TestSegmentationMetrics:
 
         # Should also complete quickly
         assert end - start < 1.0
+
+
+def test_get_semantic_stats_uses_union_all():
+    """Regression: GeoDataFrame.unary_union is deprecated in geopandas 1.x."""
+    gt = gpd.GeoDataFrame({"geometry": [box(0, 0, 10, 10), box(5, 0, 15, 10)]})
+    pred = gpd.GeoDataFrame({"geometry": [box(0, 0, 10, 10)]})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        stats = get_semantic_stats(gt, pred)
+    assert (stats.tp, stats.fp, stats.fn) == (100, 0, 50)

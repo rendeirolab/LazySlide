@@ -51,6 +51,23 @@ class TestTextImageSimilarity:
         self.wsi = wsi_small
         self.model = model
 
+    def test_default_normalize_does_not_warn(self):
+        """Regression: a v0.8.2 migration warning fired on every default call."""
+        import warnings
+
+        text_embeddings = zs.tl.text_embedding(
+            self.texts, model=self.model, device="cpu"
+        )
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")  # pytest config ignores UserWarning
+            zs.tl.text_image_similarity(
+                self.wsi,
+                text_embeddings,
+                feature_key="MockImageTextModel",
+                key_added="no_warning_similarity",
+            )
+        assert not [w for w in caught if "not normalized" in str(w.message)]
+
     def test_text_image_similarity(self):
         """Test text_image_similarity with mock model."""
         # Get text embeddings
