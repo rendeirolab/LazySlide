@@ -11,7 +11,8 @@ from skimage.filters import threshold_otsu
 from wsidata import WSIData
 from wsidata.io import add_shapes
 
-from lazyslide._utils import default_pbar, get_torch_device
+from lazyslide import _api
+from lazyslide._utils import default_pbar, deprecated_alias
 from lazyslide.cv import BinaryMask
 
 # Configure logging
@@ -47,8 +48,7 @@ def _initialize_model(
             f"Unsupported model: {model_name}. Currently only 'sam' is supported."
         )
 
-    if device is None:
-        device = get_torch_device()
+    device = _api.default_value("device", device)
 
     model_instance.to(device)
     logger.info(f"Model initialized on device: {device}")
@@ -254,7 +254,9 @@ def zero_shot(
     model_kwargs: dict | None = None,
     key_added: str = "zero_shot_segmentation",
     min_area: float = 10,
-    show_progress: bool = True,
+    pbar: bool | None = None,
+    *,
+    show_progress: bool | None = None,
 ) -> WSIData:
     """
     Perform :term:`zero-shot learning` :term:`segmentation` on the :term:`WSI` using the specified model and prompts.
@@ -286,14 +288,19 @@ def zero_shot(
         The key to store the results in the WSIData object.
     min_area : float, default: 10
         Minimum area for :term:`polygons <polygon>` to be included in the results.
-    show_progress : bool, default: True
-        Whether to show a progress bar.
+    pbar : bool, optional
+        Whether to show a progress bar. If None, uses ``settings.pbar``.
+    show_progress : bool, optional
+        .. deprecated:: 0.13.0
+            Use ``pbar`` instead; ``show_progress`` will be removed in 0.14.0.
 
     Returns
     -------
     WSIData
         The updated WSIData object with segmentation results.
     """
+    pbar = deprecated_alias("show_progress", show_progress, "pbar", pbar)
+    pbar = _api.default_value("pbar", pbar)
     # Input validation
     if not prompts:
         raise ValueError("Prompts list cannot be empty")
@@ -324,8 +331,8 @@ def zero_shot(
     tissues = list(wsi.iter.tissue_images(tissue_key, level=-1))
 
     # Set up progress bar if requested
-    with default_pbar(disable=not show_progress) as pbar:
-        tissue_task = pbar.add_task("Processing tissues", total=len(tissues))
+    with default_pbar(disable=not pbar) as progress:
+        tissue_task = progress.add_task("Processing tissues", total=len(tissues))
 
         # Process each tissue
         for d in tissues:
@@ -335,7 +342,7 @@ def zero_shot(
             # Skip if no tiles for this tissue
             if not cut.any():
                 logger.warning(f"No tiles found for tissue ID {d.tissue_id}")
-                pbar.update(tissue_task, advance=1)
+                progress.update(tissue_task, advance=1)
                 continue
 
             # Calculate dimensions
@@ -365,11 +372,11 @@ def zero_shot(
                 logger.error(
                     f"Error getting image embeddings for tissue ID {d.tissue_id}: {e!s}"
                 )
-                pbar.update(tissue_task, advance=1)
+                progress.update(tissue_task, advance=1)
                 continue
 
             # Add prompt task to progress bar
-            prompt_task = pbar.add_task(
+            prompt_task = progress.add_task(
                 f"Processing prompts for tissue {d.tissue_id}", total=len(prompts)
             )
 
@@ -384,7 +391,7 @@ def zero_shot(
                         logger.warning(
                             f"No similarity values for prompt '{prompt}' in tissue ID {d.tissue_id}"
                         )
-                        pbar.update(prompt_task, advance=1)
+                        progress.update(prompt_task, advance=1)
                         continue
 
                     # Get threshold value
@@ -394,7 +401,7 @@ def zero_shot(
                         logger.error(
                             f"Error determining threshold for prompt '{prompt}': {e!s}"
                         )
-                        pbar.update(prompt_task, advance=1)
+                        progress.update(prompt_task, advance=1)
                         continue
 
                     # Separate positive and negative tiles
@@ -406,7 +413,7 @@ def zero_shot(
                         logger.warning(
                             f"No positive tiles for prompt '{prompt}' in tissue ID {d.tissue_id}"
                         )
-                        pbar.update(prompt_task, advance=1)
+                        progress.update(prompt_task, advance=1)
                         continue
 
                     # Get tile points
@@ -431,7 +438,7 @@ def zero_shot(
                         logger.warning(
                             f"No contours found for prompt '{prompt}' in tissue ID {d.tissue_id}"
                         )
-                        pbar.update(prompt_task, advance=1)
+                        progress.update(prompt_task, advance=1)
                         continue
 
                     # Create polygons from contours
@@ -441,7 +448,7 @@ def zero_shot(
                         )
                     except Exception as e:
                         logger.error(f"Error creating polygons from contours: {e!s}")
-                        pbar.update(prompt_task, advance=1)
+                        progress.update(prompt_task, advance=1)
                         continue
 
                     # Process each polygon
@@ -484,7 +491,7 @@ def zero_shot(
                         logger.warning(
                             f"No segmentation results for prompt '{prompt}' in tissue ID {d.tissue_id}"
                         )
-                        pbar.update(prompt_task, advance=1)
+                        progress.update(prompt_task, advance=1)
                         continue
 
                     # Combine and process results
@@ -504,7 +511,7 @@ def zero_shot(
                         logger.warning(
                             f"No objects found for prompt '{prompt}' in tissue ID {d.tissue_id}"
                         )
-                        pbar.update(prompt_task, advance=1)
+                        progress.update(prompt_task, advance=1)
                         continue
 
                     # Transform polygons to original coordinate system
@@ -531,9 +538,9 @@ def zero_shot(
                         f"Error processing prompt '{prompt}' for tissue ID {d.tissue_id}: {e!s}"
                     )
 
-                pbar.update(prompt_task, advance=1)
+                progress.update(prompt_task, advance=1)
 
-            pbar.update(tissue_task, advance=1)
+            progress.update(tissue_task, advance=1)
 
     # Create GeoDataFrame from results
     if not segment_results:

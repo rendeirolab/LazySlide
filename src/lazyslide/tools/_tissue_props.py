@@ -7,11 +7,14 @@ from wsidata import WSIData
 from wsidata.io import update_shapes_data
 
 from lazyslide._const import Key
+from lazyslide._utils import deprecated_alias
 
 
 def tissue_props(
     wsi: WSIData,
-    key: str = Key.tissue,
+    tissue_key: str = Key.tissue,
+    *,
+    key: str | None = None,
 ):
     """Compute a series of :term:`geometric features` of tissue pieces
 
@@ -32,15 +35,18 @@ def tissue_props(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object.
-    key : str, default: 'tissues'
+    tissue_key : str, default: 'tissues'
         The tissue key.
+    key : str, optional
+        .. deprecated:: 0.13.0
+            Use ``tissue_key`` instead; ``key`` will be removed in 0.14.0.
 
     Returns
     -------
     None
 
     .. note::
-        The geometry features will be added to the :code:`tissues | {tissue_key}` table in the WSIData object.
+        The geometry features will be added to the ``tissue_key`` table in the WSIData object.
         The columns will be named after the properties, e.g. `area`, `solidity`.
 
     Examples
@@ -54,9 +60,11 @@ def tissue_props(
         >>> wsi['tissues']
 
     """
-
+    tissue_key = deprecated_alias(
+        "key", key, "tissue_key", tissue_key, default=Key.tissue
+    )
     props = []
-    for tissue_contour in wsi.iter.tissue_contours(key):
+    for tissue_contour in wsi.iter.tissue_contours(tissue_key):
         cnt = tissue_contour.contour
         holes = tissue_contour.holes
 
@@ -69,7 +77,7 @@ def tissue_props(
         props.append(_props)
 
     props = pd.DataFrame(props).to_dict(orient="list")
-    update_shapes_data(wsi, key, props)
+    update_shapes_data(wsi, tissue_key, props)
 
 
 class ContourProps:

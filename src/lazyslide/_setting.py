@@ -1,12 +1,15 @@
 from typing import TYPE_CHECKING, Literal
 
-from ._utils import get_torch_device
+from ._utils import get_torch_device, warn_deprecated
 
 if TYPE_CHECKING:
     import torch
 
 
 class Settings:
+    # Still accepted by ``settings[...]`` until removal, but no longer listed.
+    _deprecated = frozenset({"pbar_impl"})
+
     def __init__(self) -> None:
         # Route initial values through setters to ensure validation on construction.
         # ``autocast_dtype`` and ``device`` are intentionally NOT set here so that
@@ -16,7 +19,6 @@ class Settings:
         self.compile = False
         self.compile_kws = None
         self.pbar = True
-        self.pbar_impl = "rich"
 
     @property
     def _attributes(self) -> set[str]:
@@ -27,7 +29,6 @@ class Settings:
             "compile_kws",
             "device",
             "pbar",
-            "pbar_impl",
         }
 
     # amp
@@ -152,6 +153,10 @@ class Settings:
 
     @pbar_impl.setter
     def pbar_impl(self, value) -> None:  # type: ignore[override]
+        warn_deprecated(
+            "`settings.pbar_impl` is deprecated since v0.13.0 and will be removed in "
+            "v0.14.0; it has no effect, progress bars always use rich."
+        )
         if not isinstance(value, str):
             raise TypeError("pbar_impl must be a string 'tqdm' or 'rich'.")
         value = value.strip().lower()
@@ -160,12 +165,12 @@ class Settings:
         self._pbar_impl = value  # type: ignore[assignment]
 
     def __getitem__(self, key):
-        if key not in self._attributes:
+        if key not in self._attributes | self._deprecated:
             raise KeyError(f"{key} is not a valid setting.")
         return getattr(self, key)
 
     def __setitem__(self, key, value):
-        if key not in self._attributes:
+        if key not in self._attributes | self._deprecated:
             raise KeyError(f"{key} is not a valid setting.")
         setattr(self, key, value)
 

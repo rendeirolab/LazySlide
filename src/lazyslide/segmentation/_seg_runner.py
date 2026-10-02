@@ -18,7 +18,7 @@ from wsidata.io import add_shapes
 
 from lazyslide import _api
 from lazyslide._const import Key
-from lazyslide._utils import default_pbar, find_stack_level
+from lazyslide._utils import default_pbar, find_stack_level, warn_deprecated
 from lazyslide.cv import (
     InstanceMap,
     ProbabilityMap,
@@ -240,21 +240,22 @@ def semantic(
     transform=None,
     mode: Literal["constant", "gaussian"] = "gaussian",
     sigma_scale: float = 0.125,
-    low_memory: bool = False,
+    low_memory: bool | None = None,
     threshold: float = 0.5,
     ignore_index: int | None = 0,
     buffer_px: int = 2,
     chunk_size: int = 512,
     batch_size=4,
     num_workers=0,
-    prefetch_factor: int | None = None,
     device=None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
-    compile: bool | None = None,
-    compile_kws: dict | None = None,
     pbar: bool | None = None,
     key_added="anatomical_structures",
+    *,
+    prefetch_factor: int | None = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
 ):
     """
     :term:`Semantic segmentation` for the :term:`whole slide image <WSI>`.
@@ -277,8 +278,9 @@ def semantic(
         Only matters where tiles overlap.
     sigma_scale : float, default: 0.125
         The scale of the Gaussian sigma for the importance map if mode is "gaussian".
-    low_memory : bool, default: False
-        Whether to use a low-memory mode for processing large slides.
+    low_memory : bool, optional
+        .. deprecated:: 0.13.0
+            Has no effect and will be removed in 0.14.0.
     threshold : float, default: 0.5
         The threshold to binarize the probability map for segmentation.
     ignore_index : int or None, default: 0
@@ -291,25 +293,25 @@ def semantic(
         The batch size for segmentation.
     num_workers : int, default: 0
         The number of workers for data loading.
-    prefetch_factor : int, optional
-        The number of batches loaded in advance by each worker.
-        Only used when :code:`num_workers > 0`.
     device : str, default: None
         The device for the model (e.g., "cpu" or "cuda"). If None, automatically selected.
     amp : bool, optional
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
+    pbar : bool, optional
+        Whether to show the progress bar.
+    key_added : str, default: "anatomical_structures"
+        The key for the added :term:`instance` shapes in the WSIData object.
+    prefetch_factor : int, optional
+        The number of batches loaded in advance by each worker.
+        Only used when :code:`num_workers > 0`.
     compile : bool, optional
         Whether to compile the model with :func:`torch.compile`.
         Compilation is best-effort and is silently skipped for models
         that do not support it.
     compile_kws : dict, optional
         Keyword arguments passed to :func:`torch.compile`.
-    pbar : bool, optional
-        Whether to show the progress bar.
-    key_added : str, default: "anatomical_structures"
-        The key for the added :term:`instance` shapes in the WSIData object.
 
     Returns
     -------
@@ -487,7 +489,7 @@ class SemanticSegmentationRunner(Runner):
         transform: Callable | None = None,
         mode: Literal["constant", "gaussian"] = "gaussian",
         sigma_scale: float = 0.125,
-        low_memory: bool = False,
+        low_memory: bool | None = None,
         threshold: float = 0.5,
         ignore_index: int | None = 0,
         class_names: list[str] | Mapping[int, str] | None = None,
@@ -495,20 +497,26 @@ class SemanticSegmentationRunner(Runner):
         chunk_size: int = 512,
         batch_size: int = 4,
         num_workers: int = 0,
-        prefetch_factor: int | None = None,
         device: str | None = None,
         amp: bool | None = None,
         autocast_dtype: torch.dtype = None,
+        pbar: bool | None = None,
+        *,
+        prefetch_factor: int | None = None,
         compile: bool | None = None,
         compile_kws: dict | None = None,
-        pbar: bool | None = None,
     ):
+        if low_memory is not None:
+            warn_deprecated(
+                "`low_memory` of `zs.seg.semantic`, `zs.seg.artifact` and "
+                "`SemanticSegmentationRunner` is deprecated since v0.13.0 and will be "
+                "removed in v0.14.0; it has no effect, remove it."
+            )
         self.wsi = wsi
         self.model = model
         self.tile_key = tile_key
         self.transform = transform or model.get_transform()
         self.mode = mode
-        self.low_memory = low_memory
         self.sigma_scale = sigma_scale
         self.threshold = threshold
         self.ignore_index = ignore_index
@@ -754,18 +762,19 @@ class CellSegmentationRunner(Runner):
         nucleus_size: (int, int) = (20, 1000),
         batch_size: int = 4,
         num_workers: int = 0,
-        prefetch_factor: int | None = None,
         device: str | None = None,
         amp: bool | None = None,
         autocast_dtype: torch.dtype = None,
-        compile: bool | None = None,
-        compile_kws: dict | None = None,
         class_names: list[str] | Mapping[int, str] | None = None,
         pbar: bool | None = None,
         extract_features: bool = False,
         low_memory: bool = False,
         postprocess_workers: int = 0,
         overlap_ownership: bool = False,
+        *,
+        prefetch_factor: int | None = None,
+        compile: bool | None = None,
+        compile_kws: dict | None = None,
     ):
         self.wsi = wsi
         self.model = model

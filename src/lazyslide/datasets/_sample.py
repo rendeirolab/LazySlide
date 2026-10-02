@@ -1,11 +1,10 @@
 import os
-import warnings
 from pathlib import Path
 
 from huggingface_hub import HfApi, hf_hub_download
 from wsidata import open_wsi
 
-from lazyslide._utils import find_stack_level
+from lazyslide._utils import warn_deprecated
 
 _OFFLINE_ENV_VARS = ("HF_HUB_OFFLINE", "HF_DATASETS_OFFLINE", "TRANSFORMERS_OFFLINE")
 _TRUE_VALUES = {"1", "ON", "TRUE", "YES"}
@@ -53,16 +52,14 @@ def _dataset_revision(repo_id: str) -> str | None:
     return revision if revision in tags else None
 
 
-def _load_dataset(slide_file, zarr_file, with_data=True, pbar=False):
+def _load_dataset(slide_file, zarr_file, with_data=True, pbar=None):
+    if pbar is not None:
+        warn_deprecated(
+            "`pbar` of the `zs.datasets` loaders is deprecated since v0.8.0 and will "
+            "be removed in v0.14.0; it has no effect, remove it."
+        )
     REPO_ID = "RendeiroLab/LazySlide-data"
     revision = _dataset_revision(REPO_ID)
-
-    if pbar:
-        warnings.warn(
-            "pbar is deprecated in datasets",
-            DeprecationWarning,
-            stacklevel=find_stack_level(),
-        )
 
     slide = _download_dataset_file(REPO_ID, slide_file, revision=revision)
     slide_zarr = None
@@ -79,7 +76,7 @@ def _load_dataset(slide_file, zarr_file, with_data=True, pbar=False):
     return open_wsi(slide, store=str(slide_zarr) if with_data else None)
 
 
-def sample(with_data: bool = True, pbar: bool = False):
+def sample(with_data: bool = True, pbar: bool | None = None):
     """
     Load a small sample slide (~1.9 MB).
 
@@ -89,8 +86,9 @@ def sample(with_data: bool = True, pbar: bool = False):
     ----------
     with_data : bool, default: True
         Whether to load the associated zarr storage data.
-    pbar : bool, default: False
-        Whether to show the progress bar.
+    pbar : bool, optional
+        .. deprecated:: 0.8.0
+            Has no effect and will be removed in 0.14.0.
 
     Returns
     -------
@@ -103,7 +101,7 @@ def sample(with_data: bool = True, pbar: bool = False):
     )
 
 
-def gtex_artery(with_data: bool = True, pbar: bool = False):
+def gtex_artery(with_data: bool = True, pbar: bool | None = None):
     """
     A GTEX artery slide.
 
@@ -113,8 +111,9 @@ def gtex_artery(with_data: bool = True, pbar: bool = False):
     ----------
     with_data : bool, default: True
         Whether to load the associated zarr storage data.
-    pbar : bool, default: False
-        Whether to show the progress bar.
+    pbar : bool, optional
+        .. deprecated:: 0.8.0
+            Has no effect and will be removed in 0.14.0.
 
     Returns
     -------
@@ -130,9 +129,9 @@ def gtex_artery(with_data: bool = True, pbar: bool = False):
     )
 
 
-def gtex_small_intestine(with_data: bool = True, pbar: bool = False):
+def gtex_small_intestine(with_data: bool = True, pbar: bool | None = None):
     """
-    A small GTEX artery slide for testing purposes.
+    A small GTEX small intestine slide for testing purposes.
 
     Source: https://gtexportal.org/home/histologyPage, GTEX-11DXX-1626.svs
 
@@ -140,8 +139,9 @@ def gtex_small_intestine(with_data: bool = True, pbar: bool = False):
     ----------
     with_data : bool, default: True
         Whether to load the associated zarr storage data.
-    pbar : bool, default: False
-        Whether to show the progress bar.
+    pbar : bool, optional
+        .. deprecated:: 0.8.0
+            Has no effect and will be removed in 0.14.0.
 
     Returns
     -------
@@ -157,7 +157,7 @@ def gtex_small_intestine(with_data: bool = True, pbar: bool = False):
     )
 
 
-def lung_carcinoma(with_data: bool = True, pbar: bool = False):
+def lung_carcinoma(with_data: bool = True, pbar: bool | None = None):
     """
     A lung carcinoma slide.
 
@@ -167,8 +167,9 @@ def lung_carcinoma(with_data: bool = True, pbar: bool = False):
     ----------
     with_data : bool, default: True
         Whether to load the associated zarr storage data.
-    pbar : bool, default: False
-        Whether to show the progress bar.
+    pbar : bool, optional
+        .. deprecated:: 0.8.0
+            Has no effect and will be removed in 0.14.0.
 
     Returns
     -------

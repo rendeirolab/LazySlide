@@ -21,10 +21,11 @@ def image_generation(
     device: str | None = None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
-    compile: bool | None = None,
-    compile_kws: dict | None = None,
     num_images_per_tiles: int = 2,
     seed: int = 0,
+    *,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
     **kwargs,
 ) -> list[Image.Image]:
     """
@@ -49,12 +50,6 @@ def image_generation(
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
-    compile : bool, optional
-        Whether to compile the model with :func:`torch.compile`.
-        Compilation is best-effort and is silently skipped for models
-        that do not support it.
-    compile_kws : dict, optional
-        Keyword arguments passed to :func:`torch.compile`.
     num_images_per_tiles : int, default: 2
         The number of images to generate for each tile if conditional generation is used.
         Otherwise, it's the total number of images to generate if unconditional generation is used.
@@ -63,6 +58,12 @@ def image_generation(
     **kwargs : dict
         Additional keyword arguments passed to the model's generation function.
         Please refer to the documentation of the specific model for details.
+    compile : bool, optional
+        Whether to compile the model with :func:`torch.compile`.
+        Compilation is best-effort and is silently skipped for models
+        that do not support it.
+    compile_kws : dict, optional
+        Keyword arguments passed to :func:`torch.compile`.
 
     Returns
     -------

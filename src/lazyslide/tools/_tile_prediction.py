@@ -23,14 +23,15 @@ def tile_prediction(
     transform=None,
     batch_size: int = 16,
     num_workers: int = 0,
-    prefetch_factor: int | None = None,
     tile_key: str = Key.tiles,
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
+    device: str | None = None,
+    pbar: bool | None = None,
+    *,
+    prefetch_factor: int | None = None,
     compile: bool | None = None,
     compile_kws: dict | None = None,
-    device: str | None = None,
-    pbar: bool = True,
 ):
     """
     Predict :term:`tiles <tile>` using a :term:`tile prediction model`.
@@ -56,25 +57,26 @@ def tile_prediction(
         The batch size for the DataLoader.
     num_workers : int, default: 0
         Number of worker threads for the DataLoader.
-    prefetch_factor : int, optional
-        The number of batches loaded in advance by each worker.
-        Only used when :code:`num_workers > 0`.
     tile_key : str, default: "tiles"
         The key in the WSIData object where the tiles are stored.
     amp : bool, optional
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
+    device : str, optional
+        The device to run the model on.
+    pbar : bool, optional
+        Whether to show a progress bar during prediction.
+        If None, uses ``settings.pbar``.
+    prefetch_factor : int, optional
+        The number of batches loaded in advance by each worker.
+        Only used when :code:`num_workers > 0`.
     compile : bool, optional
         Whether to compile the model with :func:`torch.compile`.
         Compilation is best-effort and is silently skipped for models
         that do not support it.
     compile_kws : dict, optional
         Keyword arguments passed to :func:`torch.compile`.
-    device : str, optional
-        The device to run the model on.
-    pbar : bool, default: True
-        Whether to show a progress bar during prediction.
 
     Returns
     -------
@@ -86,6 +88,7 @@ def tile_prediction(
     from torch.utils.data import DataLoader
 
     device = _api.default_value("device", device)
+    pbar = _api.default_value("pbar", pbar)
 
     is_cv_features = False
     if isinstance(model, str):

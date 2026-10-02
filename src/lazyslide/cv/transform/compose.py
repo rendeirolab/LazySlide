@@ -1,5 +1,7 @@
 import cv2
 
+from lazyslide._utils import warn_deprecated
+
 from .mods import (
     ArtifactFilterThreshold,
     BinaryThreshold,
@@ -15,6 +17,10 @@ class TissueDetectionHE(Transform):
     Detect tissue regions from H&E stained slide.
     First applies a median blur, then binary thresholding, then morphological opening and closing, and finally
     foreground detection.
+
+    .. deprecated:: 0.13.0
+        Use ``zs.pp.find_tissues`` instead; ``TissueDetectionHE`` will be removed
+        in 0.14.0.
 
     Parameters
     ----------
@@ -50,6 +56,10 @@ class TissueDetectionHE(Transform):
         detect_holes=True,
         filter_artifacts=True,
     ):
+        warn_deprecated(
+            "`TissueDetectionHE` is deprecated since v0.13.0 and will be removed in "
+            "v0.14.0; use `zs.pp.find_tissues`."
+        )
         self.set_params(
             use_saturation=use_saturation,
             blur_ksize=blur_ksize,

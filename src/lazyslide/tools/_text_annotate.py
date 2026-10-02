@@ -23,9 +23,10 @@ def text_embedding(
     model: str | ImageTextModelProtocol = "plip",
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
+    device: str = "cpu",
+    *,
     compile: bool | None = None,
     compile_kws: dict | None = None,
-    device: str = "cpu",
 ):
     """Embed the text into a vector in the text-vision co-embedding using
 
@@ -43,18 +44,18 @@ def text_embedding(
         Whether to use automatic mixed precision (AMP) for inference.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
-    compile : bool, optional
-        Whether to compile the model with :func:`torch.compile`.
-        Compilation is best-effort and is silently skipped for models
-        that do not support it.
-    compile_kws : dict, optional
-        Keyword arguments passed to :func:`torch.compile`.
     device : str, default: "cpu"
         The device to use for computation (e.g., 'cpu', 'cuda', 'mps').
         Defaults to CPU on purpose: embedding a handful of short strings is a
         tiny amount of compute, and moving the text encoder to a GPU/MPS device
         costs more than it saves. This one does not follow
         :code:`settings.device` — pass the device explicitly to override.
+    compile : bool, optional
+        Whether to compile the model with :func:`torch.compile`.
+        Compilation is best-effort and is silently skipped for models
+        that do not support it.
+    compile_kws : dict, optional
+        Keyword arguments passed to :func:`torch.compile`.
 
     Returns
     -------

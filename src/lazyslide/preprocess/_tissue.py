@@ -99,8 +99,9 @@ def find_tissues(
     disk_radius: int = 4,
     relaxed_threshold: bool = True,
     invert_check: bool = True,
-    in_bounds: bool = True,
     key_added: str = Key.tissue,
+    *,
+    in_bounds: bool = True,
 ):
     """Find tissue regions in the :term:`WSI` and add them as :term:`contours` and :term:`holes`.
 
@@ -165,13 +166,13 @@ def find_tissues(
     invert_check : bool, default: True
         (entropy only) Whether to detect and correct mask inversion when the
         background dominates the image borders.
+    key_added : str, default: 'tissues'
+        The key to save the result in the :term:`WSIData` object.
     in_bounds : bool, default: True
         Only segment the region inside the slide bounds, e.g. the scanned area
         of MRXS slides. This reads less of the background, takes less memory,
         and lets ``level='auto'`` choose a finer level. Slides without bounds
         are segmented as a whole.
-    key_added : str, default: 'tissues'
-        The key to save the result in the :term:`WSIData` object.
 
     Returns
     -------

@@ -2,15 +2,18 @@ from wsidata import WSIData
 from wsidata.io import add_shapes, update_shapes_data
 
 from lazyslide._const import Key
+from lazyslide._utils import deprecated_alias
 
 
 def spatial_domain(
     wsi: WSIData,
     feature_key: str,
     tile_key: str = Key.tiles,
-    layer: str | None = None,
+    layer_key: str | None = None,
     resolution: float = 0.1,
     key_added: str = "domain",
+    *,
+    layer: str | None = None,
 ):
     """
     Perform :term:`unsupervised spatial domain segmentation` on a :term:`WSI` using :term:`feature embeddings <feature embedding>`.
@@ -26,12 +29,15 @@ def spatial_domain(
         The key for the feature table to use.
     tile_key : str, default: "tiles"
         The key for the tile table.
-    layer : str, optional
+    layer_key : str, optional
         The layer in the feature table to use for clustering.
     resolution : float, default: 0.1
         The resolution parameter for :term:`Leiden clustering`.
     key_added : str, default: "domain"
         The key under which to store the domain labels.
+    layer : str, optional
+        .. deprecated:: 0.13.0
+            Use ``layer_key`` instead; ``layer`` will be removed in 0.14.0.
 
     Returns
     -------
@@ -50,9 +56,10 @@ def spatial_domain(
         >>> zs.tl.feature_extraction(wsi, "resnet50")
         >>> zs.pp.tile_graph(wsi)
         >>> zs.tl.spatial_features(wsi, "resnet50")
-        >>> zs.tl.spatial_domain(wsi, layer="spatial_features", feature_key="resnet50", resolution=0.3)
+        >>> zs.tl.spatial_domain(wsi, layer_key="spatial_features", feature_key="resnet50", resolution=0.3)
 
     """
+    layer_key = deprecated_alias("layer", layer, "layer_key", layer_key)
     try:
         import scanpy as sc
     except ImportError:
@@ -61,8 +68,8 @@ def spatial_domain(
         )
     feature_key = wsi._check_feature_key(feature_key, tile_key)
     adata = wsi.fetch.features_anndata(feature_key, tile_key, tile_graph=False)
-    sc.pp.scale(adata, layer=layer)
-    sc.pp.pca(adata, layer=layer)
+    sc.pp.scale(adata, layer=layer_key)
+    sc.pp.pca(adata, layer=layer_key)
     sc.pp.neighbors(adata)
     sc.tl.leiden(adata, flavor="igraph", key_added=key_added, resolution=resolution)
     # Add to tile table

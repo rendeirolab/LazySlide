@@ -123,7 +123,7 @@ The combined workflow stores cells under `cells` and their features under `cells
 zs.tl.feature_aggregation(
     wsi,
     feature_key="uni",
-    by="tissue_id",
+    agg_by="tissue_id",
 )
 
 # One representation for the complete slide

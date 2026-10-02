@@ -10,7 +10,7 @@ from wsidata import WSIData
 from wsidata.io import add_shapes
 
 from .._const import Key
-from .._utils import find_stack_level
+from .._utils import find_stack_level, warn_deprecated
 from ._seg_runner import CellSegmentationRunner
 
 if TYPE_CHECKING:
@@ -58,12 +58,9 @@ def cells(
     transform=None,
     batch_size=4,
     num_workers=0,
-    prefetch_factor: int | None = None,
     device=None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
-    compile: bool | None = None,
-    compile_kws: dict | None = None,
     size_filter=False,
     nucleus_size=(20, 1000),
     pbar=None,
@@ -72,6 +69,10 @@ def cells(
     postprocess_workers: int = 0,
     overlap_ownership: bool = False,
     key_added="cells",
+    *,
+    prefetch_factor: int | None = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
     **model_kwargs,
 ):
     """:term:`cell segmentation <Cell segmentation>` for the whole slide image.
@@ -102,21 +103,12 @@ def cells(
         The batch size for segmentation.
     num_workers : int, default: 0
         The number of workers for data loading.
-    prefetch_factor : int, optional
-        The number of batches loaded in advance by each worker.
-        Only used when :code:`num_workers > 0`.
     device : str, default: None
         The device for the model.
     amp : bool, optional
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
-    compile : bool, optional
-        Whether to compile the model with :func:`torch.compile`.
-        Compilation is best-effort and is silently skipped for models
-        that do not support it.
-    compile_kws : dict, optional
-        Keyword arguments passed to :func:`torch.compile`.
     size_filter : bool, default: False
         Whether to filter cells by nucleus size.
     nucleus_size : tuple of (int, int), default: (20, 1000)
@@ -143,6 +135,15 @@ def cells(
         polygonization while retaining NMS as a safety net.
     key_added : str, default: "cells"
         The key for the added cell shapes.
+    prefetch_factor : int, optional
+        The number of batches loaded in advance by each worker.
+        Only used when :code:`num_workers > 0`.
+    compile : bool, optional
+        Whether to compile the model with :func:`torch.compile`.
+        Compilation is best-effort and is silently skipped for models
+        that do not support it.
+    compile_kws : dict, optional
+        Keyword arguments passed to :func:`torch.compile`.
 
     Returns
     -------
@@ -267,12 +268,9 @@ def cell_types(
     transform=None,
     batch_size=4,
     num_workers=0,
-    prefetch_factor: int | None = None,
     device=None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
-    compile: bool | None = None,
-    compile_kws: dict | None = None,
     size_filter=False,
     nucleus_size=(20, 1000),
     pbar=None,
@@ -281,13 +279,17 @@ def cell_types(
     postprocess_workers: int = 0,
     overlap_ownership: bool = False,
     key_added="cell_types",
+    *,
+    prefetch_factor: int | None = None,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
     **model_kwargs,
 ):
     """:term:`Cell type segmentation` for the :term:`whole slide image`.
 
-    .. deprecated::
+    .. deprecated:: 0.12.0
 
-        Use :func:`cells` instead.
+        Use :func:`cells` instead; ``cell_types`` will be removed in 0.14.0.
 
     :term:`tile <Tiles>` should be prepared before segmentation, the tile size should be
     reasonable (with :term:`mpp` around 0.5) for the model to work properly
@@ -312,21 +314,12 @@ def cell_types(
         The batch size for segmentation.
     num_workers : int, default: 0
         The number of workers for data loading.
-    prefetch_factor : int, optional
-        The number of batches loaded in advance by each worker.
-        Only used when :code:`num_workers > 0`.
     device : str, default: None
         The device for the model.
     amp : bool, optional
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
-    compile : bool, optional
-        Whether to compile the model with :func:`torch.compile`.
-        Compilation is best-effort and is silently skipped for models
-        that do not support it.
-    compile_kws : dict, optional
-        Keyword arguments passed to :func:`torch.compile`.
     size_filter : bool, default: False
         Whether to filter cells by nucleus size.
     nucleus_size : tuple of (int, int), default: (20, 1000)
@@ -348,6 +341,15 @@ def cell_types(
         using nearest-tile-center ownership.
     key_added : str, default: "cell_types"
         The key for the added cell type shapes.
+    prefetch_factor : int, optional
+        The number of batches loaded in advance by each worker.
+        Only used when :code:`num_workers > 0`.
+    compile : bool, optional
+        Whether to compile the model with :func:`torch.compile`.
+        Compilation is best-effort and is silently skipped for models
+        that do not support it.
+    compile_kws : dict, optional
+        Keyword arguments passed to :func:`torch.compile`.
 
     Returns
     -------
@@ -357,10 +359,9 @@ def cell_types(
 
     """
 
-    warnings.warn(
-        "`zs.seg.cell_types` is deprecated; use `zs.seg.cells` instead.",
-        FutureWarning,
-        stacklevel=find_stack_level(),
+    warn_deprecated(
+        "`zs.seg.cell_types` is deprecated since v0.12.0 and will be removed in "
+        "v0.14.0; use `zs.seg.cells`."
     )
     return cells(
         wsi,

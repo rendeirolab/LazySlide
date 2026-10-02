@@ -11,7 +11,7 @@ from spatialdata.models import ShapesModel
 from wsidata import TileSpec, WSIData
 
 from lazyslide._const import Key
-from lazyslide._utils import find_stack_level
+from lazyslide._utils import find_stack_level, warn_deprecated
 
 
 def tile_tissues(
@@ -63,10 +63,11 @@ def tile_tissues(
         Only used if `background_filter` is True.
         The fraction of background in the tile, if more than this, discard the tile.
     background_filter_mode : {'approx', 'exact'}, optional
-        .. deprecated::
-            No longer has any effect. Background filtering is now always exact
-            and vectorized: tiles fully inside the tissue are kept directly and
-            border tiles are filtered by their exact tissue-coverage fraction.
+        .. deprecated:: 0.12.0
+            No longer has any effect and will be removed in 0.14.0.
+            Background filtering is now always exact and vectorized: tiles fully
+            inside the tissue are kept directly and border tiles are filtered by
+            their exact tissue-coverage fraction.
     tissue_key : str, default: 'tissues'
         The key of the tissue contours.
     key_added : str, default: 'tiles'
@@ -98,11 +99,9 @@ def tile_tissues(
     """
 
     if background_filter_mode is not None:
-        warnings.warn(
-            "`background_filter_mode` is deprecated and no longer has any effect. "
-            "Background filtering is now always exact and vectorized.",
-            DeprecationWarning,
-            stacklevel=find_stack_level(),
+        warn_deprecated(
+            "`background_filter_mode` of `zs.pp.tile_tissues` is deprecated since "
+            "v0.12.0 and will be removed in v0.14.0; it has no effect, remove it."
         )
 
     # Check if tissue contours are present

@@ -33,17 +33,12 @@ def __getattr__(name):
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-def __dir__():
-    return sorted(list(globals().keys()) + ["models"])
-
-
 __all__ = [
     "agg_wsi",
     "cv",
     "datasets",
     "io",
     "metrics",
-    "models",
     "open_wsi",
     "pl",
     "pp",

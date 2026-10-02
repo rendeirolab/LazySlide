@@ -444,23 +444,6 @@ class TestPPTileTissues:
         assert key in wsi.shapes
         assert len(wsi[key]) > 0
 
-    @pytest.mark.parametrize("background_filter_mode", ["approx", "exact"])
-    def test_background_filter_mode(self, wsi, background_filter_mode):
-        """Test different background_filter_mode values."""
-        key = f"tiles_bg_mode_{background_filter_mode}"
-        zs.pp.tile_tissues(
-            wsi, 256, background_filter_mode=background_filter_mode, key_added=key
-        )
-
-        # Check if tiles were created
-        assert key in wsi.shapes
-        assert len(wsi[key]) > 0
-
-        # If the mode is exact, check all polygons intersect with tissue
-        if background_filter_mode == "exact":
-            tissue = wsi["tissues"].geometry.union_all()
-            assert all(geom.intersects(tissue) for geom in wsi[key].geometry)
-
     def test_no_tissue_key(self, wsi):
         """Test behavior when tissue_key is None."""
         key = "tiles_no_tissue"
@@ -584,13 +567,6 @@ class TestPPTileTissues:
         )
         assert len(tiles) == 2
         assert all(g.intersects(mp) for g in tiles.geometry)
-
-    def test_background_filter_mode_deprecated(self, wsi):
-        """background_filter_mode is deprecated and warns when passed."""
-        with pytest.warns(DeprecationWarning):
-            zs.pp.tile_tissues(
-                wsi, 256, background_filter_mode="exact", key_added="tiles_dep"
-            )
 
     def test_background_filter_exact_coverage(self, wsi):
         """Every kept tile meets the coverage threshold, even for concave tissue."""

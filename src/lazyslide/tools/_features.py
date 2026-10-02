@@ -14,7 +14,7 @@ from wsidata.io import add_features
 
 from lazyslide import _api
 from lazyslide._const import Key
-from lazyslide._utils import default_pbar, find_stack_level
+from lazyslide._utils import default_pbar, deprecated_alias, find_stack_level
 from lazyslide.preprocess._tiles import _add_tiles
 
 if TYPE_CHECKING:
@@ -100,8 +100,8 @@ def feature_extraction(
 
     .. code-block:: python
 
-        >>> import lazyslide as zs
-        >>> zs.models.list_models()
+        >>> from lazyslide_models import list_models
+        >>> list_models()
 
     Parameters
     ----------
@@ -340,13 +340,15 @@ def feature_aggregation(
     layer_key: str | None = None,
     encoder: str | Callable = "mean",
     tile_key: str = Key.tiles,
-    by: str | Sequence[str] | None = None,
+    agg_by: str | Sequence[str] | None = None,
     agg_key: str | None = None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype | None = None,
+    device: str | None = None,
+    *,
     compile: bool | None = None,
     compile_kws: dict | None = None,
-    device: str | None = None,
+    by: str | Sequence[str] | None = None,
 ):
     """
     Aggregate :term:`features` by groups.
@@ -374,26 +376,30 @@ def feature_aggregation(
         - :code:`chief`: Chief slide encoder. The feature must be extracted by :code:`CHIEF` model.
     tile_key : str, default: 'tiles'
         The key of the tiles dataframe in the spatial data object.
-    by : str or list of str, default: None
+    agg_by : str or list of str, default: None
         The level to aggregate the features.
 
         - By default will aggregate the features from all tiles in the slide.
         - Column name in tile dataframe: Aggregate the features by specific column.
-          For example, to aggregate by tissue pieces, set by='tissue_id'.
+          For example, to aggregate by tissue pieces, set agg_by='tissue_id'.
     agg_key : str, optional
-        The key to store the aggregated features. If not provided, the key will be 'agg_{by}'.
+        The key to store the aggregated features. If not provided, the key will be
+        'agg_{agg_by}', or 'agg_slide' when aggregating the whole slide.
     amp : bool, optional
         Whether to use automatic mixed precision. Only used by model-based encoders.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
+    device : str, optional
+        The device to use for inference. If not provided, the device will be automatically selected.
     compile : bool, optional
         Whether to compile the encoder with :func:`torch.compile`.
         Compilation is best-effort and is silently skipped for models
         that do not support it. Only used by model-based encoders.
     compile_kws : dict, optional
         Keyword arguments passed to :func:`torch.compile`.
-    device : str, optional
-        The device to use for inference. If not provided, the device will be automatically selected.
+    by : str or list of str, optional
+        .. deprecated:: 0.13.0
+            Use ``agg_by`` instead; ``by`` will be removed in 0.14.0.
 
     Returns
     -------
@@ -414,10 +420,11 @@ def feature_aggregation(
         >>> zs.pp.find_tissues(wsi)
         >>> zs.pp.tile_tissues(wsi, 256, mpp=0.5)
         >>> zs.tl.feature_extraction(wsi, "resnet50")
-        >>> zs.tl.feature_aggregation(wsi, feature_key="resnet50", by="tissue_id")
-        >>> wsi.tables['resnet50_tiles'].uns['agg_tissue_id']
+        >>> zs.tl.feature_aggregation(wsi, feature_key="resnet50", agg_by="tissue_id")
+        >>> wsi.tables['resnet50_tiles'].uns['agg_ops']['agg_tissue_id']
 
     """
+    agg_by = deprecated_alias("by", by, "agg_by", agg_by)
     device = _api.default_value("device", device)
 
     tiles_table = wsi.shapes[tile_key]
@@ -431,7 +438,7 @@ def feature_aggregation(
 
     agg_info = {"encoder": encoder, "tile_key": tile_key}
 
-    if by is None:
+    if agg_by is None:
         if agg_key is None:
             agg_key = "agg_slide"
         slide_reprs = _encode_slide(
@@ -450,14 +457,14 @@ def feature_aggregation(
             if k != "features":
                 agg_info[k] = v
     else:
-        if isinstance(by, str):
-            by = [by]
+        if isinstance(agg_by, str):
+            agg_by = [agg_by]
         if agg_key is None:
-            agg_key = f"agg_{'_'.join(by)}"
+            agg_key = f"agg_{'_'.join(agg_by)}"
         agg_fs = []
         agg_latents = []
         agg_annos = []
-        for annos, x in tiles_table.groupby(by):
+        for annos, x in tiles_table.groupby(agg_by):
             slide_reprs = _encode_slide(
                 features[x.index],
                 encoder,
@@ -475,7 +482,7 @@ def feature_aggregation(
             agg_annos.append(list(annos))
         agg_fs = np.vstack(agg_fs)
 
-        agg_info["keys"] = by
+        agg_info["keys"] = agg_by
         agg_info["values"] = agg_annos
         if len(agg_latents) > 0:
             agg_latents = np.vstack(agg_latents)

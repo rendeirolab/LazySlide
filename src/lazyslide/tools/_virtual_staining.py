@@ -30,12 +30,13 @@ def virtual_stain(
     device: str | None = None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype = None,
-    compile: bool | None = None,
-    compile_kws: dict | None = None,
     batch_size: int = 32,
     num_workers: int = 0,
+    pbar: bool | None = None,
+    *,
     prefetch_factor: int | None = None,
-    pbar: bool = True,
+    compile: bool | None = None,
+    compile_kws: dict | None = None,
     postprocess: bool = False,
 ):
     """
@@ -73,21 +74,21 @@ def virtual_stain(
         Whether to use automatic mixed precision.
     autocast_dtype : torch.dtype, optional
         The dtype for automatic mixed precision.
+    batch_size : int, default: 32
+        The batch size for inference.
+    num_workers : int, default: 0
+        The number of workers for data loading.
+    pbar : bool, optional
+        If the progress bar should be shown. If None, uses ``settings.pbar``.
+    prefetch_factor : int, optional
+        The number of batches loaded in advance by each worker.
+        Only used when :code:`num_workers > 0`.
     compile : bool, optional
         Whether to compile the model with :func:`torch.compile`.
         Compilation is best-effort and is silently skipped for models
         that do not support it.
     compile_kws : dict, optional
         Keyword arguments passed to :func:`torch.compile`.
-    batch_size : int, default: 32
-        The batch size for inference.
-    num_workers : int, default: 0
-        The number of workers for data loading.
-    prefetch_factor : int, optional
-        The number of batches loaded in advance by each worker.
-        Only used when :code:`num_workers > 0`.
-    pbar : bool, default: True
-        If the progress bar should be shown.
     postprocess : bool, default: False
         Contrast-stretch ROSIE's output into uint8 for display, like
         ``--postprocess_image`` in the ROSIE codebase: per channel, values up to
@@ -125,6 +126,7 @@ def virtual_stain(
     from torch.utils.data import DataLoader
 
     device = _api.default_value("device", device)
+    pbar = _api.default_value("pbar", pbar)
     tile_spec = wsi.tile_spec(tile_key)
 
     # Resolve model name vs model instance
