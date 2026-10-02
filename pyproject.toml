@@ -40,7 +40,7 @@ dependencies = [
     "scipy>=1.15.1",
     "numba>=0.60.0",
     "huggingface-hub>=0.34.0",  # first release with the `hf` CLI the docs use
-    "lazyslide-models>=0.0.4",
+    "lazyslide-models>=0.1.0",
 ]
 
 [project.urls]
