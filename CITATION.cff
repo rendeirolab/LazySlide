@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+message: "If you use LazySlide, please cite the Nature Methods paper."
+title: LazySlide
+type: software
+authors:
+  - family-names: Zheng
+    given-names: Yimin
+  - family-names: Abila
+    given-names: Ernesto
+  - family-names: Rendeiro
+    given-names: André F.
+repository-code: "https://github.com/rendeirolab/lazyslide"
+url: "https://lazyslide.readthedocs.io"
+license: MIT
+preferred-citation:
+  type: article
+  title: "LazySlide: accessible and interoperable whole-slide image analysis"
+  authors:
+    - family-names: Zheng
+      given-names: Yimin
+    - family-names: Abila
+      given-names: Ernesto
+    - family-names: Chrenková
+      given-names: Eva
+    - family-names: Buljan
+      given-names: Iva
+    - family-names: Winkler
+      given-names: Juliane
+    - family-names: Rendeiro
+      given-names: André F.
+  journal: Nature Methods
+  volume: 23
+  issue: 4
+  start: 728
+  end: 731
+  year: 2026
+  month: 3
+  doi: 10.1038/s41592-026-03044-7
