@@ -14,7 +14,6 @@ from lazyslide._utils import default_pbar
 
 if TYPE_CHECKING:
     import torch
-    from anndata import AnnData
     from lazyslide_models.base import FeaturePredictionModelProtocol
 
 
@@ -32,16 +31,16 @@ def feature_prediction(
     compile_kws: dict | None = None,
     device: str | None = None,
     pbar: bool | None = None,
-) -> AnnData:
+) -> None:
     """Predict tile-level values from an existing feature matrix.
 
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The whole-slide image object containing tile features.
-    model : str or feature prediction model
-        A registered feature prediction model name or an object implementing
-        ``predict(features)``. Models that set ``needs_coords`` additionally
+    model : str or FeaturePredictionModelProtocol
+        A model registry key (see :ref:`models-section`) or a model instance
+        implementing ``predict(features)``. Models that set ``needs_coords`` additionally
         receive tile coordinates, and models that set ``whole_slide`` are called
         once with every tile rather than in batches.
     feature_key : str, optional

@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     import torch
     from lazyslide_models import SegmentationModelProtocol
 
-# Define class mapping
+# The GrandQC class names LazySlide has always written
 CLASS_MAPPING = {
     0: "Background",
     1: "Normal Tissue",
@@ -52,10 +52,11 @@ def artifact(
     """
     :term:`Artifact segmentation` for the :term:`whole slide image <WSI>`.
 
-    Run GrandQC :cite:p:`Weng2024-jf` artifact segmentation model on the whole slide image.
-    The model is trained on 512x512 tiles with mpp=1.5, 2, or 1.
+    Run an artifact segmentation model on the whole slide image, by default
+    GrandQC :cite:p:`Weng2024-jf`. GrandQC is trained on 512x512 tiles at
+    mpp=2, 1.5 or 1 (variants 5x, 7x and 10x).
 
-    It can detect the following :term:`artifacts <artifact>`:
+    GrandQC detects the following :term:`artifacts <artifact>`:
 
     - Fold
     - Darkspot & Foreign Object
@@ -69,10 +70,13 @@ def artifact(
         The :term:`WSIData` object to work on.
     tile_key : str
         The key of the tile table.
-    model : {"grandqc"}, default: "grandqc"
-        The model to use for artifact segmentation.
-    variant : str, default: "7x"
-        The model variants, grandqc has variants 5x, 7x and 10x.
+    model : str or SegmentationModelProtocol, default: "grandqc"
+        The model to use for artifact segmentation: a model registry key (see
+        :ref:`models-section`) or a model instance. "grandqc" is short for the
+        "grandqc-artifact" key. A model that doesn't name its ``classes`` gets
+        GrandQC's class names.
+    variant : {"5x", "7x", "10x"}, default: "7x"
+        The GrandQC variant. Only used for GrandQC.
     mode : {"constant", "gaussian"}, default: "gaussian"
         The probability distribution to apply for the prediction map.
         If "constant", uses uniform weights, "gaussian" applies a Gaussian weighting.
@@ -116,39 +120,37 @@ def artifact(
         of the WSIData object.
 
     """
+    from lazyslide_models import MODEL_REGISTRY
+    from lazyslide_models.segmentation import GrandQCArtifact
 
-    model_mpp = {
-        "5x": 2,
-        "7x": 1.5,
-        "10x": 1,
-    }
+    if model in ("grandqc", "grandqc-artifact"):
+        model = MODEL_REGISTRY["grandqc-artifact"](variant=variant)
+    elif isinstance(model, str):
+        model = MODEL_REGISTRY[model]()
+    is_grandqc = isinstance(model, GrandQCArtifact)
 
-    mpp = model_mpp[variant]
-
-    if tile_key is not None:
-        # Check if the tile spec is compatible with the model
-        spec = wsi.tile_spec(tile_key)
-        if spec is None:
-            raise ValueError(f"Tiles or tile spec for {tile_key} not found.")
+    spec = wsi.tile_spec(tile_key)
+    if spec is None:
+        raise ValueError(f"Tiles or tile spec for {tile_key} not found.")
+    if is_grandqc:
+        # ponytail: GrandQC's input mpp per variant is kept here until
+        # rendeirolab/lazyslide-models#37 lets the model declare it.
+        mpp = {"5x": 2, "7x": 1.5, "10x": 1}[variant]
         if spec.mpp != mpp:
             raise ValueError(
                 f"Tile spec mpp {spec.mpp} is not compatible with the model mpp {mpp}"
             )
         if spec.width != 512 or spec.height != 512:
             raise ValueError("Tile should be 512x512.")
-        if spec.overlap_x == 0 or spec.overlap_y == 0:
-            mode = "constant"
-            warnings.warn(
-                "The tiles has no overlap, using constant mode instead. "
-                "Please consider rerun pp.tile_tissue to create overlapping tiles.",
-                stacklevel=find_stack_level(),
-            )
-
-    from lazyslide_models import MODEL_REGISTRY
-
-    if isinstance(model, str):
-        model = MODEL_REGISTRY.get("grandqc-artifact")(variant=variant)
-    # else: model is already a SegmentationModel instance
+    if spec.overlap_x == 0 or spec.overlap_y == 0:
+        mode = "constant"
+        warnings.warn(
+            "The tiles has no overlap, using constant mode instead. "
+            "Please consider rerun pp.tile_tissue to create overlapping tiles.",
+            stacklevel=find_stack_level(),
+        )
+    # GrandQC keeps the class names LazySlide has always written
+    classes = None if is_grandqc else getattr(model, "classes", None)
 
     runner = SemanticSegmentationRunner(
         wsi=wsi,
@@ -167,7 +169,7 @@ def artifact(
         low_memory=low_memory,
         threshold=threshold,
         buffer_px=buffer_px,
-        class_names=CLASS_MAPPING,
+        class_names=classes or CLASS_MAPPING,
         pbar=pbar,
     )
     arts = runner.run()

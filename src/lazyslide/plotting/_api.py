@@ -36,7 +36,7 @@ def tissue(
         The whole-slide image object.
     tissue_id : int or 'all', default: None
         The tissue id (piece) to extract.
-    tissue_key : str, default: "tissue"
+    tissue_key : str, default: "tissues"
         The tissue key.
     title : str or array of str, default: None
         The title of the plot.
@@ -66,7 +66,21 @@ def tissue(
         Override the figure DPI when sizing the image. Set to the export DPI
         (e.g. ``target_dpi=300`` for ``savefig(dpi=300)``) for high-DPI output.
     ax : matplotlib.axes.Axes, default: None
-        The axes to plot on.
+        The axes to plot on. Only used when plotting a single tissue.
+    ncols : int, default: 4
+        The number of columns of the grid when plotting several tissues.
+    wspace : float, default: 0.5
+        The width spacing between the subplots of the grid.
+    hspace : float, default: 0.5
+        The height spacing between the subplots of the grid.
+    return_figure : bool, default: False
+        Return the figure of the grid when plotting several tissues.
+
+    Returns
+    -------
+    None or matplotlib.figure.Figure
+        The figure if several tissues are plotted and ``return_figure`` is True,
+        otherwise None.
 
     Examples
     --------
@@ -208,8 +222,8 @@ def tiles(
     tissue_id : int or 'all', default: None
         The tissue id (piece) to plot.
         If None, all will be plotted.
-    tissue_key : str, default: "tissue"
-        The tissue key.
+    tissue_key : str, default: None
+        The tissue key. If None, uses the tissue the tiles were made from.
     tile_key : str, default: "tiles"
         The key of the tiles in the :bdg-danger:`shapes` slot.
     title : str, default: None
@@ -224,6 +238,11 @@ def tiles(
         Show the origin.
     scalebar : bool, default: True
         Show the scalebar.
+    in_bounds : bool, default: True
+        Show the tiles in bounds.
+    img_bytes_limit : int, default: 2e9
+        A safety ceiling on the bytes of the image to read. The level is
+        primarily chosen from the displayed size (see ``display_aware``).
     zoom : (xmin, xmax, ymin, ymax), default: None
         A zoom view for the current viewport.
         If in range [0, 1], will be interpreted as a fraction of the image size.
@@ -258,6 +277,12 @@ def tiles(
         The axes to plot on.
     rasterized : bool, default: True
         Rasterize the points.
+    ncols : int, default: 4
+        The number of columns of the grid when plotting several tissues.
+    wspace : float, default: 0.5
+        The width spacing between the subplots of the grid.
+    hspace : float, default: 0.5
+        The height spacing between the subplots of the grid.
     display_aware : bool, default: True
         Choose the image pyramid level from the displayed figure size at render
         time, avoiding reading a high-resolution image into a small figure.
@@ -453,7 +478,7 @@ def annotations(
     target_dpi : float, optional
         Override the figure DPI when sizing the image. Set to the export DPI
         (e.g. ``target_dpi=300`` for ``savefig(dpi=300)``) for high-DPI output.
-    tissue_key : str, default: "tissue"
+    tissue_key : str, default: "tissues"
         The key for tissue segmentation.
     tissue_id : int or 'all', optional
         The tissue id(s) to display annotations for.
@@ -465,7 +490,7 @@ def annotations(
         The line width of the annotation polygons.
     palette : str, optional
         The color palette to use.
-    alpha : float, default: 0.5
+    alpha : float, default: 0.9
         The transparency of the annotation polygons.
     legend_kws : dict, optional
         Additional keyword arguments for the legend.
@@ -487,8 +512,7 @@ def annotations(
 
     Returns
     -------
-    None or matplotlib.figure.Figure
-        The figure if multiple axes are created and return_figure is True, otherwise None.
+    None
 
     Examples
     --------

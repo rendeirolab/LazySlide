@@ -11,6 +11,7 @@ from lazyslide import _api
 
 if TYPE_CHECKING:
     import torch
+    from lazyslide_models import ModelBaseProtocol
 
 
 def _preprocess_prompts(prompts: list[str | list[str]]) -> list[list[str]]:
@@ -60,7 +61,7 @@ def zero_shot_score(
     *,
     agg_key: str | None = None,
     agg_by: str | Sequence[str] | None = None,
-    model: str = "prism",
+    model: str | ModelBaseProtocol = "prism",
     device: str | None = None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype | None = None,
@@ -70,9 +71,9 @@ def zero_shot_score(
     """
     Perform :term:`zero-shot learning` classification on the :term:`WSI`
 
-    Supported models:
-    - prism: `Prism model <https://huggingface.co/paige-ai/Prism>`_.
-    - titan: `Titan model <https://huggingface.co/MahmoodLab/TITAN>`_.
+    Any slide-level model that scores slide features against text works, for
+    example "prism" (`Prism <https://huggingface.co/paige-ai/Prism>`_) or
+    "titan" (`TITAN <https://huggingface.co/MahmoodLab/TITAN>`_).
 
     Corresponding slide-level features are required for the model.
 
@@ -90,8 +91,9 @@ def zero_shot_score(
         The aggregation key.
     agg_by : str or list of str, default: None
         The aggregation keys that were used to create the slide features.
-    model : {"prism", "titan"}, default: "prism"
-        The model to use for zero-shot classification.
+    model : str or ModelBaseProtocol, default: "prism"
+        The model to use for zero-shot classification: a model registry key (see
+        :ref:`models-section`) or a model instance with a ``score`` method.
     device : str, default: None
         The device to use for inference. If None, the default device will be used.
     amp : bool, optional
@@ -135,6 +137,10 @@ def zero_shot_score(
 
     if isinstance(model, str):
         model = MODEL_REGISTRY[model]()
+    if not hasattr(model, "score"):
+        raise TypeError(
+            f"{type(model).__name__} cannot score prompts: it has no `score` method."
+        )
     model.to(device)
     model = _api.maybe_compile(model, compile, compile_kws)
     # Get the embeddings from the WSI
@@ -172,7 +178,7 @@ def slide_caption(
     agg_key: str | None = None,
     agg_by: str | Sequence[str] | None = None,
     max_length: int = 100,
-    model: str = "prism",
+    model: str | ModelBaseProtocol = "prism",
     device: str | None = None,
     amp: bool | None = None,
     autocast_dtype: torch.dtype | None = None,
@@ -196,8 +202,9 @@ def slide_caption(
         The aggregation keys that were used to create the slide features.
     max_length : int, default: 100
         The maximum length of the generated caption.
-    model : {"prism"}, default: "prism"
-        The caption generation model to use.
+    model : str or ModelBaseProtocol, default: "prism"
+        The caption generation model to use: a model registry key (see
+        :ref:`models-section`) or a model instance with a ``caption`` method.
     device : str, default: None
         The device to use for inference. If None, the default device will be used.
     amp : bool, optional
@@ -220,12 +227,16 @@ def slide_caption(
     """
 
     import torch
+    from lazyslide_models import MODEL_REGISTRY
 
     device = _api.default_value("device", device)
 
-    from lazyslide_models.multimodal import Prism
-
-    model = Prism()
+    if isinstance(model, str):
+        model = MODEL_REGISTRY[model]()
+    if not hasattr(model, "caption"):
+        raise TypeError(
+            f"{type(model).__name__} cannot caption slides: it has no `caption` method."
+        )
     model.to(device)
     model = _api.maybe_compile(model, compile, compile_kws)
 

@@ -19,7 +19,7 @@ from lazyslide.preprocess._tiles import _add_tiles
 
 if TYPE_CHECKING:
     import torch
-    from lazyslide_models import DenseTokens, ImageModel
+    from lazyslide_models import DenseTokens, ImageModelProtocol
 
 
 def load_models(model_name: str, dense=False, model_path=None, token=None, **kwargs):
@@ -59,7 +59,7 @@ DEFAULT_POOL_MODE = {
 # TODO: Add color normalization
 def feature_extraction(
     wsi: WSIData,
-    model: str | Callable | ImageModel = None,
+    model: str | Callable | ImageModelProtocol = None,
     *,
     model_path: str | Path | None = None,
     model_name: str | None = None,
@@ -338,7 +338,7 @@ def feature_aggregation(
     wsi: WSIData,
     feature_key: str,
     layer_key: str | None = None,
-    encoder: str | Callable = "mean",
+    encoder: str = "mean",
     tile_key: str = Key.tiles,
     agg_by: str | Sequence[str] | None = None,
     agg_key: str | None = None,
@@ -365,15 +365,15 @@ def feature_aggregation(
         The key to indicate which feature to aggregate.
     layer_key : str, optional
         The key of the layer in the feature table.
-    encoder : str or callable, default: 'mean'
+    encoder : str, default: 'mean'
+        How to aggregate the tile features:
 
-        - Numpy functions: 'mean', 'median', 'sum', 'std', 'var', ...
-        - :code:`prism`: Prism slide encoder. The feature must be extracted by :code:`Virchow` model, from 224 px tiles at 0.5 mpp.
-        - :code:`titan`: Titan slide encoder. The feature must be extracted by :code:`Titan`/:code:`CONCH_v1.5` model.
-        - :code:`madeleine`: Madeleine slide encoder. The feature must be extracted by :code:`conch-madeleine`, from 256 px tiles at 1 mpp (10x).
-        - :code:`moozy`: MOOZY slide encoder. The feature must be extracted by :code:`lunit-dino-s8-moozy`.
-        - :code:`gigapath`: GigaPath slide encoder. The feature must be extracted by :code:`gigapath` model, from 256 px tiles at 0.5 mpp.
-        - :code:`chief`: Chief slide encoder. The feature must be extracted by :code:`CHIEF` model.
+        - A numpy reduction: 'mean', 'median', 'sum', 'std', 'var', ...
+        - A slide encoder registry key (see :ref:`models-section`), e.g. 'prism',
+          'titan' or 'madeleine'; 'chief' and 'gigapath' are short for their
+          slide encoders. The features must come from the encoder's paired tile
+          encoder (``vision_encoder`` on its model card, e.g. 'virchow' for
+          'prism'), at the tile size and mpp that encoder expects.
     tile_key : str, default: 'tiles'
         The key of the tiles dataframe in the spatial data object.
     agg_by : str or list of str, default: None
@@ -520,7 +520,7 @@ def _encode_slide(
     ----------
     features : numpy.ndarray
         Feature matrix with shape (n_tiles, n_features)
-    encoder : str or callable
+    encoder : str
         Encoding method to use
     coords : pandas.DataFrame, optional
         Tile coordinates with columns 'minx' and 'miny'

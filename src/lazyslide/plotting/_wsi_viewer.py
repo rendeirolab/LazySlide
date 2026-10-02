@@ -1102,6 +1102,14 @@ class WSIViewer:
             self._zoom_image_render_plan = None
 
     def add_image(self, in_zoom=True):
+        """Add the slide image to the plot.
+
+        Parameters
+        ----------
+        in_zoom : bool, default: True
+            Whether the image is also rendered in the zoom view.
+
+        """
         plan = SlideImageRenderPlan(self.image_source)
         plan.zoom_view_visible = in_zoom
         self._image_render_plan = plan
@@ -1173,6 +1181,11 @@ class WSIViewer:
             Units of the `fixed_value`.
         rotation : {'horizontal', 'vertical'}, float, optional
             The rotation of the scale bar.
+        in_zoom : bool, default: True
+            Whether the scale bar is also rendered in the zoom view.
+        cache : bool, default: True
+            Whether to cache the render plan. If False, it is dropped after the
+            next ``show``.
 
         """
 
@@ -1294,6 +1307,9 @@ class WSIViewer:
             Whether the contours are rendered in the zoom view.
         legend : bool, default: True
             Whether to show the legend.
+        cache : bool, default: True
+            Whether to cache the render plan. If False, it is dropped after the
+            next ``show``.
 
         """
         contours, labels, colors, palette = self._process_polygons(
@@ -1355,9 +1371,9 @@ class WSIViewer:
             You can use a dict where the keys are the unique values in the color column and the values are the colors.
             If a list, the colors will be assigned to the unique values in the color column.
             If a color, all the polygons will have the same color.
-        alpha : float, default: 0.3
+        alpha : float, default: 0.9
             The transparency of the polygons.
-        color : color, default: "#FFE31A"
+        color : color, default: "#D3F527"
             The default color of the polygons.
         linewidth : int, default: 1
             The width of the outline of the polygons.
@@ -1674,6 +1690,17 @@ class WSIViewer:
             The anchor point of the zoom window, relative to the main axes.
         size : tuple, default: (1, 1)
             The size of the zoom window, relative to the main axes.
+        edgecolor : color, default: "k"
+            The color of the box that marks the zoomed region.
+        alpha : float, default: 0.5
+            The transparency of that box.
+        axis : {"on", "off"}, default: "on"
+            Whether to draw the axes of the zoom window.
+        xaxis : {"top", "bottom"}, default: "top"
+            Where to put the x-axis of the zoom window.
+        cache : bool, default: True
+            Whether to keep the zoom window for later ``show`` calls. If False,
+            it is dropped after the next ``show``.
 
         """
         if not any([xmin, xmax, ymin, ymax]):

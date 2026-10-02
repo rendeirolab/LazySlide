@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 import cv2
 import geopandas as gpd
@@ -15,22 +16,27 @@ from lazyslide import _api
 from lazyslide._utils import default_pbar, deprecated_alias
 from lazyslide.cv import BinaryMask
 
+if TYPE_CHECKING:
+    from lazyslide_models import SegmentationModelProtocol
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
 
 def _initialize_model(
-    model_name: str, model_kwargs: dict | None = None, device: str | None = None
+    model: str | SegmentationModelProtocol,
+    model_kwargs: dict | None = None,
+    device: str | None = None,
 ) -> tuple[object, str]:
     """
     Initialize the segmentation model.
 
     Parameters
     ----------
-    model_name : str
-        The name of the model to use.
+    model : str or SegmentationModelProtocol
+        A model registry key or a model instance.
     model_kwargs : dict, optional
-        Additional keyword arguments for the model.
+        Additional keyword arguments for the model, when built from a key.
     device : str, optional
         The device to run the model on (e.g., 'cpu', 'cuda').
 
@@ -41,11 +47,14 @@ def _initialize_model(
     """
     from lazyslide_models import MODEL_REGISTRY
 
-    if model_name == "sam":
-        model_instance = MODEL_REGISTRY["sam"](**(model_kwargs or {}))
+    if isinstance(model, str):
+        model_instance = MODEL_REGISTRY[model](**(model_kwargs or {}))
     else:
-        raise ValueError(
-            f"Unsupported model: {model_name}. Currently only 'sam' is supported."
+        model_instance = model
+    if not hasattr(model_instance, "get_image_embedding"):
+        raise TypeError(
+            f"{type(model_instance).__name__} cannot segment from prompts: it has no "
+            "`get_image_embedding` method, as promptable models like SAM do."
         )
 
     device = _api.default_value("device", device)
@@ -249,7 +258,7 @@ def zero_shot(
     tile_key: str,
     tissue_key: str = "tissues",
     threshold: str | float | list[float] = "otsu",
-    model: str = "sam",
+    model: str | SegmentationModelProtocol = "sam",
     device: str | None = None,
     model_kwargs: dict | None = None,
     key_added: str = "zero_shot_segmentation",
@@ -278,12 +287,13 @@ def zero_shot(
         - 'otsu': Use Otsu's method to determine threshold
         - float: Use a fixed threshold value
         - list[float]: Use different threshold values for each prompt
-    model : str, default: "sam"
-        The model to use for segmentation.
+    model : str or SegmentationModelProtocol, default: "sam"
+        A promptable segmentation model, like SAM: a model registry key (see
+        :ref:`models-section`) or a model instance.
     device : str, optional
         The device to run the model on (e.g., 'cpu', 'cuda').
     model_kwargs : dict, optional
-        Additional keyword arguments for the model.
+        Additional keyword arguments for the model, when ``model`` is a key.
     key_added : str, default: "zero_shot_segmentation"
         The key to store the results in the WSIData object.
     min_area : float, default: 10

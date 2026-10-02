@@ -101,7 +101,7 @@ def tissue_input(monkeypatch):
     transform is ``seen["transform"]``, by default a per-pixel no-op.
     """
     import torch
-    from lazyslide_models import segmentation
+    from lazyslide_models import MODEL_REGISTRY, segmentation
     from lazyslide_models.base import SegmentationModel
     from torchvision.transforms.v2 import Compose, ToImage
 
@@ -122,12 +122,16 @@ def tissue_input(monkeypatch):
             # GrandQC reads tissue from channel 0, the others from channel 1
             return SegmentationOutput(probability_map=torch.cat([tissue, tissue], 1))
 
-    for name in (
-        "GrandQCTissue",
-        "PathProfilerTissueSegmentation",
-        "HESTTissueSegmentation",
+    for name, key in (
+        ("GrandQCTissue", "grandqc-tissue"),
+        ("PathProfilerTissueSegmentation", "pathprofiler"),
+        ("HESTTissueSegmentation", "hest-tissue-segmentation"),
     ):
-        monkeypatch.setattr(segmentation, name, Spy)
+        # One spy class per model: seg.tissue builds it from the registry and
+        # looks its input resolution up by class
+        spy = type(name, (Spy,), {})
+        monkeypatch.setattr(segmentation, name, spy)
+        monkeypatch.setitem(MODEL_REGISTRY, key, spy)
     return seen
 
 

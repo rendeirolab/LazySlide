@@ -28,18 +28,19 @@ def text_embedding(
     compile: bool | None = None,
     compile_kws: dict | None = None,
 ):
-    """Embed the text into a vector in the text-vision co-embedding using
-
-    - `PLIP <https://www.nature.com/articles/s41591-023-02504-3>`_
-    - `CONCH <https://www.nature.com/articles/s41591-024-02856-4>`_
-    - `OmiCLIP <https://www.nature.com/articles/s41592-025-02707-1>`_
+    """Embed the text into a vector in the text-vision co-embedding of a
+    :term:`multimodal model`, for example
+    `PLIP <https://www.nature.com/articles/s41591-023-02504-3>`_ (the default),
+    `CONCH <https://www.nature.com/articles/s41591-024-02856-4>`_ or
+    `OmiCLIP <https://www.nature.com/articles/s41592-025-02707-1>`_.
 
     Parameters
     ----------
     texts : List[str]
         The list of texts.
-    model : {"plip", "conch", "omiclip"}, default: "plip"
-        The text embedding :term:`multimodal model`
+    model : str or ImageTextModelProtocol, default: "plip"
+        The text embedding :term:`multimodal model`: a model registry key (see
+        :ref:`models-section`) or a model instance.
     amp : bool, optional
         Whether to use automatic mixed precision (AMP) for inference.
     autocast_dtype : torch.dtype, optional
@@ -123,7 +124,8 @@ def text_image_similarity(
     text_embeddings : :class:`DataFrame <pandas.DataFrame>`
         The embeddings of the texts, with texts as index.
     model : str, default: "plip"
-        The text embedding model.
+        The name of the model the image features were extracted with. Only used
+        to find them when ``feature_key`` is None.
     tile_key : str, default: 'tiles'
         The tile key.
     feature_key : str, default: None

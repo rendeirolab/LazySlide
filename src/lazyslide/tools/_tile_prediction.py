@@ -14,12 +14,10 @@ if TYPE_CHECKING:
     import torch
     from lazyslide_models import TilePredictionModelProtocol
 
-    TP_MODEL = str | TilePredictionModelProtocol
-
 
 def tile_prediction(
     wsi: WSIData,
-    model: TP_MODEL,
+    model: str | TilePredictionModelProtocol,
     transform=None,
     batch_size: int = 16,
     num_workers: int = 0,
@@ -49,8 +47,10 @@ def tile_prediction(
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object to work on.
-    model : str or TilePredictionModel
-        The tile prediction model to use. If a string, it should be the name of the model.
+    model : str or TilePredictionModelProtocol
+        The tile prediction model to use: a model registry key (see
+        :ref:`models-section`), including the CV features like "brightness",
+        or a model instance.
     transform : callable, optional
         A :term:`transform function` to apply to the tiles before prediction. If None, the model's default transform is used.
     batch_size : int, default: 16

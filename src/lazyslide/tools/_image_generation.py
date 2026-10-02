@@ -31,14 +31,16 @@ def image_generation(
     """
     Generation of :term:`tile` images unconditionally or conditionally.
 
-    Currently only supports cytosyn model, conditionally generation relied on H0-mini features.
+    Conditional generation (``prompt_tiles``) needs a model with
+    ``generate_conditionally``, like CytoSyn, and H0-mini features of the tiles.
 
     Parameters
     ----------
     wsi : :class:`WSIData <wsidata.WSIData>`
         The WSIData object to work on.
-    model : str, default: "cytosyn"
-        The image generation model.
+    model : str or ImageGenerationModelProtocol, default: "cytosyn"
+        The image generation model: a model registry key (see
+        :ref:`models-section`) or a model instance.
     prompt_tiles : slice, default: None
         The :term:`tiles <tile>` to generate images for, please use index to select tiles.
         If None, unconditional generation is performed.
@@ -83,14 +85,11 @@ def image_generation(
 
     """
     import torch
-    from lazyslide_models import MODEL_REGISTRY, ImageGenerationModelProtocol
+    from lazyslide_models import MODEL_REGISTRY
 
     device = _api.default_value("device", device)
 
-    if isinstance(model, ImageGenerationModelProtocol):
-        raise NotImplementedError("Currently only supports cytosyn model.")
-
-    generation_model: ImageGenerationModelProtocol = MODEL_REGISTRY[model]()
+    generation_model = MODEL_REGISTRY[model]() if isinstance(model, str) else model
     with suppress(Exception):
         generation_model.to(device)
     generation_model = _api.maybe_compile(generation_model, compile, compile_kws)
