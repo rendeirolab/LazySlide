@@ -149,6 +149,17 @@ class TestPlTiles:
 
         plt.close(fig)
 
+    def test_title_string(self, wsi):
+        """Regression: a str title was split into characters, showing its first."""
+        if "tissues" not in wsi.shapes:
+            zs.pp.find_tissues(wsi)
+        if "tiles" not in wsi.shapes:
+            zs.pp.tile_tissues(wsi, 256)
+        fig, ax = plt.subplots()
+        zs.pl.tiles(wsi, title="My title", ax=ax)
+        assert ax.get_title() == "My title"
+        plt.close(fig)
+
     @pytest.mark.parametrize("style", ["scatter", "heatmap"])
     def test_style(self, wsi, style):
         """Test different style values."""
@@ -457,3 +468,72 @@ class TestHeatmapGrid:
             1, 256, ds._render_tiles.shape
         )
         assert len(list(ds.grid_layouts())) == 1
+
+
+class TestDatashaderBackend:
+    """Choosing and drawing the datashader base view of WSIViewer.add_polygons."""
+
+    def test_plan_honours_alpha(self):
+        """Regression: the plan accepted alpha but always drew opaque, and
+        overlapping polygons stayed opaque once alpha was honoured."""
+        pytest.importorskip("datashader")
+        import geopandas as gpd
+        import shapely
+
+        from lazyslide.plotting._wsi_viewer import DatashaderFilledPolygonRenderPlan
+
+        class Image:
+            def get_extent(self):
+                return (0, 100, 100, 0)
+
+            def get_image_size(self):
+                return (100, 100)
+
+        gdf = gpd.GeoDataFrame(
+            {
+                "geometry": [shapely.box(10, 10, 50, 50), shapely.box(30, 30, 70, 70)],
+                "c": ["a", "a"],
+            }
+        )
+        fig, ax = plt.subplots()
+        DatashaderFilledPolygonRenderPlan(
+            gdf, Image(), color_by="c", palette={"a": "#ff0000"}, alpha=0.5
+        ).render(ax)
+        alpha = ax.images[0].get_array()[..., 3]
+        assert set(alpha[alpha > 0].tolist()) == {128}
+        plt.close(fig)
+
+    def test_missing_datashader_falls_back(self, wsi_no_spec, monkeypatch):
+        """Regression: the fallback still imported datashader and crashed."""
+        import sys
+
+        from lazyslide.plotting._wsi_viewer import DatashaderFilledPolygonRenderPlan
+
+        monkeypatch.setitem(sys.modules, "datashader", None)  # as if not installed
+        viewer = zs.pl.WSIViewer(wsi_no_spec)
+        with pytest.warns(UserWarning, match="not installed"):
+            viewer.add_polygons("no_spec_tiles", backend="datashader")
+        assert not any(
+            isinstance(p, DatashaderFilledPolygonRenderPlan)
+            for p in viewer._render_plans
+        )
+
+    def test_matplotlib_backend_wins_over_polygon_count(self, wsi_no_spec):
+        """Regression: backend="matplotlib" was ignored above 10,000 polygons."""
+        import geopandas as gpd
+        import numpy as np
+        import shapely
+        from wsidata.io import add_shapes
+
+        from lazyslide.plotting._wsi_viewer import DatashaderFilledPolygonRenderPlan
+
+        grid = np.arange(101) * 15 + 10
+        x, y = (a.ravel() for a in np.meshgrid(grid, grid))
+        boxes = gpd.GeoDataFrame({"geometry": shapely.box(x, y, x + 10, y + 10)})
+        add_shapes(wsi_no_spec, "many_polygons", boxes)
+        viewer = zs.pl.WSIViewer(wsi_no_spec)
+        viewer.add_polygons("many_polygons", backend="matplotlib")
+        assert not any(
+            isinstance(p, DatashaderFilledPolygonRenderPlan)
+            for p in viewer._render_plans
+        )

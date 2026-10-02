@@ -67,6 +67,36 @@ class TestFeatureExtractionWithoutTileSpec:
         assert feat.X.shape[0] == 5
         assert feat.X.shape[1] == 3
 
+    def test_model_name_overrides_protocol_name(self, wsi_no_spec):
+        """Regression: model_name was overwritten by the model's own name."""
+        from .mock_models import MockImageTextModel
+
+        zs.tl.feature_extraction(
+            wsi_no_spec,
+            MockImageTextModel(),
+            tile_key="no_spec_tiles",
+            model_name="renamed",
+        )
+        assert "renamed_no_spec_tiles" in wsi_no_spec.tables
+
+    def test_function_model_keyed_by_function_name(self, wsi_no_spec):
+        """Regression: a plain function model was stored under "function"."""
+
+        def mean_pool_fn(x):
+            return x.mean(dim=(2, 3))
+
+        transform = Compose(
+            [
+                ToImage(),
+                ToDtype(dtype=torch.float32, scale=True),
+                Resize((224, 224), antialias=False),
+            ]
+        )
+        zs.tl.feature_extraction(
+            wsi_no_spec, mean_pool_fn, tile_key="no_spec_tiles", transform=transform
+        )
+        assert "mean_pool_fn_no_spec_tiles" in wsi_no_spec.tables
+
 
 COORDS = pd.DataFrame({"minx": [0, 224, 448], "miny": [0, 0, 0]})
 

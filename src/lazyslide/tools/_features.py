@@ -211,7 +211,8 @@ def feature_extraction(
             if model_name is None:
                 model_name = default_model_name
         elif isinstance(model, ImageModelProtocol):
-            model_name = model.name
+            if model_name is None:
+                model_name = model.name
         elif isinstance(model, Callable):
             # Callable models are used as given; nothing to derive here.
             pass
@@ -233,12 +234,11 @@ def feature_extraction(
             key_added = model_name
         elif isinstance(model, ImageModelProtocol):
             key_added = model.name
-        elif hasattr(model, "__class__"):
-            key_added = model.__class__.__name__
         elif hasattr(model, "__name__"):
+            # A function: name it after itself, not "function"
             key_added = model.__name__
         else:
-            key_added = "features"
+            key_added = model.__class__.__name__
         key_added = Key.feature(key_added, tile_key)
     with suppress(Exception):
         model.to(device)

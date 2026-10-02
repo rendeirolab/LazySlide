@@ -226,7 +226,7 @@ def tiles(
         The tissue key. If None, uses the tissue the tiles were made from.
     tile_key : str, default: "tiles"
         The key of the tiles in the :bdg-danger:`shapes` slot.
-    title : str, default: None
+    title : str or array of str, default: None
         The title of the plot.
     style : {"heatmap", "scatter"}, default: "heatmap"
         The style of the plot.
@@ -349,6 +349,8 @@ def tiles(
     # Prepare title
     if title is None:
         titles = [""] * n_axes
+    elif isinstance(title, str):
+        titles = [title] * n_axes
     else:
         titles = list(title)
 
@@ -506,9 +508,9 @@ def annotations(
         Height space between subplots.
     ax : matplotlib.axes.Axes, optional
         The axes to plot on.
-    backend : str, {'matplotlib', 'datashader'}
-        The backend to use for plotting. Will automatically use datashader when
-        there are too many polygons.
+    backend : {'matplotlib', 'datashader'}, optional
+        The backend to use for plotting. If None, datashader is used when there
+        are more than 10,000 polygons.
 
     Returns
     -------

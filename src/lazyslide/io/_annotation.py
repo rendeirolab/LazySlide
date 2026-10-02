@@ -160,7 +160,7 @@ def _in_bounds_transform(wsi: WSIData, annos: GeoDataFrame, reverse: bool = Fals
 
 def load_annotations(
     wsi: WSIData,
-    annotations: str | Path | GeoDataFrame = None,
+    annotations: str | Path | GeoDataFrame,
     *,
     explode: bool = True,
     in_bounds: bool = False,
@@ -186,7 +186,9 @@ def load_annotations(
     join_with : str or list of str, default: 'tissues'
         The key to join the annotations with.
     join_to : str, default: None
-        The key to join the annotations to.
+        The key of the shapes (e.g. tiles) that receive the annotation columns.
+        A shape that intersects several annotations takes the first one in row
+        order; the shapes' geometry and order are never changed.
     json_flatten : str, default: "classification"
         The column(s) to flatten the json data, if not exist, it will be ignored.
         "classification" is the default column for the QuPath annotations.
@@ -205,7 +207,8 @@ def load_annotations(
         else:
             anno_df = gpd.read_file(geo_path)
     elif isinstance(annotations, GeoDataFrame):
-        anno_df = annotations
+        # Work on a copy: the CRS and column edits below must not reach the caller
+        anno_df = annotations.copy()
     else:
         # TRY004 suggests TypeError, but ValueError is the documented
         # behaviour here and tests/test_io.py asserts on it.
@@ -261,18 +264,21 @@ def load_annotations(
             )
     add_shapes(wsi, key_added, join_anno_df)
 
-    # TODO: still Buggy
     if join_to is not None and join_to in wsi:
         shapes_df = wsi[join_to]
-        # join the annotations with the tiles
-        shapes_df = (
-            gpd.sjoin(
-                shapes_df[["geometry"]], anno_df, how="left", predicate="intersects"
-            )
-            .reset_index(drop=True)
-            .drop(columns=["index_right"], errors="ignore")
+        # A destination shape can intersect several annotations. Keep the
+        # destination index and let the first annotation (by row order) win, so
+        # rows stay aligned and the destination geometry is never written back.
+        joined = gpd.sjoin(
+            shapes_df[["geometry"]],
+            anno_df.reset_index(drop=True),
+            how="left",
+            predicate="intersects",
+        ).sort_values("index_right")
+        joined = joined[~joined.index.duplicated()].drop(
+            columns=["geometry", "index_right"]
         )
-        update_shapes_data(wsi, join_to, shapes_df)
+        update_shapes_data(wsi, join_to, joined)
 
 
 def export_annotations(

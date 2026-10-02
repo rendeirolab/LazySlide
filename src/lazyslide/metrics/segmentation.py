@@ -133,8 +133,8 @@ def get_semantic_stats(
     """
     tp = fp = fn = tn = 0
 
-    gt_c = gdf_true.unary_union
-    pr_c = gdf_pred.unary_union
+    gt_c = gdf_true.union_all()
+    pr_c = gdf_pred.union_all()
 
     inter = gt_c.intersection(pr_c).area
 

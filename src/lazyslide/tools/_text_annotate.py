@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
@@ -11,7 +10,6 @@ from wsidata.io import add_features
 
 from lazyslide import _api
 from lazyslide._const import Key
-from lazyslide._utils import find_stack_level
 
 if TYPE_CHECKING:
     import torch
@@ -176,13 +174,6 @@ def text_image_similarity(
 
     feature_X = wsi.tables[feature_key].X
     if normalize:
-        msg = (
-            "As of v0.8.2, the image embedding from image text model is not normalized "
-            "after feature extraction by default. The normalization is applied here (text_image_similarity),"
-            "if your features are extracted in previous versions, consider setting normalize=False."
-        )
-        warnings.warn(msg, stacklevel=find_stack_level())
-        warnings.filterwarnings("once", message=msg)  # only show once
         # Use default parameters from torch.nn.functional.normalize
         eps = 1e-12
         norm = np.linalg.norm(feature_X, ord=2, axis=1, keepdims=True)

@@ -35,7 +35,7 @@ zs.io.load_annotations(
 )
 ```
 
-Inspect the resulting columns to confirm the spatial relationship matches the intended labeling rule. Boundary tiles may intersect more than one annotation.
+`join_to` copies the annotation columns onto the destination shapes (here, the tiles) without changing their geometry or order. A tile that intersects more than one annotation, such as a boundary tile, takes the columns of the first annotation in row order; tiles that intersect none get missing values. Inspect the resulting columns to confirm this matches the intended labeling rule.
 
 ## How do I analyze only annotated regions?
 

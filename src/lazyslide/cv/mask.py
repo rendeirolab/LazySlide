@@ -92,36 +92,30 @@ class Mask(ABC):
         """
         if bounding_box is None:
             bounding_box = polygons.total_bounds
+        minx, miny, maxx, maxy = bounding_box
         if class_col is not None:
-            classes = polygons[class_col].unique()
             if classes_order is None:
-                classes_order = sorted(classes)
+                classes_order = sorted(polygons[class_col].unique())
             classes_ix = {c: i for i, c in enumerate(classes_order)}
-            n_classes = len(classes)
+            n_classes = len(classes_order)
         else:
             n_classes = 1
         # Create an empty mask
-        mask_shape = (
-            n_classes,
-            int(bounding_box[3] - bounding_box[1]),
-            int(bounding_box[2] - bounding_box[0]),
-        )
+        mask_shape = (n_classes, int(maxy - miny), int(maxx - minx))
         mask = np.zeros(mask_shape, dtype=np.uint8)
 
-        for _, row in polygons.iterrows():
-            poly = row["geometry"]
-            if class_col is not None:
-                class_name = row[class_col]
-                class_index = classes_ix[class_name]
-                # Create a mask for the polygon
-                poly_mask = np.zeros(mask_shape[1:], dtype=np.uint8)
-                cv2.fillPoly(
-                    poly_mask, [np.array(poly.exterior.coords).astype(np.int32)], 1
-                )
-            if poly.interiors:
-                for hole in poly.interiors:
-                    cv2.fillPoly(poly_mask, [np.array(hole.coords).astype(np.int32)], 0)
-            mask[class_index] += poly_mask
+        # explode() so that every MultiPolygon part is drawn on its own
+        for _, row in polygons.explode().iterrows():
+            # Draw in mask coordinates, which start at the bounding box origin
+            poly = translate(row["geometry"], -minx, -miny)
+            class_index = classes_ix[row[class_col]] if class_col is not None else 0
+            poly_mask = np.zeros(mask_shape[1:], dtype=np.uint8)
+            cv2.fillPoly(
+                poly_mask, [np.asarray(poly.exterior.coords, dtype=np.int32)], 1
+            )
+            for hole in poly.interiors:
+                cv2.fillPoly(poly_mask, [np.asarray(hole.coords, dtype=np.int32)], 0)
+            mask[class_index] |= poly_mask
         if n_classes == 1:
             mask = mask.squeeze(0)  # Remove the class dimension if only one class
             return BinaryMask(mask)
@@ -175,7 +169,7 @@ class Mask(ABC):
             An instance of the specified format.
         """
         if isinstance(T, Mask):
-            T = T.__class__.__name__.lower().strip("mask")
+            T = T.__class__.__name__.lower().removesuffix("mask").removesuffix("map")
         if isinstance(T, str):
             if T == "binary":
                 return self.to_binary_mask()
@@ -354,8 +348,8 @@ class MulticlassMask(Mask):
         ax = ax or plt.gca()
         sm = ax.imshow(self.mask, **kwargs)
         # Add legend if class names are provided
-        if self.class_name is not None:
-            labels = [self.class_name.get(c, str(c)) for c in self.classes]
+        if self.class_names is not None:
+            labels = [self.class_names.get(c, str(c)) for c in self.classes]
             colors = [sm.cmap(sm.norm(c)) for c in self.classes]
             cat_legend(labels=labels, colors=colors, ax=ax, loc="out right center")
         ax.set_title("Multiclass Mask")

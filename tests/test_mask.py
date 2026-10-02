@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 from shapely import box
 from shapely.errors import GEOSException
-from shapely.geometry import Polygon
+from shapely.geometry import MultiPolygon, Polygon
 
 from lazyslide.cv.mask import (
     BinaryMask,
@@ -75,8 +75,45 @@ class TestMaskBase:
         assert isinstance(multilabel, MultilabelMask)
         assert multilabel.mask.shape == (3, H, W)  # 3 classes
 
-        # Note: We're not testing the binary mask case (without class_col)
-        # because there's a bug in the implementation that needs to be fixed
+    def test_from_polygons_without_class_col(self):
+        """Regression: without class_col this raised UnboundLocalError."""
+        gdf = gpd.GeoDataFrame({"geometry": [box(10, 10, 30, 30), box(50, 50, 70, 70)]})
+        m = Mask.from_polygons(gdf, bounding_box=[0, 0, W, H])
+        assert isinstance(m, BinaryMask)
+        assert m.mask[20, 20] == 1 and m.mask[60, 60] == 1 and m.mask[0, 0] == 0
+
+    def test_from_polygons_multipolygon(self):
+        """Regression: a MultiPolygon raised AttributeError."""
+        parts = MultiPolygon([box(10, 10, 30, 30), box(50, 50, 70, 70)])
+        gdf = gpd.GeoDataFrame({"geometry": [parts], "class": ["a"]})
+        m = Mask.from_polygons(gdf, class_col="class", bounding_box=[0, 0, W, H])
+        assert m.mask[20, 20] == 1 and m.mask[60, 60] == 1
+
+    def test_from_polygons_away_from_origin(self):
+        """Regression: polygons were drawn at absolute coordinates, so a mask
+        sized to their default bounding box came out empty."""
+        gdf = gpd.GeoDataFrame({"geometry": [box(110, 110, 130, 130)]})
+        m = Mask.from_polygons(gdf)
+        assert m.mask.shape == (20, 20)
+        assert m.mask.all()
+
+    def test_from_polygons_classes_order(self):
+        """A classes_order that names more classes than are drawn sizes the mask."""
+        gdf = gpd.GeoDataFrame({"geometry": [box(10, 10, 30, 30)], "class": ["b"]})
+        m = Mask.from_polygons(
+            gdf, class_col="class", bounding_box=[0, 0, W, H], classes_order=["a", "b"]
+        )
+        assert m.mask.shape == (2, H, W)
+        assert m.mask[1, 20, 20] == 1 and m.mask[0].sum() == 0
+
+    def test_to_accepts_mask_instance(self):
+        """Regression: .strip("mask") turned "multiclassmask" into "ulticl"."""
+        for m in (
+            BinaryMask(binary_mask),
+            MulticlassMask(multiclass_mask),
+            MultilabelMask(multilabel_mask),
+        ):
+            assert np.array_equal(m.to(m), m.mask)
 
 
 class TestBinaryMask:
@@ -143,6 +180,19 @@ class TestBinaryMask:
 
 class TestMulticlassMask:
     """Tests for the MulticlassMask class."""
+
+    @pytest.mark.parametrize("class_names", [None, ["bg", "a", "b"]])
+    def test_plot(self, class_names):
+        """Regression: plot read the non-existent `class_name` attribute."""
+        import matplotlib as mpl
+
+        mpl.use("Agg")
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots()
+        MulticlassMask(multiclass_mask, class_names=class_names).plot(ax=ax)
+        assert ax.get_title() == "Multiclass Mask"
+        plt.close(fig)
 
     def test_init(self):
         """Test initialization of MulticlassMask."""
