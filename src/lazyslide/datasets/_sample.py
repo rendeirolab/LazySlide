@@ -1,10 +1,11 @@
 import os
+import warnings
 from pathlib import Path
 
 from huggingface_hub import HfApi, hf_hub_download
 from wsidata import open_wsi
 
-from lazyslide._utils import warn_deprecated
+from lazyslide._utils import find_stack_level, warn_deprecated
 
 _OFFLINE_ENV_VARS = ("HF_HUB_OFFLINE", "HF_DATASETS_OFFLINE", "TRANSFORMERS_OFFLINE")
 _TRUE_VALUES = {"1", "ON", "TRUE", "YES"}
@@ -64,8 +65,12 @@ def _load_dataset(slide_file, zarr_file, with_data=True, pbar=None):
     slide = _download_dataset_file(REPO_ID, slide_file, revision=revision)
     slide_zarr = None
     if with_data:
-        slide_zarr_zip = _download_dataset_file(REPO_ID, zarr_file, revision=revision)
-        slide_zarr = Path(slide_zarr_zip.replace(".zip", ""))
+        slide_zarr_zip = Path(
+            _download_dataset_file(REPO_ID, zarr_file, revision=revision)
+        )
+        # Not <stem>.zarr next to the slide: open_wsi(slide) attaches that store by
+        # default, and a write() or rmtree of it would change the dataset
+        slide_zarr = slide_zarr_zip.parent / "precomputed" / slide_zarr_zip.stem
         # Unzip the zarr file if it is a zip file
         # But only if it is not already unzipped
         if not slide_zarr.exists():
@@ -73,6 +78,15 @@ def _load_dataset(slide_file, zarr_file, with_data=True, pbar=None):
 
             with ZipFile(slide_zarr_zip, "r") as zip_ref:
                 zip_ref.extractall(slide_zarr.parent)
+            old_zarr = slide_zarr_zip.with_suffix("")
+            if old_zarr.exists():
+                warnings.warn(
+                    f"The store of this dataset is now extracted to {slide_zarr}. "
+                    f"{old_zarr}, where earlier versions of LazySlide extracted it, "
+                    "is left as it is, and open_wsi() of the slide attaches it by "
+                    "default. Delete it if it holds nothing you need.",
+                    stacklevel=find_stack_level(),
+                )
     return open_wsi(slide, store=str(slide_zarr) if with_data else None)
 
 
