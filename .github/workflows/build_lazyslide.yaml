@@ -12,20 +12,39 @@ on:
       - 'tests/**'
       - 'pyproject.toml'
       - 'uv.lock'
+  # Every PR, with no paths filter: a PR this workflow skips never reports the
+  # ci-passed check that main's ruleset requires, and could not merge. The
+  # changes job skips the tests instead.
   pull_request:
-    paths:
-      - '.github/workflows/build_lazyslide.yaml'
-      - 'src/lazyslide/**'
-      - 'tests/**'
-      - 'pyproject.toml'
-      - 'uv.lock'
 
 jobs:
+  # Whether a PR changes the paths above. On a PR, HEAD is the merge commit and
+  # HEAD^ the base branch; pushes were filtered by the paths already.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+      - id: diff
+        run: |
+          code=true
+          if [ "${{ github.event_name }}" = pull_request ] && ! git diff --name-only HEAD^ HEAD |
+              grep -qxE '\.github/workflows/build_lazyslide\.yaml|src/lazyslide/.+|tests/.+|pyproject\.toml|uv\.lock'; then
+            code=false
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
   # Resolve the dataset repo's current commit SHA ONCE, so the cache key tracks
   # actual dataset state: SHA changes -> cache miss -> re-download; unchanged -> hit.
   # This is the "did the dataset change?" check, done in a single light API call
   # instead of by every matrix job. Falls back to "none" with no token (fork PRs).
+  # Skipping it skips the jobs that need it, so a docs-only PR runs no tests.
   resolve-dataset-sha:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.sha.outputs.sha }}
@@ -139,6 +158,17 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  # The one check of this workflow that main's ruleset requires, so auto-merge
+  # waits for CI. It needs every job above: a job skipped because the one it
+  # needs failed would count as passed.
+  ci-passed:
+    if: always()
+    needs: [changes, resolve-dataset-sha, prime-datasets, test]
+    runs-on: ubuntu-latest
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
 
   publish-test-pypi:
     runs-on: ubuntu-latest
