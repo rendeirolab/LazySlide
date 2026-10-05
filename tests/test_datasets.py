@@ -1,6 +1,7 @@
 import os
 import re
 import shutil
+from zipfile import ZipFile
 
 import geopandas as gpd
 import numpy as np
@@ -79,3 +80,35 @@ def test_dataset_store_extracted_next_to_slide_is_kept(fake_hub):
 
     assert "tissues" in wsi.shapes
     assert (old_store / "user-data").exists()
+
+
+def test_interrupted_extraction_leaves_no_partial_store(fake_hub, monkeypatch):
+    def extract_half_then_fail(self, path=None, members=None, pwd=None):
+        names = self.namelist()
+        for name in names[: len(names) // 2]:
+            self.extract(name, path, pwd)
+        raise OSError("No space left on device")
+
+    with monkeypatch.context() as m:
+        m.setattr(ZipFile, "extractall", extract_half_then_fail)
+        with pytest.raises(OSError, match="No space left"):
+            _sample._load_dataset("fake.tiff", "fake.zarr.zip")
+
+    wsi = _sample._load_dataset("fake.tiff", "fake.zarr.zip")
+    assert "tissues" in wsi.shapes
+
+
+def test_dataset_store_moved_in_by_another_load_meanwhile(fake_hub, monkeypatch):
+    extractall = ZipFile.extractall
+    other_load = []
+
+    def another_load_finishes_first(self, *args, **kwargs):
+        monkeypatch.setattr(ZipFile, "extractall", extractall)
+        other_load.append(_sample._load_dataset("fake.tiff", "fake.zarr.zip"))
+        extractall(self, *args, **kwargs)
+
+    monkeypatch.setattr(ZipFile, "extractall", another_load_finishes_first)
+    wsi = _sample._load_dataset("fake.tiff", "fake.zarr.zip")
+
+    assert "tissues" in other_load[0].shapes
+    assert "tissues" in wsi.shapes

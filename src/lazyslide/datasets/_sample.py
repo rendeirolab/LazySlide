@@ -74,10 +74,23 @@ def _load_dataset(slide_file, zarr_file, with_data=True, pbar=None):
         # Unzip the zarr file if it is a zip file
         # But only if it is not already unzipped
         if not slide_zarr.exists():
+            from tempfile import TemporaryDirectory
             from zipfile import ZipFile
 
-            with ZipFile(slide_zarr_zip, "r") as zip_ref:
-                zip_ref.extractall(slide_zarr.parent)
+            slide_zarr.parent.mkdir(exist_ok=True)
+            # Extract elsewhere and move the store in at once: an interrupted
+            # extraction leaves no partial store, and no other process opens one.
+            # tmpXXXXXXXX in the snapshot is as long as precomputed, so no path
+            # gets longer than the store's own (Windows MAX_PATH)
+            with TemporaryDirectory(dir=slide_zarr_zip.parent) as tmp:
+                with ZipFile(slide_zarr_zip, "r") as zip_ref:
+                    zip_ref.extractall(tmp)
+                try:
+                    Path(tmp, slide_zarr.name).rename(slide_zarr)
+                except OSError:
+                    # Another process moved its store in first; use that one
+                    if not slide_zarr.exists():
+                        raise
             old_zarr = slide_zarr_zip.with_suffix("")
             if old_zarr.exists():
                 warnings.warn(
