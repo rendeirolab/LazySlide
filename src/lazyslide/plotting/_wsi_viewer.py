@@ -414,8 +414,10 @@ class HeatmapTilesRenderPlan(RenderPlan):
 
         # If is categorical
         if palette is not None:
-            # encode values into numerical and create a cmap from palette
-            values = pd.Categorical(values)
+            # encode values into numerical and create a cmap from palette.
+            # Drop unused categories: the palette only covers values present,
+            # and the norm autoscales to the codes present.
+            values = pd.Categorical(values).remove_unused_categories()
             cmap = ListedColormap([palette[c] for c in values.categories])
             values = values.codes
 
@@ -511,8 +513,10 @@ class ScatterTilesRenderPlan(RenderPlan):
 
         # If is categorical
         if palette is not None:
-            # encode values into numerical and create a cmap from palette
-            values = pd.Categorical(values)
+            # encode values into numerical and create a cmap from palette.
+            # Drop unused categories: the palette only covers values present,
+            # and the norm autoscales to the codes present.
+            values = pd.Categorical(values).remove_unused_categories()
             cmap = ListedColormap([palette[c] for c in values.categories])
             values = values.codes
 

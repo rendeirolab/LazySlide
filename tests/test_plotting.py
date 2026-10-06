@@ -219,6 +219,45 @@ class TestPlTiles:
 
         plt.close(fig)
 
+    @pytest.mark.parametrize("style", ["scatter", "heatmap"])
+    @pytest.mark.parametrize(
+        "palette", [{"stroma": "#0000ff"}, {"tumor": "#ff0000", "stroma": "#0000ff"}]
+    )
+    def test_unused_category(self, wsi, style, palette, monkeypatch):
+        """Regression: a category no tile has raised KeyError if the palette
+        lacked it, and otherwise painted the tiles in its color."""
+        import numpy as np
+        import pandas as pd
+        from matplotlib.colors import to_hex
+
+        if "tissues" not in wsi.shapes:
+            zs.pp.find_tissues(wsi)
+        if "tiles" not in wsi.shapes:
+            zs.pp.tile_tissues(wsi, 256)
+        tiles = wsi["tiles"]
+        labels = pd.Categorical(["stroma"] * len(tiles), categories=["tumor", "stroma"])
+        monkeypatch.setitem(tiles, "tissue_type", labels)
+
+        fig, ax = plt.subplots()
+        zs.pl.tiles(
+            wsi,
+            color="tissue_type",
+            style=style,
+            palette=palette,
+            show_image=False,
+            ax=ax,
+        )
+        if style == "scatter":
+            (dots,) = [c for c in ax.collections if c.get_array() is not None]
+            rgba = dots.to_rgba(dots.get_array())
+        else:
+            px = np.concatenate(
+                [np.asarray(im.get_array()).reshape(-1, 4) for im in ax.get_images()]
+            )
+            rgba = px[px[:, 3] > 0] / 255  # opaque cells are tiles
+        plt.close(fig)
+        assert {to_hex(c, keep_alpha=False) for c in rgba} == {"#0000ff"}
+
 
 class TestPlAnnotations:
     """Tests for zs.pl.annotations function."""
