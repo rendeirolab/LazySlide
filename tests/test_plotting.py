@@ -226,9 +226,7 @@ class TestPlTiles:
     def test_unused_category(self, wsi, style, palette, monkeypatch):
         """Regression: a category no tile has raised KeyError if the palette
         lacked it, and otherwise painted the tiles in its color."""
-        import numpy as np
         import pandas as pd
-        from matplotlib.colors import to_hex
 
         if "tissues" not in wsi.shapes:
             zs.pp.find_tissues(wsi)
@@ -247,16 +245,59 @@ class TestPlTiles:
             show_image=False,
             ax=ax,
         )
+        drawn = self._tile_colors(ax, style)
+        plt.close(fig)
+        assert drawn == {"#0000ff": len(tiles)}
+
+    @staticmethod
+    def _tile_colors(ax, style):
+        """Count the tiles drawn in each color; transparent ones are not drawn."""
+        from collections import Counter
+
+        import numpy as np
+        from matplotlib.colors import to_hex
+
         if style == "scatter":
             (dots,) = [c for c in ax.collections if c.get_array() is not None]
             rgba = dots.to_rgba(dots.get_array())
         else:
-            px = np.concatenate(
-                [np.asarray(im.get_array()).reshape(-1, 4) for im in ax.get_images()]
-            )
-            rgba = px[px[:, 3] > 0] / 255  # opaque cells are tiles
+            px = [np.asarray(im.get_array()).reshape(-1, 4) for im in ax.get_images()]
+            rgba = np.concatenate(px) / 255  # one cell per tile
+        return Counter(to_hex(c, keep_alpha=False) for c in rgba[rgba[:, 3] > 0])
+
+    @pytest.mark.parametrize("style", ["scatter", "heatmap"])
+    def test_missing_labels(self, wsi, style, monkeypatch):
+        """Regression: unlabeled tiles were drawn, shifted the other tiles'
+        colors and took a palette color, and an unlabeled first tile made the
+        labels look numeric."""
+        import numpy as np
+        import pandas as pd
+
+        if "tissues" not in wsi.shapes:
+            zs.pp.find_tissues(wsi)
+        if "tiles" not in wsi.shapes:
+            zs.pp.tile_tissues(wsi, 256)
+        tiles = wsi["tiles"]
+        labels = np.resize([None, "tumor", "stroma", "stroma"], len(tiles))
+        monkeypatch.setitem(
+            tiles, "tissue_type", pd.Categorical(labels, categories=["tumor", "stroma"])
+        )
+
+        fig, ax = plt.subplots()
+        zs.pl.tiles(
+            wsi,
+            color="tissue_type",
+            style=style,
+            palette=["#ff0000", "#0000ff"],
+            show_image=False,
+            ax=ax,
+        )
+        drawn = self._tile_colors(ax, style)
         plt.close(fig)
-        assert {to_hex(c, keep_alpha=False) for c in rgba} == {"#0000ff"}
+        assert drawn == {
+            "#ff0000": (labels == "tumor").sum(),
+            "#0000ff": (labels == "stroma").sum(),
+        }
 
 
 class TestPlAnnotations:

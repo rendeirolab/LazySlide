@@ -419,7 +419,8 @@ class HeatmapTilesRenderPlan(RenderPlan):
             # and the norm autoscales to the codes present.
             values = pd.Categorical(values).remove_unused_categories()
             cmap = ListedColormap([palette[c] for c in values.categories])
-            values = values.codes
+            # Unlabeled tiles (code -1) become NaN: not drawn, ignored by the norm
+            values = np.where(values.codes < 0, np.nan, values.codes)
 
         self.datasource.set_data(values=values)
         self.palette = palette
@@ -518,7 +519,8 @@ class ScatterTilesRenderPlan(RenderPlan):
             # and the norm autoscales to the codes present.
             values = pd.Categorical(values).remove_unused_categories()
             cmap = ListedColormap([palette[c] for c in values.categories])
-            values = values.codes
+            # Unlabeled tiles (code -1) become NaN: not drawn, ignored by the norm
+            values = np.where(values.codes < 0, np.nan, values.codes)
 
         self.datasource.set_data(values=values)
         self.palette = palette
@@ -1521,15 +1523,15 @@ class WSIViewer:
             values = None
             title = None
 
-        # Decide the color palette of tiles
-        is_categorical = False
-        if values is not None and (
-            isinstance(values, pd.CategoricalDtype) or not isinstance(values[0], Number)
-        ):
-            is_categorical = True
+        # Decide the color palette of tiles. Judge by dtype: the first label
+        # may be missing, and categories may be numbers.
+        is_categorical = values is not None and not pd.api.types.is_numeric_dtype(
+            values
+        )
 
         if is_categorical:
-            cats = pd.unique(values)  # Set sorted=False to avoid NA in the data
+            # Unlabeled tiles are not drawn, so they take no color
+            cats = pd.unique(values[pd.notna(values)])
             palette = get_dict_palette(palette, cats)
         container = {
             "ds": self.tile_source[key],
